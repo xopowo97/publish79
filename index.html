@@ -44,7 +44,13 @@
 
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex flex-col shrink-0 p-5">
-        <div class="px-2 mb-8 font-black text-xl italic text-sky-400">출판친구</div>
+        <div class="px-2 mb-2 font-black text-xl italic text-sky-400">출판친구</div>
+        
+        <!-- DB 연결 상태 표시기 (사이드바 최상단으로 이동) -->
+        <div id="db-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700 text-[10px] font-black text-slate-400 mb-6">
+            <div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
+            <span class="status-text">ONLINE DB 연동 대기중</span>
+        </div>
         <nav class="flex-1 space-y-1 overflow-y-auto">
             <div class="sidebar-item active" id="btn-spec" onclick="showPage('spec')">
                 <i data-lucide="settings-2" class="w-4 h-4 mr-3"></i>제작 사양 관리
@@ -93,8 +99,6 @@
             <div class="flex items-center gap-4">
                 <div class="w-1.5 h-6 bg-sky-600 rounded-full"></div>
                 <h1 class="text-xl font-black text-slate-800 tracking-tight" id="main-title">제작 사양 관리</h1>
-                <!-- 권한 뱃지 영역 추가 -->
-                <div id="role-badge-container" class="ml-2"></div>
             </div>
 
             <div id="price-tools" class="hidden mb-4 flex items-center gap-4 bg-slate-50 p-2 rounded-xl border">
@@ -117,7 +121,9 @@
                 </button>
             </div>
 
-            <div id="role-badge-container" class="ml-2"></div>
+            <div class="flex items-center gap-3">
+                <div id="role-badge-container" class="flex items-center gap-2"></div>
+            </div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">

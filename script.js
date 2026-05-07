@@ -132,53 +132,130 @@ let MASTER = {
 // 초기 등급 데이터 세팅
 // 초기 데이터 로딩 (Supabase 연동)
 async function initMaster() {
+    // DB 연결 상태 표시 초기화
+    const statusBadge = document.getElementById('db-status-badge');
+    const updateStatus = (status, msg, errorMsg = '') => {
+        if (!statusBadge) return;
+        if (status === 'loading') {
+            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700 text-[10px] font-black text-slate-400 mb-6';
+            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div><span class="status-text">ONLINE DB 연동 대기중</span>`;
+        } else if (status === 'success') {
+            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 shadow-sm mb-6';
+            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></div><span class="status-text">ONLINE DB 연결됨</span>`;
+        } else if (status === 'offline') {
+            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 mb-6';
+            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-amber-500"></div><span class="status-text">로컬 모드 (서버 데이터 없음)</span>`;
+        } else {
+            // 상세 오류 표시 디자인
+            statusBadge.className = 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 mb-6';
+            statusBadge.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <div class="status-dot w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                    <span class="status-text text-[10px] font-black text-rose-400">DB 연결 오류 (로컬 모드 전환)</span>
+                </div>
+                <div class="text-[9px] text-rose-300/70 font-medium leading-tight mt-0.5">
+                    ${errorMsg ? `Reason: ${errorMsg}` : '알 수 없는 연결 오류'}
+                </div>
+            `;
+        }
+    };
+
+    updateStatus('loading');
+
     try {
         // 1. 공통 설정(사양, 단가) 불러오기
-        const { data: configData, error: configError } = await _supabase
-            .from('master_config')
-            .select('data')
-            .eq('id', 'config')
-            .maybeSingle();
-
-        if (configData && configData.data) {
-            const savedData = configData.data;
-            MASTER.grades = savedData.grades || MASTER.grades;
-            MASTER.pricesByGrade = savedData.pricesByGrade || MASTER.pricesByGrade;
-            MASTER.coverPapers = savedData.coverPapers || MASTER.coverPapers;
-            MASTER.innerPapers = savedData.innerPapers || MASTER.innerPapers;
-            MASTER.facePapers = savedData.facePapers || MASTER.facePapers;
-            MASTER.customGroups = savedData.customGroups || [];
+        const { data: configData, error: configError } = await _supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
+        
+        // 테이블이 없거나 권한 문제 등으로 아예 로딩 실패한 경우
+        if (configError) {
+            console.error("Config Loading Error:", configError);
+            throw new Error(`설정 데이터 로드 실패 (${configError.message || configError.code})`);
         }
 
-        // 2. 주문 목록 불러오기
-        const { data: ordersData, error: ordersError } = await _supabase
-            .from('orders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (ordersData) {
-            MASTER.orders = ordersData;
+        if (configData?.data) {
+            const d = configData.data;
+            MASTER.grades = d.grades || MASTER.grades;
+            MASTER.pricesByGrade = d.pricesByGrade || MASTER.pricesByGrade;
+            MASTER.coverPapers = d.coverPapers || MASTER.coverPapers;
+            MASTER.innerPapers = d.innerPapers || MASTER.innerPapers;
+            MASTER.facePapers = d.facePapers || MASTER.facePapers;
+            MASTER.customGroups = d.customGroups || [];
+        } else {
+            console.log("기존 설정 데이터가 없습니다. 기본 설정을 사용합니다.");
         }
 
-        // 3. 파트너사 목록 불러오기
-        const { data: partnersData, error: partnersError } = await _supabase
-            .from('partners')
-            .select('*');
+        // 2. 각 테이블 병렬 로딩 (독립적 처리)
+        const [ordersRes, partnersRes, printersRes, productsRes] = await Promise.all([
+            _supabase.from('orders').select('*').order('created_at', { ascending: false }),
+            _supabase.from('partners').select('*'),
+            _supabase.from('printers').select('*'),
+            _supabase.from('products').select('*')
+        ]);
 
-        if (partnersData) {
-            MASTER.partners = partnersData;
+        // 개별 테이블 로딩 실패 시 로그만 남기고 중단하지 않음 (데이터가 하나도 없을 수도 있으므로)
+        let loadFailures = [];
+        if (ordersRes.error) loadFailures.push(`주문(${ordersRes.error.code})`);
+        if (partnersRes.error) loadFailures.push(`파트너(${partnersRes.error.code})`);
+        if (printersRes.error) loadFailures.push(`인쇄소(${printersRes.error.code})`);
+        if (productsRes.error) loadFailures.push(`도서(${productsRes.error.code})`);
+
+        if (loadFailures.length > 0) {
+            console.warn("일부 테이블 데이터 로딩 실패:", loadFailures.join(', '));
+            // 만약 모든 테이블이 로딩 실패했다면 진짜 오류로 간주할 수도 있지만, 
+            // 여기서는 일단 성공한 데이터만이라도 반영함
         }
 
-        console.log("온라인 DB 데이터 로딩 완료");
+        // 데이터 반영 (null 체크 포함)
+        if (ordersRes.data) MASTER.orders = ordersRes.data;
+        if (partnersRes.data) MASTER.partners = partnersRes.data;
+        if (printersRes.data) MASTER.printers = printersRes.data;
+        if (productsRes.data) MASTER.products = productsRes.data;
+
+        // 성공적으로 통신이 완료되었으나 데이터가 아예 없는 경우 'offline' 상태와 비슷하게 취급하거나 그냥 성공 표시
+        if (!configData && loadFailures.length === 0 && MASTER.orders.length === 0) {
+            updateStatus('offline');
+        } else {
+            updateStatus('success');
+        }
+        
+        console.log("온라인 DB 데이터 동기화 완료");
         renderAll();
+
     } catch (e) {
-        console.error("데이터 로딩 중 오류:", e);
+        console.error("Critical DB Error:", e);
+        // 사용자에게 친숙한 오류 메시지로 변환
+        let friendlyMsg = e.message;
+        if (e.message.includes('42P01')) friendlyMsg = "데이터베이스 테이블이 생성되지 않았습니다.";
+        if (e.message.includes('Failed to fetch')) friendlyMsg = "네트워크 연결이 원활하지 않습니다.";
+        
+        updateStatus('error', 'Critical Error', friendlyMsg);
+        
         // 오류 시 로컬 데이터 백업 사용
         const saved = localStorage.getItem('MASTER_DATA');
-        if (saved) MASTER = JSON.parse(saved);
+        if (saved) {
+            MASTER = JSON.parse(saved);
+            console.log("로컬 백업 데이터를 로드했습니다.");
+        }
         renderAll();
     }
 }
+
+// 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
+function renderAll() {
+    const activeBtn = document.querySelector('.sidebar-item.active');
+    if (activeBtn) {
+        const pageId = activeBtn.id.replace('btn-', '');
+        if (typeof showPage === 'function') {
+            showPage(pageId);
+        }
+    } else {
+        if (typeof showPage === 'function') {
+            showPage('spec');
+        }
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
 initMaster();
 
 // 데이터 통합 저장 함수 (Supabase + Local Backup)
@@ -193,6 +270,7 @@ async function saveData() {
             innerPapers: MASTER.innerPapers,
             facePapers: MASTER.facePapers,
             customGroups: MASTER.customGroups
+            // products는 별도 테이블로 관리하므로 config에서는 제외 (동기화 이슈 방지)
         };
 
         const { error } = await _supabase.from('master_config').upsert({ id: 'config', data: configToSave });
@@ -1440,12 +1518,15 @@ function closeTrackingModal() {
 
 function trashOrder(id) {
     if (!confirm("이 주문을 목록에서 영구적으로 삭제(휴지통)하시겠습니까?")) return;
-    const order = MASTER.orders.find(o => o.id === id);
-    if (order) {
-        order.isDeleted = true;
-        saveMasterDataSilent();
-        renderProductionBoard();
-    }
+    
+    // DB에서 즉시 삭제
+    _supabase.from('orders').delete().eq('id', id).then(({error}) => {
+        if(error) console.error("DB 삭제 오류:", error);
+    });
+
+    MASTER.orders = MASTER.orders.filter(o => o.id !== id);
+    renderProductionBoard();
+    alert("주문이 영구 삭제되었습니다.");
 }
 
 // 상세 정보 패널 열기
@@ -1728,7 +1809,7 @@ function execDaumPostcode(idx) {
     }).open();
 }
 
-function submitOrderSheet() {
+async function submitOrderSheet() {
     // 1. 데이터 수집
     const today = new Date().toISOString().split('T')[0];
     const pubName = document.getElementById('order-pub-name')?.value || '테스트 출판사';
@@ -1763,28 +1844,36 @@ function submitOrderSheet() {
         id: orderId,
         date: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).date : today,
         mode: mode,
-        pubName: pubName,
-        bookTitle: bookTitle,
-        managerName: managerName,
-        unitPrice: unitPrice,
+        pub_name: pubName,
+        book_title: bookTitle,
+        manager_name: managerName,
+        unit_price: unitPrice,
         qty: qty,
-        totalPrice: totalPrice,
+        total_price: totalPrice,
         deliveries: deliveries,
-        innerFile: currentFiles.inner,
-        coverFile: currentFiles.cover,
-        data: JSON.parse(JSON.stringify(MASTER.orderPersistence[mode]))
+        inner_file: currentFiles.inner,
+        cover_file: currentFiles.cover,
+        data: JSON.parse(JSON.stringify(MASTER.orderPersistence[mode])),
+        status: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).status : '접수대기'
     };
 
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('orders').upsert(orderData);
+    
+    if (error) {
+        alert("온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
     if (isEdit) {
         const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
         if (idx !== -1) MASTER.orders[idx] = orderData;
-        editingOrderId = null; // 수정 완료 후 초기화
+        editingOrderId = null;
     } else {
-        MASTER.orders.unshift(orderData); // 새 주문은 맨 앞으로
+        MASTER.orders.unshift(orderData);
     }
     
-    // 데이터 저장 및 테이블 갱신
-    saveMasterDataSilent();
     renderSettlementTable();
     updateSettlementStats();
     
@@ -2561,8 +2650,12 @@ function deleteOrder(id) {
     }
 
     if(confirm('해당 주문을 삭제하시겠습니까?')) {
+        // DB에서 즉시 삭제
+        _supabase.from('orders').delete().eq('id', id).then(({error}) => {
+            if(error) console.error("DB 삭제 실패:", error);
+        });
+
         MASTER.orders = MASTER.orders.filter(o => o.id !== id);
-        saveMasterDataSilent();
         renderSettlementTable();
         if (settlementChart) updateChart(); // 삭제 시 차트 반영
         alert('주문이 삭제되었습니다.');
@@ -2760,9 +2853,13 @@ function deletePartner(id, event) {
     if (!partner) return;
 
     if (confirm(`[${partner.name}] 파트너사를 삭제(탈퇴)하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) {
+        // DB에서 즉시 삭제
+        _supabase.from('partners').delete().eq('id', id).then(({error}) => {
+            if(error) console.error("DB 파트너 삭제 실패:", error);
+        });
+
         MASTER.partners = MASTER.partners.filter(p => p.id !== id);
-        saveMasterDataSilent();
-        renderPartners();
+        renderPartnerList();
         alert(`[${partner.name}] 파트너사가 정상적으로 삭제되었습니다.`);
     }
 }
@@ -2903,7 +3000,7 @@ function selectPartner(id) {
     if (window.lucide) lucide.createIcons();
 }
 
-function savePartnerData() {
+async function savePartnerData() {
     const id = document.getElementById('u_id').value;
     const name = document.getElementById('u_name').value;
     const grade = document.getElementById('gradeSearch').value;
@@ -2916,57 +3013,48 @@ function savePartnerData() {
     if (!id || !name) return alert('아이디와 업체명은 필수입니다.');
     if (!MASTER.grades.includes(grade)) return alert('존재하지 않는 등급입니다. 단가 관리에서 먼저 등급을 생성해주세요.');
 
-    let partner = MASTER.partners.find(p => p.id === id);
     const mgrRows = document.querySelectorAll('#managerTable tbody tr');
     const managers = Array.from(mgrRows).map(row => {
         const inputs = row.querySelectorAll('input');
         return { name: inputs[0].value, dept: inputs[1].value, tel: inputs[2].value, email: inputs[3].value };
     });
 
-    if (partner) {
-        partner.name = name;
-        partner.grade = grade;
-        partner.bizNum = bizNum;
-        partner.ceoName = ceoName;
-        partner.bizType = bizType;
-        partner.addr = addr;
-        partner.addrDetail = addrDetail;
-        partner.managers = managers;
-        // 파일 정보 업데이트
-        if (currentBizFileData) {
-            const fileInput = document.getElementById('biz-file-input');
-            const file = fileInput.files[0];
-            if (file) {
-                partner.bizFile = {
-                    name: file.name,
-                    type: file.type,
-                    data: currentBizFileData
-                };
-            }
-        }
-    } else {
-        const newPartner = { id, name, grade, bizNum, ceoName, bizType, addr, addrDetail, managers };
-        if (currentBizFileData) {
-            const fileInput = document.getElementById('biz-file-input');
-            const file = fileInput.files[0];
-            if (file) {
-                newPartner.bizFile = {
-                    name: file.name,
-                    type: file.type,
-                    data: currentBizFileData
-                };
-            }
-        }
-        MASTER.partners.push(newPartner);
+    const partnerData = {
+        id: id,
+        name: name,
+        grade: grade,
+        biz_num: bizNum,
+        ceo_name: ceoName,
+        biz_type: bizType,
+        addr: addr,
+        addr_detail: addrDetail,
+        managers: managers,
+        biz_file: currentBizFileData ? {
+            name: document.getElementById('biz-file-input').files[0].name,
+            type: document.getElementById('biz-file-input').files[0].type,
+            data: currentBizFileData
+        } : (MASTER.partners.find(p => p.id === id)?.biz_file || null)
+    };
+
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('partners').upsert(partnerData);
+    
+    if (error) {
+        alert("파트너 정보 온라인 저장 실패: " + error.message);
+        return;
     }
 
-    saveMasterDataSilent();
-    renderPartners();
+    // 메모리 갱신
+    const idx = MASTER.partners.findIndex(p => p.id === id);
+    if (idx !== -1) {
+        MASTER.partners[idx] = partnerData;
+    } else {
+        MASTER.partners.push(partnerData);
+    }
     
-    // 저장 완료 후 수정 플래그 초기화
+    renderPartnerList();
     currentBizFileData = null;
-    
-    alert(`[${name}] 파트너 정보와 [${grade}] 등급 연동 설정이 성공적으로 저장되었습니다.`);
+    alert(`[${name}] 파트너 정보가 온라인 DB에 안전하게 저장되었습니다.`);
 }
 
 function clearPrinterMgmtFields() {
@@ -3010,9 +3098,14 @@ function renderPrintersMgmt() {
     const filtered = MASTER.printers.filter(p => p.name.toLowerCase().includes(keyword));
 
     listContainer.innerHTML = filtered.map(p => `
-        <div class="partner-item" data-id="${p.id}" onclick="selectPrinterMgmt('${p.id}')">
+        <div class="partner-item relative group" data-id="${p.id}" onclick="selectPrinterMgmt('${p.id}')">
             <div class="name">${p.name}</div>
             <div class="info">ID: ${p.id} | 담당자: ${p.managers.length}명</div>
+            ${role === 'admin' ? `<div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onclick="deletePrinter('${p.id}', event)" class="p-1.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>` : ''}
         </div>
     `).join('');
     if (window.lucide) lucide.createIcons();
@@ -3122,12 +3215,11 @@ function addPrinterManagerRow() {
     tbody.appendChild(tr);
 }
 
-function savePrinterMgmtData() {
+async function savePrinterMgmtData() {
     const id = document.getElementById('pr_id').value || document.getElementById('pr_id_view').value;
     const name = document.getElementById('pr_name').value;
     if (!id || !name) return alert("아이디와 업체명은 필수입니다.");
 
-    let printer = MASTER.printers.find(p => p.id === id);
     const mgrRows = document.querySelectorAll('#printerManagerTable tbody tr');
     const managers = Array.from(mgrRows).map(row => {
         const inputs = row.querySelectorAll('input');
@@ -3141,30 +3233,60 @@ function savePrinterMgmtData() {
     });
 
     const printerData = {
-        id,
-        name,
-        bizNum: document.getElementById('pr_bizNum').value,
-        ceoName: document.getElementById('pr_ceoName').value,
-        bizType: document.getElementById('pr_bizType').value,
+        id: id,
+        name: name,
+        biz_num: document.getElementById('pr_bizNum').value,
+        ceo_name: document.getElementById('pr_ceoName').value,
+        biz_type: document.getElementById('pr_bizType').value,
         addr: document.getElementById('pr_addr').value,
-        addrDetail: document.getElementById('pr_addrDetail').value,
+        addr_detail: document.getElementById('pr_addrDetail').value,
         managers: managers,
-        bizFile: currentPrinterBizFileData || (printer ? printer.bizFile : null)
+        biz_file: currentPrinterBizFileData ? {
+            name: document.getElementById('pr-biz-file-input').files[0].name,
+            type: document.getElementById('pr-biz-file-input').files[0].type,
+            data: currentPrinterBizFileData
+        } : (MASTER.printers.find(p => p.id === id)?.biz_file || null)
     };
 
-    if (printer) {
-        Object.assign(printer, printerData);
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('printers').upsert(printerData);
+    
+    if (error) {
+        alert("인쇄소 정보 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
+    const idx = MASTER.printers.findIndex(p => p.id === id);
+    if (idx !== -1) {
+        MASTER.printers[idx] = printerData;
     } else {
         MASTER.printers.push(printerData);
     }
 
-    saveMasterDataSilent();
     renderPrintersMgmt();
-    
-    // 초기화
     currentPrinterBizFileData = null;
-    
-    alert(`[${name}] 인쇄소 마스터 정보가 저장되었습니다.`);
+    alert(`[${name}] 인쇄소 마스터 정보가 온라인 DB에 안전하게 저장되었습니다.`);
+}
+
+async function deletePrinter(id, event) {
+    if (event) event.stopPropagation();
+    const printer = MASTER.printers.find(p => p.id === id);
+    if (!printer) return;
+
+    if (!confirm(`[${printer.name}] 인쇄소를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+    // Supabase 삭제
+    const { error } = await _supabase.from('printers').delete().eq('id', id);
+    if (error) {
+        alert("온라인 DB 삭제 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
+    MASTER.printers = MASTER.printers.filter(p => p.id !== id);
+    renderPrintersMgmt();
+    alert(`[${printer.name}] 인쇄소가 정상적으로 삭제되었습니다.`);
 }
 
 function openPrinterPriceModal() {
@@ -3824,65 +3946,8 @@ function handleProductImageSelect(input) {
     reader.readAsDataURL(file);
 }
 
-function saveProductData() {
-    const getValue = (id) => document.getElementById(id)?.value || '';
-    const getInt = (id) => parseInt(document.getElementById(id)?.value || 0);
+// --- 기존 saveProductData 중복 제거 (하단 async 버전으로 통합됨) ---
 
-    const title = getValue('prod-title').trim();
-    if (!title) return alert("도서명을 입력해주세요.");
-
-    const productData = {
-        title,
-        category: getValue('prod-category'),
-        manager: getValue('prod-manager'),
-        spec: getValue('prod-spec'),
-        pages: getValue('prod-pages'),
-        price: getInt('prod-price'),
-        desc: getValue('prod-desc').trim(),
-        customSize: getValue('prod-custom-size').trim(),
-        image: currentProductImage,
-        details: {
-            innerPaper: getValue('prod-inner-paper'),
-            innerPrint: getValue('prod-inner-print'),
-            partialColor: getValue('prod-partial-color'),
-            coverPaper: getValue('prod-cover-paper'),
-            coverPrint: getValue('prod-cover-print'),
-            coating: getValue('prod-coating'),
-            binding: getValue('prod-binding'),
-            wing: getValue('prod-wing'),
-            facePaper: getValue('prod-face-paper'),
-            faceInsert: getValue('prod-face-insert')
-        }
-    };
-
-    const isEditMode = !!editingProductId;
-
-    // 1. 메모리 데이터 즉시 반영
-    if (isEditMode) {
-        const index = MASTER.products.findIndex(p => p.id === editingProductId);
-        if (index > -1) {
-            MASTER.products[index] = { ...MASTER.products[index], ...productData };
-        }
-    } else {
-        const newProduct = {
-            id: 'PROD_' + Date.now(),
-            ...productData,
-            pubName: currentUserRole === 'publisher' ? (MASTER.partners[0]?.name || '출판사') : '관리자 등록',
-            date: new Date().toISOString().split('T')[0]
-        };
-        MASTER.products.unshift(newProduct);
-    }
-
-    // 2. UI 갱신을 저장보다 먼저 실행하여 '먹통' 방지
-    closeProductModal();
-    renderProductList();
-
-    // 3. 비동기로 디스크 저장 (저장 실패해도 UI는 이미 갱신됨)
-    setTimeout(() => {
-        saveMasterDataSilent();
-        alert(isEditMode ? "도서 정보가 성공적으로 수정되었습니다." : "도서가 성공적으로 스토어 진열장에 등록되었습니다.");
-    }, 50);
-}
 
 function loadProductToOrder() {
     const prodId = document.getElementById('ord-load-product').value;
@@ -3976,24 +4041,89 @@ function renderProductList() {
     if (window.lucide) lucide.createIcons();
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
     if (!confirm("정말 이 도서를 스토어에서 삭제하시겠습니까?")) return;
 
-    // 데이터 필터링 (메모리 우선)
+    // DB에서 즉시 삭제
+    const { error } = await _supabase.from('products').delete().eq('id', id);
+    if (error) {
+        alert("온라인 DB 삭제 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 데이터 필터링
     MASTER.products = MASTER.products.filter(p => p && p.id !== id);
     
-    // UI 먼저 갱신
+    // UI 갱신
     renderProductList();
-    
-    // 비동기 저장 및 알림
-    setTimeout(() => {
-        saveMasterDataSilent();
-        alert("도서가 정상적으로 삭제되었습니다.");
-    }, 50);
+    alert("도서가 정상적으로 삭제되었습니다.");
 }
 
 function editProduct(id) {
     openProductModal(id);
+}
+
+async function saveProductData() {
+    const getValue = (id) => document.getElementById(id)?.value || '';
+    const getInt = (id) => parseInt(document.getElementById(id)?.value) || 0;
+
+    const title = getValue('prod-title').trim();
+    if (!title) return alert("도서명을 입력해주세요.");
+
+    const isEditMode = !!editingProductId;
+    const productId = isEditMode ? editingProductId : 'PROD_' + Date.now();
+
+    const productData = {
+        id: productId,
+        title,
+        category: getValue('prod-category'),
+        manager: getValue('prod-manager'),
+        spec: getValue('prod-spec'),
+        pages: getValue('prod-pages'),
+        price: getInt('prod-price'),
+        desc: getValue('prod-desc').trim(),
+        customSize: getValue('prod-custom-size').trim(),
+        image: currentProductImage,
+        details: {
+            innerPaper: getValue('prod-inner-paper'),
+            innerPrint: getValue('prod-inner-print'),
+            partialColor: getValue('prod-partial-color'),
+            coverPaper: getValue('prod-cover-paper'),
+            coverPrint: getValue('prod-cover-print'),
+            coating: getValue('prod-coating'),
+            binding: getValue('prod-binding'),
+            wing: getValue('prod-wing'),
+            facePaper: getValue('prod-face-paper'),
+            faceInsert: getValue('prod-face-insert')
+        },
+        pubName: isEditMode ? (MASTER.products.find(p => p.id === editingProductId)?.pubName) : ((typeof currentUserRole !== 'undefined' && currentUserRole === 'publisher') ? (MASTER.partners[0]?.name || '출판사') : '관리자 등록'),
+        date: isEditMode ? (MASTER.products.find(p => p.id === editingProductId)?.date) : new Date().toISOString().split('T')[0]
+    };
+
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('products').upsert(productData);
+    
+    if (error) {
+        alert("도서 정보 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 데이터 즉시 반영
+    if (isEditMode) {
+        const index = MASTER.products.findIndex(p => p.id === editingProductId);
+        if (index > -1) {
+            MASTER.products[index] = productData;
+        }
+        editingProductId = null;
+    } else {
+        MASTER.products.unshift(productData);
+    }
+
+    // UI 갱신
+    closeProductModal();
+    renderProductList();
+
+    alert(isEditMode ? "도서 정보가 성공적으로 수정되어 온라인 DB에 반영되었습니다." : "도서가 성공적으로 스토어에 등록되었습니다.");
 }
 
 
