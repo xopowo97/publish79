@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판친구 v10.0 - 단가관리 최적화본</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Daum Postcode API -->
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <!-- ExcelJS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shrink-0 p-5">
+        <div class="px-2 mb-8 font-black text-xl italic text-sky-400">출판친구 v10.0</div>
+        <nav class="flex-1 space-y-1 overflow-y-auto">
+            <div class="sidebar-item active" id="btn-spec" onclick="showPage('spec')">
+                <i data-lucide="settings-2" class="w-4 h-4 mr-3"></i>제작 사양 관리
+            </div>
+            <div class="sidebar-item" id="btn-price" onclick="showPage('price')">
+                <i data-lucide="tag" class="w-4 h-4 mr-3"></i>단가관리
+            </div>
+            <div class="sidebar-item" id="btn-order" onclick="showPage('order')">
+                <i data-lucide="shopping-cart" class="w-4 h-4 mr-3"></i>주문하기
+            </div>
+            <div class="sidebar-item" id="btn-settlement" onclick="showPage('settlement')">
+                <i data-lucide="bar-chart-horizontal" class="w-4 h-4 mr-3"></i>정산 및 주문관리
+            </div>
+            <div class="sidebar-item" id="btn-partner" onclick="showPage('partner')">
+                <i data-lucide="users" class="w-4 h-4 mr-3"></i>파트너사관리
+            </div>
+            <div class="sidebar-item" id="btn-printer-mgmt" onclick="showPage('printer-mgmt')">
+                <i data-lucide="printer" class="w-4 h-4 mr-3"></i>인쇄소관리
+            </div>
+            <div class="sidebar-item" id="btn-store-mgmt" onclick="showPage('store-mgmt')">
+                <i data-lucide="book-open" class="w-4 h-4 mr-3"></i>판매 도서 관리
+            </div>
+            <div class="sidebar-item" id="btn-production" onclick="showPage('production')">
+                <i data-lucide="factory" class="w-4 h-4 mr-3"></i>생산진행관리
+            </div>
+            <div class="sidebar-item">
+                <i data-lucide="box" class="w-4 h-4 mr-3"></i>재고관리
+            </div>
+            <div class="sidebar-item">
+                <i data-lucide="layers" class="w-4 h-4 mr-3"></i>용지구매
+            </div>
+            <div class="sidebar-item">
+                <i data-lucide="briefcase" class="w-4 h-4 mr-3"></i>구인구직
+            </div>
+        </nav>
+        <div class="mt-auto pt-4 border-t border-slate-700">
+            <div class="sidebar-item text-slate-400">
+                <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>로그인(로드아웃)
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+        <header class="bg-white border-b px-8 py-4 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="w-1.5 h-6 bg-sky-600 rounded-full"></div>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight" id="main-title">제작 사양 관리</h1>
+                <!-- 권한 뱃지 영역 추가 -->
+                <div id="role-badge-container" class="ml-2"></div>
+            </div>
+
+            <div id="price-tools" class="hidden mb-4 flex items-center gap-4 bg-slate-50 p-2 rounded-xl border">
+                <div class="flex items-center gap-1">
+                    <input type="text" id="newGradeName" placeholder="등급명 입력" class="input-pptx w-40">
+                    <button onclick="addGrade()"
+                        class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">+
+                        등급추가</button>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div class="flex items-center gap-1">
+                    <input type="text" id="pubSearchInput" placeholder="출판사명 검색" class="input-pptx w-40">
+                    <button onclick="searchPublisher()"
+                        class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">검색</button>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <button onclick="saveMasterData()"
+                    class="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="save" class="w-3.5 h-3.5"></i> [데이터저장]
+                </button>
+            </div>
+
+            <!-- 테스트용 역할 전환 스위처 추가 -->
+            <div id="role-switcher-container"
+                class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 ml-auto shrink-0">
+                <span class="text-[9px] font-black text-slate-400 px-2 tracking-tighter">TEST MODE</span>
+                <button onclick="switchRole('admin')" id="role-btn-admin"
+                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">관리자</button>
+                <button onclick="switchRole('publisher')" id="role-btn-publisher"
+                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">출판사</button>
+                <button onclick="switchRole('printer')" id="role-btn-printer"
+                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">인쇄소</button>
+                <button onclick="switchRole('printer_worker')" id="role-btn-printer-worker"
+                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-rose-500">인쇄소담당자</button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8">
+            <div class="max-w-[1300px] mx-auto">
+
+                <!-- Page: Specification -->
+                <div id="page-spec" class="page-content active space-y-6">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 shadow-sm">
+                        <span class="text-sm font-extrabold text-slate-600 whitespace-nowrap">추가 카테고리(그룹) 생성 :</span>
+                        <input type="text" id="customGroupNameInput" placeholder="새로운 카테고리 명칭 입력 (예: 특가공, 부록)"
+                            class="input-pptx flex-1">
+                        <div class="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                <input type="radio" name="extraType" value="book" checked class="w-4 h-4 text-sky-600">
+                                권당 단가 적용
+                            </label>
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                <input type="radio" name="extraType" value="page" class="w-4 h-4 text-emerald-600"> 페이지당
+                                단가 적용
+                            </label>
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                <input type="radio" name="extraType" value="sheet" class="w-4 h-4 text-amber-600"> 장당
+                                단가 적용
+                            </label>
+                            <div class="w-px h-4 bg-slate-300 mx-2"></div>
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                <input type="checkbox" id="customGroupVisibleInput" checked
+                                    class="w-4 h-4 text-indigo-600"> 주문서 노출
+                            </label>
+                        </div>
+                        <button onclick="addCustomGroup()"
+                            class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 shrink-0">+
+                            새 카테고리 추가</button>
+                        <div class="w-px h-10 bg-slate-200 mx-1"></div>
+                        <button onclick="saveMasterData()"
+                            class="bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-black shadow-lg shadow-emerald-100 flex items-center gap-2 shrink-0">
+                            <i data-lucide="save" class="w-4 h-4"></i> [데이터저장]
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="card-common card-blue">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-sky-700 mb-0"><i data-lucide="monitor"></i> 디지털 낱장 인쇄 규격
+                                </div>
+                                <button onclick="addItem('sheetSpecs')" class="text-xs font-bold text-sky-600">+
+                                    추가</button>
+                            </div>
+                            <div id="list-sheetSpecs" class="grid grid-cols-2 gap-2"></div>
+                        </div>
+                        <div class="card-common card-yellow">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-amber-700 mb-0"><i data-lucide="refresh-cw"></i> 디지털 연속지
+                                    인쇄 규격</div>
+                                <button onclick="addItem('rollSpecs')" class="text-xs font-bold text-amber-600">+
+                                    추가</button>
+                            </div>
+                            <div id="list-rollSpecs" class="grid grid-cols-2 gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="card-common card-purple">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-violet-700 mb-0">표지용지 그룹</div>
+                                <button onclick="addItem('coverPapers')" class="text-xs font-bold text-violet-600">+
+                                    추가</button>
+                            </div>
+                            <div id="list-coverPapers" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common card-pink">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-rose-700 mb-0">내지용지 그룹</div>
+                                <button onclick="addItem('innerPapers')" class="text-xs font-bold text-rose-600">+
+                                    추가</button>
+                            </div>
+                            <div id="list-innerPapers" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common card-green">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-emerald-700 mb-0">면지용지 그룹</div>
+                                <button onclick="addItem('facePapers')" class="text-xs font-bold text-emerald-600">+
+                                    추가</button>
+                            </div>
+                            <div id="list-facePapers" class="space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-6">
+                        <div class="card-common bg-slate-100 border-slate-200">
+                            <div class="section-title">코팅방식 <button onclick="addItem('coating')"
+                                    class="ml-auto text-[10px] text-slate-400">+ 추가</button></div>
+                            <div id="list-coating" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common bg-slate-100 border-slate-200">
+                            <div class="section-title">표지인쇄 <button onclick="addItem('coverPrinting')"
+                                    class="ml-auto text-[10px] text-slate-400">+ 추가</button></div>
+                            <div id="list-coverPrinting" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common bg-slate-100 border-slate-200">
+                            <div class="section-title">제본방식 <button onclick="addItem('binding')"
+                                    class="ml-auto text-[10px] text-slate-400">+ 추가</button></div>
+                            <div id="list-binding" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common bg-slate-100 border-slate-200">
+                            <div class="section-title">내지인쇄 <button onclick="addItem('innerPrinting')"
+                                    class="ml-auto text-[10px] text-slate-400">+ 추가</button></div>
+                            <div id="list-innerPrinting" class="space-y-1"></div>
+                        </div>
+                        <div class="card-common bg-slate-100 border-slate-200">
+                            <div class="section-title">면지삽입 <button onclick="addItem('faceInsert')"
+                                    class="ml-auto text-[10px] text-slate-400">+ 추가</button></div>
+                            <div id="list-faceInsert" class="space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <div id="custom-groups-container" class="grid grid-cols-4 gap-6">
+                    </div>
+                </div>
+
+                <!-- Page: Price -->
+                <div id="page-price" class="page-content space-y-8">
+                    <div id="grade-tabs-container" class="flex gap-2 bg-white p-1 rounded-xl border w-fit"></div>
+
+                    <section>
+                        <div class="section-title text-slate-800"><i data-lucide="list"></i> 디지털 낱장 인쇄 및 면지 단가</div>
+                        <div id="price-sheet-grid" class="grid grid-cols-2 gap-4"></div>
+                    </section>
+
+                    <section>
+                        <div class="section-title text-slate-800"><i data-lucide="plus-circle"></i> 디지털 낱장용 공통가공 단가
+                            <span class="text-[10px] text-slate-400 font-normal ml-2">(커스텀 생성된 카테고리 포함)</span>
+                        </div>
+                        <div id="price-sheet-common-grid" class="grid grid-cols-4 gap-4"></div>
+                    </section>
+
+                    <section>
+                        <div class="section-title text-slate-800"><i data-lucide="plus-circle"></i> 디지털 연속지용 공통가공 단가
+                            <span class="text-[10px] text-slate-400 font-normal ml-2">(커스텀 생성된 카테고리 포함)</span>
+                        </div>
+                        <div id="price-roll-common-grid" class="grid grid-cols-4 gap-4"></div>
+                    </section>
+
+                    <section>
+                        <div class="section-title text-slate-800"><i data-lucide="trending-up"></i> 디지털 연속지 슬라이딩 단가
+                        </div>
+                        <div id="price-roll-containers" class="space-y-6"></div>
+                    </section>
+                </div>
+
+                <!-- Page: Order -->
+                <div id="page-order" class="page-content">
+                    <div class="bg-white rounded-[24px] border border-slate-200 p-8 shadow-sm space-y-6">
+                        <div class="flex gap-3">
+                            <button onclick="setMode('sheet')" id="ms"
+                                class="flex-1 py-4 rounded-xl font-black bg-sky-600 text-white transition-all scale-100">디지털
+                                낱장 인쇄 주문</button>
+                            <button onclick="setMode('roll')" id="mr"
+                                class="flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400 transition-all">디지털
+                                연속지 인쇄 주문</button>
+                        </div>
+
+                        <!-- 등록 도서 불러오기 -->
+                        <div class="card-common card-blue mb-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-sky-700 mb-0 flex items-center gap-2">
+                                    <i data-lucide="book" class="w-5 h-5"></i> 판매 도서에서 불러오기
+                                </div>
+                                <span class="text-xs text-sky-600 bg-sky-50 px-2 py-1 rounded font-bold">빠른 주문</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <select id="ord-load-product" class="input-partner flex-1 border-sky-200">
+                                    <option value="">도서를 선택하면 사양이 자동으로 입력됩니다.</option>
+                                    <!-- Dynamic -->
+                                </select>
+                                <button onclick="loadProductToOrder()" class="bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-sky-700 transition-colors">불러오기</button>
+                            </div>
+                        </div>
+
+                        <div class="card-common card-blue">
+                            <div class="section-title text-sky-700">기본 정보 및 담당자</div>
+                            <div class="grid grid-cols-4 gap-4">
+                                <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">출판사명</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="order-pub-name" class="input-pptx bg-slate-50 flex-1"
+                                            value="테스트 출판사" readonly>
+                                        <button id="btn-order-pub-search" onclick="openOrderPubSearch()"
+                                            class="bg-slate-800 text-white px-3 rounded-lg text-xs font-bold shrink-0">검색</button>
+                                    </div>
+                                </div>
+                                <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">담당자 선택</label>
+                                    <select id="ord-manager" class="input-pptx font-bold"
+                                        onchange="updateManager(this.value)">
+                                        <option value="">선택하세요</option>
+                                        <option value="홍길동">홍길동 (기획팀)</option>
+                                        <option value="김철수">김철수 (제작부)</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">연락처</label><input
+                                        type="text" id="ord-mgr-tel" class="input-pptx bg-slate-50" readonly></div>
+                                <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">이메일</label><input
+                                        type="text" id="ord-mgr-email" class="input-pptx bg-slate-50" readonly></div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="card-common card-yellow">
+                                <div class="section-title text-amber-700">제작 사양 상세</div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="col-span-2"><label
+                                            class="text-[10px] font-bold text-slate-400 mb-1 block">도서명</label><input
+                                            type="text" id="ord-book-title" class="input-pptx" placeholder="도서명을 입력하세요">
+                                    </div>
+                                    <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">규격
+                                            선택</label><select id="ord-spec" class="input-pptx"
+                                            onchange="sync()"></select></div>
+                                    <div><label
+                                            class="text-[10px] font-bold text-slate-400 mb-1 block">정사이즈(직접입력)</label><input
+                                            type="text" id="ord-custom-size" class="input-pptx" placeholder="가로x세로mm"
+                                            oninput="sync()"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">총
+                                            페이지</label><input type="number" id="ord-tp" value="200" class="input-pptx"
+                                            oninput="calculatePages(); sync();"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">제작
+                                            부수</label><input type="number" id="ord-qty" value="100"
+                                            class="input-pptx text-blue-600 font-bold" oninput="sync()"></div>
+                                    <div><label
+                                            class="text-[10px] font-bold text-slate-400 mb-1 block">부분컬러페이지</label><input
+                                            type="number" id="ord-cp" value="0" class="input-pptx"
+                                            oninput="calculatePages(); sync();"></div>
+                                    <div><label
+                                            class="text-[10px] font-bold text-slate-400 mb-1 block">흑백페이지(자동)</label><input
+                                            type="number" id="ord-bp" value="200" class="input-pptx bg-slate-50"
+                                            readonly></div>
+                                </div>
+                            </div>
+                            <div class="card-common card-sky-light">
+                                <div class="section-title">표지설정</div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">표지
+                                            용지</label><select id="ord-cover" class="input-pptx"
+                                            onchange="sync()"></select></div>
+                                    <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">표지
+                                            인쇄</label><select id="ord-printing" class="input-pptx"
+                                            onchange="sync()"></select></div>
+                                    <div class="col-span-2 grid grid-cols-3 gap-4">
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">코팅
+                                                방식</label><select id="ord-coating" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">표지
+                                                날개</label><select id="ord-wing" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">제본
+                                                방식</label><select id="ord-binding" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="card-common card-pink-light">
+                                    <div class="section-title">내지설정</div>
+                                    <div class="space-y-4">
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">내지
+                                                용지</label><select id="ord-inner" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">내지
+                                                인쇄</label><select id="ord-inner-print" class="input-pptx"
+                                                onchange="calculatePages(); sync();"></select></div>
+                                    </div>
+                                </div>
+                                <div class="card-common card-green-light">
+                                    <div class="section-title">면지설정</div>
+                                    <div id="ord-face-sheet-view" class="space-y-4">
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">면지
+                                                용지</label><select id="ord-face" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                        <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">면지
+                                                삽입</label><select id="ord-face-insert" class="input-pptx"
+                                                onchange="sync()"></select></div>
+                                    </div>
+                                    <div id="ord-face-roll-view"
+                                        class="hidden space-y-1 text-[11px] font-bold leading-relaxed text-emerald-800 italic">
+                                        <p>* 디지털 연속지 인쇄는 면지 삽입이 불가 합니다.</p>
+                                        <p>* 면지 인쇄 시 총페이지에 면지 페이지를 추가하여 적어 주세요.</p>
+                                        <p>* 내지가 흑백이고 면지가 칼라일때 부분컬러페이지란에 면지페이지를 적어 주세요.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-common border-t-4 border-slate-500" id="order-custom-settings-section">
+                                <div class="section-title text-slate-700">추가설정 (커스텀 옵션)</div>
+                                <div id="ord-custom-groups-container" class="grid grid-cols-2 gap-4">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-common border-t-4 border-sky-500">
+                            <div class="section-title text-sky-700">인쇄 파일 관리</div>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div id="file-inner-area"
+                                    class="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 transition-all flex flex-col items-center justify-center text-center">
+                                    <label class="text-[11px] font-black text-slate-500 mb-2 block">내지 데이터 (PDF)</label>
+                                    <input type="file" id="inner-file-input" class="hidden"
+                                        onchange="handleFileSelect('inner', this)">
+                                    <button onclick="document.getElementById('inner-file-input').click()"
+                                        class="w-full py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all">내지
+                                        파일 선택</button>
+                                    <div id="inner-file-status" class="mt-2 text-[10px] text-slate-400 italic">선택된 파일
+                                        없음</div>
+                                </div>
+                                <div id="file-cover-area"
+                                    class="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 transition-all flex flex-col items-center justify-center text-center">
+                                    <label class="text-[11px] font-black text-slate-500 mb-2 block">표지 데이터 (PDF)</label>
+                                    <input type="file" id="cover-file-input" class="hidden"
+                                        onchange="handleFileSelect('cover', this)">
+                                    <button onclick="document.getElementById('cover-file-input').click()"
+                                        class="w-full py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all">표지
+                                        파일 선택</button>
+                                    <div id="cover-file-status" class="mt-2 text-[10px] text-slate-400 italic">선택된 파일
+                                        없음</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-common card-green">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="section-title text-emerald-700 mb-0">배송 정보</div>
+                                <button onclick="addDeliveryRow()"
+                                    class="text-xs font-black text-emerald-600 border border-emerald-200 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors">+
+                                    배송지 추가</button>
+                            </div>
+                            <div id="delivery-rows-container" class="space-y-4">
+                                <!-- 배송지 항목이 여기에 추가됩니다 -->
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 rounded-2xl p-8 flex justify-end items-center gap-12 text-white">
+                            <div class="text-right">
+                                <div class="text-xs font-bold text-slate-400 mb-1">권당단가</div>
+                                <div class="text-2xl font-black italic text-sky-400">₩ <span id="r-each">0</span>원</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs font-bold text-sky-400 mb-1">총금액 <span
+                                        class="text-[10px] font-normal text-slate-300 ml-1">배송비: 별도(배송 후 확정)</span>
+                                </div>
+                                <div class="text-5xl font-black text-sky-400 italic">₩ <span id="r-total">0</span>원
+                                </div>
+                                <div class="text-[10px] text-slate-400 mt-2">* 위 금액은 부가세 별도 금액 입니다.</div>
+                                <div class="text-[10px] text-amber-400 mt-1">* 최종 결제 금액은 인쇄소에서 배송 정보를 입력한 후 업데이트됩니다.
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="btn-submit-order" onclick="submitOrderSheet()"
+                            class="btn-primary-order w-full py-5 rounded-2xl text-xl font-black text-white shadow-xl">제작
+                            등록 완료(낱장)</button>
+                    </div>
+                </div>
+
+
+                <!-- Page: Production Management -->
+                <div id="page-production" class="page-content h-full">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                                <i data-lucide="factory" class="text-sky-600"></i> 실시간 생산 현황 (칸반)
+                            </h2>
+                            <span class="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-bold">LIVE
+                                UPDATE</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="renderProductionBoard()"
+                                class="p-2.5 bg-white border rounded-xl hover:bg-slate-50 transition-all text-slate-600 shadow-sm">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 h-[calc(100vh-200px)] overflow-x-auto pb-4 items-start" id="kanban-board">
+                        <!-- Kanban columns will be injected here by script.js -->
+                    </div>
+
+                    <!-- Order Details Overlay & Panel -->
+                    <div id="order-details-overlay" class="hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
+                        onclick="closeOrderDetails()"></div>
+                    <div id="order-details-panel"
+                        class="fixed top-0 right-0 h-full w-[450px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                        <!-- Content injected by openOrderDetails() -->
+                    </div>
+                </div>
+
+                <!-- Page: Settlement -->
+                <div id="page-settlement" class="page-content space-y-6">
+                    <div id="settlement-module-container">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                            <h3 style="margin:0; font-size: 22px; font-weight: 800; color: #1e293b;">📊 실시간 주문 및 정산 현황
+                            </h3>
+                            <div class="flex gap-2">
+                                <button onclick="toggleDashboard()"
+                                    class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200 transition-all flex items-center gap-2">
+                                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> 대시보드 <span
+                                        id="dash-toggle-text">보기</span>
+                                </button>
+                                <button onclick="downloadTransactionStatementExcel()"
+                                    class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all hover:bg-emerald-700">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i> 거래명세서 전체 다운로드
+                                </button>
+                                <button onclick="executeMonthlyClosing()"
+                                    class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-rose-100 flex items-center gap-2 transition-all hover:bg-rose-700">
+                                    <i data-lucide="lock" class="w-4 h-4"></i> 월별 마감 정산 확정
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Dashboard Section (Collapsible) -->
+                        <div id="dashboard-section"
+                            class="hidden mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex justify-between items-center mb-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="text-lg font-black text-slate-800">매출 및 주문 추이 분석</div>
+                                    <!-- 목표 설정 버튼 (톱니바퀴) -->
+                                    <button id="btn-set-goal" onclick="setMonthlyGoal()"
+                                        class="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all"
+                                        title="목표 매출액 설정">
+                                        <i data-lucide="settings" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <div class="flex bg-slate-100 p-1 rounded-xl">
+                                    <button onclick="updateChart('week')" class="chart-tab-btn active"
+                                        id="btn-chart-week">일주일</button>
+                                    <button onclick="updateChart('month')" class="chart-tab-btn"
+                                        id="btn-chart-month">월간</button>
+                                    <button onclick="updateChart('year')" class="chart-tab-btn"
+                                        id="btn-chart-year">연간</button>
+                                </div>
+                            </div>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="settlementChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div
+                            style="background: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end;">
+                                <div class="filter-group">
+                                    <label
+                                        style="font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; display: block;">📅
+                                        시작일</label>
+                                    <input type="date" id="search-start-date" class="filter-input"
+                                        onchange="settlementCurrentPage=1; renderSettlementTable();">
+                                </div>
+                                <div class="filter-group">
+                                    <label
+                                        style="font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; display: block;">📅
+                                        종료일</label>
+                                    <input type="date" id="search-end-date" class="filter-input"
+                                        onchange="settlementCurrentPage=1; renderSettlementTable();">
+                                </div>
+                                <div id="admin-only-filter" class="filter-group" style="display: none;">
+                                    <label
+                                        style="font-size: 12px; font-weight: 700; color: #0284c7; margin-bottom: 6px; display: block;">🏢
+                                        출판사명 실시간 검색</label>
+                                    <div style="position: relative;">
+                                        <i data-lucide="search"
+                                            style="position: absolute; left: 12px; top: 15px; color: #94a3b8; width: 14px; height: 14px;"></i>
+                                        <input type="text" id="filter-publisher-name" placeholder="출판사 이름을 입력하세요..."
+                                            onkeyup="settlementCurrentPage=1; liveFilterTable()" class="filter-input"
+                                            style="padding-left: 35px; border-color: #0284c7;">
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <label
+                                        style="font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; display: block;">👤
+                                        담당자명</label>
+                                    <input type="text" id="filter-manager-name" placeholder="담당자 성함"
+                                        onkeyup="settlementCurrentPage=1; liveFilterTable()" class="filter-input">
+                                </div>
+                                <button onclick="loadSettlementData()"
+                                    class="btn-search flex items-center justify-center gap-2">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> 새로고침
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="dash-summary-cards"
+                            style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                            <div class="summary-card">
+                                <span class="summary-label">조회 건수</span>
+                                <div class="summary-value"><span id="stat-count">2</span><small>건</small></div>
+                            </div>
+                            <div class="summary-card">
+                                <span class="summary-label">총 제작부수</span>
+                                <div class="summary-value"><span id="stat-qty">600</span><small>부</small></div>
+                            </div>
+                            <div class="summary-card highlight">
+                                <span class="summary-label">공급가액 합계 (VAT 별도)</span>
+                                <div class="summary-value"><span id="stat-total">1,630,000</span><small>원</small></div>
+                            </div>
+                        </div>
+
+                        <div
+                            style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
+                            <table style="width: 100%; border-collapse: collapse; min-width: 900px;">
+                                <thead style="background: #f1f5f9;">
+                                    <tr>
+                                        <th class="th-style">등록일</th>
+                                        <th class="th-style">출판사명</th>
+                                        <th class="th-style" style="width: 25%;">도서 정보</th>
+                                        <th class="th-style">담당자</th>
+                                        <th class="th-style" style="text-align: right;">단가</th>
+                                        <th class="th-style" style="text-align: right;">부수</th>
+                                        <th class="th-style" style="text-align: right;">도서제작비</th>
+                                        <th class="th-style" style="text-align: right;">배송비</th>
+                                        <th class="th-style" style="text-align: right;">최종결제액</th>
+                                        <th class="th-style" style="text-align: center;">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="settlement-data-rows">
+                                    <!-- Injected by renderSettlementTable -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 정산 테이블 페이지네이션 추가 -->
+                        <div id="settlement-pagination" class="partner-pagination"
+                            style="margin-top:0; padding-top:0; border:none;">
+                            <!-- Injected by renderSettlementPagination -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page: Partner Management -->
+                <div id="page-partner" class="page-content">
+                    <div class="partner-module-wrapper">
+                        <div class="admin-container">
+                            <aside class="partner-list-side">
+                                <div class="side-title">
+                                    <span>🏢 파트너사 목록 <small
+                                            style="font-size: 10px; font-weight:normal; color:#94a3b8;">v1.2</small></span>
+                                    <button class="btn-add-partner" style="font-size: 11px;"
+                                        onclick="clearPartnerFields()">+ 신규등록</button>
+                                </div>
+                                <input type="text" id="partnerSearch" class="search-box-partner"
+                                    placeholder="업체명 검색...">
+                                <div class="list-wrapper-partner" id="partnerList">
+                                    <!-- script.js의 renderPartners()에 의해 동적으로 생성됩니다 -->
+                                </div>
+                                <div id="partnerPagination" class="partner-pagination">
+                                    <!-- 페이지 번호가 동적으로 생성됩니다 -->
+                                </div>
+                            </aside>
+
+                            <main class="partner-detail-side">
+                                <h2 style="margin-top:0; margin-bottom:30px; font-weight:900;">🛠️ 파트너사 마스터 설정</h2>
+
+                                <form id="partnerForm">
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">🔐 계정 및 권한 설정</span>
+                                        <div id="partner-pw-reset-container" class="grid-2-partner">
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">접속 아이디</label>
+                                                <input type="text" id="u_id" class="input-partner" value="sidae_admin"
+                                                    readonly>
+                                            </div>
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">비밀번호 관리</label>
+                                                <button type="button" class="btn-reset-pw" onclick="resetPassword()"
+                                                    style="background: #fff1f2; color: #e11d48; border: 1px solid #fecaca; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 11px; width: 100%;">⚠️
+                                                    비밀번호 초기화 (1234로 변경)</button>
+                                            </div>
+                                        </div>
+
+                                        <div id="partner-grade-container" class="form-group-partner">
+                                            <label class="label-partner">인쇄 단가 등급 지정 <small style="color:#0284c7;">(단가
+                                                    관리 모듈 연동용)</small></label>
+                                            <div class="grade-search-wrapper-partner">
+                                                <select id="gradeSearch" class="grade-input-partner">
+                                                    <!-- MASTER.grades 데이터로 동적 생성됩니다 -->
+                                                </select>
+                                            </div>
+                                            <span style="font-size:11px; color:#64748b; margin-top:5px;">
+                                                ※ [단가 관리 모듈]에서 생성한 등급들이 자동으로 목록에 나타납니다.
+                                            </span>
+                                        </div>
+
+                                        <div id="partner-pw-change-container" class="hidden grid-2-partner">
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">접속 아이디</label>
+                                                <input type="text" id="u_id_pub" class="input-partner bg-slate-50"
+                                                    readonly value="sidae_admin">
+                                            </div>
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">보안 관리</label>
+                                                <button type="button" onclick="openChangePasswordModal()"
+                                                    style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; font-weight: 800; font-size: 11px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                                    <i data-lucide="lock" class="w-3 h-3"></i> 비밀번호 변경하기
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">📋 업체 상세 정보</span>
+                                        <div class="grid-2-partner">
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">업체명</label><input type="text" id="u_name"
+                                                    class="input-partner" value="시대인재"></div>
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">사업자등록번호</label><input type="text"
+                                                    id="u_bizNum" class="input-partner" value="123-45-67890"></div>
+                                        </div>
+                                        <div class="grid-2-partner">
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">대표자명</label><input type="text" id="u_ceoName"
+                                                    class="input-partner" value=""></div>
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">업종/업태</label><input type="text" id="u_bizType"
+                                                    class="input-partner" value=""></div>
+                                        </div>
+                                        <div class="form-group-partner">
+                                            <label class="label-partner">주소</label>
+                                            <div class="flex gap-2 mb-2">
+                                                <input type="text" id="u_addr" class="input-partner flex-1 bg-slate-50"
+                                                    value="서울시 강남구 테헤란로 123" readonly>
+                                                <button type="button" onclick="execDaumPostcodePartner()"
+                                                    class="bg-slate-800 text-white px-4 rounded-lg text-xs font-bold shrink-0">주소
+                                                    검색</button>
+                                            </div>
+                                            <input type="text" id="u_addrDetail" class="input-partner"
+                                                value="시대인재 빌딩 5층" placeholder="상세주소를 입력하세요">
+                                        </div>
+                                    </div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">📑 사업자등록증 첨부</span>
+                                        <div class="grid grid-cols-2 gap-6">
+                                            <div id="file-biz-area"
+                                                class="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 transition-all flex flex-col items-center justify-center text-center">
+                                                <label class="text-[11px] font-black text-slate-500 mb-2 block">사업자등록증
+                                                    (JPG, PNG, PDF)</label>
+                                                <input type="file" id="biz-file-input" class="hidden"
+                                                    onchange="handleBizFileSelect(this)">
+                                                <div class="flex gap-2 w-full">
+                                                    <button type="button" id="btn-biz-upload"
+                                                        onclick="document.getElementById('biz-file-input').click()"
+                                                        class="flex-1 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all">
+                                                        파일 선택/변경
+                                                    </button>
+                                                    <button type="button" id="btn-biz-download"
+                                                        onclick="downloadBizFile()"
+                                                        class="hidden flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all">
+                                                        파일 다운로드
+                                                    </button>
+                                                </div>
+                                                <div id="biz-file-status"
+                                                    class="mt-2 text-[10px] text-slate-400 italic">선택된 파일 없음</div>
+                                            </div>
+                                            <div id="biz-preview-area"
+                                                class="p-4 border border-slate-100 rounded-xl bg-white flex items-center justify-center min-h-[120px] overflow-hidden">
+                                                <div id="biz-preview-content"
+                                                    class="text-slate-300 text-[11px] flex flex-col items-center gap-2">
+                                                    <i data-lucide="image" class="w-8 h-8 opacity-20"></i>
+                                                    이미지 미리보기
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">👤 담당자 목록 관리</span>
+                                        <div style="text-align: right; margin-bottom:10px;">
+                                            <button type="button" class="btn-add-partner" onclick="addManagerRow()">+
+                                                담당자 추가</button>
+                                        </div>
+                                        <table class="manager-table-partner" id="managerTable">
+                                            <thead>
+                                                <tr>
+                                                    <th width="15%">성함</th>
+                                                    <th width="20%">부서</th>
+                                                    <th width="25%">연락처</th>
+                                                    <th width="30%">이메일</th>
+                                                    <th width="10%"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="ani-in-partner">
+                                                    <td><input type="text" class="input-partner" value="김철수"></td>
+                                                    <td><input type="text" class="input-partner" value="교재지원팀"></td>
+                                                    <td><input type="text" class="input-partner" value="010-1234-5678">
+                                                    </td>
+                                                    <td><input type="text" class="input-partner" value="kim@sidae.com">
+                                                    </td>
+                                                    <td style="text-align:center;"><button type="button"
+                                                            onclick="this.closest('tr').remove()"
+                                                            style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:bold;">×</button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <button type="button" class="btn-save-main-partner" onclick="savePartnerData()">마스터
+                                        정보 전체 저장</button>
+                                </form>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page: Printer Management (인쇄소관리) -->
+                <div id="page-printer-mgmt" class="page-content">
+                    <div class="partner-module-wrapper">
+                        <div class="admin-container">
+                            <!-- 좌측 리스트 -->
+                            <aside class="partner-list-side">
+                                <div class="side-title">
+                                    <span>🏢 인쇄소 목록 <small
+                                            style="font-size: 10px; font-weight:normal; color:#94a3b8;">v1.2</small></span>
+                                    <button class="btn-add-partner" style="font-size: 11px;"
+                                        onclick="clearPrinterMgmtFields()">+ 신규등록</button>
+                                </div>
+                                <input type="text" id="printerSearch" class="search-box-partner"
+                                    placeholder="인쇄소명 검색..." onkeyup="renderPrintersMgmt()">
+                                <div class="list-wrapper-partner" id="printerList">
+                                    <!-- Dynamic -->
+                                </div>
+                                <div id="printerPagination" class="partner-pagination">
+                                    <!-- Pagination -->
+                                </div>
+                            </aside>
+
+                            <!-- 우측 상세 -->
+                            <main class="partner-detail-side">
+                                <div id="printer-contract-section"></div>
+                                <h2 style="margin-top:0; margin-bottom:30px; font-weight:900;">🛠️ 인쇄소 마스터 설정</h2>
+                                <form id="printerMgmtForm">
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">🔐 계정 및 권한 설정</span>
+                                        <div id="printer-pw-reset-container" class="grid-2-partner">
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">접속 아이디</label>
+                                                <input type="text" id="pr_id" class="input-partner"
+                                                    placeholder="아이디 입력">
+                                            </div>
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">비밀번호 관리</label>
+                                                <button type="button" class="btn-reset-pw"
+                                                    onclick="resetPrinterPassword()"
+                                                    style="background: #fff1f2; color: #e11d48; border: 1px solid #fecaca; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 11px; width: 100%;">⚠️
+                                                    비밀번호 초기화 (1234로 변경)</button>
+                                            </div>
+                                        </div>
+                                        <div id="printer-pw-change-container" class="hidden grid-2-partner">
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">접속 아이디</label>
+                                                <input type="text" id="pr_id_view" class="input-partner bg-slate-50"
+                                                    readonly>
+                                            </div>
+                                            <div class="form-group-partner">
+                                                <label class="label-partner">보안 관리</label>
+                                                <button type="button" onclick="openChangePasswordModal()"
+                                                    style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; font-weight: 800; font-size: 11px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                                    <i data-lucide="lock" class="w-3 h-3"></i> 비밀번호 변경하기
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="printer-contract-section"></div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">📋 인쇄소 상세 정보</span>
+                                        <div class="grid-2-partner">
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">업체명</label><input type="text" id="pr_name"
+                                                    class="input-partner"></div>
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">사업자번호</label><input type="text" id="pr_bizNum"
+                                                    class="input-partner"></div>
+                                        </div>
+                                        <div class="grid-2-partner">
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">대표자명</label><input type="text" id="pr_ceoName"
+                                                    class="input-partner"></div>
+                                            <div class="form-group-partner"><label
+                                                    class="label-partner">업종/업태</label><input type="text"
+                                                    id="pr_bizType" class="input-partner"></div>
+                                        </div>
+                                        <div class="form-group-partner">
+                                            <label class="label-partner">주소</label>
+                                            <div class="flex gap-2 mb-2">
+                                                <input type="text" id="pr_addr" class="input-partner flex-1 bg-slate-50"
+                                                    readonly>
+                                                <button type="button" onclick="execDaumPostcodePrinterMgmt()"
+                                                    class="bg-slate-800 text-white px-4 rounded-lg text-xs font-bold shrink-0">주소
+                                                    검색</button>
+                                            </div>
+                                            <input type="text" id="pr_addrDetail" class="input-partner"
+                                                placeholder="상세주소 입력">
+                                        </div>
+                                    </div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">📑 사업자등록증 첨부</span>
+                                        <div class="grid grid-cols-2 gap-6">
+                                            <div id="pr-file-biz-area"
+                                                class="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 transition-all flex flex-col items-center justify-center text-center">
+                                                <label class="text-[11px] font-black text-slate-500 mb-2 block">사업자등록증
+                                                    (JPG, PNG, PDF)</label>
+                                                <input type="file" id="pr-biz-file-input" class="hidden"
+                                                    onchange="handlePrinterBizFileSelect(this)">
+                                                <div class="flex gap-2 w-full">
+                                                    <button type="button"
+                                                        onclick="document.getElementById('pr-biz-file-input').click()"
+                                                        class="flex-1 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all">파일
+                                                        선택/변경</button>
+                                                    <button type="button" id="btn-pr-biz-download"
+                                                        onclick="downloadPrinterBizFile()"
+                                                        class="hidden flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all">파일
+                                                        다운로드</button>
+                                                </div>
+                                                <div id="pr-biz-file-status"
+                                                    class="mt-2 text-[10px] text-slate-400 italic">선택된 파일 없음</div>
+                                            </div>
+                                            <div id="pr-biz-preview-area"
+                                                class="p-4 border border-slate-100 rounded-xl bg-white flex items-center justify-center min-h-[120px] overflow-hidden">
+                                                <div id="pr-biz-preview-content"
+                                                    class="text-slate-300 text-[11px] flex flex-col items-center gap-2">
+                                                    <i data-lucide="image" class="w-8 h-8 opacity-20"></i> 이미지 미리보기
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-card-partner">
+                                        <span class="section-title-partner">👤 담당자 및 권한 관리</span>
+                                        <div style="text-align: right; margin-bottom:10px;">
+                                            <button type="button" class="btn-add-partner"
+                                                onclick="addPrinterManagerRow()">+ 담당자 추가</button>
+                                        </div>
+                                        <table class="manager-table-partner" id="printerManagerTable">
+                                            <thead>
+                                                <tr>
+                                                    <th width="12%">성함</th>
+                                                    <th width="15%">연락처</th>
+                                                    <th width="18%">이메일</th>
+                                                    <th width="15%">서브비번</th>
+                                                    <th width="30%">권한 설정</th>
+                                                    <th width="10%"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Dynamic -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <button type="button" class="btn-save-main-partner"
+                                        onclick="savePrinterMgmtData()">마스터 정보 전체 저장</button>
+                                </form>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page: Store Management (판매 도서 관리) -->
+                <div id="page-store-mgmt" class="page-content space-y-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                            <i data-lucide="book-open" class="text-sky-600"></i> 판매 도서 관리 (스토어 진열장)
+                        </h2>
+                        <button onclick="openProductModal()" class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-sky-100 flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> 신규 판매 도서 등록
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="product-list-container">
+                        <!-- Dynamic: 등록된 도서 카드들이 여기에 나타납니다 -->
+                    </div>
+
+                    <!-- 도서 등록 모달 -->
+                    <div id="product-modal-overlay" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                        <div class="bg-white w-full max-w-2xl rounded-[28px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                            <div class="p-6 border-b bg-slate-50 flex justify-between items-center">
+                                <h3 id="prod-modal-title" class="text-lg font-black text-slate-800">신규 판매 도서 등록</h3>
+                                <button onclick="closeProductModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+                            </div>
+                            <div class="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div class="space-y-4">
+                                        <div id="prod-image-area" class="aspect-[3/4] border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 flex flex-col items-center justify-center text-center p-4 relative overflow-hidden">
+                                            <div id="prod-preview-content" class="text-slate-400">
+                                                <i data-lucide="image" class="w-12 h-12 mb-2 opacity-20"></i>
+                                                <p class="text-[11px] font-bold">표지 이미지 업로드<br>(JPG, PNG, PDF)</p>
+                                                <p class="text-[9px] text-slate-400 mt-1">* PDF 업로드 시 첫 페이지만 미리보기로 저장됩니다.</p>
+                                            </div>
+                                            <input type="file" id="prod-file-input" class="hidden" accept=".jpg,.jpeg,.png,.pdf" onchange="handleProductImageSelect(this)">
+                                            <button onclick="document.getElementById('prod-file-input').click()" class="mt-4 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50">파일 선택</button>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-4">
+                                        <div><label class="label-partner">도서명</label><input type="text" id="prod-title" class="input-partner" placeholder="복간 도서 제목 입력"></div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div><label class="label-partner">카테고리</label>
+                                                <select id="prod-category" class="input-partner">
+                                                    <option value="소설/시/희곡">소설/시/희곡</option>
+                                                    <option value="인문/사회">인문/사회</option>
+                                                    <option value="경제/경영">경제/경영</option>
+                                                    <option value="과학/기술">과학/기술</option>
+                                                    <option value="예술/대중문화">예술/대중문화</option>
+                                                </select>
+                                            </div>
+                                            <div><label class="label-partner">담당자</label>
+                                                <select id="prod-manager" class="input-partner">
+                                                    <!-- Dynamic -->
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div><label class="label-partner">규격(판형)</label>
+                                                <select id="prod-spec" class="input-partner" onchange="calcProductUnitCost()"></select>
+                                                <div id="prod-custom-size-view" class="hidden mt-2">
+                                                    <label class="text-[10px] font-black text-rose-600 mb-1 block">사용자 규격 입력 (가로x세로 mm)</label>
+                                                    <input type="text" id="prod-custom-size" class="input-partner border-rose-200 focus:ring-rose-500" placeholder="예: 148x210" onkeyup="calcProductUnitCost()" onchange="calcProductUnitCost()">
+                                                </div>
+                                            </div>
+                                            <div><label class="label-partner">페이지 수</label><input type="number" id="prod-pages" class="input-partner" placeholder="200" value="200" onkeyup="calcProductUnitCost()" onchange="calcProductUnitCost()"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr class="border-slate-100">
+                                
+                                <div>
+                                    <h4 class="text-sm font-black text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="settings-2" class="w-4 h-4 text-sky-600"></i> 상세 제작 사양 (단가 연동)</h4>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div><label class="label-partner">내지 용지</label><select id="prod-inner-paper" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">내지 컬러</label><select id="prod-inner-print" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">부분컬러(P)</label><input type="number" id="prod-partial-color" class="input-partner" value="0" placeholder="0" onkeyup="calcProductUnitCost()" onchange="calcProductUnitCost()"></div>
+                                        <div><label class="label-partner">표지 용지</label><select id="prod-cover-paper" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">표지 컬러</label><select id="prod-cover-print" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">코팅</label><select id="prod-coating" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">제본</label><select id="prod-binding" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div><label class="label-partner">날개</label><select id="prod-wing" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div class="col-span-2"><label class="label-partner">면지</label><select id="prod-face-paper" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                        <div class="col-span-2"><label class="label-partner">면지삽입위치</label><select id="prod-face-insert" class="input-partner" onchange="calcProductUnitCost()"></select></div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 flex justify-between items-center">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-500 mb-1">시스템 자동 산출 (권당)</div>
+                                        <div class="text-xl font-black text-sky-600">권당 제작 단가: ₩ <span id="prod-calc-cost">0</span>원</div>
+                                        <div class="text-[10px] text-slate-400 mt-1">* 입력하신 사양과 협약 등급표를 기준으로 계산된 확정 제작 매입가입니다. (VAT 별도)</div>
+                                    </div>
+                                    <div class="text-right w-1/3">
+                                        <label class="label-partner text-emerald-600 text-left">소비자 판매 정가 (원)</label>
+                                        <input type="number" id="prod-price" class="input-partner font-black border-emerald-200 text-right text-lg" placeholder="25,000">
+                                    </div>
+                                </div>
+
+                                <div><label class="label-partner">도서 소개 / 복간 스토리</label>
+                                    <textarea id="prod-desc" class="input-partner h-20 py-3 resize-none" placeholder="독자들에게 전달할 도서 소개 및 절판/복간 스토리를 입력하세요."></textarea>
+                                </div>
+                            </div>
+                            <div class="p-6 bg-slate-50 flex gap-3">
+                                <button onclick="closeProductModal()" class="flex-1 bg-white border border-slate-200 py-3 rounded-xl font-bold text-slate-600 text-sm hover:bg-slate-100 transition-all">취소</button>
+                                <button id="btn-save-product" onclick="saveProductData()" class="flex-1 bg-sky-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all">스토어에 도서 등록하기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Tracking Modal Overlay & Panel (Body Root Level) -->
+    <div id="tracking-modal-overlay"
+        class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div
+            class="bg-white w-full max-w-lg rounded-[28px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b bg-slate-50 flex justify-between items-center">
+                <div>
+                    <div id="tracking-modal-label"
+                        class="text-[10px] font-bold text-emerald-600 mb-1 uppercase tracking-widest">LOGISTICS
+                        MANAGEMENT</div>
+                    <h3 id="tracking-modal-main-title" class="text-lg font-black text-slate-800">배송지별 송장 번호 입력</h3>
+                </div>
+                <button onclick="closeTrackingModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 bg-white border-b">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-black"
+                        id="tracking-modal-order-id"></span>
+                    <span class="text-sm font-black text-slate-700 truncate" id="tracking-modal-book-title"></span>
+                </div>
+                <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"
+                    id="tracking-input-container">
+                    <!-- Inputs injected by promptTracking() -->
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-50 flex gap-3">
+                <button onclick="closeTrackingModal()"
+                    class="flex-1 bg-white border border-slate-200 py-3 rounded-xl font-bold text-slate-600 text-sm hover:bg-slate-100 transition-all">취소</button>
+                <button id="btn-save-tracking"
+                    class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">출고
+                    처리 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 상세 정보 슬라이드 패널 -->
+    <div id="order-details-overlay" class="hidden fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm transition-all"
+        onclick="closeOrderDetails()"></div>
+    <div id="order-details-panel"
+        class="fixed top-0 right-0 h-full w-[450px] bg-white z-[110] shadow-2xl transition-transform duration-300 translate-x-full flex flex-col">
+        <!-- Content dynamic -->
+    </div>
+
+    <!-- Custom Script -->
+    <script src="script.js"></script>
+</body>
+
+</html>
