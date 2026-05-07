@@ -1,5 +1,56 @@
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
 
+// --- 로그인 관련 기능 추가 ---
+document.addEventListener('DOMContentLoaded', () => {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (isLoggedIn) {
+        const role = sessionStorage.getItem('userRole');
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('app-container').classList.remove('hidden');
+        if (typeof switchRole === 'function') {
+            setTimeout(() => switchRole(role), 100);
+        }
+    }
+});
+
+function handleLogin() {
+    const id = document.getElementById('login-id').value;
+    const pw = document.getElementById('login-pw').value;
+
+    // 임시 권한별 로그인 정보
+    if (id === 'admin' && pw === '1234') {
+        enterApp('admin');
+    } else if (id === 'pub' && pw === '1234') {
+        enterApp('publisher');
+    } else if (id === 'print' && pw === '1234') {
+        enterApp('printer');
+    } else {
+        alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+}
+
+function enterApp(role) {
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', role);
+    
+    // 페이드아웃 효과 후 전환
+    const overlay = document.getElementById('login-overlay');
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        document.getElementById('app-container').classList.remove('hidden');
+        if (typeof switchRole === 'function') {
+            switchRole(role);
+        }
+    }, 500);
+}
+
+function logout() {
+    sessionStorage.clear();
+    location.reload();
+}
+// -----------------------
+
 // 초기 기본 단가 데이터를 생성하는 함수
 function getBasePriceData() {
     const sheetSpecs = [
