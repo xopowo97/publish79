@@ -68,13 +68,13 @@
             <div class="sidebar-item" id="btn-production" onclick="showPage('production')">
                 <i data-lucide="factory" class="w-4 h-4 mr-3"></i>생산진행관리
             </div>
-            <div class="sidebar-item">
+            <div class="sidebar-item" id="btn-stock">
                 <i data-lucide="box" class="w-4 h-4 mr-3"></i>재고관리
             </div>
-            <div class="sidebar-item">
+            <div class="sidebar-item" id="btn-paper">
                 <i data-lucide="layers" class="w-4 h-4 mr-3"></i>용지구매
             </div>
-            <div class="sidebar-item">
+            <div class="sidebar-item" id="btn-job">
                 <i data-lucide="briefcase" class="w-4 h-4 mr-3"></i>구인구직
             </div>
         </nav>
@@ -115,19 +115,7 @@
                 </button>
             </div>
 
-            <!-- 테스트용 역할 전환 스위처 추가 -->
-            <div id="role-switcher-container"
-                class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 ml-auto shrink-0">
-                <span class="text-[9px] font-black text-slate-400 px-2 tracking-tighter">TEST MODE</span>
-                <button onclick="switchRole('admin')" id="role-btn-admin"
-                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">관리자</button>
-                <button onclick="switchRole('publisher')" id="role-btn-publisher"
-                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">출판사</button>
-                <button onclick="switchRole('printer')" id="role-btn-printer"
-                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all">인쇄소</button>
-                <button onclick="switchRole('printer_worker')" id="role-btn-printer-worker"
-                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-rose-500">인쇄소담당자</button>
-            </div>
+            <div id="role-badge-container" class="ml-2"></div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
