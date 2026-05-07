@@ -97,7 +97,7 @@ function getBasePriceData() {
 // --- Supabase 초기화 설정 ---
 const SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let MASTER = {
     grades: [...DEFAULT_GRADES],
@@ -130,110 +130,96 @@ let MASTER = {
 };
 
 // 초기 등급 데이터 세팅
-function initMaster() {
-    // 실전 배포를 위한 로컬 데이터 강제 초기화 (한 번만 실행 후 삭제 권장)
-    if (!localStorage.getItem('CLEANED_FOR_PROD')) {
-        localStorage.clear();
-        localStorage.setItem('CLEANED_FOR_PROD', 'true');
-        location.reload();
-        return;
-    }
-    
-    const saved = localStorage.getItem('MASTER_DATA');
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        // Deep merge or specific property assignment to keep new structure properties
-        MASTER = { ...MASTER, ...parsed };
-        if (!MASTER.orderPersistence) {
-            MASTER.orderPersistence = { sheet: {}, roll: {} };
+// 초기 데이터 로딩 (Supabase 연동)
+async function initMaster() {
+    try {
+        // 1. 공통 설정(사양, 단가) 불러오기
+        const { data: configData, error: configError } = await _supabase
+            .from('master_config')
+            .select('data')
+            .eq('id', 'config')
+            .maybeSingle();
+
+        if (configData && configData.data) {
+            const savedData = configData.data;
+            MASTER.grades = savedData.grades || MASTER.grades;
+            MASTER.pricesByGrade = savedData.pricesByGrade || MASTER.pricesByGrade;
+            MASTER.coverPapers = savedData.coverPapers || MASTER.coverPapers;
+            MASTER.innerPapers = savedData.innerPapers || MASTER.innerPapers;
+            MASTER.facePapers = savedData.facePapers || MASTER.facePapers;
+            MASTER.customGroups = savedData.customGroups || [];
         }
-        // 기본 등급들이 누락되었다면 추가 (5단계 -> 4단계 개편 대응)
-        DEFAULT_GRADES.forEach(g => {
-            if (!MASTER.grades.includes(g)) MASTER.grades.push(g);
-        });
 
-        // 모든 등급에 대해 단가 데이터 구조가 있는지 확인 및 생성
-        MASTER.grades.forEach(g => {
-            if (!MASTER.pricesByGrade[g]) {
-                MASTER.pricesByGrade[g] = getBasePriceData();
-            } else {
-                if (!MASTER.pricesByGrade[g].commons.some(c => c.n === '단면할증')) {
-                    MASTER.pricesByGrade[g].commons.push({id:209, n:'단면할증', v:5});
-                }
-            }
-            if (!MASTER.pricesByGrade[g].sheetCommons) {
-                MASTER.pricesByGrade[g].sheetCommons = {};
-                MASTER.pricesByGrade[g].rollCommons = {};
-                
-                // 데이터 마이그레이션: 기존 commons 배열에서 값 추출하여 매핑 구조로 복원 (하이브리드 지원)
-                const cFind = (n) => (MASTER.pricesByGrade[g].commons.find(c => c.n.includes(n)) || {v:0}).v;
-                
-                MASTER.pricesByGrade[g].sheetCommons['표지날개_날개 있음'] = cFind('표지날개있음');
-                MASTER.pricesByGrade[g].sheetCommons['표지날개_날개 없음'] = cFind('표지날개없음');
-                MASTER.pricesByGrade[g].sheetCommons['내지인쇄_내지-흑백단면'] = cFind('표지흑백단면');
-                MASTER.pricesByGrade[g].sheetCommons['내지인쇄_내지-흑백양면'] = cFind('표지흑백양면');
-                MASTER.pricesByGrade[g].sheetCommons['표지인쇄_표지-컬러단면'] = cFind('표지컬러단면');
-                MASTER.pricesByGrade[g].sheetCommons['표지인쇄_표지-컬러양면'] = cFind('표지컬러양면');
-                MASTER.pricesByGrade[g].sheetCommons['코팅방식_무광'] = 0;
-                MASTER.pricesByGrade[g].sheetCommons['코팅방식_유광'] = 0;
-            }
-        });
-    } else {
-        MASTER.grades.forEach(g => {
-            MASTER.pricesByGrade[g] = getBasePriceData();
-            MASTER.pricesByGrade[g].sheetCommons = {};
-            MASTER.pricesByGrade[g].rollCommons = {};
-        });
+        // 2. 주문 목록 불러오기
+        const { data: ordersData, error: ordersError } = await _supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (ordersData) {
+            MASTER.orders = ordersData;
+        }
+
+        // 3. 파트너사 목록 불러오기
+        const { data: partnersData, error: partnersError } = await _supabase
+            .from('partners')
+            .select('*');
+
+        if (partnersData) {
+            MASTER.partners = partnersData;
+        }
+
+        console.log("온라인 DB 데이터 로딩 완료");
+        renderAll();
+    } catch (e) {
+        console.error("데이터 로딩 중 오류:", e);
+        // 오류 시 로컬 데이터 백업 사용
+        const saved = localStorage.getItem('MASTER_DATA');
+        if (saved) MASTER = JSON.parse(saved);
+        renderAll();
     }
-
-    // 인쇄소 협약단가 기본 데이터 초기화
-    if (!MASTER.pricesByGrade['인쇄소 협약단가']) {
-        MASTER.pricesByGrade['인쇄소 협약단가'] = getBasePriceData();
-        MASTER.pricesByGrade['인쇄소 협약단가'].sheetCommons = {};
-        MASTER.pricesByGrade['인쇄소 협약단가'].rollCommons = {};
-    }
-
-    // 마이그레이션: customGroups가 문자열 배열이면 객체 배열로 변환 및 오류 데이터 정리 (undefined 버그 해결)
-    if (MASTER.customGroups && MASTER.customGroups.length > 0) {
-        MASTER.customGroups = MASTER.customGroups.map(g => {
-            if (typeof g === 'string') {
-                return { name: g, type: 'book', isVisible: true };
-            }
-            if (g.isVisible === undefined) {
-                g.isVisible = true; // backward compatibility
-            }
-            return g;
-        });
-        // 유효한 name을 가진 객체만 필터링
-        MASTER.customGroups = MASTER.customGroups.filter(g => g && g.name && g.name !== 'undefined');
-    } else {
-        MASTER.customGroups = [];
-    }
-
-    if (!MASTER.products) MASTER.products = [];
 }
 initMaster();
 
-function saveMasterData() {
-    localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
-    alert("모든 설정 정보가 브라우저에 성공적으로 저장되었습니다.");
+// 데이터 통합 저장 함수 (Supabase + Local Backup)
+async function saveData() {
+    try {
+        // 1. 공통 설정 저장
+        const configToSave = {
+            grades: MASTER.grades,
+            currentGrade: MASTER.currentGrade,
+            pricesByGrade: MASTER.pricesByGrade,
+            coverPapers: MASTER.coverPapers,
+            innerPapers: MASTER.innerPapers,
+            facePapers: MASTER.facePapers,
+            customGroups: MASTER.customGroups
+        };
+
+        const { error } = await _supabase.from('master_config').upsert({ id: 'config', data: configToSave });
+        if (error) throw error;
+
+        // 2. 로컬 백업 (네트워크 불안정 대비)
+        localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
+        
+        console.log("데이터가 온라인 DB에 안전하게 저장되었습니다.");
+        return true;
+    } catch (e) {
+        console.error("저장 중 오류:", e);
+        return false;
+    }
 }
 
-function saveMasterDataSilent() {
-    try {
-        const data = JSON.stringify(MASTER);
-        // 용량 체크 (대략적인 바이트 계산)
-        const sizeInMb = (data.length * 2) / (1024 * 1024);
-        
-        if (sizeInMb > 4.5) {
-            alert("⚠️ 경고: 브라우저 저장 공간이 거의 꽉 찼습니다 (현재 " + sizeInMb.toFixed(2) + "MB). \n불필요한 도서를 삭제하여 공간을 확보해 주세요. 그렇지 않으면 저장이 실패할 수 있습니다.");
-        }
-        
-        localStorage.setItem('MASTER_DATA', data);
-    } catch (e) {
-        console.error("저장 실패:", e);
-        alert("❌ 저장 공간이 부족하여 데이터를 브라우저에 기록하지 못했습니다. \n표지 이미지를 줄이거나 불필요한 도서를 삭제한 후 다시 시도해 주세요.");
+async function saveMasterData() {
+    const success = await saveData();
+    if (success) {
+        alert("모든 설정 정보가 온라인 DB에 성공적으로 저장되었습니다.");
+    } else {
+        alert("❌ 온라인 저장에 실패했습니다. 네트워크 상태를 확인해주세요.");
     }
+}
+
+async function saveMasterDataSilent() {
+    await saveData();
 }
 
 let mode = 'sheet';
