@@ -105,46 +105,34 @@ let MASTER = {
     coverPrinting: ['표지-흑백단면', '표지-흑백양면', '표지-컬러단면', '표지-컬러양면'],
     innerPrinting: ['내지-흑백단면', '내지-흑백양면', '내지-컬러단면', '내지-컬러양면', '내지-부분컬러'],
     faceInsert: ['없음', '면지있음(앞뒤1장)4P', '면지있음(앞뒤2장)8P'],
-    customGroups: [], // Array of objects: { name: '특가공', type: 'book' }
-    partners: [
-        { id: 'sidae_admin', name: '시대인재', grade: 'VIP등급', bizNum: '123-45-67890', addr: '서울시 강남구 테헤란로 123', addrDetail: '시대인재 빌딩 5층', managers: [{name: '김철수', dept: '교재지원팀', tel: '010-1234-5678', email: 'kim@sidae.com'}] },
-        { id: 'mega_procure', name: '메가스터디', grade: '일반등급(표준)', bizNum: '222-33-44444', addr: '서울시 서초구', addrDetail: '메가빌딩', managers: [{name: '이영희', dept: '구매팀', tel: '010-5555-6666', email: 'lee@mega.com'}] }
-    ],
+    customGroups: [], 
+    partners: [], // 모든 테스트 데이터 삭제됨
     orderPersistence: {
         sheet: {},
         roll: {}
     },
-    orders: [
-        {
-            id: 'ORDER_001', date: '2026-03-30', mode: 'sheet',
-            pubName: '시대인재', bookTitle: '2026 수능 대비 수학 실전 모의고사 (Vol.1)',
-            managerName: '남궁민', unitPrice: '3,800', qty: '100', totalPrice: '380,000',
-            data: { 'ord-book-title': '2026 수능 대비 수학 실전 모의고사 (Vol.1)', 'ord-qty': '100', 'ord-spec': 'A5국판(148x210)', 'ord-manager': '홍길동' }
-        },
-        {
-            id: 'ORDER_002', date: '2026-03-29', mode: 'roll',
-            pubName: '메가스터디', bookTitle: '개념완성 사회문화 요약집 (Final)',
-            managerName: '김철수', unitPrice: '2,500', qty: '500', totalPrice: '1,250,000',
-            data: { 'ord-book-title': '개념완성 사회문화 요약집 (Final)', 'ord-qty': '500', 'ord-spec': 'A5국판(148x210)', 'ord-manager': '김철수' }
-        }
-    ],
+    orders: [], // 모든 테스트 데이터 삭제됨
     printers: [
         { 
-            id: 'printer_master', name: '출판프린팅', bizNum: '555-66-77777', 
-            addr: '경기도 파주시', addrDetail: '출판단지길 100', ceoName: '박인쇄', bizType: '서비스/인쇄',
+            id: 'printer_master', name: '기본인쇄소', bizNum: '', 
+            addr: '', addrDetail: '', ceoName: '', bizType: '',
             managers: [
-                {name: '최작업', tel: '010-9999-8888', email: 'choi@print.com', subPw: '1111', perms: ['prod']},
-                {name: '정회계', tel: '010-7777-6666', email: 'jung@print.com', subPw: '2222', perms: ['settle']}
+                {name: '관리자', tel: '', email: '', subPw: '1234', perms: ['prod', 'settle']}
             ]
         }
     ],
-    products: [] // 스토어 판매 도서 목록
+    products: [] 
 };
 
 // 초기 등급 데이터 세팅
 function initMaster() {
-    // 1. 과거 데이터(찌꺼기) 청소로 용량 확보
-    localStorage.removeItem('antigrafiti_master'); 
+    // 실전 배포를 위한 로컬 데이터 강제 초기화 (한 번만 실행 후 삭제 권장)
+    if (!localStorage.getItem('CLEANED_FOR_PROD')) {
+        localStorage.clear();
+        localStorage.setItem('CLEANED_FOR_PROD', 'true');
+        location.reload();
+        return;
+    }
     
     const saved = localStorage.getItem('MASTER_DATA');
     if (saved) {
@@ -630,7 +618,46 @@ function renderPrice() {
 }
 
 
+// --- 권한별 메뉴 가시성 제어 (항상 실행되도록 분리) ---
+function updateMenuVisibility(role) {
+    const allMenuIds = [
+        'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 
+        'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 
+        'btn-production', 'btn-stock', 'btn-paper', 'btn-job'
+    ];
+    
+    // 1. 모든 메뉴 일단 보이기 (초기화)
+    allMenuIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+    });
+
+    // 2. 출판사(publisher)인 경우 제어
+    if (role === 'publisher') {
+        // 숨길 메뉴: 제작사양, 단가관리, 인쇄소관리, 판매도서관리, 재고관리, 구인구직
+        // 보일 메뉴: 주문하기, 정산, 파트너사관리, 생산진행관리, 용지구매
+        const toHide = ['btn-spec', 'btn-price', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-stock', 'btn-job'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+    
+    // 3. 인쇄소(printer)인 경우 제어
+    if (role === 'printer' || role === 'printer_worker') {
+        // 숨길 메뉴: 정산, 정보관리, 생산진행관리 3개 빼고 다 숨김
+        const toHide = ['btn-spec', 'btn-price', 'btn-order', 'btn-partner', 'btn-store-mgmt', 'btn-stock', 'btn-paper', 'btn-job'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+}
+
 function showPage(p, isEdit = false) {
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    updateMenuVisibility(role);
+
     // 파트너사 정보 수정 중(파일 선택 등) 페이지 이탈 방지
     if (currentBizFileData) {
         if (!confirm("수정사항(사업자등록증 등)이 저장되지 않았습니다. 이대로 페이지를 이동하시겠습니까?")) {
@@ -682,7 +709,6 @@ function showPage(p, isEdit = false) {
     if(p==='spec') renderSpec();
     if(p==='price') { renderGradeTabs(); renderPrice(); }
     if(p==='partner') {
-        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
         const titleEl = document.getElementById('main-title');
         if (role === 'publisher') {
             const myPartner = MASTER.partners[0];
@@ -720,7 +746,6 @@ function showPage(p, isEdit = false) {
     if(p==='store-mgmt') renderStoreMgmt();
     if(p==='production') renderProductionBoard();
     if(p==='printer-mgmt') {
-        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
         const titleEl = document.getElementById('main-title');
         if (role === 'printer' || role === 'printer_worker') {
             const myPrinter = MASTER.printers[0];
@@ -734,7 +759,6 @@ function showPage(p, isEdit = false) {
         renderPrintersMgmt();
     }
     if(p==='settlement') {
-        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
         if (role === 'printer_worker') {
             alert("정산 및 주문관리 메뉴에 대한 접근 권한이 없습니다.");
             showPage('production');
@@ -761,7 +785,7 @@ function renderRoleBadge(p) {
         return;
     }
 
-    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const role = sessionStorage.getItem('userRole') || 'admin';
     let badgeHtml = '';
 
     if (role === 'admin') {
