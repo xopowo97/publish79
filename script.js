@@ -94,6 +94,11 @@ function getBasePriceData() {
     return { sheetSpecs, rollSpecs, commons };
 }
 
+// --- Supabase 초기화 설정 ---
+const SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let MASTER = {
     grades: [...DEFAULT_GRADES],
     currentGrade: '일반등급(표준)',
@@ -106,12 +111,12 @@ let MASTER = {
     innerPrinting: ['내지-흑백단면', '내지-흑백양면', '내지-컬러단면', '내지-컬러양면', '내지-부분컬러'],
     faceInsert: ['없음', '면지있음(앞뒤1장)4P', '면지있음(앞뒤2장)8P'],
     customGroups: [], 
-    partners: [], // 모든 테스트 데이터 삭제됨
+    partners: [], 
     orderPersistence: {
         sheet: {},
         roll: {}
     },
-    orders: [], // 모든 테스트 데이터 삭제됨
+    orders: [], 
     printers: [
         { 
             id: 'printer_master', name: '기본인쇄소', bizNum: '', 
