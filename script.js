@@ -1836,7 +1836,7 @@ function openOrderDetails(id) {
                         <i data-lucide="download" class="w-4 h-4"></i> 표지 다운로드
                     </button>
                 </div>
-                <button onclick="setTimeout(() => window.print(), 500)" 
+                <button onclick="printJobTicket('${order.id}')" 
                     class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
                     <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
                 </button>
@@ -1876,6 +1876,161 @@ function renderSpecDetailItem(label, value) {
             <span class="text-slate-800 font-black print:text-black">${value || '-'}</span>
         </div>
     `;
+}
+
+// [하이브리드 개편] 작업지시서 전용 가상 인쇄 엔진 고도화 (완벽 격리 팝업창 방식)
+function printJobTicket(orderId) {
+    const order = MASTER.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const customSize = order.data['ord-custom-size'];
+    const isCustomSize = !!customSize || (order.data['ord-spec']?.includes('사용자규격') || order.data['ord-spec']?.includes('변형'));
+
+    const rItem = (lbl, val) => `
+        <div class="v-row">
+            <span class="v-row-lbl">${lbl}</span>
+            <span class="v-row-val">${val || '-'}</span>
+        </div>
+    `;
+
+    let deliveryHtml = (order.deliveries || []).map(d => `
+        <div class="v-box" style="margin-top:4px;">
+            <div style="display:flex; justify-content:space-between; font-weight:900; border-bottom:1px solid #ddd; padding-bottom:2px; margin-bottom:3px;">
+                <span>${d.recipient} (${d.qty}부)</span>
+                <span>${d.contact}</span>
+            </div>
+            <div style="font-size:9.5px; margin-bottom:4px;">${d.address} ${d.addressDetail || ''}</div>
+            ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => `
+                <div style="display:flex; justify-content:space-between; font-size:9.5px; border-top:1px dashed #eee; padding-top:2px;">
+                    <span>${t.courier}</span><span style="font-weight:900">${t.code}</span>
+                </div>
+            `).join('') : (d.trackingNum ? `
+                <div style="display:flex; justify-content:space-between; font-size:9.5px; border-top:1px dashed #eee; padding-top:2px;">
+                    <span>송장번호</span><span style="font-weight:900">${d.trackingNum}</span>
+                </div>
+            ` : '<div style="font-size:9px; font-style:italic">송장 미입력</div>')}
+        </div>
+    `).join('');
+
+    if (!deliveryHtml) deliveryHtml = '<div style="font-size:9.5px; font-style:italic; padding:4px;">배송 정보가 없습니다.</div>';
+
+    const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+
+    // 1. 기존에 생성된 투명 프레임이 있다면 제거 (항상 깨끗한 새 프레임 보장)
+    let oldFrame = document.getElementById('hidden-print-frame');
+    if (oldFrame) oldFrame.remove();
+
+    // 2. 보이지 않는 투명 iframe 생성 및 DOM 부착
+    const iframe = document.createElement('iframe');
+    iframe.id = 'hidden-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    // 3. iframe 내부 문서에 성공한 1장 압축 명세서 HTML 주입
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>작업지시서 - ${order.bookTitle}</title>
+            <style>
+                body {
+                    background: white !important;
+                    color: black !important;
+                    font-family: sans-serif !important;
+                    font-size: 11px !important;
+                    line-height: 1.4 !important;
+                    margin: 0 !important;
+                    padding: 12px !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                @page {
+                    size: A4 portrait;
+                    margin: 10mm;
+                }
+                * {
+                    color: black !important;
+                    border-color: black !important;
+                    box-sizing: border-box !important;
+                }
+                .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
+                .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+                .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
+                .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+                .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
+                .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
+                .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
+                .v-row:last-child { border-bottom: none; }
+                .v-row-lbl { font-weight: bold; }
+                .v-row-val { font-weight: 900; }
+                .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="v-header">
+                <div class="v-title">작업지시서 (Job Ticket)</div>
+                <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
+            </div>
+
+            <div class="v-badge-row">
+                <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
+            </div>
+
+            <div class="v-book-title">${order.bookTitle}</div>
+
+            <div class="v-box">
+                ${rItem('출판사', order.pubName)}
+                ${rItem('담당자', order.managerName)}
+                <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                    <span class="v-row-lbl">제작부수</span>
+                    <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
+                </div>
+            </div>
+
+            <div class="v-sec-title">제작 사양 요약</div>
+            <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
+                ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
+                ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
+                ${rItem('표지용지', order.data['ord-cover'])}
+                ${rItem('표지인쇄', order.data['ord-printing'])}
+                ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
+                ${rItem('제본방식', order.data['ord-binding'])}
+                ${rItem('내지용지', order.data['ord-inner'])}
+                ${rItem('내지인쇄', order.data['ord-inner-print'])}
+                ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
+            </div>
+            ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+
+            <div class="v-sec-title">배송 및 송장 정보</div>
+            ${deliveryHtml}
+
+            ${role !== 'printer_worker' ? `
+                <div class="v-box" style="margin-top:8px; border-width:2px;">
+                    ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                    <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                        <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
+                        <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                    </div>
+                </div>
+            ` : ''}
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    // 투명 프레임 렌더링 완료 후 조용히 인쇄 호출
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+        iframe.contentWindow.print();
+    }, 250);
 }
 
 
