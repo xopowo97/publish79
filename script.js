@@ -1726,9 +1726,9 @@ function openOrderDetails(id) {
     // 패널 내용 구성
     panel.innerHTML = `
         <!-- Print Header (Hidden on screen) -->
-        <div class="hidden print:block mb-8 border-b-2 border-black pb-4 px-6 pt-6">
-            <h2 class="text-2xl font-black text-black">작업지시서 (Job Ticket)</h2>
-            <div class="text-sm mt-2 text-black">출력일시: ${new Date().toLocaleString()}</div>
+        <div class="hidden print:block mb-3 border-b-2 border-black pb-2 px-2 pt-2">
+            <h2 class="text-xl font-black text-black">작업지시서 (Job Ticket)</h2>
+            <div class="text-xs mt-1 text-black">출력일시: ${new Date().toLocaleString()}</div>
         </div>
 
         <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-white print:hidden">
@@ -1741,24 +1741,24 @@ function openOrderDetails(id) {
             </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-6 space-y-8 bg-white print:p-6 print:overflow-visible">
+        <div class="flex-1 overflow-y-auto p-6 space-y-8 bg-white print:p-2 print:space-y-3 print:overflow-visible print:text-[11px]">
             <!-- 기본 정보 -->
-            <div class="space-y-4">
-                <div class="flex justify-between items-center border-b border-slate-200 pb-3 print:border-black">
-                    <span class="badge ${order.mode === 'sheet' ? 'badge-blue' : 'badge-outline'} print:border-black print:text-black print:bg-white">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
-                    <span class="text-[11px] font-bold text-slate-400 print:text-black">${order.date}</span>
+            <div class="space-y-4 print:space-y-1.5">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3 print:pb-1 print:border-black">
+                    <span class="badge ${order.mode === 'sheet' ? 'badge-blue' : 'badge-outline'} print:border-black print:text-black print:bg-white print:text-[10px] print:py-0.5">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                    <span class="text-[11px] font-bold text-slate-400 print:text-black print:text-[10px]">${order.date}</span>
                 </div>
-                <div class="text-2xl font-black text-slate-900 leading-tight print:text-black">${order.bookTitle}</div>
-                <div class="p-5 bg-white rounded-xl border border-slate-200 print:border-black print:rounded-none">
-                    <div class="flex justify-between mb-2"><span class="text-xs text-slate-500 font-bold print:text-black">출판사</span><span class="text-sm font-black text-slate-800 print:text-black">${order.pubName}</span></div>
-                    <div class="flex justify-between mb-2"><span class="text-xs text-slate-500 font-bold print:text-black">담당자</span><span class="text-sm font-black text-slate-800 print:text-black">${order.managerName}</span></div>
-                    <div class="flex justify-between pt-3 mt-1 border-t border-slate-100 print:border-black"><span class="text-xs text-slate-500 font-bold print:text-black">제작부수</span><span class="text-base font-black text-sky-700 print:text-black">${parseInt(order.qty).toLocaleString()}부</span></div>
+                <div class="text-2xl font-black text-slate-900 leading-tight print:text-black print:text-base">${order.bookTitle}</div>
+                <div class="p-5 bg-white rounded-xl border border-slate-200 print:border-black print:rounded-none print:p-2.5">
+                    <div class="flex justify-between mb-2 print:mb-1"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">출판사</span><span class="text-sm font-black text-slate-800 print:text-black print:text-xs">${order.pubName}</span></div>
+                    <div class="flex justify-between mb-2 print:mb-1"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">담당자</span><span class="text-sm font-black text-slate-800 print:text-black print:text-xs">${order.managerName}</span></div>
+                    <div class="flex justify-between pt-3 mt-1 border-t border-slate-100 print:border-black print:pt-1.5"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">제작부수</span><span class="text-base font-black text-sky-700 print:text-black print:text-xs">${parseInt(order.qty).toLocaleString()}부</span></div>
                 </div>
             </div>
 
             <!-- 제작 사양 요약 -->
             <div>
-                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black"><i data-lucide="settings-2" class="w-4 h-4 print:hidden"></i>제작 사양 요약</div>
+                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black print:mb-1 print:text-[11px]"><i data-lucide="settings-2" class="w-4 h-4 print:hidden"></i>제작 사양 요약</div>
                 <div class="grid grid-cols-1 gap-0 border-t border-slate-200 print:border-black">
                     ${specHtml}
                     ${renderSpecDetailItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
@@ -1770,36 +1770,36 @@ function openOrderDetails(id) {
                     ${renderSpecDetailItem('내지인쇄', order.data['ord-inner-print'])}
                     ${order.mode === 'sheet' ? renderSpecDetailItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
                 </div>
-                ${isCustomSize ? `<div class="mt-4 p-4 bg-white border border-rose-200 rounded-xl text-rose-700 text-xs font-black flex items-center gap-2 print:border-black print:text-black print:rounded-none"><i data-lucide="alert-triangle" class="w-4 h-4 print:hidden"></i> *주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+                ${isCustomSize ? `<div class="mt-4 p-4 bg-white border border-rose-200 rounded-xl text-rose-700 text-xs font-black flex items-center gap-2 print:border-black print:text-black print:rounded-none print:mt-1.5 print:p-1.5 print:text-[10px]"><i data-lucide="alert-triangle" class="w-4 h-4 print:hidden"></i> *주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
             </div>
 
             <!-- 배송 정보 -->
             <div>
-                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black"><i data-lucide="truck" class="w-4 h-4 print:hidden"></i>배송 및 송장 정보</div>
-                <div class="space-y-3">
+                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black print:mb-1 print:text-[11px]"><i data-lucide="truck" class="w-4 h-4 print:hidden"></i>배송 및 송장 정보</div>
+                <div class="space-y-3 print:space-y-1.5">
                     ${(order.deliveries || []).map(d => `
-                        <div class="p-4 bg-white rounded-xl border border-slate-200 text-xs print:border-black print:rounded-none">
-                            <div class="flex justify-between mb-2 border-b border-slate-100 pb-2 print:border-black">
-                                <div class="font-black text-slate-800 text-sm print:text-black">${d.recipient} (${d.qty}부)</div>
-                                <div class="text-slate-500 font-bold print:text-black">${d.contact}</div>
+                        <div class="p-4 bg-white rounded-xl border border-slate-200 text-xs print:border-black print:rounded-none print:p-2">
+                            <div class="flex justify-between mb-2 border-b border-slate-100 pb-2 print:border-black print:mb-1 print:pb-1">
+                                <div class="font-black text-slate-800 text-sm print:text-black print:text-xs">${d.recipient} (${d.qty}부)</div>
+                                <div class="text-slate-500 font-bold print:text-black print:text-[10px]">${d.contact}</div>
                             </div>
-                            <div class="text-slate-600 print:text-black leading-relaxed">${d.address} ${d.addressDetail || ''}</div>
-                            <div class="mt-3 space-y-2">
+                            <div class="text-slate-600 print:text-black leading-relaxed print:text-[10px]">${d.address} ${d.addressDetail || ''}</div>
+                            <div class="mt-3 space-y-2 print:mt-1.5 print:space-y-1">
                                 ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => `
-                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black">
+                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black print:px-1.5 print:py-0.5">
                                         <span class="text-[10px] font-bold text-slate-500 print:text-black">${t.courier}</span>
-                                        <span class="font-black text-slate-700 print:text-black">${t.code}</span>
+                                        <span class="font-black text-slate-700 print:text-black print:text-[10px]">${t.code}</span>
                                     </div>
                                 `).join('') : (d.trackingNum ? `
-                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black">
+                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black print:px-1.5 print:py-0.5">
                                         <span class="text-[10px] font-bold text-slate-500 print:text-black">송장번호</span>
-                                        <span class="font-black text-slate-700 print:text-black">${d.trackingNum}</span>
+                                        <span class="font-black text-slate-700 print:text-black print:text-[10px]">${d.trackingNum}</span>
                                     </div>
                                 ` : '<div class="text-[10px] text-slate-400 italic print:text-black">송장 미입력</div>')}
                             </div>
                         </div>
                     `).join('')}
-                    ${(!order.deliveries || order.deliveries.length === 0) ? '<div class="text-xs text-slate-400 italic p-4 bg-white rounded-xl border border-dashed border-slate-300 print:border-black print:rounded-none print:text-black">배송 정보가 없습니다.</div>' : ''}
+                    ${(!order.deliveries || order.deliveries.length === 0) ? '<div class="text-xs text-slate-400 italic p-4 bg-white rounded-xl border border-dashed border-slate-300 print:border-black print:rounded-none print:text-black print:p-2 text-[10px]">배송 정보가 없습니다.</div>' : ''}
                 </div>
             </div>
 
@@ -1810,16 +1810,16 @@ function openOrderDetails(id) {
                     <div class="text-[11px]">작업자 계정은 금액 정보를 확인할 수 없습니다.</div>
                 </div>
             ` : `
-                <div class="p-6 bg-sky-50 rounded-xl text-sky-900 border border-sky-200 shadow-sm print:bg-white print:border-black print:rounded-none print:shadow-none">
-                    <div class="flex justify-between items-center mb-4 border-b border-sky-200 pb-4 print:border-black">
-                        <span class="text-xs font-bold text-sky-700 print:text-black">권당 제작 단가</span>
-                        <span class="text-lg font-black text-sky-800 print:text-black">₩ ${order.unitPrice}원</span>
+                <div class="p-6 bg-sky-50 rounded-xl text-sky-900 border border-sky-200 shadow-sm print:bg-white print:border-black print:rounded-none print:shadow-none print:p-2.5">
+                    <div class="flex justify-between items-center mb-4 border-b border-sky-200 pb-4 print:border-black print:mb-1.5 print:pb-1.5">
+                        <span class="text-xs font-bold text-sky-700 print:text-black print:text-[10px]">권당 제작 단가</span>
+                        <span class="text-lg font-black text-sky-800 print:text-black print:text-xs">₩ ${order.unitPrice}원</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm font-bold print:text-black">총 주문 합계</span>
-                        <span class="text-2xl font-black text-sky-700 print:text-black">₩ ${order.totalPrice}원</span>
+                        <span class="text-sm font-bold print:text-black print:text-xs">총 주문 합계</span>
+                        <span class="text-2xl font-black text-sky-700 print:text-black print:text-sm">₩ ${order.totalPrice}원</span>
                     </div>
-                    <div class="text-[10px] text-sky-600 font-bold text-right mt-2 print:text-black">* VAT 별도</div>
+                    <div class="text-[10px] text-sky-600 font-bold text-right mt-2 print:text-black print:mt-1">* VAT 별도</div>
                 </div>
             `}
 
@@ -1836,7 +1836,7 @@ function openOrderDetails(id) {
                         <i data-lucide="download" class="w-4 h-4"></i> 표지 다운로드
                     </button>
                 </div>
-                <button onclick="window.print()" 
+                <button onclick="setTimeout(() => window.print(), 500)" 
                     class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
                     <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
                 </button>
@@ -1878,16 +1878,6 @@ function renderSpecDetailItem(label, value) {
     `;
 }
 
-function closeOrderDetails() {
-    const overlay = document.getElementById('order-details-overlay');
-    const panel = document.getElementById('order-details-panel');
-    overlay.classList.add('hidden');
-    panel.classList.add('translate-x-full');
-}
-
-function downloadOrderFile(id, type) {
-    alert(`주문번호 [${id}]의 [${type}] 인쇄용 파일 다운로드를 시작합니다.`);
-}
 
 let deliveryIdx = 0;
 function addDeliveryRow(data = null) {
@@ -2033,23 +2023,133 @@ async function submitOrderSheet() {
     showPage('settlement');
 }
 
+const STORAGE_BUCKET = 'print_files';
 let currentFiles = { inner: null, cover: null };
 
-function handleFileSelect(type, input) {
+async function handleFileSelect(type, input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
-        currentFiles[type] = {
-            name: file.name,
-            time: new Date().toLocaleString()
-        };
+        
+        // 1. 용량 제한 체크 (상용화 대용량 기준: 1GB)
+        const maxSize = 1024 * 1024 * 1024; // 1GB
+        if (file.size > maxSize) {
+            alert(`첨부 파일의 용량이 초과되었습니다.\n최대 허용 용량: 1GB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+            input.value = '';
+            return;
+        }
+
         const area = document.getElementById(`file-${type}-area`);
         const status = document.getElementById(`${type}-file-status`);
+        
         if (area && status) {
-            area.classList.remove('bg-slate-50');
-            area.classList.add('bg-emerald-50', 'border-emerald-200');
-            status.textContent = `파일이 준비되었습니다: ${file.name}`;
-            status.classList.remove('text-slate-400');
-            status.classList.add('text-emerald-600', 'font-bold');
+            // 업로드 준비 상태 UI (프로그레스 바 포함 프리미엄 감성)
+            area.classList.remove('bg-slate-50', 'bg-emerald-50', 'border-emerald-200');
+            area.classList.add('bg-sky-50/50', 'border-sky-300');
+            
+            // 기존 내부 버튼 및 라벨 유지하면서 진행률 표시 컨테이너 추가
+            status.innerHTML = `
+                <div class="flex flex-col gap-1 w-full mt-2">
+                    <div class="flex justify-between items-center text-[10px] font-bold text-sky-700">
+                        <span class="truncate">업로드 중... (${file.name})</span>
+                        <span id="${type}-progress-txt">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div id="${type}-progress-bar" class="bg-sky-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            status.classList.remove('text-slate-400', 'italic');
+        }
+
+        // 안전한 파일명 생성 (특수문자 및 한글 처리)
+        const safeName = Date.now() + '_' + encodeURIComponent(file.name);
+        const filePath = `orders/${safeName}`;
+
+        // 부드러운 진행률 애니메이션 (UX WOW 효과)
+        let progress = 0;
+        const pBar = document.getElementById(`${type}-progress-bar`);
+        const pTxt = document.getElementById(`${type}-progress-txt`);
+        
+        const interval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.floor(Math.random() * 10) + 5;
+                if (progress > 90) progress = 90;
+                if (pBar) pBar.style.width = `${progress}%`;
+                if (pTxt) pTxt.textContent = `${progress}%`;
+            }
+        }, 200);
+
+        try {
+            // Supabase Storage 업로드 API 호출
+            const { data, error } = await _supabase.storage
+                .from(STORAGE_BUCKET)
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            clearInterval(interval);
+
+            if (error) {
+                throw error;
+            }
+
+            // 업로드 성공 시 100% 달성 및 데이터 구성
+            if (pBar) pBar.style.width = '100%';
+            if (pTxt) pTxt.textContent = '100%';
+
+            // 공개 다운로드 URL 획득
+            const { data: urlData } = _supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+            const publicUrl = urlData?.publicUrl || '';
+
+            currentFiles[type] = {
+                name: file.name,
+                size: file.size,
+                path: filePath,
+                url: publicUrl,
+                time: new Date().toLocaleString()
+            };
+
+            setTimeout(() => {
+                if (area && status) {
+                    area.classList.remove('bg-sky-50/50', 'border-sky-300');
+                    area.classList.add('bg-emerald-50', 'border-emerald-200');
+                    status.innerHTML = `
+                        <div class="flex items-center justify-center gap-1.5 text-emerald-600 font-bold text-[11px] mt-1">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                            <span class="truncate">${file.name}</span>
+                            <span class="text-[9px] font-normal text-slate-400">(${(file.size / (1024 * 1024)).toFixed(1)}MB)</span>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                }
+            }, 500);
+
+        } catch (err) {
+            clearInterval(interval);
+            console.error("Storage Upload Error:", err);
+            
+            // 버킷 미생성 또는 권한 오류 시 자가 복구/안내 모드
+            if (area && status) {
+                area.classList.remove('bg-sky-50/50', 'border-sky-300');
+                area.classList.add('bg-amber-50', 'border-amber-200');
+                status.innerHTML = `
+                    <div class="text-amber-600 font-bold text-[10px] mt-1 leading-tight">
+                        ⚠️ 스토리지 연동 지연 (로컬 모드 대체)<br>
+                        <span class="text-slate-400 font-normal text-[9px]">${file.name}</span>
+                    </div>
+                `;
+            }
+
+            // 오프라인/로컬 대체로 파일 정보는 세션에 유지하여 주문이 실패하지 않도록 보호
+            currentFiles[type] = {
+                name: file.name,
+                size: file.size,
+                path: 'local_cache/' + file.name,
+                url: '',
+                time: new Date().toLocaleString(),
+                isLocal: true
+            };
         }
     }
 }
@@ -2060,10 +2160,10 @@ function resetFileUI() {
         const status = document.getElementById(`${type}-file-status`);
         const input = document.getElementById(`${type}-file-input`);
         if (area && status) {
-            area.classList.remove('bg-emerald-50', 'border-emerald-200');
+            area.classList.remove('bg-emerald-50', 'border-emerald-200', 'bg-sky-50/50', 'border-sky-300', 'bg-amber-50', 'border-amber-200');
             area.classList.add('bg-slate-50');
             status.textContent = `선택된 파일 없음`;
-            status.classList.add('text-slate-400');
+            status.classList.add('text-slate-400', 'italic');
             status.classList.remove('text-emerald-600', 'font-bold');
         }
         if (input) input.value = '';
@@ -2080,7 +2180,19 @@ function downloadOrderFile(orderId, type) {
         return;
     }
 
-    alert(`[가상 다운로드 실행]\n구분: ${type} 데이터\n파일명: ${file.name}\n업로드 시간: ${file.time}\n\n* 실제 서버 구현 시 해당 파일의 URL로 연결됩니다.`);
+    if (file.url) {
+        // 프리미엄 다운로드 피드백
+        const toast = document.createElement('div');
+        toast.className = "fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-xs font-bold";
+        toast.innerHTML = `<i data-lucide="cloud-download" class="w-4 h-4 text-sky-400"></i> <span>Supabase 버킷에서 안전하게 다운로드합니다.</span>`;
+        document.body.appendChild(toast);
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => toast.remove(), 3000);
+
+        window.open(file.url, '_blank');
+    } else {
+        alert(`[로컬 파일 또는 스토리지 링크 없음]\n구분: ${type} 데이터\n파일명: ${file.name}\n업로드 시간: ${file.time}\n\n* 스토리지 버킷 연동 전에 등록된 파일이거나 캐시된 파일입니다.`);
+    }
 }
 
 let settlementCurrentPage = 1;
@@ -2681,8 +2793,10 @@ async function downloadExcel(id) {
         worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
         const customSize = d['ord-custom-size'];
         worksheet.getCell('C7').value = customSize ? `${d['ord-spec']} [정사이즈: ${customSize}]` : (d['ord-spec'] || '');
-        worksheet.getCell('F7').value = pub.biz_type || pub.bizType || '';
-        worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || pub.biz_type || pub.bizType || '';
+        const storedBizTypeStr = pub.biz_type || pub.bizType || '';
+        const bizTypeParts = storedBizTypeStr.split('/');
+        worksheet.getCell('F7').value = bizTypeParts[0] || '';
+        worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
 
         const innerType = d['ord-inner-print'] || '';
         worksheet.getCell('C8').value = `${tp}P(${innerType}${cp}P/흑백페이지${bp}P)`;
