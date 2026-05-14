@@ -278,15 +278,25 @@ async function initMaster() {
             if (!MASTER.innerPrinting.includes('내지-부분컬러단면')) { MASTER.innerPrinting.push('내지-부분컬러단면'); needsHealing = true; }
 
             if (!MASTER.customGroups.some(g => g.name === '용지할증')) {
-                MASTER.customGroups.push({ name: '용지할증', type: 'page', isVisible: true });
+                MASTER.customGroups.push({ name: '용지할증', type: 'page', isVisible: false });
                 MASTER['용지할증'] = ['100g용지할증', '120g용지할증'];
                 needsHealing = true;
             }
             if (!MASTER.customGroups.some(g => g.name === '단면할증')) {
-                MASTER.customGroups.push({ name: '단면할증', type: 'book', isVisible: true });
+                MASTER.customGroups.push({ name: '단면할증', type: 'book', isVisible: false });
                 MASTER['단면할증'] = ['단면할증기본'];
                 needsHealing = true;
             }
+
+            // [보정] 필수 할증 항목은 항상 주문서 노출을 끔 (isVisible: false)
+            MASTER.customGroups.forEach(g => {
+                if (g.name === '용지할증' || g.name === '단면할증') {
+                    if (g.isVisible !== false) {
+                        g.isVisible = false;
+                        needsHealing = true;
+                    }
+                }
+            });
 
             if (needsHealing) {
                 setTimeout(() => saveMasterDataSilent(), 1000);
