@@ -1566,10 +1566,15 @@ function renderProductionBoard() {
     if (window.lucide) lucide.createIcons();
 }
 
-function changeProdStatus(id, newStatus) {
+async function changeProdStatus(id, newStatus) {
     const order = MASTER.orders.find(o => o.id === id);
     if (!order) return;
     order.status = newStatus;
+
+    // [중요] Supabase DB에 상태 업데이트 반영
+    const { error } = await _supabase.from('orders').update({ status: newStatus }).eq('id', id);
+    if (error) console.error("DB 상태 업데이트 실패:", error);
+
     saveMasterDataSilent();
     renderProductionBoard();
 }
@@ -1694,6 +1699,20 @@ function saveTrackingNumbers(id) {
     order.finalTotalPrice = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) + totalShippingCost;
 
     order.status = '출고완료';
+    
+    // [중요] Supabase DB에 배송정보 및 상태 업데이트 반영
+    const { error } = await _supabase.from('orders').update({ 
+        status: '출고완료',
+        deliveries: order.deliveries,
+        shippingCost: order.shippingCost,
+        finalTotalPrice: order.finalTotalPrice
+    }).eq('id', id);
+
+    if (error) {
+        console.error("DB 배송 정보 업데이트 실패:", error);
+        alert("배송 정보 DB 저장 중 오류가 발생했습니다.");
+    }
+
     saveMasterDataSilent();
     closeTrackingModal();
     renderProductionBoard();
