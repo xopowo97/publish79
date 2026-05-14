@@ -326,8 +326,16 @@ async function initMaster() {
             // 여기서는 일단 성공한 데이터만이라도 반영함
         }
 
-        // 데이터 반영 (null 체크 포함)
-        if (ordersRes.data) MASTER.orders = ordersRes.data;
+        // 데이터 반영 및 배송 정보 복원 (data 주머니에서 꺼내기)
+        if (ordersRes.data) {
+            MASTER.orders = ordersRes.data.map(o => {
+                if (o.data && o.data.shippingCost !== undefined) {
+                    o.shippingCost = o.data.shippingCost;
+                    o.finalTotalPrice = o.data.finalTotalPrice;
+                }
+                return o;
+            });
+        }
         if (partnersRes.data) MASTER.partners = partnersRes.data;
         if (printersRes.data) MASTER.printers = printersRes.data;
         if (productsRes.data) MASTER.products = productsRes.data;
@@ -1573,7 +1581,11 @@ async function changeProdStatus(id, newStatus) {
 
     // [중요] Supabase DB에 상태 업데이트 반영
     const { error } = await _supabase.from('orders').update({ status: newStatus }).eq('id', id);
-    if (error) console.error("DB 상태 업데이트 실패:", error);
+    if (error) {
+        console.error("DB 상태 업데이트 실패:", error);
+        alert("상태 변경 저장 중 오류가 발생했습니다.");
+        return; // 오류 시 중단
+    }
 
     saveMasterDataSilent();
     renderProductionBoard();
@@ -1700,17 +1712,23 @@ async function saveTrackingNumbers(id) {
 
     order.status = '출고완료';
     
+    // [보완] DB 컬럼 부족 오류 방지를 위해 배송 정보를 'data' 주머니 안에 포함
+    if (!order.data) order.data = {};
+    order.data.shippingCost = totalShippingCost;
+    order.data.finalTotalPrice = order.finalTotalPrice;
+
     // [중요] Supabase DB에 배송정보 및 상태 업데이트 반영
+    // (shippingCost, finalTotalPrice 컬럼 대신 data 컬럼 활용)
     const { error } = await _supabase.from('orders').update({ 
         status: '출고완료',
         deliveries: order.deliveries,
-        shippingCost: order.shippingCost,
-        finalTotalPrice: order.finalTotalPrice
+        data: order.data 
     }).eq('id', id);
 
     if (error) {
         console.error("DB 배송 정보 업데이트 실패:", error);
         alert("배송 정보 DB 저장 중 오류가 발생했습니다.");
+        return; // 오류 시 중단
     }
 
     saveMasterDataSilent();
