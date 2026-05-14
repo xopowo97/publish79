@@ -3179,9 +3179,9 @@ async function downloadExcel(id) {
                 worksheet.getCell(`E${row}`).value = dl.recipient || '';
                 worksheet.getCell(`G${row}`).value = dl.tel || '';
                 
-                // 송장번호 포맷 개선: 줄바꿈 적용 및 가독성 향상
+                // 송장번호 포맷 개선: 중복된 택배사 이름 제거, 번호만 줄바꿈으로 표시
                 const trackingText = (dl.trackingList || []).length > 0 
-                    ? dl.trackingList.map(t => `${t.courier}: ${t.code}`).join('\n') 
+                    ? dl.trackingList.map(t => t.code).join('\n') 
                     : (dl.trackingNum || '');
                 
                 const trackingCell = worksheet.getCell(`I${row}`);
@@ -3189,8 +3189,9 @@ async function downloadExcel(id) {
                 // 자동 줄바꿈 및 중앙 정렬 설정
                 trackingCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
                 
-                // 택배사 정보 (첫 번째 택배사 기준 표시)
-                worksheet.getCell(`K${row}`).value = (dl.trackingList && dl.trackingList[0]) ? dl.trackingList[0].courier : (dl.courier || '');
+                // 택배사 정보 (중복 제거하여 K열에 통합 표시)
+                const uniqueCouriers = [...new Set((dl.trackingList || []).map(t => t.courier))].join(', ');
+                worksheet.getCell(`K${row}`).value = uniqueCouriers || dl.courier || '';
                 
                 // 해당 배송지의 총 박스 수량 계산
                 const dBoxSum = (dl.trackingList || []).reduce((sum, t) => sum + (parseInt(t.box) || 0), 0);
