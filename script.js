@@ -1545,9 +1545,12 @@ function renderProductionBoard() {
                                 <span><i data-lucide="user" class="w-2.5 h-2.5 inline mr-1"></i>${d.recipient} (${d.qty}부)</span>
                                 <span class="text-[8px] opacity-70">${(d.address || '').slice(0, 12)}...</span>
                             </div>
-                            <div class="flex items-center gap-1.5 border-t border-emerald-100 pt-1 mt-1">
-                                <i data-lucide="truck" class="w-3 h-3"></i>
-                                <span class="truncate">송장: ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => t.code).join(', ') : (d.trackingNum || '미입력')}</span>
+                            <div class="flex items-center justify-between border-t border-emerald-100 pt-1 mt-1">
+                                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <i data-lucide="truck" class="w-3 h-3"></i>
+                                    <span class="truncate">송장: ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => t.code).join(', ') : (d.trackingNum || '미입력')}</span>
+                                </div>
+                                ${(role === 'admin' || role === 'printer' || role === 'printer_worker') ? `<button onclick="promptTracking('${order.id}')" class="ml-1 text-[8px] bg-white px-1.5 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition-all">수정</button>` : ''}
                             </div>
                         </div>
                     `).join('')}
@@ -2252,10 +2255,10 @@ async function handleFileSelect(type, input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         
-        // 1. 용량 제한 체크 (상용화 대용량 기준: 1GB)
-        const maxSize = 1024 * 1024 * 1024; // 1GB
+        // 1. 용량 제한 체크 (Supabase 무료 티어 기준: 50MB)
+        const maxSize = 50 * 1024 * 1024; // 50MB
         if (file.size > maxSize) {
-            alert(`첨부 파일의 용량이 초과되었습니다.\n최대 허용 용량: 1GB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 50MB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 50MB를 초과하는 파일은 압축(.zip)하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
             input.value = '';
             return;
         }
