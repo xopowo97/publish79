@@ -2009,6 +2009,12 @@ function printJobTicket(orderId) {
             </div>
             ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
 
+            <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
+            <div style="border:1px solid black; padding:6px; font-size:10px;">
+                <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
+                <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
+            </div>
+
             <div class="v-sec-title">배송 및 송장 정보</div>
             ${deliveryHtml}
 
@@ -2157,6 +2163,56 @@ async function submitOrderSheet() {
         return;
     }
 
+    // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
+    try {
+        // 동일 출판사의 동일 도서명이 있는지 확인
+        const { data: existingProds } = await _supabase
+            .from('products')
+            .select('id, image')
+            .eq('pubName', pubName)
+            .eq('title', bookTitle)
+            .maybeSingle();
+
+        const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
+        const persistence = MASTER.orderPersistence[mode];
+
+        const productData = {
+            id: prodId,
+            title: bookTitle,
+            pubName: pubName,
+            manager: managerName,
+            spec: persistence.spec || '',
+            pages: persistence.pages || '0',
+            customSize: persistence.customSize || '',
+            image: existingProds ? existingProds.image : null, // 기존 이미지가 있으면 유지
+            details: {
+                innerPaper: persistence.innerPaper || '',
+                innerPrint: persistence.innerPrint || '',
+                partialColor: persistence.partialColor || '0',
+                coverPaper: persistence.coverPaper || '',
+                coverPrint: persistence.coverPrint || '',
+                coating: persistence.coating || '',
+                binding: persistence.binding || '',
+                wing: persistence.wing || '',
+                facePaper: persistence.facePaper || '없음',
+                faceInsert: persistence.faceInsert || '없음'
+            },
+            date: today
+        };
+
+        // products 테이블에 사양 정보만 저장 (파일은 제외)
+        await _supabase.from('products').upsert(productData);
+        
+        // 메모리 데이터 즉시 반영 (중복 제거 후 최상단 추가)
+        if (!MASTER.products) MASTER.products = [];
+        MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
+        MASTER.products.unshift(productData);
+        
+        console.log("도서 사양이 라이브러리에 자동 등록/갱신되었습니다.");
+    } catch (prodErr) {
+        console.warn("도서 라이브러리 자동 등록 중 오류 (주문은 정상 처리됨):", prodErr);
+    }
+
     // 메모리 갱신
     if (isEdit) {
         const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
@@ -2216,8 +2272,10 @@ async function handleFileSelect(type, input) {
             status.classList.remove('text-slate-400', 'italic');
         }
 
-        // 안전한 파일명 생성 (특수문자 및 한글 처리)
-        const safeName = Date.now() + '_' + encodeURIComponent(file.name);
+        // 안전한 파일명 생성 (특수문자 및 한글 처리 해결 전략)
+        // 1. 저장용 경로는 공백/대괄호가 없는 순수 영문/숫자 중심의 고유 키 생성 (Storage 에러 방지)
+        const fileExt = file.name.split('.').pop();
+        const safeName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `orders/${safeName}`;
 
         // 부드러운 진행률 애니메이션 (UX WOW 효과)
@@ -2344,7 +2402,14 @@ function downloadOrderFile(orderId, type) {
         if (window.lucide) lucide.createIcons();
         setTimeout(() => toast.remove(), 3000);
 
-        window.open(file.url, '_blank');
+        // 브라우저의 다운로드 기능을 사용하여 원본 파일명으로 저장 시도
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.download = file.name; // 원래 한글 파일명으로 지정
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     } else {
         alert(`[로컬 파일 또는 스토리지 링크 없음]\n구분: ${type} 데이터\n파일명: ${file.name}\n업로드 시간: ${file.time}\n\n* 스토리지 버킷 연동 전에 등록된 파일이거나 캐시된 파일입니다.`);
     }
