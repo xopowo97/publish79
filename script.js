@@ -3142,14 +3142,21 @@ async function downloadExcel(id) {
             worksheet.getCell('K17').value = faceSupply + faceVat;
         }
 
-        // [배송비 - 18행]
-        const shipUnit = parseInt(order.shippingCost || 0) || 0;
-        const boxQty = parseInt(order.boxCount || 0) || 1;
-        const shipSupply = shipUnit * boxQty;
+        // [배송비 - 18행] - 실제 박스 수 합산 및 평균 단가 계산 로직 도입
+        let totalBoxes = 0;
+        (order.deliveries || []).forEach(d => {
+            (d.trackingList || []).forEach(t => {
+                totalBoxes += (parseInt(t.box) || 0);
+            });
+        });
+        if (totalBoxes === 0) totalBoxes = 1; // 최소 1박스 보정
+
+        const shipSupply = parseInt(order.shippingCost || 0) || 0;
+        const shipUnit = Math.floor(shipSupply / totalBoxes); // 평균 박스당 단가
         const shipVat = Math.floor(shipSupply / 10);
 
         worksheet.getCell('D18').value = shipUnit;
-        worksheet.getCell('F18').value = boxQty;
+        worksheet.getCell('F18').value = totalBoxes;
         worksheet.getCell('G18').value = shipSupply;
         worksheet.getCell('I18').value = shipVat;
         worksheet.getCell('K18').value = shipSupply + shipVat;
@@ -3171,10 +3178,23 @@ async function downloadExcel(id) {
                 worksheet.getCell(`B${row}`).value = `${dl.address || ''} ${dl.addressDetail || ''}`;
                 worksheet.getCell(`E${row}`).value = dl.recipient || '';
                 worksheet.getCell(`G${row}`).value = dl.tel || '';
-                const tracking = dl.trackingList ? dl.trackingList.map(t => t.code).join(', ') : (dl.trackingNum || '');
-                worksheet.getCell(`I${row}`).value = tracking;
-                worksheet.getCell(`K${row}`).value = dl.courier || '';
-                worksheet.getCell(`L${row}`).value = dl.boxCount || '';
+                
+                // 송장번호 포맷 개선: 줄바꿈 적용 및 가독성 향상
+                const trackingText = (dl.trackingList || []).length > 0 
+                    ? dl.trackingList.map(t => `${t.courier}: ${t.code}`).join('\n') 
+                    : (dl.trackingNum || '');
+                
+                const trackingCell = worksheet.getCell(`I${row}`);
+                trackingCell.value = trackingText;
+                // 자동 줄바꿈 및 중앙 정렬 설정
+                trackingCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                
+                // 택배사 정보 (첫 번째 택배사 기준 표시)
+                worksheet.getCell(`K${row}`).value = (dl.trackingList && dl.trackingList[0]) ? dl.trackingList[0].courier : (dl.courier || '');
+                
+                // 해당 배송지의 총 박스 수량 계산
+                const dBoxSum = (dl.trackingList || []).reduce((sum, t) => sum + (parseInt(t.box) || 0), 0);
+                worksheet.getCell(`L${row}`).value = dBoxSum || dl.boxCount || '';
             });
         }
 
