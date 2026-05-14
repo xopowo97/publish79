@@ -2407,19 +2407,35 @@ function downloadOrderFile(orderId, type) {
         // 프리미엄 다운로드 피드백
         const toast = document.createElement('div');
         toast.className = "fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-xs font-bold";
-        toast.innerHTML = `<i data-lucide="cloud-download" class="w-4 h-4 text-sky-400"></i> <span>Supabase 버킷에서 안전하게 다운로드합니다.</span>`;
+        toast.innerHTML = `<i data-lucide="cloud-download" class="w-4 h-4 text-sky-400"></i> <span>원본 파일명으로 안전하게 다운로드합니다.</span>`;
         document.body.appendChild(toast);
         if (window.lucide) lucide.createIcons();
         setTimeout(() => toast.remove(), 3000);
 
-        // 브라우저의 다운로드 기능을 사용하여 원본 파일명으로 저장 시도
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.download = file.name; // 원래 한글 파일명으로 지정
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // [수정] 크로스 도메인에서도 원본 파일명으로 다운로드되도록 Fetch/Blob 방식 적용
+        fetch(file.url)
+            .then(response => {
+                if (!response.ok) throw new Error('네트워크 응답이 올바르지 않습니다.');
+                return response.blob();
+            })
+            .then(blob => {
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = file.name; // 원래 한글 파일명 강제 지정
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+            })
+            .catch(err => {
+                console.error("Download Error:", err);
+                // 실패 시 차선책으로 새 탭에서 열기 (기존 방식)
+                const link = document.createElement('a');
+                link.href = file.url;
+                link.target = '_blank';
+                link.click();
+            });
     } else {
         alert(`[로컬 파일 또는 스토리지 링크 없음]\n구분: ${type} 데이터\n파일명: ${file.name}\n업로드 시간: ${file.time}\n\n* 스토리지 버킷 연동 전에 등록된 파일이거나 캐시된 파일입니다.`);
     }
