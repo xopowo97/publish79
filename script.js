@@ -2191,21 +2191,22 @@ async function submitOrderSheet() {
             title: bookTitle,
             pubName: pubName,
             manager: managerName,
-            spec: persistence.spec || '',
-            pages: persistence.pages || '0',
-            customSize: persistence.customSize || '',
+            mode: mode, // 낱장/연속지 구분 정보 추가
+            spec: persistence['ord-spec'] || '',
+            pages: persistence['ord-tp'] || '0',
+            customSize: persistence['ord-custom-size'] || '',
             image: existingProds ? existingProds.image : null, // 기존 이미지가 있으면 유지
             details: {
-                innerPaper: persistence.innerPaper || '',
-                innerPrint: persistence.innerPrint || '',
-                partialColor: persistence.partialColor || '0',
-                coverPaper: persistence.coverPaper || '',
-                coverPrint: persistence.coverPrint || '',
-                coating: persistence.coating || '',
-                binding: persistence.binding || '',
-                wing: persistence.wing || '',
-                facePaper: persistence.facePaper || '없음',
-                faceInsert: persistence.faceInsert || '없음'
+                innerPaper: persistence['ord-inner'] || '',
+                innerPrint: persistence['ord-inner-print'] || '',
+                partialColor: persistence['ord-cp'] || '0',
+                coverPaper: persistence['ord-cover'] || '',
+                coverPrint: persistence['ord-printing'] || '',
+                coating: persistence['ord-coating'] || '',
+                binding: persistence['ord-binding'] || '',
+                wing: persistence['ord-wing'] || '',
+                facePaper: persistence['ord-face'] || '없음',
+                faceInsert: persistence['ord-face-insert'] || '없음'
             },
             date: today
         };
@@ -4596,6 +4597,13 @@ function loadProductToOrder() {
 
     const prod = MASTER.products.find(p => p.id === prodId);
     if (!prod) return;
+
+    // [추가] 도서 모드(낱장/연속지)에 맞춰 자동으로 탭 전환
+    if (prod.mode && prod.mode !== mode) {
+        setMode(prod.mode);
+        // 탭 전환 후 드롭다운 값이 초기화될 수 있으므로 다시 할당
+        document.getElementById('ord-load-product').value = prodId;
+    }
 
     // 기본 정보 매핑
     document.getElementById('ord-book-title').value = prod.title;
