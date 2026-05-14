@@ -1671,7 +1671,7 @@ function addTrackingRow(dIdx) {
     lucide.createIcons();
 }
 
-function saveTrackingNumbers(id) {
+async function saveTrackingNumbers(id) {
     const order = MASTER.orders.find(o => o.id === id);
     if (!order) return;
 
