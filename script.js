@@ -1455,7 +1455,7 @@ function sync() {
     if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
 
     const ids = [
-        'order-pub-name', 'ord-manager',
+        'order-pub-name', 'ord-manager', 'ord-book-title',
         'ord-spec', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp',
         'ord-cover', 'ord-printing', 'ord-coating', 'ord-wing', 'ord-binding',
         'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert'
@@ -2986,6 +2986,10 @@ function editOrder(id) {
         mode = order.mode;
         // 해당 모드의 영속성 데이터를 주문 데이터로 덮어쓰기
         MASTER.orderPersistence[mode] = JSON.parse(JSON.stringify(order.data));
+        
+        // 기존 주문 데이터에 ord-book-title 누락 시 최상위 도서명으로 자동 보정 복원
+        if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
+        MASTER.orderPersistence[mode]['ord-book-title'] = order.bookTitle;
 
         // --- 새로 추가되는 복원 로직 ---
         // 1. 출판사 찾기 및 강제 지정
