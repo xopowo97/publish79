@@ -1516,20 +1516,24 @@ function renderProductionBoard() {
         let actionHtml = '';
         if (role === 'admin' || role === 'printer' || role === 'printer_worker') {
             if (order.status === '접수대기') {
-                actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="changeProdStatus('${order.id}', '인쇄/가공중')">인쇄시작</button>
-                              <button class="k-btn k-btn-outline" onclick="changeProdStatus('${order.id}', '작업보류')">보류</button>`;
+                actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="changeProdStatus('${order.id}', '인쇄/가공중')">인쇄시작</button>`;
             } else if (order.status === '인쇄/가공중') {
                 actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="changeProdStatus('${order.id}', '포장대기')">가공완료</button>`;
             } else if (order.status === '포장대기') {
                 actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="promptTracking('${order.id}')">송장입력/배송</button>`;
             } else if (order.status === '작업보류') {
                 actionHtml = `
-                    <button class="k-btn k-btn-outline flex-1" onclick="changeProdStatus('${order.id}', '접수대기')">대기복귀</button>
-                    ${role === 'admin' || role === 'printer' ? `
-                    <button class="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-100 transition-all border border-rose-100 flex items-center justify-center gap-1 text-xs font-bold" onclick="trashOrder('${order.id}')">
+                    ${role === 'admin' ? `
+                    <button class="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-100 transition-all border border-rose-100 flex items-center justify-center gap-1 text-xs font-bold flex-1" onclick="trashOrder('${order.id}')">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         완전삭제
                     </button>` : ''}`;
+            }
+        } else if (role === 'publisher') {
+            if (order.status === '접수대기') {
+                actionHtml = `<button class="k-btn k-btn-outline flex-1" onclick="changeProdStatus('${order.id}', '작업보류')">보류</button>`;
+            } else if (order.status === '작업보류') {
+                actionHtml = `<button class="k-btn k-btn-outline flex-1" onclick="changeProdStatus('${order.id}', '접수대기')">보류해제</button>`;
             }
         }
 
