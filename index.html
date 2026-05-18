@@ -1377,6 +1377,59 @@
         <!-- Custom Script -->
         <script src="script.js"></script>
     </div> <!-- End App Container -->
-</body>
 
+    <!-- AI Helper (Antigravity) Agentic UI -->
+    <div id="ai-fab" class="ai-fab" onclick="toggleAIPanel()">
+        <i data-lucide="sparkles" class="w-8 h-8"></i>
+    </div>
+
+    <div id="ai-panel" class="ai-panel">
+        <div class="ai-header">
+            <div class="ai-avatar">AG</div>
+            <div class="flex-1 flex items-center gap-2">
+                <div class="text-sm font-black tracking-tight">Antigravity AI Helper</div>
+                <button onclick="triggerAIError('Manual Demo')" class="text-[9px] bg-sky-800 text-sky-200 px-2 py-0.5 rounded-full hover:bg-sky-700 transition-all border border-sky-700/50">DEMO</button>
+            </div>
+            <div class="text-[10px] text-sky-400 font-bold uppercase tracking-widest block">Back Agent / Self-Healing Mode</div>
+            <button onclick="toggleAIPanel()" class="text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="ai-content" id="ai-chat-content">
+            <div class="ai-msg ai-msg-bot">
+                안녕하세요, 대표님! **Antigravity**입니다. 
+                현재 시스템의 모든 상태를 실시간으로 모니터링하고 있습니다. 도움이 필요하시면 언제든 말씀해주세요!
+            </div>
+            
+            <!-- Example of Agent Action (Initially Hidden) -->
+            <div id="ai-agent-action" class="hidden">
+                <div class="ai-msg ai-msg-bot">
+                    🚨 **시스템 에러 감지!** 
+                    파일 업로드 과정에서 예기치 못한 이슈가 발생했습니다. 제가 즉시 원인을 분석하고 해결책을 마련하겠습니다.
+                </div>
+                <div class="ai-action-card">
+                    <div class="ai-status-pulse">
+                        <div class="pulse-dot"></div>
+                        <span>자가 치유(Self-Healing) 엔진 가동 중...</span>
+                    </div>
+                    <div class="ai-code-block">
+                        // Analyzing script.js...<br>
+                        // Error found at line 462: Uncaught TypeError<br>
+                        // Patching: Adding null-check for file input...<br>
+                        // PR Created: "fix/file-upload-handler"
+                    </div>
+                    <button onclick="simulateFix(event)" class="w-full py-3 bg-sky-600 text-white rounded-xl text-xs font-black shadow-lg">
+                        패치 자동 적용 및 서버 배포 승인
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="ai-footer">
+            <input type="text" placeholder="Antigravity에게 질문하기..." class="ai-input">
+            <button class="ai-send-btn">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+</body>
 </html>

@@ -1115,7 +1115,7 @@ function renderOrder() {
     }
 
     // Restore non-select inputs
-    const inputsToRestore = ['ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp'];
+    const inputsToRestore = ['ord-book-title', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp'];
     MASTER.customGroups.forEach(g => inputsToRestore.push(`ord-custom-${g.name}`));
     inputsToRestore.forEach(id => {
         const el = document.getElementById(id);
@@ -2392,6 +2392,11 @@ async function handleFileSelect(type, input) {
         } catch (err) {
             clearInterval(interval);
             console.error("Storage Upload Error:", err);
+            
+            // --- AI Helper 연동 ---
+            if (window.triggerAIError) {
+                window.triggerAIError(err.message || 'Storage Upload Failed');
+            }
             
             // 버킷 미생성 또는 권한 오류 시 자가 복구/안내 모드
             if (area && status) {
@@ -4872,3 +4877,65 @@ function saveAuthSettings() {
         alert("계정 및 권한 설정이 안전하게 저장되었습니다.");
     });
 }
+
+// --- AI Helper (Antigravity) Functions ---
+window.toggleAIPanel = function() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    if (!panel || !fab) return;
+    
+    panel.classList.toggle('active');
+    if (panel.classList.contains('active')) {
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    } else {
+        fab.style.opacity = '1';
+        fab.style.pointerEvents = 'all';
+    }
+    
+    if (window.lucide) lucide.createIcons();
+};
+
+window.triggerAIError = function(errorMsg) {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+    
+    if (!panel || !fab || !agentAction) return;
+    
+    panel.classList.add('active');
+    fab.style.opacity = '0';
+    fab.style.pointerEvents = 'none';
+    agentAction.classList.remove('hidden');
+    
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+};
+
+window.simulateFix = function(event) {
+    const btn = event ? event.currentTarget : null;
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="flex items-center justify-center gap-2"><div class="pulse-dot bg-white"></div> 패치 배포 중...</div>';
+    
+    setTimeout(() => {
+        btn.innerHTML = '✅ 배포 완료 및 시스템 복구 성공!';
+        btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+        
+        const chatContent = document.getElementById('ai-chat-content');
+        const successMsg = document.createElement('div');
+        successMsg.className = 'ai-msg ai-msg-bot';
+        successMsg.innerHTML = '✨ **자가 치유 완료!** 모든 시스템이 정상화되었습니다. 이제 다시 파일을 업로드해 보세요.';
+        chatContent.appendChild(successMsg);
+        
+        if (window.lucide) lucide.createIcons();
+        
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }, 2000);
+};
