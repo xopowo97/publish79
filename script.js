@@ -1292,14 +1292,14 @@ function sync() {
             addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
             each += innerPrintCost;
 
-            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 물리적인 종이 수량 추적
+            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
             const innerPaper = document.getElementById('ord-inner')?.value || '';
             if (innerPaper.includes('100g')) {
-                let surcharge = physicalSheets * findCommon('100g용지할증');
+                let surcharge = tp * findCommon('100g용지할증');
                 each += surcharge;
                 addLog('내지 용지 할증 (100g)', surcharge);
             } else if (innerPaper.includes('120g')) {
-                let surcharge = physicalSheets * findCommon('120g용지할증');
+                let surcharge = tp * findCommon('120g용지할증');
                 each += surcharge;
                 addLog('내지 용지 할증 (120g)', surcharge);
             }
@@ -1386,14 +1386,14 @@ function sync() {
             addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
             each += innerPrintCost;
 
-            // 내지 용지 할증 (100g, 120g 대상) - 물리적인 종이 수량 추적
+            // 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
             const innerPaper = document.getElementById('ord-inner')?.value || '';
             if (innerPaper.includes('100g')) {
-                let surcharge = physicalSheets * findCommon('100g용지할증');
+                let surcharge = tp * findCommon('100g용지할증');
                 each += surcharge;
                 addLog('내지 용지 할증 (100g)', surcharge);
             } else if (innerPaper.includes('120g')) {
-                let surcharge = physicalSheets * findCommon('120g용지할증');
+                let surcharge = tp * findCommon('120g용지할증');
                 each += surcharge;
                 addLog('내지 용지 할증 (120g)', surcharge);
             }
