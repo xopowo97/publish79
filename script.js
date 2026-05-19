@@ -1957,7 +1957,14 @@ function openOrderDetails(id) {
     if (!order) return;
 
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+    const isPrinter = (role === 'printer' || role === 'printer_worker');
+    
+    const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
+    const computedTotal = computePurchaseCost(order);
+    const computedUnit = Math.round(computedTotal / rawQty);
 
+    const displayUnit = isPrinter ? computedUnit.toLocaleString() : (order.unitPrice || '0');
+    const displayTotal = isPrinter ? computedTotal.toLocaleString() : (order.totalPrice || '0');
     const overlay = document.getElementById('order-details-overlay');
     const panel = document.getElementById('order-details-panel');
 
@@ -2058,11 +2065,11 @@ function openOrderDetails(id) {
                 <div class="p-6 bg-sky-50 rounded-xl text-sky-900 border border-sky-200 shadow-sm print:bg-white print:border-black print:rounded-none print:shadow-none print:p-2.5">
                     <div class="flex justify-between items-center mb-4 border-b border-sky-200 pb-4 print:border-black print:mb-1.5 print:pb-1.5">
                         <span class="text-xs font-bold text-sky-700 print:text-black print:text-[10px]">권당 제작 단가</span>
-                        <span class="text-lg font-black text-sky-800 print:text-black print:text-xs">₩ ${order.unitPrice}원</span>
+                        <span class="text-lg font-black text-sky-800 print:text-black print:text-xs">₩ ${displayUnit}원</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-bold print:text-black print:text-xs">총 주문 합계</span>
-                        <span class="text-2xl font-black text-sky-700 print:text-black print:text-sm">₩ ${order.totalPrice}원</span>
+                        <span class="text-2xl font-black text-sky-700 print:text-black print:text-sm">₩ ${displayTotal}원</span>
                     </div>
                     <div class="text-[10px] text-sky-600 font-bold text-right mt-2 print:text-black print:mt-1">* VAT 별도</div>
                 </div>
@@ -2925,7 +2932,15 @@ function computePurchaseCost(order) {
     const specName = order.data['ord-spec'];
 
     let cost = 0;
-    const findCommonCost = (n) => (costData.commons.find(c => String(c.n).includes(n)) || { v: 0 }).v;
+    const getC = (n) => {
+        const found = (costData.commons || []).find(c => String(c.n).includes(n));
+        return found ? found.v : 0;
+    };
+    const getSC = (group, val) => costData.sheetCommons ? (costData.sheetCommons[group + '_' + val] || 0) : 0;
+
+    const innerType = String(order.data['ord-inner-print'] || '');
+    const hasPartColor = innerType.includes('부분컬러');
+    const innerPaper = String(order.data['ord-inner'] || '');
 
     if (order.mode === 'sheet') {
         const baseSpec = costData.sheetSpecs.find(s => s.n === specName);
@@ -2945,25 +2960,37 @@ function computePurchaseCost(order) {
                 }
             }
 
-            cost = (bp * targetSpec.bw) + (cp * targetSpec.cl);
-            
-            const innerType = String(order.data['ord-inner-print'] || '');
-            if (innerType.includes('단면')) {
-                cost = (cost / 2) + (tp / 2 * findCommonCost('단면할증'));
+            let coverUnit = 0;
+            coverUnit += getSC('표지날개', order.data['ord-wing']);
+            coverUnit += getSC('표지인쇄', order.data['ord-printing']);
+            coverUnit += getSC('코팅방식', order.data['ord-coating']);
+            coverUnit += getSC('제본방식', order.data['ord-binding']);
+
+            let innerUnit1 = 0;
+            let innerUnit2 = 0;
+
+            if (hasPartColor) {
+                innerUnit1 = cp * (targetSpec.cl || 0);
+                innerUnit2 = bp * (targetSpec.bw || 0);
+            } else {
+                innerUnit1 = (bp * (targetSpec.bw || 0)) + (cp * (targetSpec.cl || 0));
             }
 
-            const innerPaper = String(order.data['ord-inner'] || '');
-            if (innerPaper.includes('100g')) cost += tp * findCommonCost('100g용지할증');
-            else if (innerPaper.includes('120g')) cost += tp * findCommonCost('120g용지할증');
-            
-            cost += findCommonCost('내지인쇄_' + innerType);
-            let coverCost = (order.data['ord-wing'] === '날개 있음') ? findCommonCost('표지날개있음') : findCommonCost('표지날개없음');
-            const printVal = order.data['ord-printing'];
-            if (printVal) {
-                const foundSurcharge = costData.commons.find(c => String(c.n).includes('표지' + printVal));
-                if (foundSurcharge) coverCost += foundSurcharge.v;
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
             }
-            cost += coverCost;
+
+            let paperSur = 0;
+            if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
+            else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
+
+            innerUnit1 += getSC('내지인쇄', innerType);
+
+            cost = coverUnit + innerUnit1 + innerUnit2;
 
             const facePaper = order.data['ord-face'];
             const faceInsert = order.data['ord-face-insert'];
@@ -2976,33 +3003,52 @@ function computePurchaseCost(order) {
         const rollSpec = costData.rollSpecs.find(r => r.n === specName);
         if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
             let targetSpec = rollSpec;
-            if (specName.includes('사용자규격') || specName.includes('변형')) {
-                const customSize = order.data['ord-custom-size'] || '';
+            if (String(specName || '').includes('사용자규격') || String(specName || '').includes('변형')) {
+                const customSize = String(order.data['ord-custom-size'] || '');
                 const [w] = customSize.split(/x|\*/i).map(Number);
                 if (w && !isNaN(w)) {
                     let fallbackSpec;
                     if (w <= 152) {
-                        fallbackSpec = costData.rollSpecs.find(s => s.n.includes('신국판')) || rollSpec;
+                        fallbackSpec = costData.rollSpecs.find(s => String(s.n).includes('신국판')) || rollSpec;
                     } else {
-                        fallbackSpec = costData.rollSpecs.find(s => s.n.includes('크라운판')) || rollSpec;
+                        fallbackSpec = costData.rollSpecs.find(s => String(s.n).includes('크라운판')) || rollSpec;
                     }
                     if (fallbackSpec) targetSpec = fallbackSpec;
                 }
             }
             const bracket = targetSpec.ivs.find(v => qty >= v.s && qty <= v.e) || targetSpec.ivs[targetSpec.ivs.length - 1];
             if (bracket) {
-                cost = (bp * (bracket.bw || 0)) + (cp * (bracket.cl || 0));
-                const innerPaper = order.data['ord-inner'] || '';
-                if (innerPaper.includes('100g')) cost += tp * findCommonCost('100g용지할증');
-                else if (innerPaper.includes('120g')) cost += tp * findCommonCost('120g용지할증');
+                let coverUnit = (order.data['ord-wing'] === '날개 있음') ? bracket.wo : bracket.wx;
+                let bracketBw = bracket.bw || 0;
+                let bracketCl = bracket.cl || 0;
+                let innerUnit1 = 0;
+                let innerUnit2 = 0;
 
-                let coverCost = (order.data['ord-wing'] === '날개 있음') ? bracket.wo : bracket.wx;
-                const printVal = order.data['ord-printing'];
-                if (printVal) {
-                    const foundSurcharge = costData.commons.find(c => c.n.includes('표지' + printVal));
-                    if (foundSurcharge) coverCost += foundSurcharge.v;
+                if (hasPartColor) {
+                    innerUnit1 = (cp * bracketCl);
+                    innerUnit2 = (bp * bracketBw);
+                } else {
+                    innerUnit1 = (bp * bracketBw) + (cp * bracketCl);
                 }
-                cost += coverCost;
+
+                if (innerType.includes('단면')) {
+                    innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                    if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+                }
+
+                let paperSur = 0;
+                if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
+                else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+
+                innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+                if (hasPartColor) innerUnit2 += (bp * paperSur);
+
+                const innerPrintKey = '내지인쇄_' + innerType;
+                if (costData.rollCommons && costData.rollCommons[innerPrintKey] !== undefined) {
+                    innerUnit1 += costData.rollCommons[innerPrintKey];
+                }
+
+                cost = coverUnit + innerUnit1 + innerUnit2;
             }
         }
     }
