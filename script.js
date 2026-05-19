@@ -2535,6 +2535,21 @@ function renderSettlementTable() {
         const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
         const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
 
+        const rawQty = parseInt(o.qty.replace(/[^0-9]/g, '')) || 1;
+        const computedCost = computePurchaseCost(o);
+
+        const displayUnitPrice = isPrinter 
+            ? Math.round(computedCost / rawQty) 
+            : (parseInt((o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const displayTotalPrice = isPrinter 
+            ? computedCost 
+            : (parseInt((o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const displayFinalPrice = isPrinter 
+            ? (computedCost + (o.shippingCost || 0)) 
+            : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt((o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
+
         return `
             <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
                 <td class="td-style">${o.date}</td>
@@ -2547,11 +2562,11 @@ function renderSettlementTable() {
                     <div class="book-title">${o.bookTitle}</div>
                 </td>
                 <td class="td-style">${o.managerName}</td>
-                <td class="td-style text-right">${o.unitPrice}원</td>
+                <td class="td-style text-right">${displayUnitPrice.toLocaleString()}원</td>
                 <td class="td-style text-right">${o.qty}부</td>
-                <td class="td-style text-right">${o.totalPrice}원</td>
+                <td class="td-style text-right">${displayTotalPrice.toLocaleString()}원</td>
                 <td class="td-style text-right text-emerald-600">${o.shippingCost ? o.shippingCost.toLocaleString() + '원' : '-'}</td>
-                <td class="td-style text-right font-black text-sky-600">${o.finalTotalPrice ? o.finalTotalPrice.toLocaleString() + '원' : o.totalPrice + '원'}</td>
+                <td class="td-style text-right font-black text-sky-600">${displayFinalPrice.toLocaleString()}원</td>
                 <td class="td-style text-center">
                     <div class="btn-group">
                         ${editBtn}
@@ -3253,7 +3268,7 @@ async function downloadExcel(id) {
                 const row = 22 + idx;
                 worksheet.getCell(`B${row}`).value = `${dl.address || ''} ${dl.addressDetail || ''}`;
                 worksheet.getCell(`E${row}`).value = dl.recipient || '';
-                worksheet.getCell(`G${row}`).value = dl.tel || '';
+                worksheet.getCell(`G${row}`).value = dl.contact || dl.tel || '';
                 
                 // 송장번호 포맷 개선: 중복된 택배사 이름 제거, 번호만 줄바꿈으로 표시
                 const trackingText = (dl.trackingList || []).length > 0 
