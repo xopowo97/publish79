@@ -2726,20 +2726,20 @@ function renderSettlementTable() {
         const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
         const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
 
-        const rawQty = parseInt(o.qty.replace(/[^0-9]/g, '')) || 1;
+        const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
         const computedCost = computePurchaseCost(o);
 
         const displayUnitPrice = isPrinter 
             ? Math.round(computedCost / rawQty) 
-            : (parseInt((o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
+            : (parseInt(String(o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
         const displayTotalPrice = isPrinter 
             ? computedCost 
-            : (parseInt((o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+            : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
         const displayFinalPrice = isPrinter 
             ? (computedCost + (o.shippingCost || 0)) 
-            : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt((o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
+            : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
 
         return `
             <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
@@ -2805,9 +2805,9 @@ function updateSettlementStats(filteredOrders) {
     const orders = filteredOrders || MASTER.orders;
 
     let totalCount = orders.length;
-    let totalQty = orders.reduce((sum, o) => sum + (parseInt(o.qty.replace(/[^0-9]/g, '')) || 0), 0);
+    let totalQty = orders.reduce((sum, o) => sum + (parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 0), 0);
     let totalAmount = orders.reduce((sum, o) => {
-        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(o.totalPrice.replace(/[^0-9]/g, '')) || 0);
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
         return sum + finalPrice;
     }, 0);
 
@@ -2925,34 +2925,34 @@ function computePurchaseCost(order) {
     const specName = order.data['ord-spec'];
 
     let cost = 0;
-    const findCommonCost = (n) => (costData.commons.find(c => c.n.includes(n)) || { v: 0 }).v;
+    const findCommonCost = (n) => (costData.commons.find(c => String(c.n).includes(n)) || { v: 0 }).v;
 
     if (order.mode === 'sheet') {
         const baseSpec = costData.sheetSpecs.find(s => s.n === specName);
         if (baseSpec) {
             let targetSpec = baseSpec;
-            if (specName.includes('사용자규격') || specName.includes('변형')) {
-                const customSize = order.data['ord-custom-size'] || '';
+            if (String(specName || '').includes('사용자규격') || String(specName || '').includes('변형')) {
+                const customSize = String(order.data['ord-custom-size'] || '');
                 const [w] = customSize.split(/x|\*/i).map(Number);
                 if (w && !isNaN(w)) {
                     if (w <= 148) {
-                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('A5국판')) || baseSpec;
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('A5국판')) || baseSpec;
                     } else if (w <= 176) {
-                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('크라운판')) || baseSpec;
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('크라운판')) || baseSpec;
                     } else {
-                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('국배판')) || baseSpec;
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('국배판')) || baseSpec;
                     }
                 }
             }
 
             cost = (bp * targetSpec.bw) + (cp * targetSpec.cl);
             
-            const innerType = order.data['ord-inner-print'] || '';
+            const innerType = String(order.data['ord-inner-print'] || '');
             if (innerType.includes('단면')) {
                 cost = (cost / 2) + (tp / 2 * findCommonCost('단면할증'));
             }
 
-            const innerPaper = order.data['ord-inner'] || '';
+            const innerPaper = String(order.data['ord-inner'] || '');
             if (innerPaper.includes('100g')) cost += tp * findCommonCost('100g용지할증');
             else if (innerPaper.includes('120g')) cost += tp * findCommonCost('120g용지할증');
             
@@ -2960,7 +2960,7 @@ function computePurchaseCost(order) {
             let coverCost = (order.data['ord-wing'] === '날개 있음') ? findCommonCost('표지날개있음') : findCommonCost('표지날개없음');
             const printVal = order.data['ord-printing'];
             if (printVal) {
-                const foundSurcharge = costData.commons.find(c => c.n.includes('표지' + printVal));
+                const foundSurcharge = costData.commons.find(c => String(c.n).includes('표지' + printVal));
                 if (foundSurcharge) coverCost += foundSurcharge.v;
             }
             cost += coverCost;
@@ -2968,8 +2968,8 @@ function computePurchaseCost(order) {
             const facePaper = order.data['ord-face'];
             const faceInsert = order.data['ord-face-insert'];
             if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
-                let mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
-                cost += (spec.face || 0) * mult;
+                let mult = String(faceInsert).includes('4P') ? 4 : (String(faceInsert).includes('8P') ? 8 : 0);
+                cost += (targetSpec.face || 0) * mult;
             }
         }
     } else {
