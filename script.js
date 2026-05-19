@@ -45,17 +45,33 @@ function handleLogin() {
     }
 
     // 2. 파트너(출판사) DB 계정 체크
-    const partner = MASTER.partners.find(p => p.id === id && (p.password === pw || (!p.password && pw === '1234')));
+    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
     if (partner) {
-        enterApp('publisher', id);
-        return;
+        if (partner.password === pw || (!partner.password && pw === '1234')) {
+            enterApp('publisher', partner.id);
+            return;
+        }
     }
 
     // 3. 인쇄소 DB 계정 체크
-    const printer = MASTER.printers.find(p => p.id === id && (p.password === pw || (!p.password && pw === '1234')));
+    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
     if (printer) {
-        enterApp('printer', id);
-        return;
+        // 대표 계정 로그인
+        if (printer.password === pw || (!printer.password && pw === '1234')) {
+            enterApp('printer', printer.id);
+            return;
+        }
+        // 담당자 서브비번 로그인
+        if (printer.managers && printer.managers.length > 0) {
+            const manager = printer.managers.find(m => m.subPw === pw);
+            if (manager) {
+                // 정산관리 권한이 있으면 printer, 없으면 생산만 가능한 printer_worker
+                const isSettle = manager.perms && manager.perms.includes('settle');
+                const assignedRole = isSettle ? 'printer' : 'printer_worker';
+                enterApp(assignedRole, printer.id);
+                return;
+            }
+        }
     }
 
     alert('아이디 또는 비밀번호가 올바르지 않습니다.');
@@ -2035,9 +2051,8 @@ function openOrderDetails(id) {
 
             <!-- 금액 정보 -->
             ${role === 'printer_worker' ? `
-                <div class="p-6 bg-white rounded-xl text-slate-500 border border-slate-200 text-center print:hidden">
-                    <div class="text-sm font-bold mb-1 flex items-center justify-center gap-2"><i data-lucide="lock" class="w-4 h-4"></i> 접근 권한 제한</div>
-                    <div class="text-[11px]">작업자 계정은 금액 정보를 확인할 수 없습니다.</div>
+                <div class="p-6 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center min-h-[90px] print:hidden">
+                    <i data-lucide="lock" class="w-5 h-5 text-slate-200"></i>
                 </div>
             ` : `
                 <div class="p-6 bg-sky-50 rounded-xl text-sky-900 border border-sky-200 shadow-sm print:bg-white print:border-black print:rounded-none print:shadow-none print:p-2.5">
