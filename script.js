@@ -2928,13 +2928,35 @@ function computePurchaseCost(order) {
     const findCommonCost = (n) => (costData.commons.find(c => c.n.includes(n)) || { v: 0 }).v;
 
     if (order.mode === 'sheet') {
-        const spec = costData.sheetSpecs.find(s => s.n === specName);
-        if (spec) {
-            cost = (bp * spec.bw) + (cp * spec.cl);
+        const baseSpec = costData.sheetSpecs.find(s => s.n === specName);
+        if (baseSpec) {
+            let targetSpec = baseSpec;
+            if (specName.includes('사용자규격') || specName.includes('변형')) {
+                const customSize = order.data['ord-custom-size'] || '';
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    if (w <= 148) {
+                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('A5국판')) || baseSpec;
+                    } else if (w <= 176) {
+                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('크라운판')) || baseSpec;
+                    } else {
+                        targetSpec = costData.sheetSpecs.find(s => s.n.includes('국배판')) || baseSpec;
+                    }
+                }
+            }
+
+            cost = (bp * targetSpec.bw) + (cp * targetSpec.cl);
+            
+            const innerType = order.data['ord-inner-print'] || '';
+            if (innerType.includes('단면')) {
+                cost = (cost / 2) + (tp / 2 * findCommonCost('단면할증'));
+            }
+
             const innerPaper = order.data['ord-inner'] || '';
             if (innerPaper.includes('100g')) cost += tp * findCommonCost('100g용지할증');
             else if (innerPaper.includes('120g')) cost += tp * findCommonCost('120g용지할증');
-
+            
+            cost += findCommonCost('내지인쇄_' + innerType);
             let coverCost = (order.data['ord-wing'] === '날개 있음') ? findCommonCost('표지날개있음') : findCommonCost('표지날개없음');
             const printVal = order.data['ord-printing'];
             if (printVal) {
