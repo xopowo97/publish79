@@ -273,7 +273,37 @@
                         </div>
 
                         <section>
-                            <div class="section-title text-slate-800"><i data-lucide="list"></i> 디지털 낱장 인쇄 및 면지 단가</div>
+                            <div class="section-title text-slate-800 flex items-center justify-between">
+                                <span class="flex items-center gap-1.5"><i data-lucide="list"></i> 디지털 낱장 인쇄 및 면지
+                                    단가</span>
+                                <div class="flex items-center gap-2 text-xs font-normal" id="sheet-adjuster-panel"
+                                    style="display: none;">
+                                    <span
+                                        class="text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md text-[10px]">표준대비
+                                        증감:</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-500 text-[10px] font-bold">흑</span>
+                                        <input type="text" id="adj-sheet-bw"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold" placeholder="+0"
+                                            value="+0">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-sky-500 text-[10px] font-bold">컬</span>
+                                        <input type="text" id="adj-sheet-cl"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold text-sky-600"
+                                            placeholder="+0" value="+0">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-emerald-500 text-[10px] font-bold">면</span>
+                                        <input type="text" id="adj-sheet-face"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold text-emerald-600"
+                                            placeholder="+0" value="+0">
+                                    </div>
+                                    <button onclick="applySheetAdjustment()"
+                                        class="bg-sky-600 text-white px-2.5 py-1 rounded-md text-[10px] hover:bg-sky-700 transition-all font-black shadow-sm ml-1">일반기준
+                                        적용</button>
+                                </div>
+                            </div>
                             <div id="price-sheet-grid" class="grid grid-cols-2 gap-4"></div>
                         </section>
 
@@ -292,7 +322,42 @@
                         </section>
 
                         <section>
-                            <div class="section-title text-slate-800"><i data-lucide="trending-up"></i> 디지털 연속지 슬라이딩 단가
+                            <div class="section-title text-slate-800 flex items-center justify-between">
+                                <span class="flex items-center gap-1.5"><i data-lucide="trending-up"></i> 디지털 연속지 슬라이딩
+                                    단가</span>
+                                <div class="flex items-center gap-2 text-xs font-normal" id="roll-adjuster-panel"
+                                    style="display: none;">
+                                    <span
+                                        class="text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md text-[10px]">표준대비
+                                        증감:</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-500 text-[10px] font-bold">흑백(P)</span>
+                                        <input type="text" id="adj-roll-bw"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold" placeholder="+0"
+                                            value="+0">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-amber-600 text-[10px] font-bold">컬러(P)</span>
+                                        <input type="text" id="adj-roll-cl"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold text-amber-600"
+                                            placeholder="+0" value="+0">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-500 text-[10px] font-bold">날개O</span>
+                                        <input type="text" id="adj-roll-wo"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold" placeholder="+0"
+                                            value="+0">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-500 text-[10px] font-bold">날개X</span>
+                                        <input type="text" id="adj-roll-wx"
+                                            class="w-12 text-center border rounded-md py-0.5 font-bold" placeholder="+0"
+                                            value="+0">
+                                    </div>
+                                    <button onclick="applyRollAdjustment()"
+                                        class="bg-sky-600 text-white px-2.5 py-1 rounded-md text-[10px] hover:bg-sky-700 transition-all font-black shadow-sm ml-1">일반기준
+                                        적용</button>
+                                </div>
                             </div>
                             <div id="price-roll-containers" class="space-y-6"></div>
                         </section>

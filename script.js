@@ -166,6 +166,8 @@ let MASTER = {
     }
 };
 
+let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
+
 // 초기 등급 데이터 세팅
 function ensureGradeData() {
     if (!MASTER.pricesByGrade) MASTER.pricesByGrade = {};
@@ -305,6 +307,9 @@ async function initMaster() {
             console.log("기존 설정 데이터가 없습니다. 기본 설정을 사용합니다.");
         }
 
+        // 온라인 DB로부터 쿼리가 성공적으로 이루어졌으므로 로드 상태를 true로 설정 (네트워크 에러 시 false 유지)
+        isConfigLoaded = true;
+
         // 2. 각 테이블 병렬 로딩 (독립적 처리)
         const [ordersRes, partnersRes, printersRes, productsRes] = await Promise.all([
             _supabase.from('orders').select('*').order('created_at', { ascending: false }),
@@ -387,6 +392,12 @@ initMaster();
 
 // 데이터 통합 저장 함수 (Supabase + Local Backup)
 async function saveData() {
+    // 자가 치유 및 오프라인 상태에서 빈(0원) 데이터를 DB에 덮어쓰지 않도록 원천 차단
+    if (!isConfigLoaded) {
+        console.warn("DB 데이터가 아직 성공적으로 로드되지 않았거나 에러 상태이므로, 빈 데이터로 Supabase를 덮어쓰지 않고 저장을 방지합니다.");
+        return false;
+    }
+
     try {
         // 1. 공통 설정 저장
         const configToSave = {
@@ -758,6 +769,18 @@ function renderPrice() {
         ensureGradeData();
     }
     const priceData = MASTER.pricesByGrade[MASTER.currentGrade] || { sheetSpecs: [], rollSpecs: [], commons: [], sheetCommons: {}, rollCommons: {} };
+
+    // Toggle adjuster panels based on current grade
+    const sheetAdjuster = document.getElementById('sheet-adjuster-panel');
+    const rollAdjuster = document.getElementById('roll-adjuster-panel');
+    if (MASTER.currentGrade === '일반등급(표준)') {
+        if (sheetAdjuster) sheetAdjuster.style.display = 'none';
+        if (rollAdjuster) rollAdjuster.style.display = 'none';
+    } else {
+        if (sheetAdjuster) sheetAdjuster.style.display = 'flex';
+        if (rollAdjuster) rollAdjuster.style.display = 'flex';
+    }
+
     const sheetGrid = document.getElementById('price-sheet-grid');
     if (sheetGrid) {
         sheetGrid.innerHTML = (priceData.sheetSpecs || []).map(s => `
@@ -811,9 +834,12 @@ function renderPrice() {
             <div class="bg-white border rounded-2xl overflow-hidden">
                 <div class="bg-slate-50 px-4 py-2 border-b flex justify-between items-center">
                     <span class="text-xs font-bold text-slate-700">${rs.n} 슬라이딩 단가 (${MASTER.currentGrade})</span>
+                    <button onclick="addRollInterval(${rs.id})" class="text-[10px] bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1 rounded-md font-bold transition-all shadow-sm flex items-center gap-1">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> 구간 추가
+                    </button>
                 </div>
                 <table class="w-full text-xs">
-                    <thead><tr class="bg-slate-50/50"><th>시작부수</th><th>종료부수</th><th>흑백(P)</th><th>컬러(P)</th><th>날개O</th><th>날개X</th></tr></thead>
+                    <thead><tr class="bg-slate-50/50"><th>시작부수</th><th>종료부수</th><th>흑백(P)</th><th>컬러(P)</th><th>날개O</th><th>날개X</th><th class="w-12 text-center text-rose-500">삭제</th></tr></thead>
                     <tbody>
                         ${(rs.ivs || []).map((iv, ix) => `
                         <tr class="border-t text-center hover:bg-slate-50/30">
@@ -823,12 +849,162 @@ function renderPrice() {
                             <td><input class="w-12 text-right border-b outline-none text-amber-600 font-bold" value="${iv.cl}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.cl',this.value)"></td>
                             <td><input class="w-12 text-right border-b outline-none" value="${iv.wo}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.wo',this.value)"></td>
                             <td><input class="w-12 text-right border-b outline-none" value="${iv.wx}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.wx',this.value)"></td>
+                            <td class="py-1">
+                                <button onclick="removeRollInterval(${rs.id}, ${ix})" class="text-slate-300 hover:text-red-500 transition-all p-1">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5 mx-auto"></i>
+                                </button>
+                            </td>
                         </tr>`).join('')}
                     </tbody>
                 </table>
             </div>`).join('');
     }
     lucide.createIcons();
+}
+
+function applySheetAdjustment() {
+    const baseGrade = '일반등급(표준)';
+    const currentGrade = MASTER.currentGrade;
+    if (currentGrade === baseGrade) return;
+
+    const bwEl = document.getElementById('adj-sheet-bw');
+    const clEl = document.getElementById('adj-sheet-cl');
+    const faceEl = document.getElementById('adj-sheet-face');
+    if (!bwEl || !clEl || !faceEl) return;
+
+    const adjBw = parseFloat(bwEl.value) || 0;
+    const adjCl = parseFloat(clEl.value) || 0;
+    const adjFace = parseFloat(faceEl.value) || 0;
+
+    const baseData = MASTER.pricesByGrade[baseGrade];
+    if (!baseData) return;
+
+    if (!MASTER.pricesByGrade[currentGrade]) {
+        MASTER.pricesByGrade[currentGrade] = {
+            commons: baseData.commons || [],
+            sheetSpecs: [],
+            rollSpecs: [],
+            sheetCommons: JSON.parse(JSON.stringify(baseData.sheetCommons || {})),
+            rollCommons: JSON.parse(JSON.stringify(baseData.rollCommons || {}))
+        };
+    }
+    const currentData = MASTER.pricesByGrade[currentGrade];
+
+    currentData.sheetSpecs = (baseData.sheetSpecs || []).map(baseSpec => {
+        return {
+            id: baseSpec.id,
+            n: baseSpec.n,
+            bw: Math.max(0, baseSpec.bw + adjBw),
+            cl: Math.max(0, baseSpec.cl + adjCl),
+            face: Math.max(0, baseSpec.face + adjFace)
+        };
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function applyRollAdjustment() {
+    const baseGrade = '일반등급(표준)';
+    const currentGrade = MASTER.currentGrade;
+    if (currentGrade === baseGrade) return;
+
+    const bwEl = document.getElementById('adj-roll-bw');
+    const clEl = document.getElementById('adj-roll-cl');
+    const woEl = document.getElementById('adj-roll-wo');
+    const wxEl = document.getElementById('adj-roll-wx');
+    if (!bwEl || !clEl || !woEl || !wxEl) return;
+
+    const adjBw = parseFloat(bwEl.value) || 0;
+    const adjCl = parseFloat(clEl.value) || 0;
+    const adjWo = parseFloat(woEl.value) || 0;
+    const adjWx = parseFloat(wxEl.value) || 0;
+
+    const baseData = MASTER.pricesByGrade[baseGrade];
+    if (!baseData) return;
+
+    if (!MASTER.pricesByGrade[currentGrade]) {
+        MASTER.pricesByGrade[currentGrade] = {
+            commons: baseData.commons || [],
+            sheetSpecs: [],
+            rollSpecs: [],
+            sheetCommons: JSON.parse(JSON.stringify(baseData.sheetCommons || {})),
+            rollCommons: JSON.parse(JSON.stringify(baseData.rollCommons || {}))
+        };
+    }
+    const currentData = MASTER.pricesByGrade[currentGrade];
+
+    currentData.rollSpecs = (baseData.rollSpecs || []).map(baseSpec => {
+        const ivs = (baseSpec.ivs || []).map(baseIv => {
+            return {
+                s: baseIv.s,
+                e: baseIv.e,
+                bw: Math.max(0, baseIv.bw + adjBw),
+                cl: Math.max(0, baseIv.cl + adjCl),
+                wo: Math.max(0, baseIv.wo + adjWo),
+                wx: Math.max(0, baseIv.wx + adjWx)
+            };
+        });
+        return {
+            id: baseSpec.id,
+            n: baseSpec.n,
+            ivs: ivs
+        };
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function addRollInterval(rsId) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    if (!priceData || !priceData.rollSpecs) return;
+
+    const spec = priceData.rollSpecs.find(r => r.id === rsId);
+    if (!spec) return;
+
+    if (!spec.ivs) spec.ivs = [];
+
+    // Determine the starting copy range based on the last interval
+    let lastEnd = 300;
+    if (spec.ivs.length > 0) {
+        lastEnd = parseInt(spec.ivs[spec.ivs.length - 1].e) || 300;
+    }
+
+    const nextStart = lastEnd + 1;
+    const nextEnd = nextStart + 100;
+
+    spec.ivs.push({
+        s: nextStart,
+        e: nextEnd,
+        bw: 0,
+        cl: 0,
+        wo: 0,
+        wx: 0
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function removeRollInterval(rsId, index) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    if (!priceData || !priceData.rollSpecs) return;
+
+    const spec = priceData.rollSpecs.find(r => r.id === rsId);
+    if (!spec) return;
+
+    if (!spec.ivs || spec.ivs.length <= 1) {
+        alert("최소 1개 이상의 슬라이딩 구간이 유지되어야 합니다.");
+        return;
+    }
+
+    if (!confirm("해당 슬라이딩 구간을 삭제하시겠습니까?")) return;
+
+    spec.ivs.splice(index, 1);
+
+    renderPrice();
+    saveMasterDataSilent();
 }
 
 
@@ -3976,45 +4152,185 @@ async function deletePrinter(id, event) {
     alert(`[${printer.name}] 인쇄소가 정상적으로 삭제되었습니다.`);
 }
 
-function openPrinterPriceModal() {
-    const priceData = MASTER.pricesByGrade['인쇄소 협약단가']; // 협약단가 기준
-    if (!priceData) return alert("협약단가 데이터가 없습니다.");
+async function openPrinterPriceModal() {
+    try {
+        // 실시간성 보장을 위해 최신 단가 데이터 즉시 Supabase DB 동기화
+        const { data: d, error: fetchError } = await _supabase.from('master_config').select('*').eq('id', 'config').single();
+        if (fetchError) throw fetchError;
 
-    const overlay = document.getElementById('tracking-modal-overlay');
-    const container = document.getElementById('tracking-input-container');
+        if (d && d.data) {
+            MASTER.pricesByGrade = d.data.pricesByGrade || MASTER.pricesByGrade;
+        }
 
-    const mainTitle = document.getElementById('tracking-modal-main-title');
-    const modalLabel = document.getElementById('tracking-modal-label');
-    if (mainTitle) mainTitle.innerText = "인쇄 협약 매입 단가표";
-    if (modalLabel) {
-        modalLabel.innerText = "PRINTER BUYING PRICE";
-        modalLabel.className = "text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-widest";
-    }
+        const priceData = MASTER.pricesByGrade['인쇄소 협약단가'];
+        if (!priceData) {
+            alert("인쇄소 협약단가 데이터를 찾을 수 없습니다.");
+            return;
+        }
 
-    document.getElementById('tracking-modal-order-id').innerText = "INTERNAL";
-    document.getElementById('tracking-modal-book-title').innerText = "공정별 인쇄 매입 원가 명세";
+        const overlay = document.getElementById('tracking-modal-overlay');
+        const container = document.getElementById('tracking-input-container');
+        if (!overlay || !container) return;
 
-    const saveBtn = document.getElementById('btn-save-tracking');
-    saveBtn.innerText = "단가표 닫기";
-    saveBtn.onclick = closeTrackingModal;
+        const mainTitle = document.getElementById('tracking-modal-main-title');
+        const modalLabel = document.getElementById('tracking-modal-label');
+        if (mainTitle) mainTitle.innerText = "인쇄 협약 매입 단가표";
+        if (modalLabel) {
+            modalLabel.innerText = "PRINTER BUYING PRICE";
+            modalLabel.className = "text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-widest";
+        }
 
-    container.innerHTML = `
-        <div class="p-4 bg-white rounded-xl border">
-            <h4 class="text-xs font-black text-slate-800 mb-2">[인쇄 협약 단가 요약]</h4>
-            <table class="w-full text-[10px] border-collapse mb-4">
-                <thead><tr class="bg-slate-50 border-y"><th class="py-2 px-1 text-left">항목</th><th class="text-right px-1">단가</th></tr></thead>
-                <tbody>
-                    ${priceData.sheetSpecs.slice(0, 5).map(s => `
-                        <tr class="border-b"><td class="py-1.5 px-1 font-bold">${s.n} (흑백)</td><td class="text-right px-1">${s.bw}원</td></tr>
+        document.getElementById('tracking-modal-order-id').innerText = "INTERNAL";
+        document.getElementById('tracking-modal-book-title').innerText = "공정별 인쇄 매입 원가 명세";
+
+        const saveBtn = document.getElementById('btn-save-tracking');
+        saveBtn.innerText = "단가표 닫기";
+        saveBtn.className = "flex-1 bg-indigo-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all";
+        saveBtn.onclick = closeTrackingModal;
+
+        const today = new Date().toLocaleDateString();
+        
+        // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
+        const commons = priceData.sheetCommons || {};
+        const getCommonVal = (key) => commons[key] || 0;
+        
+        const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
+        const baseBinding = getCommonVal('제본방식_무선제본') || 0;
+        const wingYes = getCommonVal('표지날개_날개 있음') || getCommonVal('표지날개_날개있음') || 0;
+        const wingNo = getCommonVal('표지날개_날개 없음') || getCommonVal('표지날개_날개없음') || 0;
+
+        const coverWithWing = baseCoating + baseBinding + wingYes;
+        const coverWithoutWing = baseCoating + baseBinding + wingNo;
+
+        // 출판사 단가표와 동일한 프리미엄 스크롤 레이아웃 렌더링
+        container.innerHTML = `
+            <div class="relative overflow-hidden p-6 bg-white rounded-2xl border">
+                <!-- 내부 보안 워터마크 -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-[-30deg] select-none" style="font-size: 40px; font-weight: 900; white-space: nowrap;">
+                    INTERNAL USE ONLY - ${today}
+                </div>
+                
+                <div class="text-[10px] font-bold text-slate-400 mb-4 flex justify-between">
+                    <span>매입 등급: 인쇄소 협약단가</span>
+                    <span>조회일시: ${new Date().toLocaleString()}</span>
+                </div>
+
+                <!-- 1. [디지털 낱장] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 낱장]</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-[10px] border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-y">
+                                <th class="py-2 px-1 text-left">규격명</th>
+                                <th class="text-right px-1">흑백(P)</th>
+                                <th class="text-right px-1">컬러(P)</th>
+                                <th class="text-right px-1">면지(P)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(priceData.sheetSpecs || []).map(s => `
+                                <tr class="border-b">
+                                    <td class="py-1.5 px-1 font-bold text-slate-600">${s.n}</td>
+                                    <td class="text-right px-1">${s.bw}원</td>
+                                    <td class="text-right px-1 text-sky-600">${s.cl}원</td>
+                                    <td class="text-right px-1 text-emerald-600">${s.face}원</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 2. [공통단가] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통단가]</h4>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                        <div class="text-[9px] font-bold text-indigo-600 mb-1">표지 제작비 (날개 있음)</div>
+                        <div class="text-sm font-black text-indigo-800">${coverWithWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div class="text-[9px] font-bold text-slate-500 mb-1">표지 제작비 (날개 없음)</div>
+                        <div class="text-sm font-black text-slate-800">${coverWithoutWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. [공통 추가 할증] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통 추가 할증]</h4>
+                <div class="grid grid-cols-3 gap-2 mb-6">
+                    <!-- 표지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
+                        ${[
+                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 용지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
+                        ${[
+                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                            { key: '용지할증_백모조120g', label: '백모조120g' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 단면할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
+                        ${[
+                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 4. [디지털 연속지] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 연속지]</h4>
+                <div class="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                    ${(priceData.rollSpecs || []).map(rs => `
+                        <div class="border rounded-xl p-3 bg-slate-50/50">
+                            <div class="text-[10px] font-bold text-indigo-700 mb-2">${rs.n}</div>
+                            <table class="w-full text-[9px] border-collapse">
+                                <thead><tr class="border-b text-slate-400"><th class="text-left">부수</th><th class="text-right">흑백</th><th class="text-right">컬러</th><th class="text-right">날개(O)</th><th class="text-right">날개(X)</th></tr></thead>
+                                <tbody>
+                                    ${(rs.ivs || []).slice(0, 3).map(t => `
+                                        <tr class="text-right border-b border-white">
+                                            <td class="text-left py-1">${t.s}~${t.e}</td>
+                                            <td class="font-bold">${t.bw}원</td>
+                                            <td class="text-indigo-600 font-bold">${t.cl}원</td>
+                                            <td>${t.wo}원</td>
+                                            <td>${t.wx}원</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     `).join('')}
-                </tbody>
-            </table>
-            <div class="p-3 bg-indigo-50 rounded-lg text-[9px] text-indigo-700 font-bold">
-                * 위 단가는 인쇄소 마스터와 합의된 최종 매입 확정 단가입니다.
+                </div>
+
+                <div class="text-[9px] text-rose-500 font-bold mt-6">* 위 단가는 인쇄소 마스터와 합의된 최종 매입 확정 단가입니다. (부가세 별도)</div>
             </div>
-        </div>
-    `;
-    overlay.classList.remove('hidden');
+        `;
+
+        overlay.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("인쇄소 단가표 로드 에러:", err);
+        alert("인쇄소 단가표를 불러오는 중 오류가 발생했습니다: " + err.message);
+    }
 }
 
 // ---------------------------------------------------------
