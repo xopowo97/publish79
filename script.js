@@ -3320,12 +3320,17 @@ async function downloadExcel(id) {
         const coverDetail = `${d['ord-cover'] || ''}/${d['ord-printing'] || ''}/${d['ord-wing'] || ''}/${d['ord-coating'] || ''}/${d['ord-binding'] || ''}`;
         worksheet.getCell('C14').value = coverDetail;
         let coverUnit = 0;
-        let innerUnit = 0;
+        let innerUnit1 = 0;
+        let innerUnit2 = 0;
+        const hasPartColor = innerType.includes('부분컬러');
 
         if (order.mode === 'roll') {
             const specName = d['ord-spec'] || '';
             const wingVal = d['ord-wing'] || '';
             const rollSpec = (priceData.rollSpecs || []).find(r => r.n === specName);
+            let bracketBw = 0;
+            let bracketCl = 0;
+            
             if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
                 let targetSpec = rollSpec;
                 if (specName.includes('사용자규격') || specName.includes('변형')) {
@@ -3344,33 +3349,76 @@ async function downloadExcel(id) {
                 const bracket = targetSpec.ivs.find(v => qty >= v.s && qty <= v.e) || targetSpec.ivs[targetSpec.ivs.length - 1];
                 if (bracket) {
                     coverUnit = (wingVal === '날개 있음') ? bracket.wo : bracket.wx;
-                    innerUnit = (bp * (bracket.bw || 0)) + (cp * (bracket.cl || 0));
+                    bracketBw = bracket.bw || 0;
+                    bracketCl = bracket.cl || 0;
                 }
             }
 
-            if (innerType.includes('단면')) {
-                innerUnit = (innerUnit / 2) + (tp / 2 * getC('단면할증'));
+            if (hasPartColor) {
+                innerUnit1 = (cp * bracketCl);
+                innerUnit2 = (bp * bracketBw);
+            } else {
+                innerUnit1 = (bp * bracketBw) + (cp * bracketCl);
             }
-            if ((d['ord-inner'] || '').includes('100g')) innerUnit += tp * getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) innerUnit += tp * getC('120g용지할증');
+
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+            }
+            
+            let paperSur = 0;
+            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
+            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
             
             const innerPrintKey = '내지인쇄_' + innerType;
             if (priceData.rollCommons && priceData.rollCommons[innerPrintKey] !== undefined) {
-                innerUnit += priceData.rollCommons[innerPrintKey];
+                innerUnit1 += priceData.rollCommons[innerPrintKey];
             }
+            
         } else {
             coverUnit += getSC('표지날개', d['ord-wing']);
             coverUnit += getSC('표지인쇄', d['ord-printing']);
             coverUnit += getSC('코팅방식', d['ord-coating']);
             coverUnit += getSC('제본방식', d['ord-binding']);
 
-            innerUnit = (bp * (spec.bw || 0)) + (cp * (spec.cl || 0));
-            if (innerType.includes('단면')) {
-                innerUnit = (innerUnit / 2) + (tp / 2 * getC('단면할증'));
+            let targetSheetSpec = spec;
+            if ((d['ord-spec'] || '').includes('사용자규격') || (d['ord-spec'] || '').includes('변형')) {
+                const customSize = d['ord-custom-size'] || '';
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    if (w <= 148) {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('A5국판')) || spec;
+                    } else if (w <= 176) {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('크라운판')) || spec;
+                    } else {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('국배판')) || spec;
+                    }
+                }
             }
-            if ((d['ord-inner'] || '').includes('100g')) innerUnit += tp * getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) innerUnit += tp * getC('120g용지할증');
-            innerUnit += getSC('내지인쇄', innerType);
+
+            if (hasPartColor) {
+                innerUnit1 = cp * (targetSheetSpec.cl || 0);
+                innerUnit2 = bp * (targetSheetSpec.bw || 0);
+            } else {
+                innerUnit1 = (bp * (targetSheetSpec.bw || 0)) + (cp * (targetSheetSpec.cl || 0));
+            }
+
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+            }
+            
+            let paperSur = 0;
+            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
+            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
+            
+            innerUnit1 += getSC('내지인쇄', innerType);
         }
 
         const coverSupply = coverUnit * qty;
@@ -3381,17 +3429,39 @@ async function downloadExcel(id) {
         worksheet.getCell('I14').value = coverVat;
         worksheet.getCell('K14').value = coverSupply + coverVat;
 
-        // [내지 - 15행]
-        const innerDetail = `${d['ord-inner'] || ''}/${innerType}/용지할증`;
-        worksheet.getCell('C15').value = innerDetail;
+        // [내지1 - 15행]
+        const innerDetail1 = hasPartColor ? `${d['ord-inner'] || ''}/내지-부분컬러/용지할증` : `${d['ord-inner'] || ''}/${innerType}/용지할증`;
+        worksheet.getCell('C15').value = innerDetail1;
 
-        const innerSupply = innerUnit * qty;
-        const innerVat = Math.floor(innerSupply / 10);
-        worksheet.getCell('D15').value = innerUnit;
+        const innerSupply1 = innerUnit1 * qty;
+        const innerVat1 = Math.floor(innerSupply1 / 10);
+        worksheet.getCell('D15').value = innerUnit1;
         worksheet.getCell('F15').value = qty;
-        worksheet.getCell('G15').value = innerSupply;
-        worksheet.getCell('I15').value = innerVat;
-        worksheet.getCell('K15').value = innerSupply + innerVat;
+        worksheet.getCell('G15').value = innerSupply1;
+        worksheet.getCell('I15').value = innerVat1;
+        worksheet.getCell('K15').value = innerSupply1 + innerVat1;
+
+        // [내지2 - 16행 (부분컬러 시 흑백 처리)]
+        let innerSupply2 = 0;
+        let innerVat2 = 0;
+        if (hasPartColor) {
+            worksheet.getCell('C16').value = `${d['ord-inner'] || ''}/내지-흑백(부분)/용지할증`;
+            
+            innerSupply2 = innerUnit2 * qty;
+            innerVat2 = Math.floor(innerSupply2 / 10);
+            worksheet.getCell('D16').value = innerUnit2;
+            worksheet.getCell('F16').value = qty;
+            worksheet.getCell('G16').value = innerSupply2;
+            worksheet.getCell('I16').value = innerVat2;
+            worksheet.getCell('K16').value = innerSupply2 + innerVat2;
+        } else {
+            worksheet.getCell('C16').value = '';
+            worksheet.getCell('D16').value = '';
+            worksheet.getCell('F16').value = '';
+            worksheet.getCell('G16').value = '';
+            worksheet.getCell('I16').value = '';
+            worksheet.getCell('K16').value = '';
+        }
 
         // [면지 - 17행]
         if (d['ord-face'] && d['ord-face'] !== '없음') {
@@ -3409,17 +3479,17 @@ async function downloadExcel(id) {
             worksheet.getCell('K17').value = faceSupply + faceVat;
         }
 
-        // [배송비 - 18행] - 실제 박스 수 합산 및 평균 단가 계산 로직 도입
+        // [배송비 - 18행]
         let totalBoxes = 0;
         (order.deliveries || []).forEach(d => {
             (d.trackingList || []).forEach(t => {
                 totalBoxes += (parseInt(t.box) || 0);
             });
         });
-        if (totalBoxes === 0) totalBoxes = 1; // 최소 1박스 보정
+        if (totalBoxes === 0) totalBoxes = 1; 
 
         const shipSupply = parseInt(order.shippingCost || 0) || 0;
-        const shipUnit = Math.floor(shipSupply / totalBoxes); // 평균 박스당 단가
+        const shipUnit = Math.floor(shipSupply / totalBoxes); 
         const shipVat = Math.floor(shipSupply / 10);
 
         worksheet.getCell('D18').value = shipUnit;
@@ -3429,8 +3499,8 @@ async function downloadExcel(id) {
         worksheet.getCell('K18').value = shipSupply + shipVat;
 
         // [총 합계 - 19행]
-        const totalSupply = (Number(worksheet.getCell('G14').value) || 0) + (Number(worksheet.getCell('G15').value) || 0) + (Number(worksheet.getCell('G17').value) || 0) + (Number(worksheet.getCell('G18').value) || 0);
-        const totalVat = (Number(worksheet.getCell('I14').value) || 0) + (Number(worksheet.getCell('I15').value) || 0) + (Number(worksheet.getCell('I17').value) || 0) + (Number(worksheet.getCell('I18').value) || 0);
+        const totalSupply = (Number(worksheet.getCell('G14').value) || 0) + (Number(worksheet.getCell('G15').value) || 0) + (Number(worksheet.getCell('G16').value) || 0) + (Number(worksheet.getCell('G17').value) || 0) + (Number(worksheet.getCell('G18').value) || 0);
+        const totalVat = (Number(worksheet.getCell('I14').value) || 0) + (Number(worksheet.getCell('I15').value) || 0) + (Number(worksheet.getCell('I16').value) || 0) + (Number(worksheet.getCell('I17').value) || 0) + (Number(worksheet.getCell('I18').value) || 0);
         const grandTotal = totalSupply + totalVat;
 
         worksheet.getCell('G19').value = totalSupply;
