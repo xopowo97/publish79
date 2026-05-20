@@ -357,7 +357,25 @@ async function initMaster() {
                 return o;
             });
         }
-        if (partnersRes.data) MASTER.partners = partnersRes.data;
+        if (partnersRes.data) {
+            MASTER.partners = partnersRes.data;
+
+            // 로컬에서 이전에 저장된 비밀번호가 있으면 복원
+            try {
+                const storedMaster = JSON.parse(localStorage.getItem('MASTER_DATA') || 'null');
+                if (storedMaster?.partners?.length) {
+                    storedMaster.partners.forEach(storedPartner => {
+                        if (!storedPartner || !storedPartner.id) return;
+                        const target = MASTER.partners.find(p => p.id === storedPartner.id);
+                        if (target && storedPartner.password) {
+                            target.password = storedPartner.password;
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn('로컬 비밀번호 복원 실패:', err);
+            }
+        }
         if (printersRes.data) MASTER.printers = printersRes.data;
         if (productsRes.data) MASTER.products = productsRes.data;
 
@@ -1228,9 +1246,10 @@ function renderOrder() {
         pubSearchBtn.style.display = (role === 'admin' || role === 'printer') ? 'block' : 'none';
     }
 
-    // 출판사 모드일 때 자동 설정 (첫 번째 파트너 또는 고정값)
+    // 출판사 모드일 때 자동 설정 (로그인된 출판사 정보 사용)
     if (role === 'publisher' && (pubNameInput.value === '테스트 출판사' || !pubNameInput.value)) {
-        const myPartner = MASTER.partners[0]; // 실제 환경에서는 로그인된 세션 정보 사용
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
         if (myPartner) {
             pubNameInput.value = myPartner.name;
             setGrade(myPartner.grade);
@@ -2400,6 +2419,7 @@ async function submitOrderSheet() {
         unitPrice: unitPrice,
         qty: qty,
         totalPrice: totalPrice,
+        grade: MASTER.currentGrade,
         deliveries: deliveries,
         innerFile: currentFiles.inner,
         coverFile: currentFiles.cover,
@@ -3370,14 +3390,34 @@ async function downloadExcel(id) {
         const pub = MASTER.partners.find(p => p.name === order.pubName) || {};
         const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
         const isPrinter = (role === 'printer' || role === 'printer_worker');
-        const gradeName = isPrinter ? '인쇄소 협약단가' : (pub.grade || MASTER.currentGrade || 'A등급');
+        const gradeName = isPrinter
+            ? '인쇄소 협약단가'
+            : (order.grade || pub.grade || MASTER.currentGrade || '일반등급(표준)');
         const priceData = MASTER.pricesByGrade[gradeName] || MASTER.pricesByGrade[MASTER.currentGrade] || { commons: [], sheetSpecs: [], sheetCommons: {} };
-        const spec = (priceData.sheetSpecs || []).find(s => s.n === d['ord-spec']) || { bw: 0, cl: 0, face: 0 };
+        let spec = (priceData.sheetSpecs || []).find(s => s.n === d['ord-spec']);
+        if (!spec && d['ord-spec']) {
+            spec = (priceData.sheetSpecs || []).find(s => d['ord-spec'].includes(s.n));
+        }
+        if (!spec) spec = { bw: 0, cl: 0, face: 0 };
 
         const getC = (n) => {
             const found = (priceData.commons || []).find(c => c.n && c.n.includes(n));
             return found ? found.v : 0;
         };
+
+        if (d['ord-spec'] && (String(d['ord-spec']).includes('사용자규격') || String(d['ord-spec']).includes('변형'))) {
+            const customSize = String(d['ord-custom-size'] || '');
+            const [w] = customSize.split(/x|\*/i).map(Number);
+            if (w && !isNaN(w)) {
+                if (w <= 148) {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('A5국판')) || spec;
+                } else if (w <= 176) {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('크라운판')) || spec;
+                } else {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('국배판')) || spec;
+                }
+            }
+        }
         const getSC = (group, val) => priceData.sheetCommons[group + '_' + val] || 0;
 
         // 1. [상단 정보 매칭]
@@ -3547,14 +3587,21 @@ async function downloadExcel(id) {
         }
 
         // [면지 - 17행]
-        if (d['ord-face'] && d['ord-face'] !== '없음') {
-            const faceInsert = d['ord-face-insert'] || '';
-            let mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
-            const faceUnit = (spec.face || 0) * mult;
-            const faceSupply = faceUnit * qty;
-            const faceVat = Math.floor(faceSupply / 10);
+        const facePaper = d['ord-face'] || '';
+        const faceInsert = d['ord-face-insert'] || '';
+        if (facePaper && facePaper !== '없음') {
+            let faceUnit = 0;
+            let faceSupply = 0;
+            let faceVat = 0;
 
-            worksheet.getCell('C17').value = `${d['ord-face']}(${d['ord-face-insert']})`;
+            if (faceInsert && faceInsert !== '없음') {
+                const mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
+                faceUnit = (spec.face || 0) * mult;
+                faceSupply = faceUnit * qty;
+                faceVat = Math.floor(faceSupply / 10);
+            }
+
+            worksheet.getCell('C17').value = `${facePaper}(${faceInsert || '없음'})`;
             worksheet.getCell('D17').value = faceUnit;
             worksheet.getCell('F17').value = qty;
             worksheet.getCell('G17').value = faceSupply;
@@ -3850,6 +3897,7 @@ function deletePartner(id, event) {
 
         MASTER.partners = MASTER.partners.filter(p => p.id !== id);
         renderPartners();
+        clearPartnerFields();
         alert(`[${partner.name}] 파트너사가 정상적으로 삭제되었습니다.`);
     }
 }
@@ -4796,7 +4844,9 @@ function saveNewPassword() {
     const newPw = document.getElementById('pw-new').value;
     const confirmPw = document.getElementById('pw-confirm').value;
 
-    const myPartner = MASTER.partners[0]; // 실무에선 로그인 세션 기반
+    const partnerIdField = document.getElementById('u_id');
+    const partnerId = partnerIdField ? partnerIdField.value : sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === partnerId) || MASTER.partners[0];
     if (!myPartner) return;
 
     // 기존 비밀번호 확인 (기본값 1234)
@@ -4817,6 +4867,7 @@ function saveNewPassword() {
     }
 
     myPartner.password = newPw;
+    localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
     saveMasterDataSilent();
     alert("비밀번호가 성공적으로 변경되었습니다. 다음 로그인부터 적용됩니다.");
     closeTrackingModal();
