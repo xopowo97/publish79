@@ -358,7 +358,10 @@ async function initMaster() {
             });
         }
         if (partnersRes.data) {
-            MASTER.partners = partnersRes.data;
+            MASTER.partners = partnersRes.data.map(p => ({
+                ...p,
+                password: p.pw || p.password || '1234'
+            }));
 
             // 로컬에서 이전에 저장된 비밀번호가 있으면 복원
             try {
@@ -376,7 +379,12 @@ async function initMaster() {
                 console.warn('로컬 비밀번호 복원 실패:', err);
             }
         }
-        if (printersRes.data) MASTER.printers = printersRes.data;
+        if (printersRes.data) {
+            MASTER.printers = printersRes.data.map(p => ({
+                ...p,
+                password: p.pw || p.password || '1234'
+            }));
+        }
         if (productsRes.data) MASTER.products = productsRes.data;
 
         // 성공적으로 통신이 완료되었으나 데이터가 아예 없는 경우 'offline' 상태와 비슷하게 취급하거나 그냥 성공 표시
@@ -4083,6 +4091,7 @@ async function savePartnerData() {
 
     // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
     const { password, biz_item, ...dbPartnerData } = partnerData;
+    dbPartnerData.pw = password;
     dbPartnerData.biz_type = bizType + (bizItem ? '/' + bizItem : '');
     const { error } = await _supabase.from('partners').upsert(dbPartnerData);
 
@@ -4312,6 +4321,7 @@ async function savePrinterMgmtData() {
 
     // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
     const { password, biz_item, ...dbPrinterData } = printerData;
+    dbPrinterData.pw = password;
     dbPrinterData.biz_type = prBizTypeVal + (prBizItemVal ? '/' + prBizItemVal : '');
     const { error } = await _supabase.from('printers').upsert(dbPrinterData);
 
@@ -4784,13 +4794,24 @@ async function openPriceTableModal(grade) {
     }
 }
 
-function resetPassword() {
+async function resetPassword() {
     const id = document.getElementById('u_id').value;
     const partner = MASTER.partners.find(p => p.id === id);
     if (!partner) return alert("선택된 파트너가 없습니다.");
 
     if (confirm(`[${partner.name}] 업체의 비밀번호를 초기값 '1234'로 변경하시겠습니까?`)) {
         partner.password = '1234';
+        
+        const { error } = await _supabase
+            .from('partners')
+            .update({ pw: '1234' })
+            .eq('id', id);
+
+        if (error) {
+            alert("비밀번호 온라인 초기화 실패: " + error.message);
+            return;
+        }
+
         saveMasterDataSilent();
         alert("비밀번호가 '1234'로 초기화되었습니다. 해당 업체에 안내해 주세요.");
     }
@@ -4839,18 +4860,44 @@ function openChangePasswordModal() {
     overlay.classList.remove('hidden');
 }
 
-function saveNewPassword() {
+async function saveNewPassword() {
     const current = document.getElementById('pw-current').value;
     const newPw = document.getElementById('pw-new').value;
     const confirmPw = document.getElementById('pw-confirm').value;
 
-    const partnerIdField = document.getElementById('u_id');
-    const partnerId = partnerIdField ? partnerIdField.value : sessionStorage.getItem('userId');
-    const myPartner = MASTER.partners.find(p => p.id === partnerId) || MASTER.partners[0];
-    if (!myPartner) return;
+    const role = currentUserRole;
+    let myAccount = null;
+    let tableName = '';
+
+    if (role === 'publisher') {
+        const partnerId = sessionStorage.getItem('userId');
+        myAccount = MASTER.partners.find(p => p.id === partnerId);
+        tableName = 'partners';
+    } else if (role === 'printer') {
+        const printerId = sessionStorage.getItem('userId');
+        myAccount = MASTER.printers.find(p => p.id === printerId);
+        tableName = 'printers';
+    }
+
+    if (!myAccount) {
+        const partnerIdField = document.getElementById('u_id');
+        if (partnerIdField && partnerIdField.value) {
+            myAccount = MASTER.partners.find(p => p.id === partnerIdField.value);
+            tableName = 'partners';
+        }
+    }
+
+    if (!myAccount) {
+        const partnerIdField = document.getElementById('u_id');
+        const partnerId = partnerIdField ? partnerIdField.value : sessionStorage.getItem('userId');
+        myAccount = MASTER.partners.find(p => p.id === partnerId) || MASTER.partners[0];
+        tableName = 'partners';
+    }
+
+    if (!myAccount) return;
 
     // 기존 비밀번호 확인 (기본값 1234)
-    const storedPw = myPartner.password || '1234';
+    const storedPw = myAccount.password || '1234';
     if (current !== storedPw) {
         alert("현재 비밀번호가 일치하지 않습니다.");
         return;
@@ -4866,8 +4913,20 @@ function saveNewPassword() {
         return;
     }
 
-    myPartner.password = newPw;
+    myAccount.password = newPw;
     localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
+
+    // Supabase DB에 직접 비밀번호 업데이트
+    const { error } = await _supabase
+        .from(tableName)
+        .update({ pw: newPw })
+        .eq('id', myAccount.id);
+
+    if (error) {
+        alert("비밀번호 온라인 저장 실패: " + error.message);
+        return;
+    }
+
     saveMasterDataSilent();
     alert("비밀번호가 성공적으로 변경되었습니다. 다음 로그인부터 적용됩니다.");
     closeTrackingModal();
