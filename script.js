@@ -56,30 +56,45 @@ window.addEventListener('unhandledrejection', (event) => {
 // 3. 수동 테스트용 데모 에러 발생기
 window.triggerAIError = function(testName = 'Manual Demo') {
     console.log("테스트 에러를 인위적으로 발생시킵니다.");
-    const aiAction = document.getElementById('ai-agent-action');
-    if (aiAction) {
-        aiAction.classList.remove('hidden');
+    
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+    
+    if (panel) panel.classList.add('active');
+    if (fab) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
     }
-    // 패널 및 FAB 열기 (active 클래스로 스타일 연동)
-    const aiPanel = document.getElementById('ai-panel');
-    const aiFab = document.getElementById('ai-fab');
-    if (aiPanel) {
-        aiPanel.classList.add('active');
+    if (agentAction) agentAction.classList.remove('hidden');
+    
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
     }
-    if (aiFab) {
-        aiFab.classList.add('active');
-    }
+    
     throw new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
 };
 
 // AI Helper 패널 토글 함수
 window.toggleAIPanel = function() {
-    const fab = document.getElementById('ai-fab');
     const panel = document.getElementById('ai-panel');
-    if (fab && panel) {
-        fab.classList.toggle('active');
-        panel.classList.toggle('active');
+    const fab = document.getElementById('ai-fab');
+    if (!panel || !fab) return;
+    
+    panel.classList.toggle('active');
+    if (panel.classList.contains('active')) {
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    } else {
+        fab.style.opacity = '1';
+        fab.style.pointerEvents = 'all';
     }
+    
+    if (window.lucide) lucide.createIcons();
 };
 
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
@@ -5627,43 +5642,7 @@ function saveAuthSettings() {
     });
 }
 
-// --- AI Helper (Antigravity) Functions ---
-window.toggleAIPanel = function() {
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
-    if (!panel || !fab) return;
-    
-    panel.classList.toggle('active');
-    if (panel.classList.contains('active')) {
-        fab.style.opacity = '0';
-        fab.style.pointerEvents = 'none';
-    } else {
-        fab.style.opacity = '1';
-        fab.style.pointerEvents = 'all';
-    }
-    
-    if (window.lucide) lucide.createIcons();
-};
-
-window.triggerAIError = function(errorMsg) {
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
-    const agentAction = document.getElementById('ai-agent-action');
-    
-    if (!panel || !fab || !agentAction) return;
-    
-    panel.classList.add('active');
-    fab.style.opacity = '0';
-    fab.style.pointerEvents = 'none';
-    agentAction.classList.remove('hidden');
-    
-    const chatContent = document.getElementById('ai-chat-content');
-    if (chatContent) {
-        setTimeout(() => {
-            chatContent.scrollTop = chatContent.scrollHeight;
-        }, 100);
-    }
-};
+// --- AI Helper (Antigravity) Functions Merged to Top ---
 
 window.simulateFix = function(event) {
     const btn = event ? event.currentTarget : null;
