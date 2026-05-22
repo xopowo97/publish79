@@ -28,10 +28,7 @@ export default async function handler(req, res) {
         // 1. Google Gemini API 키 확인 및 호출 (9번 에이전트 자동 에러 분석)
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
         if (GEMINI_API_KEY) {
-            try {
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-                
-                const systemPrompt = `당신은 '출판친구' 플랫폼의 에이전트 파이프라인에서 가장 먼저 가동되는 **[9번: 기술행정지원 실장]** 에이전트입니다.
+            const systemPrompt = `당신은 '출판친구' 플랫폼의 에이전트 파이프라인에서 가장 먼저 가동되는 **[9번: 기술행정지원 실장]** 에이전트입니다.
 당신의 역할은 발생한 시스템 에러를 분석하여 대표님께 격식 있고 친절하게 브리핑하고, 다음 12번(보안) 및 10번(코딩) 에이전트에게 전달할 명확한 보고서를 작성하는 것입니다.
 
 반드시 다음 템플릿 형식을 정확히 준수하여 짧고 명확하게 한국어로 작성해 주세요. 불필요한 서론이나 인사말은 생략하고 구분선(---) 안의 내용만 출력하십시오.
@@ -44,7 +41,7 @@ export default async function handler(req, res) {
 4. 10번 에이전트(코딩) 협업 요청사항: (예: null 참조 오류 부분 수정 코드 마련 요청 등)
 ---`;
 
-                const errorContext = `[에러 데이터 상세 정보]
+            const errorContext = `[에러 데이터 상세 정보]
 - 에러 메시지: ${payload.message}
 - 발생 파일명: ${payload.filename}
 - 라인 번호: ${payload.lineno}
@@ -54,29 +51,48 @@ export default async function handler(req, res) {
 - 사용자 브라우저 (User Agent): ${payload.userAgent}
 - 발생 시각: ${payload.timestamp}`;
 
-                const geminiRes = await fetch(geminiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [{ text: systemPrompt }]
-                        },
-                        contents: [{
-                            parts: [{ text: errorContext }]
-                        }]
-                    })
-                });
+            // 일시적인 503 에러나 트래픽 폭주(High Demand)를 우회하기 위한 재시도 및 백업 모델 루프
+            const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+            const maxAttempts = 3;
 
-                if (geminiRes.ok) {
-                    const geminiJson = await geminiRes.json();
-                    if (geminiJson.candidates && geminiJson.candidates[0] && geminiJson.candidates[0].content.parts[0].text) {
-                        aiAnalysisText = geminiJson.candidates[0].content.parts[0].text.trim();
+            for (let i = 0; i < maxAttempts; i++) {
+                const currentModel = models[i % models.length];
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${GEMINI_API_KEY}`;
+                
+                try {
+                    const geminiRes = await fetch(geminiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            systemInstruction: {
+                                parts: [{ text: systemPrompt }]
+                            },
+                            contents: [{
+                                parts: [{ text: errorContext }]
+                            }]
+                        })
+                    });
+
+                    if (geminiRes.ok) {
+                        const geminiJson = await geminiRes.json();
+                        if (geminiJson.candidates && geminiJson.candidates[0] && geminiJson.candidates[0].content.parts[0].text) {
+                            aiAnalysisText = geminiJson.candidates[0].content.parts[0].text.trim();
+                            break; // 성공 시 루프 탈출
+                        }
+                    } else {
+                        const errText = await geminiRes.text();
+                        console.warn(`Gemini API 시도 ${i + 1} 실패 (${currentModel}):`, errText);
+                        // 다음 재시도 전 1초 대기 (Spike 완화)
+                        if (i < maxAttempts - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
                     }
-                } else {
-                    console.error("Gemini API 응답 오류:", await geminiRes.text());
+                } catch (geminiError) {
+                    console.error(`Gemini API 호출 예외 발생 시도 ${i + 1} (${currentModel}):`, geminiError.message);
+                    if (i < maxAttempts - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
                 }
-            } catch (geminiError) {
-                console.error("Gemini API 호출 예외 발생:", geminiError);
             }
         }
 
