@@ -4,6 +4,28 @@ const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.lo
     ? 'https://publish79.vercel.app/api/send-error' 
     : '/api/send-error';
 
+// 에러 감지 시 AI Helper 패널 및 안심 케어 메시지 표시 (유저 안심 케어)
+function showAIPanelOnError() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+    
+    if (panel) panel.classList.add('active');
+    if (fab) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    }
+    if (agentAction) agentAction.classList.remove('hidden');
+    
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+}
+
 // 디스코드로 에러 로그 전송 (Vercel 프록시 API 경유)
 async function sendErrorToDiscord(errorData) {
     try {
@@ -12,9 +34,10 @@ async function sendErrorToDiscord(errorData) {
                 title: "🚨 시스템 에러 감지 (출판친구)",
                 color: 15548997, // Red
                 fields: [
-                    { name: "에러 메시지", value: `\`\`\`${errorData.message}\`\`\`` },
+                    { name: "발생 계정 (ID)", value: `\`${errorData.userId}\` (${errorData.userRole})`, inline: true },
                     { name: "발생 파일", value: errorData.filename || '알 수 없음', inline: true },
                     { name: "라인 번호", value: String(errorData.lineno || '알 수 없음'), inline: true },
+                    { name: "에러 메시지", value: `\`\`\`${errorData.message}\`\`\`` },
                     { name: "브라우저 정보", value: navigator.userAgent },
                     { name: "발생 시간", value: new Date().toLocaleString() }
                 ],
@@ -38,9 +61,12 @@ window.addEventListener('error', (event) => {
         message: event.message || event.error?.message || 'Unknown Error',
         filename: event.filename ? event.filename.split('/').pop() : 'index.html',
         lineno: event.lineno,
-        colno: event.colno
+        colno: event.colno,
+        userId: sessionStorage.getItem('userId') || 'Anonymous',
+        userRole: sessionStorage.getItem('userRole') || 'guest'
     };
     sendErrorToDiscord(errorData);
+    showAIPanelOnError();
 });
 
 // 2. 비동기 Promise 에러 감지 (Supabase 등 API 호출 에러)
@@ -48,34 +74,17 @@ window.addEventListener('unhandledrejection', (event) => {
     const errorData = {
         message: `Unhandled Rejection: ${event.reason?.message || event.reason || 'Unknown Rejection'}`,
         filename: 'Promise / Async Call',
-        lineno: 0
+        lineno: 0,
+        userId: sessionStorage.getItem('userId') || 'Anonymous',
+        userRole: sessionStorage.getItem('userRole') || 'guest'
     };
     sendErrorToDiscord(errorData);
+    showAIPanelOnError();
 });
 
 // 3. 수동 테스트용 데모 에러 발생기
 window.triggerAIError = function(testName = 'Manual Demo') {
     console.log("테스트 에러를 인위적으로 발생시킵니다.");
-    
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
-    const agentAction = document.getElementById('ai-agent-action');
-    
-    if (panel) panel.classList.add('active');
-    if (fab) {
-        fab.classList.add('active');
-        fab.style.opacity = '0';
-        fab.style.pointerEvents = 'none';
-    }
-    if (agentAction) agentAction.classList.remove('hidden');
-    
-    const chatContent = document.getElementById('ai-chat-content');
-    if (chatContent) {
-        setTimeout(() => {
-            chatContent.scrollTop = chatContent.scrollHeight;
-        }, 100);
-    }
-    
     throw new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
 };
 
