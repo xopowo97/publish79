@@ -26,23 +26,18 @@ function showAIPanelOnError() {
     }
 }
 
-// 디스코드로 에러 로그 전송 (Vercel 프록시 API 경유)
-async function sendErrorToDiscord(errorData) {
+// 에러 로그를 서버리스 API 프록시로 송신 (9번 에이전트 연계)
+async function reportSystemError(errorData) {
     try {
         const payload = {
-            embeds: [{
-                title: "🚨 시스템 에러 감지 (출판친구)",
-                color: 15548997, // Red
-                fields: [
-                    { name: "발생 계정 (ID)", value: `\`${errorData.userId}\` (${errorData.userRole})`, inline: true },
-                    { name: "발생 파일", value: errorData.filename || '알 수 없음', inline: true },
-                    { name: "라인 번호", value: String(errorData.lineno || '알 수 없음'), inline: true },
-                    { name: "에러 메시지", value: `\`\`\`${errorData.message}\`\`\`` },
-                    { name: "브라우저 정보", value: navigator.userAgent },
-                    { name: "발생 시간", value: new Date().toLocaleString() }
-                ],
-                footer: { text: "Antigravity AI Monitoring Engine" }
-            }]
+            message: errorData.message,
+            filename: errorData.filename || '알 수 없음',
+            lineno: errorData.lineno || 0,
+            colno: errorData.colno || 0,
+            userId: errorData.userId,
+            userRole: errorData.userRole,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
         };
 
         await fetch(ERROR_API_ENDPOINT, {
@@ -65,7 +60,7 @@ window.addEventListener('error', (event) => {
         userId: sessionStorage.getItem('userId') || 'Anonymous',
         userRole: sessionStorage.getItem('userRole') || 'guest'
     };
-    sendErrorToDiscord(errorData);
+    reportSystemError(errorData);
     showAIPanelOnError();
 });
 
@@ -78,7 +73,7 @@ window.addEventListener('unhandledrejection', (event) => {
         userId: sessionStorage.getItem('userId') || 'Anonymous',
         userRole: sessionStorage.getItem('userRole') || 'guest'
     };
-    sendErrorToDiscord(errorData);
+    reportSystemError(errorData);
     showAIPanelOnError();
 });
 
