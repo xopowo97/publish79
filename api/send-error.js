@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
         if (GEMINI_API_KEY) {
             try {
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                 
                 const systemPrompt = `당신은 '출판친구' 플랫폼의 에이전트 파이프라인에서 가장 먼저 가동되는 **[9번: 기술행정지원 실장]** 에이전트입니다.
 당신의 역할은 발생한 시스템 에러를 분석하여 대표님께 격식 있고 친절하게 브리핑하고, 다음 12번(보안) 및 10번(코딩) 에이전트에게 전달할 명확한 보고서를 작성하는 것입니다.
