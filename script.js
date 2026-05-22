@@ -1,7 +1,10 @@
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+// Vercel Serverless Function 프록시 API 경로 정의
+const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+    ? 'https://publish79.vercel.app/api/send-error' 
+    : '/api/send-error';
 
-// 디스코드로 에러 로그 전송
+// 디스코드로 에러 로그 전송 (Vercel 프록시 API 경유)
 async function sendErrorToDiscord(errorData) {
     try {
         const payload = {
@@ -19,13 +22,13 @@ async function sendErrorToDiscord(errorData) {
             }]
         };
 
-        await fetch(DISCORD_WEBHOOK_URL, {
+        await fetch(ERROR_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     } catch (e) {
-        console.error("디스코드 웹훅 전송 실패:", e);
+        console.error("에러 모니터링 API 전송 실패:", e);
     }
 }
 
