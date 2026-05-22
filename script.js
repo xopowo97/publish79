@@ -57,12 +57,26 @@ window.triggerAIError = function(testName = 'Manual Demo') {
     if (aiAction) {
         aiAction.classList.remove('hidden');
     }
-    // 패널 열기
+    // 패널 및 FAB 열기 (active 클래스로 스타일 연동)
     const aiPanel = document.getElementById('ai-panel');
+    const aiFab = document.getElementById('ai-fab');
     if (aiPanel) {
-        aiPanel.classList.add('open');
+        aiPanel.classList.add('active');
+    }
+    if (aiFab) {
+        aiFab.classList.add('active');
     }
     throw new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+};
+
+// AI Helper 패널 토글 함수
+window.toggleAIPanel = function() {
+    const fab = document.getElementById('ai-fab');
+    const panel = document.getElementById('ai-panel');
+    if (fab && panel) {
+        fab.classList.toggle('active');
+        panel.classList.toggle('active');
+    }
 };
 
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
