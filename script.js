@@ -1,3 +1,70 @@
+// --- 실시간 에러 모니터링 시스템 (GEM 09) ---
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+
+// 디스코드로 에러 로그 전송
+async function sendErrorToDiscord(errorData) {
+    try {
+        const payload = {
+            embeds: [{
+                title: "🚨 시스템 에러 감지 (출판친구)",
+                color: 15548997, // Red
+                fields: [
+                    { name: "에러 메시지", value: `\`\`\`${errorData.message}\`\`\`` },
+                    { name: "발생 파일", value: errorData.filename || '알 수 없음', inline: true },
+                    { name: "라인 번호", value: String(errorData.lineno || '알 수 없음'), inline: true },
+                    { name: "브라우저 정보", value: navigator.userAgent },
+                    { name: "발생 시간", value: new Date().toLocaleString() }
+                ],
+                footer: { text: "Antigravity AI Monitoring Engine" }
+            }]
+        };
+
+        await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.error("디스코드 웹훅 전송 실패:", e);
+    }
+}
+
+// 1. 일반 자바스크립트 에러 감지
+window.addEventListener('error', (event) => {
+    const errorData = {
+        message: event.message || event.error?.message || 'Unknown Error',
+        filename: event.filename ? event.filename.split('/').pop() : 'index.html',
+        lineno: event.lineno,
+        colno: event.colno
+    };
+    sendErrorToDiscord(errorData);
+});
+
+// 2. 비동기 Promise 에러 감지 (Supabase 등 API 호출 에러)
+window.addEventListener('unhandledrejection', (event) => {
+    const errorData = {
+        message: `Unhandled Rejection: ${event.reason?.message || event.reason || 'Unknown Rejection'}`,
+        filename: 'Promise / Async Call',
+        lineno: 0
+    };
+    sendErrorToDiscord(errorData);
+});
+
+// 3. 수동 테스트용 데모 에러 발생기
+window.triggerAIError = function(testName = 'Manual Demo') {
+    console.log("테스트 에러를 인위적으로 발생시킵니다.");
+    const aiAction = document.getElementById('ai-agent-action');
+    if (aiAction) {
+        aiAction.classList.remove('hidden');
+    }
+    // 패널 열기
+    const aiPanel = document.getElementById('ai-panel');
+    if (aiPanel) {
+        aiPanel.classList.add('open');
+    }
+    throw new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+};
+
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
 
 // 전역 안전 권한/세션 조회기 (전역 변수 참조 에러 원천 차단)
