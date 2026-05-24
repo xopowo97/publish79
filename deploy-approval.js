@@ -1,61 +1,134 @@
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
+
+// Universal HTTP helper function compatible with all Node.js versions (including old runtimes without global fetch)
+async function httpCall(url, method, headers, body) {
+    if (typeof fetch === 'function') {
+        try {
+            const options = {
+                method: method,
+                headers: headers
+            };
+            if (body) {
+                options.body = typeof body === 'object' ? JSON.stringify(body) : body;
+            }
+            const res = await fetch(url, options);
+            if (res.ok) {
+                try {
+                    return await res.json();
+                } catch (e) {
+                    return await res.text();
+                }
+            } else {
+                const text = await res.text();
+                throw new Error(`Status ${res.status}: ${text}`);
+            }
+        } catch (fetchErr) {
+            console.warn("Global fetch failed, falling back to https module:", fetchErr.message);
+        }
+    }
+
+    return new Promise((resolve, reject) => {
+        try {
+            const parsedUrl = new URL(url);
+            const reqHeaders = { ...headers };
+            let bodyData = '';
+            if (body) {
+                bodyData = typeof body === 'object' ? JSON.stringify(body) : body;
+                reqHeaders['Content-Length'] = Buffer.byteLength(bodyData);
+                if (!reqHeaders['Content-Type']) {
+                    reqHeaders['Content-Type'] = 'application/json';
+                }
+            }
+
+            const options = {
+                hostname: parsedUrl.hostname,
+                port: 443,
+                path: parsedUrl.pathname + parsedUrl.search,
+                method: method,
+                headers: reqHeaders
+            };
+
+            const req = https.request(options, (res) => {
+                let responseData = '';
+                res.on('data', (chunk) => {
+                    responseData += chunk;
+                });
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            resolve(responseData ? JSON.parse(responseData) : {});
+                        } catch (e) {
+                            resolve(responseData);
+                        }
+                    } else {
+                        reject(new Error(`HTTPS status ${res.statusCode}: ${responseData}`));
+                    }
+                });
+            });
+
+            req.on('error', (err) => {
+                reject(err);
+            });
+
+            if (bodyData) {
+                req.write(bodyData);
+            }
+            req.end();
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
 
 // Helper function to upsert status to Supabase (with master_config fallback)
 async function upsertStatus(pr, status) {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    const restUrl = `${supabaseUrl}/rest/v1`;
+
+    if (!supabaseUrl || !supabaseKey) {
+        console.error("❌ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not defined in process.env!");
+        return false;
+    }
+
+    // Ensure trailing slash is cleaned
+    const cleanUrl = supabaseUrl.endsWith('/') ? supabaseUrl.slice(0, -1) : supabaseUrl;
+    const restUrl = `${cleanUrl}/rest/v1`;
+
+    const headers = {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-dup'
+    };
 
     // Attempt 1: deploy_status table
     try {
-        const res = await fetch(`${restUrl}/deploy_status`, {
-            method: 'POST',
-            headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-dup'
-            },
-            body: JSON.stringify({ pr, status })
-        });
-        if (res.ok) return true;
+        await httpCall(`${restUrl}/deploy_status`, 'POST', headers, { pr, status });
+        return true;
     } catch (e) {
-        console.warn("deploy_status table write failed, trying fallback:", e.message);
+        console.warn("⚠️ deploy_status table write failed, trying fallback:", e.message);
     }
 
     // Attempt 2: fallback to master_config
     try {
         let deployState = {};
-        const getRes = await fetch(`${restUrl}/master_config?id=eq.deploy-state&select=data`, {
-            headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`
-            }
-        });
-        if (getRes.ok) {
-            const list = await getRes.json();
-            if (list && list.length > 0) {
-                deployState = list[0].data || {};
-            }
+        const getHeaders = {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+        };
+        const list = await httpCall(`${restUrl}/master_config?id=eq.deploy-state&select=data`, 'GET', getHeaders);
+        if (list && list.length > 0) {
+            deployState = list[0].data || {};
         }
         
         deployState[pr] = status;
         
-        await fetch(`${restUrl}/master_config`, {
-            method: 'POST',
-            headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-dup'
-            },
-            body: JSON.stringify({ id: 'deploy-state', data: deployState })
-        });
+        await httpCall(`${restUrl}/master_config`, 'POST', headers, { id: 'deploy-state', data: deployState });
         return true;
     } catch (err) {
-        console.error("Fallback master_config write failed:", err.message);
+        console.error("❌ Fallback master_config write failed:", err.message);
         return false;
     }
 }
@@ -84,29 +157,25 @@ export default async function handler(req, res) {
             try {
                 // Find PR list to merge this branch
                 const pullsUrl = `https://api.github.com/repos/${GITHUB_REPO}/pulls?head=${GITHUB_REPO.split('/')[0]}:${pr}`;
-                const pullsRes = await fetch(pullsUrl, {
-                    headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+                const pullsRes = await httpCall(pullsUrl, 'GET', { 
+                    'Authorization': `token ${GITHUB_TOKEN}`, 
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Antigravity-Deployment-Manager'
                 });
-                if (pullsRes.ok) {
-                    const pulls = await pullsRes.json();
-                    if (pulls && pulls.length > 0) {
-                        const prNumber = pulls[0].number;
-                        const mergeUrl = `https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNumber}/merge`;
-                        const mergeRes = await fetch(mergeUrl, {
-                            method: 'PUT',
-                            headers: {
-                                'Authorization': `token ${GITHUB_TOKEN}`,
-                                'Accept': 'application/vnd.github.v3+json',
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ commit_title: `🤖 [11번 배포] 자동 승인 배포 머지: ${pr}` })
-                        });
-                        if (mergeRes.ok) {
-                            mergeLog = `✅ GitHub PR #${prNumber}가 자율적으로 main 브랜치에 머지되었습니다.`;
-                        } else {
-                            mergeLog = `⚠️ GitHub PR 머지 실패: ${await mergeRes.text()}`;
-                        }
-                    }
+                
+                if (pullsRes && pullsRes.length > 0) {
+                    const prNumber = pullsRes[0].number;
+                    const mergeUrl = `https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNumber}/merge`;
+                    const mergeRes = await httpCall(mergeUrl, 'PUT', {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'Antigravity-Deployment-Manager'
+                    }, { commit_title: `🤖 [11번 배포] 자동 승인 배포 머지: ${pr}` });
+                    
+                    mergeLog = `✅ GitHub PR #${prNumber}가 자율적으로 main 브랜치에 머지되었습니다.`;
+                } else {
+                    mergeLog = `⚠️ 머지 대상 GitHub PR을 찾을 수 없습니다.`;
                 }
             } catch (err) {
                 mergeLog = `⚠️ GitHub PR 머지 중 오류: ${err.message}`;
@@ -118,26 +187,18 @@ export default async function handler(req, res) {
         if (VERCEL_TOKEN && VERCEL_PROJECT_ID) {
             try {
                 const deployUrl = `https://api.vercel.com/v13/deployments?projectId=${VERCEL_PROJECT_ID}`;
-                const vercelRes = await fetch(deployUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${VERCEL_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        name: 'publish79-platform',
-                        gitSource: {
-                            type: 'github',
-                            repo: GITHUB_REPO,
-                            ref: 'main'
-                        }
-                    })
+                const vercelRes = await httpCall(deployUrl, 'POST', {
+                    'Authorization': `Bearer ${VERCEL_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }, {
+                    name: 'publish79-platform',
+                    gitSource: {
+                        type: 'github',
+                        repo: GITHUB_REPO,
+                        ref: 'main'
+                    }
                 });
-                if (vercelRes.ok) {
-                    vercelLog = `✅ Vercel Production 배포가 성공적으로 트리거되었습니다 (publish79.vercel.app).`;
-                } else {
-                    vercelLog = `⚠️ Vercel 배포 실패: ${await vercelRes.text()}`;
-                }
+                vercelLog = `✅ Vercel Production 배포가 성공적으로 트리거되었습니다 (publish79.vercel.app).`;
             } catch (err) {
                 vercelLog = `⚠️ Vercel 배포 중 오류: ${err.message}`;
             }
