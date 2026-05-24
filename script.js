@@ -88,21 +88,45 @@ window.addEventListener('error', (event) => {
 
 // 2. 비동기 Promise 에러 감지 (Supabase 등 API 호출 에러)
 window.addEventListener('unhandledrejection', (event) => {
-    const errorData = {
-        message: `Unhandled Rejection: ${event.reason?.message || event.reason || 'Unknown Rejection'}`,
-        filename: 'Promise / Async Call',
-        lineno: 0,
-        userId: sessionStorage.getItem('userId') || 'Anonymous',
-        userRole: sessionStorage.getItem('userRole') || 'guest'
-    };
-    reportSystemError(errorData);
-    showAIPanelOnError();
+    try {
+        // 폴링 중단 및 네트워크 중단 오류는 무시 (거버넌스 락 폴링 오류 등)
+        const reason = event.reason;
+        const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+        if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+            return; // 네트워크 오류는 UI 에러로 처리하지 않음
+        }
+        const errorData = {
+            message: 'Unhandled Rejection: ' + reasonMsg,
+            filename: 'Promise / Async Call',
+            lineno: 0,
+            userId: sessionStorage.getItem('userId') || 'Anonymous',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        };
+        reportSystemError(errorData);
+        showAIPanelOnError();
+    } catch (e) {
+        console.error('[unhandledrejection handler] 내부 오류:', e);
+    }
 });
 
-// 3. 수동 테스트용 데모 에러 발생기
+// 3. 수동 테스트용 데모 에러 발생기 (try-catch로 컨테이너 크래시 방지)
 window.triggerAIError = function(testName = 'Manual Demo') {
-    console.log("테스트 에러를 인위적으로 발생시킵니다.");
-    throw new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+    try {
+        console.log("테스트 에러를 인위적으로 발생시킵니다.");
+        const err = new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+        // throw 대신 에러 이벤트를 직접 파이프라인으로 전달 (unhandled 방지)
+        reportSystemError({
+            message: err.message,
+            filename: 'script.js',
+            lineno: 105,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'Anonymous',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        });
+        showAIPanelOnError();
+    } catch (e) {
+        console.error('[triggerAIError] 내부 오류:', e);
+    }
 };
 
 // AI Helper 패널 토글 함수
