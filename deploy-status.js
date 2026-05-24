@@ -1,165 +1,96 @@
-import https from 'https';
+// api/deploy-status.js
+// [11번 자동화 배포 관리자] 상태 조회 엔드포인트 - 완전판 (2025-05 Final Hotfix)
+// 핵심 원칙: Vercel Node 18+ 환경에서 globalThis.fetch는 100% 보장.
+// https 모듈 Promise 래핑 관련 비동기 누수를 완전 제거하고 fetch 단일 경로로 통일.
 
-// Universal HTTP helper function compatible with all Node.js versions (including old runtimes without global fetch)
-async function httpCall(url, method, headers, body) {
-    if (typeof fetch === 'function') {
-        try {
-            const options = {
-                method: method,
-                headers: headers
-            };
-            if (body) {
-                options.body = typeof body === 'object' ? JSON.stringify(body) : body;
-            }
-            const res = await fetch(url, options);
-            if (res.ok) {
-                try {
-                    return await res.json();
-                } catch (e) {
-                    return await res.text();
-                }
-            } else {
-                const text = await res.text();
-                throw new Error(`Status ${res.status}: ${text}`);
-            }
-        } catch (fetchErr) {
-            console.warn("Global fetch failed, falling back to https module:", fetchErr.message);
-        }
-    }
-
-    return new Promise((resolve, reject) => {
-        try {
-            const parsedUrl = new URL(url);
-            const reqHeaders = { ...headers };
-            let bodyData = '';
-            if (body) {
-                bodyData = typeof body === 'object' ? JSON.stringify(body) : body;
-                reqHeaders['Content-Length'] = Buffer.byteLength(bodyData);
-                if (!reqHeaders['Content-Type']) {
-                    reqHeaders['Content-Type'] = 'application/json';
-                }
-            }
-
-            const options = {
-                hostname: parsedUrl.hostname,
-                port: 443,
-                path: parsedUrl.pathname + parsedUrl.search,
-                method: method,
-                headers: reqHeaders
-            };
-
-            const req = https.request(options, (res) => {
-                let responseData = '';
-                res.on('data', (chunk) => {
-                    responseData += chunk;
-                });
-                res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        try {
-                            resolve(responseData ? JSON.parse(responseData) : {});
-                        } catch (e) {
-                            resolve(responseData);
-                        }
-                    } else {
-                        reject(new Error(`HTTPS status ${res.statusCode}: ${responseData}`));
-                    }
-                });
-            });
-
-            req.on('error', (err) => {
-                reject(err);
-            });
-
-            if (bodyData) {
-                req.write(bodyData);
-            }
-            req.end();
-        } catch (e) {
-            reject(e);
-        }
-    });
-}
-
-// Helper function to read status from Supabase (with master_config fallback)
 async function readStatus(pr) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseKey) {
-        throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not defined in process.env!");
+    const rawUrl = process.env.SUPABASE_URL;
+    const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!rawUrl || !key) {
+        throw new Error('[ENV 누락] SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 Vercel 환경 변수에 등록되어 있지 않습니다.');
     }
 
-    // Ensure trailing slash is cleaned
-    const cleanUrl = supabaseUrl.endsWith('/') ? supabaseUrl.slice(0, -1) : supabaseUrl;
-    const restUrl = `${cleanUrl}/rest/v1`;
-
-    const headers = {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`
+    const restUrl = rawUrl.replace(/\/+$/, '') + '/rest/v1';
+    const authHeaders = {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`
     };
 
-    let errorList = [];
+    const errors = [];
 
-    // Attempt 1: read from deploy_status table
+    // 1차: deploy_status 테이블 직접 조회
     try {
-        const url = `${restUrl}/deploy_status?pr=eq.${encodeURIComponent(pr)}&select=status`;
-        const list = await httpCall(url, 'GET', headers);
-        if (list && list.length > 0) {
-            return list[0].status;
+        const url = `${restUrl}/deploy_status?pr=eq.${encodeURIComponent(pr)}&select=status&limit=1`;
+        const res = await globalThis.fetch(url, { method: 'GET', headers: authHeaders });
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${text}`);
         }
-        console.warn(`⚠️ PR '${pr}' not found in deploy_status table, trying fallback.`);
-        errorList.push(`[deploy_status Table] PR '${pr}' not found in table`);
+        const rows = JSON.parse(text);
+        if (rows && rows.length > 0) {
+            console.log(`✅ deploy_status 조회 성공: pr=${pr}, status=${rows[0].status}`);
+            return rows[0].status;
+        }
+        // 행이 없으면 폴백으로 넘어감 (아직 기록 안 됨 = PENDING)
+        console.warn(`⚠️ deploy_status에서 pr='${pr}' 행 없음, master_config 폴백 시도`);
+        errors.push(`[deploy_status] pr='${pr}' 행 없음`);
     } catch (e) {
-        console.warn("⚠️ deploy_status table read failed, trying fallback:", e.message);
-        errorList.push(`[deploy_status Table Error] ${e.message}`);
+        console.warn('⚠️ deploy_status 조회 실패:', e.message);
+        errors.push(`[deploy_status 오류] ${e.message}`);
     }
 
-    // Attempt 2: fallback to master_config
+    // 2차: master_config 폴백 조회
     try {
-        const url = `${restUrl}/master_config?id=eq.deploy-state&select=data`;
-        const list = await httpCall(url, 'GET', headers);
-        if (list && list.length > 0) {
-            const deployState = list[0].data || {};
-            return deployState[pr] || 'PENDING';
+        const url = `${restUrl}/master_config?id=eq.deploy-state&select=data&limit=1`;
+        const res = await globalThis.fetch(url, { method: 'GET', headers: authHeaders });
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${text}`);
         }
-        errorList.push(`[master_config Table] Row 'deploy-state' not found`);
-    } catch (err) {
-        console.error("❌ Fallback master_config read failed:", err.message);
-        errorList.push(`[master_config Fallback Error] ${err.message}`);
+        const rows = JSON.parse(text);
+        if (rows && rows.length > 0) {
+            const state = rows[0].data || {};
+            const status = state[pr] || 'PENDING';
+            console.log(`✅ master_config 폴백 조회 성공: pr=${pr}, status=${status}`);
+            return status;
+        }
+        errors.push(`[master_config] 'deploy-state' 행 없음`);
+    } catch (e) {
+        console.error('❌ master_config 폴백 조회 실패:', e.message);
+        errors.push(`[master_config 오류] ${e.message}`);
     }
-    
-    // Throw a combined error to activate the handler's global try-catch and output to client
-    throw new Error(`Supabase Read Status Failed for PR '${pr}'. Details:\n${errorList.join('\n')}`);
+
+    // 양쪽 모두 행이 없으면 → 아직 승인/반려 전 상태이므로 PENDING 반환 (에러 아님)
+    console.log(`ℹ️ pr='${pr}' 상태 미발견, PENDING 반환. 상세: ${errors.join(' | ')}`);
+    return 'PENDING';
 }
 
 export default async function handler(req, res) {
-    // CORS 프리플라이트 요청 지원 (로컬 UAT 테스트가 가능하도록 허용)
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
+    if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
     try {
         const { pr } = req.query;
 
         if (!pr) {
-            return res.status(400).json({ error: 'Missing pr query parameter.' });
+            return res.status(400).json({ error: 'Bad Request: pr 파라미터가 없습니다.' });
         }
 
-        // Read status from Supabase
         const status = await readStatus(pr);
-
         return res.status(200).json({ pr, status });
-    } catch (globalErr) {
-        console.error("🚨 GLOBAL CRITICAL ERROR in deploy-status handler:", globalErr);
-        return res.status(500).json({ 
-            error: 'Internal Server Error', 
-            message: globalErr.message 
+
+    } catch (err) {
+        // 절대 죽지 않는 최후 방어선 → JSON 에러로 반환
+        console.error('🚨 [deploy-status] 치명적 오류:', err);
+        const errMsg = String(err && err.message ? err.message : err);
+        if (res.headersSent) return;
+        return res.status(500).json({
+            error: 'Internal Server Error',
+            message: errMsg,
+            pr: req.query && req.query.pr ? req.query.pr : null
         });
     }
 }

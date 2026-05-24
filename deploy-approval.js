@@ -1,316 +1,242 @@
-import fs from 'fs';
-import path from 'path';
-import https from 'https';
+// api/deploy-approval.js
+// [11번 자동화 배포 관리자] - 완전판 (2025-05 Final Hotfix)
+// 핵심 원칙: Vercel Node 18+ 환경에서 globalThis.fetch는 100% 보장.
+// https 모듈 Promise 래핑 관련 비동기 누수를 완전 제거하고 fetch 단일 경로로 통일.
 
-// Universal HTTP helper function compatible with all Node.js versions (including old runtimes without global fetch)
-async function httpCall(url, method, headers, body) {
-    if (typeof fetch === 'function') {
-        try {
-            const options = {
-                method: method,
-                headers: headers
-            };
-            if (body) {
-                options.body = typeof body === 'object' ? JSON.stringify(body) : body;
-            }
-            const res = await fetch(url, options);
-            if (res.ok) {
-                try {
-                    return await res.json();
-                } catch (e) {
-                    return await res.text();
-                }
-            } else {
-                const text = await res.text();
-                throw new Error(`Status ${res.status}: ${text}`);
-            }
-        } catch (fetchErr) {
-            console.warn("Global fetch failed, falling back to https module:", fetchErr.message);
-        }
+// ── Supabase PostgREST 헬퍼 (fetch 단일 경로) ──────────────────────────────
+async function supabasePost(restUrl, key, table, payload, prefer) {
+    const url = `${restUrl}/${table}`;
+    const res = await globalThis.fetch(url, {
+        method: 'POST',
+        headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'Prefer': prefer || 'resolution=merge-dup'
+        },
+        body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    if (!res.ok) {
+        throw new Error(`Supabase POST /${table} → ${res.status}: ${text}`);
     }
+    return text ? JSON.parse(text) : {};
+}
 
-    return new Promise((resolve, reject) => {
-        try {
-            const parsedUrl = new URL(url);
-            const reqHeaders = { ...headers };
-            let bodyData = '';
-            if (body) {
-                bodyData = typeof body === 'object' ? JSON.stringify(body) : body;
-                reqHeaders['Content-Length'] = Buffer.byteLength(bodyData);
-                if (!reqHeaders['Content-Type']) {
-                    reqHeaders['Content-Type'] = 'application/json';
-                }
-            }
-
-            const options = {
-                hostname: parsedUrl.hostname,
-                port: 443,
-                path: parsedUrl.pathname + parsedUrl.search,
-                method: method,
-                headers: reqHeaders
-            };
-
-            const req = https.request(options, (res) => {
-                let responseData = '';
-                res.on('data', (chunk) => {
-                    responseData += chunk;
-                });
-                res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        try {
-                            resolve(responseData ? JSON.parse(responseData) : {});
-                        } catch (e) {
-                            resolve(responseData);
-                        }
-                    } else {
-                        reject(new Error(`HTTPS status ${res.statusCode}: ${responseData}`));
-                    }
-                });
-            });
-
-            req.on('error', (err) => {
-                reject(err);
-            });
-
-            if (bodyData) {
-                req.write(bodyData);
-            }
-            req.end();
-        } catch (e) {
-            reject(e);
+async function supabaseGet(restUrl, key, table, query) {
+    const url = `${restUrl}/${table}?${query}`;
+    const res = await globalThis.fetch(url, {
+        method: 'GET',
+        headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`
         }
     });
+    const text = await res.text();
+    if (!res.ok) {
+        throw new Error(`Supabase GET /${table}?${query} → ${res.status}: ${text}`);
+    }
+    return text ? JSON.parse(text) : [];
 }
 
-// Helper function to upsert status to Supabase (with master_config fallback)
+// ── 상태 기록 함수 ──────────────────────────────────────────────────────────
 async function upsertStatus(pr, status) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-        throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not defined in process.env!");
+    const rawUrl = process.env.SUPABASE_URL;
+    const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!rawUrl || !key) {
+        throw new Error('[ENV 누락] SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 Vercel 환경 변수에 등록되어 있지 않습니다.');
     }
+    const restUrl = rawUrl.replace(/\/+$/, '') + '/rest/v1';
 
-    // Ensure trailing slash is cleaned
-    const cleanUrl = supabaseUrl.endsWith('/') ? supabaseUrl.slice(0, -1) : supabaseUrl;
-    const restUrl = `${cleanUrl}/rest/v1`;
-
-    const headers = {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-dup'
-    };
-
-    let errorList = [];
-
-    // Attempt 1: deploy_status table
+    // 1차: deploy_status 테이블
+    const errors = [];
     try {
-        await httpCall(`${restUrl}/deploy_status`, 'POST', headers, { pr, status });
-        return true;
+        await supabasePost(restUrl, key, 'deploy_status', { pr, status }, 'resolution=merge-dup');
+        console.log(`✅ deploy_status upsert 완료: pr=${pr}, status=${status}`);
+        return;
     } catch (e) {
-        console.warn("⚠️ deploy_status table write failed, trying fallback:", e.message);
-        errorList.push(`[deploy_status Table Error] ${e.message}`);
+        errors.push(`[deploy_status] ${e.message}`);
+        console.warn('⚠️ deploy_status 기록 실패, master_config 폴백 시도:', e.message);
     }
 
-    // Attempt 2: fallback to master_config
+    // 2차: master_config 폴백
     try {
-        let deployState = {};
-        const getHeaders = {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`
-        };
-        const list = await httpCall(`${restUrl}/master_config?id=eq.deploy-state&select=data`, 'GET', getHeaders);
-        if (list && list.length > 0) {
-            deployState = list[0].data || {};
-        }
-        
-        deployState[pr] = status;
-        
-        await httpCall(`${restUrl}/master_config`, 'POST', headers, { id: 'deploy-state', data: deployState });
-        return true;
-    } catch (err) {
-        console.error("❌ Fallback master_config write failed:", err.message);
-        errorList.push(`[master_config Fallback Error] ${err.message}`);
+        let state = {};
+        const rows = await supabaseGet(restUrl, key, 'master_config', 'id=eq.deploy-state&select=data');
+        if (rows && rows.length > 0) state = rows[0].data || {};
+        state[pr] = status;
+        await supabasePost(restUrl, key, 'master_config', { id: 'deploy-state', data: state }, 'resolution=merge-dup');
+        console.log(`✅ master_config 폴백 기록 완료: pr=${pr}, status=${status}`);
+        return;
+    } catch (e) {
+        errors.push(`[master_config] ${e.message}`);
     }
 
-    // Throw combined error if both options failed, to alert the administrator on their browser
-    throw new Error(`Supabase Upsert Failed for PR '${pr}' with status '${status}'. Details:\n${errorList.join('\n')}`);
+    throw new Error(`Supabase 상태 기록 완전 실패:\n${errors.join('\n')}`);
 }
 
+// ── HTML 템플릿 헬퍼 ────────────────────────────────────────────────────────
+function htmlPage(icon, badgeColor, badgeBg, badgeText, title, body, logBox) {
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[출판친구] ${title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .card{background:#fff;padding:28px 24px;border-radius:24px;box-shadow:0 10px 40px rgba(0,0,0,0.08);max-width:440px;width:100%;text-align:center;border:1px solid #e2e8f0}
+    .icon{font-size:52px;margin-bottom:12px}
+    .badge{display:inline-block;background:${badgeBg};color:${badgeColor};padding:5px 14px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:14px}
+    h1{font-size:18px;font-weight:900;color:#1e293b;margin-bottom:10px}
+    p{color:#64748b;font-size:13px;line-height:1.65;margin-bottom:16px}
+    .log{background:#f1f5f9;padding:12px;border-radius:12px;font-family:monospace;font-size:11px;text-align:left;color:#334155;border:1px solid #e2e8f0;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow-y:auto;margin-bottom:16px}
+    .log.err{background:#fff5f5;border-color:#fecaca;color:#991b1b}
+    .footer{font-size:10px;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">${icon}</div>
+    <div class="badge">${badgeText}</div>
+    <h1>${title}</h1>
+    <p>${body}</p>
+    ${logBox}
+    <p class="footer">출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</p>
+  </div>
+</body>
+</html>`;
+}
+
+// ── 핸들러 ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
+    // 전체 핸들러를 try-catch로 감싸 어떤 예외도 Vercel 컨테이너를 죽이지 않도록 함
     try {
-        const { action, pr, file } = req.query;
+        const { action, pr } = req.query;
 
         if (!action || !pr) {
-            return res.status(400).send('Missing action or pr query parameter.');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            return res.status(400).send('Bad Request: action 또는 pr 파라미터가 없습니다.');
         }
 
+        // ── APPROVE ────────────────────────────────────────────────────────
         if (action === 'approve') {
-            // 1. Update state in Supabase (Will throw if both table and fallback fail)
             await upsertStatus(pr, 'APPROVED');
 
-            // 2. GitHub PR Merge & Vercel Deploy (Simulation or Real)
-            const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
+            const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;
+            const GITHUB_REPO   = process.env.GITHUB_REPO;
+            const VERCEL_TOKEN  = process.env.VERCEL_TOKEN;
             const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID;
-            const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-            const GITHUB_REPO = process.env.GITHUB_REPO;
 
-            let vercelLog = 'Deploying to Vercel...';
-            let mergeLog = 'Merging PR on GitHub...';
+            let mergeLog = '';
+            let vercelLog = '';
 
+            // GitHub 머지 시도
             if (GITHUB_TOKEN && GITHUB_REPO) {
                 try {
-                    // Find PR list to merge this branch
-                    const pullsUrl = `https://api.github.com/repos/${GITHUB_REPO}/pulls?head=${encodeURIComponent(`${GITHUB_REPO.split('/')[0]}:${pr}`)}`;
-                    const pullsRes = await httpCall(pullsUrl, 'GET', { 
-                        'Authorization': `token ${GITHUB_TOKEN}`, 
-                        'Accept': 'application/vnd.github.v3+json',
-                        'User-Agent': 'Antigravity-Deployment-Manager'
-                    });
-                    
-                    if (pullsRes && pullsRes.length > 0) {
-                        const prNumber = pullsRes[0].number;
-                        const mergeUrl = `https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNumber}/merge`;
-                        const mergeRes = await httpCall(mergeUrl, 'PUT', {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'Antigravity-Deployment-Manager'
-                        }, { commit_title: `🤖 [11번 배포] 자동 승인 배포 머지: ${pr}` });
-                        
-                        mergeLog = `✅ GitHub PR #${prNumber}가 자율적으로 main 브랜치에 머지되었습니다.`;
+                    const owner = GITHUB_REPO.split('/')[0];
+                    const head  = encodeURIComponent(`${owner}:${pr}`);
+                    const prListRes = await globalThis.fetch(
+                        `https://api.github.com/repos/${GITHUB_REPO}/pulls?head=${head}&state=open`,
+                        { headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Antigravity-Bot' } }
+                    );
+                    const prList = await prListRes.json();
+                    if (prList && prList.length > 0) {
+                        const prNum = prList[0].number;
+                        const mergeRes = await globalThis.fetch(
+                            `https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNum}/merge`,
+                            {
+                                method: 'PUT',
+                                headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json', 'User-Agent': 'Antigravity-Bot' },
+                                body: JSON.stringify({ commit_title: `🤖 [11번 배포] 자동 승인 머지: ${pr}` })
+                            }
+                        );
+                        const mergeJson = await mergeRes.json();
+                        mergeLog = mergeRes.ok
+                            ? `✅ GitHub PR #${prNum} → main 머지 완료`
+                            : `⚠️ GitHub 머지 응답 ${mergeRes.status}: ${JSON.stringify(mergeJson)}`;
                     } else {
-                        mergeLog = `⚠️ 머지 대상 GitHub PR을 찾을 수 없습니다.`;
+                        mergeLog = `⚠️ 오픈 상태의 PR을 찾을 수 없습니다 (branch: ${pr})`;
                     }
-                } catch (err) {
-                    mergeLog = `⚠️ GitHub PR 머지 중 오류: ${err.message}`;
+                } catch (e) {
+                    mergeLog = `⚠️ GitHub API 호출 오류: ${e.message}`;
                 }
             } else {
-                mergeLog = `✅ [Simulated] GitHub PR (${pr})이 자율적으로 main 브랜치에 머지되었습니다.`;
+                mergeLog = `✅ [시뮬레이션] GitHub PR (${pr}) → main 머지 완료`;
             }
 
+            // Vercel 재배포 시도
             if (VERCEL_TOKEN && VERCEL_PROJECT_ID) {
                 try {
-                    const deployUrl = `https://api.vercel.com/v13/deployments?projectId=${VERCEL_PROJECT_ID}`;
-                    const vercelRes = await httpCall(deployUrl, 'POST', {
-                        'Authorization': `Bearer ${VERCEL_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    }, {
-                        name: 'publish79-platform',
-                        gitSource: {
-                            type: 'github',
-                            repo: GITHUB_REPO,
-                            ref: 'main'
+                    const vRes = await globalThis.fetch(
+                        `https://api.vercel.com/v13/deployments`,
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: 'publish79-platform', projectId: VERCEL_PROJECT_ID, gitSource: { type: 'github', repo: GITHUB_REPO, ref: 'main' } })
                         }
-                    });
-                    vercelLog = `✅ Vercel Production 배포가 성공적으로 트리거되었습니다 (publish79.vercel.app).`;
-                } catch (err) {
-                    vercelLog = `⚠️ Vercel 배포 중 오류: ${err.message}`;
+                    );
+                    const vJson = await vRes.json();
+                    vercelLog = vRes.ok
+                        ? `✅ Vercel 배포 트리거 완료 → publish79.vercel.app`
+                        : `⚠️ Vercel 배포 응답 ${vRes.status}: ${JSON.stringify(vJson)}`;
+                } catch (e) {
+                    vercelLog = `⚠️ Vercel API 호출 오류: ${e.message}`;
                 }
             } else {
-                vercelLog = `✅ [Simulated] Vercel API 호출 성공: publish79.vercel.app 무중단 프로덕션 릴리스 배포가 완료되었습니다.`;
+                vercelLog = `✅ [시뮬레이션] Vercel publish79.vercel.app 프로덕션 배포 완료`;
             }
 
-            // Return a beautiful HTML confirmation page for mobile browsers
+            const logContent = `${mergeLog}\n${vercelLog}`;
+            const html = htmlPage(
+                '✅', '#065f46', '#ecfdf5', '11번 자동화 배포 관리자',
+                '배포 승인 완료!',
+                '대표님의 모바일 승인이 확인되어 즉시 소스코드 머지 및 Vercel Production 배포를 실행했습니다.',
+                `<div class="log">${logContent}</div>`
+            );
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <title>[출판친구] 배포 승인 완료</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                        .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 90%; width: 400px; text-align: center; border: 1px solid #e2e8f0; box-sizing: border-box; }
-                        .icon { font-size: 50px; color: #10b981; margin-bottom: 15px; }
-                        h1 { font-size: 20px; font-weight: 900; color: #1e293b; margin: 0 0 10px 0; }
-                        p { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
-                        .log-box { background: #f1f5f9; padding: 12px; border-radius: 12px; font-family: monospace; font-size: 11px; text-align: left; color: #334155; margin-bottom: 20px; border: 1px solid #e2e8f0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
-                        .badge { display: inline-block; background: #ecfdf5; color: #065f46; padding: 6px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; margin-bottom: 15px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <div class="icon">✅</div>
-                        <div class="badge">11번 자동화 배포 관리자</div>
-                        <h1>배포 승인 완료!</h1>
-                        <p>대표님의 모바일 승인이 확인되어 즉시 소스코드 머지 및 Vercel Production 배포를 실행합니다.</p>
-                        <div class="log-box">${mergeLog}<br>${vercelLog}</div>
-                        <p style="font-size: 10px; color: #94a3b8; margin: 0;">출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</p>
-                    </div>
-                </body>
-                </html>
-            `);
+            return res.status(200).send(html);
         }
 
+        // ── REJECT ─────────────────────────────────────────────────────────
         if (action === 'reject') {
-            // 1. Update state in Supabase (Will throw if both table and fallback fail)
             await upsertStatus(pr, 'REJECTED');
-
+            const html = htmlPage(
+                '❌', '#991b1b', '#fef2f2', '11번 자동화 배포 관리자',
+                '배포 반려 완료',
+                '대표님의 지시에 따라 자가치유 코드 패치를 반려하고 배포를 긴급 중단했습니다. 소스코드는 수정 이전 상태로 안전하게 롤백(Rollback) 유지됩니다.',
+                ''
+            );
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <title>[출판친구] 배포 반려 처리</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                        .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 90%; width: 400px; text-align: center; border: 1px solid #e2e8f0; box-sizing: border-box; }
-                        .icon { font-size: 50px; color: #ef4444; margin-bottom: 15px; }
-                        h1 { font-size: 20px; font-weight: 900; color: #1e293b; margin: 0 0 10px 0; }
-                        p { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
-                        .badge { display: inline-block; background: #fef2f2; color: #991b1b; padding: 6px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; margin-bottom: 15px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <div class="icon">❌</div>
-                        <div class="badge">11번 자동화 배포 관리자</div>
-                        <h1>배포 반려 완료</h1>
-                        <p>대표님의 지시에 따라 자가치유 코드 패치를 반려하고 배포를 긴급 중단했습니다. 소스코드는 수정 이전 상태로 안전하게 롤백(Rollback) 유지됩니다.</p>
-                        <p style="font-size: 10px; color: #94a3b8; margin: 0;">출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</p>
-                    </div>
-                </body>
-                </html>
-            `);
+            return res.status(200).send(html);
         }
 
-        return res.status(400).send('Invalid action.');
-    } catch (globalErr) {
-        console.error("🚨 GLOBAL CRITICAL ERROR in deploy-approval handler:", globalErr);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(400).send(`Bad Request: 알 수 없는 action '${action}'`);
+
+    } catch (err) {
+        // ── 절대 죽지 않는 최후 방어선 ──────────────────────────────────────
+        console.error('🚨 [deploy-approval] 치명적 오류:', err);
+
+        const errMsg = String(err && err.message ? err.message : err);
+        const errStack = String(err && err.stack ? err.stack : '');
+
+        const html = htmlPage(
+            '🚨', '#991b1b', '#fef2f2', '11번 자동화 배포 관리자',
+            '배포 처리 중 내부 오류 발생',
+            '아래 오류 내역을 캡처하여 개발팀에 전달해 주세요.',
+            `<div class="log err">⛔ ERROR: ${errMsg}\n\n${errStack}</div>`
+        );
+
+        // 이미 헤더를 전송했을 경우를 대비한 이중 가드
+        if (res.headersSent) return;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(500).send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>[출판친구] 배포 관리자 내부 오류</title>
-                <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                    .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 90%; width: 450px; text-align: center; border: 1px solid #e2e8f0; box-sizing: border-box; }
-                    .icon { font-size: 50px; color: #ef4444; margin-bottom: 15px; }
-                    h1 { font-size: 18px; font-weight: 900; color: #1e293b; margin: 0 0 10px 0; }
-                    p { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
-                    .error-box { background: #fff5f5; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 11px; text-align: left; color: #991b1b; border: 1px solid #fee2e2; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-bottom: 20px; }
-                    .badge { display: inline-block; background: #fef2f2; color: #991b1b; padding: 6px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; margin-bottom: 15px; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="icon">🚨</div>
-                    <div class="badge">11번 자동화 배포 관리자</div>
-                    <h1>배포 처리 중 시스템 내부 오류</h1>
-                    <p>죄송합니다. 대표님의 승인 처리 요청을 처리하는 동안 500 내부 에러가 발생했습니다. 아래 디버깅 로그를 참조해 주십시오.</p>
-                    <div class="error-box">[ERROR DETAILS]<br>${globalErr.message}</div>
-                    <p style="font-size: 10px; color: #94a3b8; margin: 0;">출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</p>
-                </div>
-            </body>
-            </html>
-        `);
+        return res.status(500).send(html);
     }
 }
