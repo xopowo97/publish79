@@ -1,9 +1,57 @@
 import fs from 'fs';
 import path from 'path';
 
-// Global memory state for in-memory fallback
-if (!global.deployState) {
-    global.deployState = {};
+// Helper function to upsert status to Supabase (with master_config fallback)
+async function upsertStatus(pr, status) {
+    const supabaseKey = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+    
+    // Attempt 1: deploy_status table
+    try {
+        const res = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/deploy_status', {
+            method: 'POST',
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-dup'
+            },
+            body: JSON.stringify({ pr, status })
+        });
+        if (res.ok) return true;
+    } catch (e) {
+        console.warn("deploy_status table write failed, trying fallback:", e.message);
+    }
+
+    // Attempt 2: fallback to master_config
+    try {
+        let deployState = {};
+        const getRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/master_config?id=eq.deploy-state&select=data', {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        if (getRes.ok) {
+            const list = await getRes.json();
+            if (list && list.length > 0) {
+                deployState = list[0].data || {};
+            }
+        }
+        
+        deployState[pr] = status;
+        
+        await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/master_config', {
+            method: 'POST',
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-dup'
+            },
+            body: JSON.stringify({ id: 'deploy-state', data: deployState })
+        });
+        return true;
+    } catch (err) {
+        console.error("Fallback master_config write failed:", err.message);
+        return false;
+    }
 }
 
 export default async function handler(req, res) {
@@ -13,33 +61,11 @@ export default async function handler(req, res) {
         return res.status(400).send('Missing action or pr query parameter.');
     }
 
-    // Vercel /tmp directory is writable
-    const stateFile = path.join('/tmp', 'deploy-state.json');
-    let state = {};
-
-    // 1. Read state from /tmp
-    if (fs.existsSync(stateFile)) {
-        try {
-            state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-        } catch (e) {
-            state = {};
-        }
-    }
-    
-    // Merge with global memory state
-    state = { ...state, ...global.deployState };
-
     if (action === 'approve') {
-        // 2. Update state
-        state[pr] = 'APPROVED';
-        global.deployState[pr] = 'APPROVED';
-        try {
-            fs.writeFileSync(stateFile, JSON.stringify(state, null, 2), 'utf8');
-        } catch (err) {
-            console.warn("Failed to write state file in /tmp, relying on global memory:", err.message);
-        }
+        // 1. Update state in Supabase
+        await upsertStatus(pr, 'APPROVED');
 
-        // 3. GitHub PR Merge & Vercel Deploy (Simulation or Real)
+        // 2. GitHub PR Merge & Vercel Deploy (Simulation or Real)
         const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
         const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID;
         const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -147,13 +173,8 @@ export default async function handler(req, res) {
     }
 
     if (action === 'reject') {
-        state[pr] = 'REJECTED';
-        global.deployState[pr] = 'REJECTED';
-        try {
-            fs.writeFileSync(stateFile, JSON.stringify(state, null, 2), 'utf8');
-        } catch (err) {
-            console.warn("Failed to write state file in /tmp:", err.message);
-        }
+        // 1. Update state in Supabase
+        await upsertStatus(pr, 'REJECTED');
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(`

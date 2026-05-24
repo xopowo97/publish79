@@ -1,9 +1,42 @@
 import fs from 'fs';
 import path from 'path';
 
-// Global memory state fallback
-if (!global.deployState) {
-    global.deployState = {};
+// Helper function to read status from Supabase (with master_config fallback)
+async function readStatus(pr) {
+    const supabaseKey = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+    
+    // Attempt 1: read from deploy_status table
+    try {
+        const res = await fetch(`https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/deploy_status?pr=eq.${pr}&select=status`, {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        if (res.ok) {
+            const list = await res.json();
+            if (list && list.length > 0) {
+                return list[0].status;
+            }
+        }
+    } catch (e) {
+        console.warn("deploy_status table read failed, trying fallback:", e.message);
+    }
+
+    // Attempt 2: fallback to master_config
+    try {
+        const getRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/master_config?id=eq.deploy-state&select=data', {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        if (getRes.ok) {
+            const list = await getRes.json();
+            if (list && list.length > 0) {
+                const deployState = list[0].data || {};
+                return deployState[pr] || 'PENDING';
+            }
+        }
+    } catch (err) {
+        console.error("Fallback master_config read failed:", err.message);
+    }
+    
+    return 'PENDING';
 }
 
 export default async function handler(req, res) {
@@ -24,18 +57,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing pr query parameter.' });
     }
 
-    const stateFile = path.join('/tmp', 'deploy-state.json');
-    let state = {};
-    if (fs.existsSync(stateFile)) {
-        try {
-            state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-        } catch (e) {
-            state = {};
-        }
-    }
-    
-    // Combine with global state
-    const status = state[pr] || global.deployState[pr] || 'PENDING';
+    // Read status from Supabase
+    const status = await readStatus(pr);
 
     return res.status(200).json({ pr, status });
 }
