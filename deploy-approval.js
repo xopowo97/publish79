@@ -1,106 +1,106 @@
-// api/deploy-approval.js — [11번 자동화 배포 관리자] Production Final
-// 핵심: Supabase 기록 → 즉시 HTML 반환. 외부 API 연쇄 호출로 인한 타임아웃 원천 제거.
+// api/deploy-approval.js — [11번 자동화 배포 관리자] Vercel Production Standard
+// 응답 규격: res.status(200).send(html) — Vercel Node.js 런타임 표준 준수
+// 방어 패치 v2: Prefer=return=minimal, URL슬래시 단일정규식, body이중읽기 제거
 
 export default async function handler(req, res) {
-    // ── CORS ──────────────────────────────────────────────────────────────
+
+    // ── CORS ─────────────────────────────────────────────────────────────
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).send('OK');
     }
 
-    // ── 파라미터 수신 ───────────────────────────────────────────────────────
-    const action = (req.query && req.query.action) ? String(req.query.action) : '';
-    const pr     = (req.query && req.query.pr)     ? String(req.query.pr)     : '';
+    // ── 파라미터 파싱 ─────────────────────────────────────────────────────
+    const query  = req.query  || {};
+    const action = query.action ? String(query.action) : '';
+    const pr     = query.pr     ? String(query.pr)     : '';
 
-    // ── Supabase 기록 (타임아웃 방지를 위해 5초 이내 완료 보장) ──────────────
-    let dbStatus = 'UNKNOWN';
-    let dbMsg    = '';
-
+    // ── Supabase 상태 기록 ────────────────────────────────────────────────
+    let dbMsg = '';
     try {
-        const supaUrl = process.env.SUPABASE_URL;
-        const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supaUrl = process.env.SUPABASE_URL     || '';
+        const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
         if (!supaUrl || !supaKey) {
-            dbMsg = 'ENV 누락: SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 없음';
-            dbStatus = 'ENV_MISSING';
+            dbMsg = '[ENV] SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 미등록';
         } else {
             const targetStatus = (action === 'reject') ? 'REJECTED' : 'APPROVED';
-            const endpoint = supaUrl.replace(/\/+$/, '') + '/rest/v1/deploy_status';
+            // [처방 2] URL 끝 슬래시 단일 제거 — 환경변수 오입력 방어
+            const endpoint = supaUrl.replace(/\/$/, '') + '/rest/v1/deploy_status';
 
-            const resp = await fetch(endpoint, {
+            const r = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'apikey': supaKey,
                     'Authorization': 'Bearer ' + supaKey,
                     'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-dup'
+                    // [처방 1] return=minimal: Supabase가 204 빈 바디 반환 → body 파싱 불필요
+                    'Prefer': 'return=minimal'
                 },
                 body: JSON.stringify({ pr: pr, status: targetStatus })
             });
 
-            if (resp.status === 200 || resp.status === 201 || resp.status === 204) {
-                dbStatus = 'OK';
-                dbMsg = 'Supabase deploy_status 기록 완료 (' + targetStatus + ')';
+            // [처방 3] status 코드만 확인 — r.text()/r.json() 이중읽기 크래시 원천 제거
+            if (r.status === 200 || r.status === 201 || r.status === 204) {
+                dbMsg = 'DB 기록 완료: ' + targetStatus + ' (pr: ' + pr + ') [HTTP ' + r.status + ']';
             } else {
-                const errBody = await resp.text();
-                dbStatus = 'FAIL';
-                dbMsg = 'Supabase 응답 [' + resp.status + ']: ' + errBody;
+                dbMsg = 'DB 응답 비정상 [HTTP ' + r.status + '] — body 파싱 생략';
             }
         }
-    } catch (e) {
-        dbStatus = 'ERROR';
-        dbMsg = 'Supabase fetch 오류: ' + String(e.message || e);
+    } catch (fetchErr) {
+        dbMsg = 'DB 오류: ' + String(fetchErr.message || fetchErr);
     }
 
-    // ── 즉시 HTML 응답 반환 (어떤 경우에도 크래시 없음) ────────────────────
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    // ── HTML 응답 ─────────────────────────────────────────────────────────
+    const isReject = (action === 'reject');
 
-    if (action === 'reject') {
-        res.status(200).end(
-            '<!DOCTYPE html><html lang="ko"><head>' +
-            '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-            '<title>[출판친구] 배포 반려 완료</title>' +
-            '<style>*{box-sizing:border-box;margin:0;padding:0}' +
-            'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}' +
-            '.c{background:#fff;padding:32px 24px;border-radius:24px;box-shadow:0 8px 32px rgba(0,0,0,0.08);max-width:420px;width:100%;text-align:center;border:1px solid #e2e8f0}' +
-            '.ico{font-size:56px;margin-bottom:14px}.badge{display:inline-block;background:#fef2f2;color:#991b1b;padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:14px}' +
-            'h1{font-size:18px;font-weight:900;color:#1e293b;margin-bottom:10px}' +
-            'p{color:#64748b;font-size:13px;line-height:1.6;margin-bottom:12px}' +
-            '.log{background:#f1f5f9;padding:10px 12px;border-radius:10px;font-family:monospace;font-size:11px;text-align:left;color:#334155;border:1px solid #e2e8f0;margin-bottom:12px}' +
-            'footer{font-size:10px;color:#94a3b8}</style></head><body><div class="c">' +
-            '<div class="ico">❌</div>' +
-            '<div class="badge">11번 자동화 배포 관리자</div>' +
-            '<h1>배포 반려 완료</h1>' +
-            '<p>대표님의 지시에 따라 자가치유 코드 패치를 반려하고 배포를 긴급 중단했습니다. 소스코드는 수정 이전 상태로 안전하게 유지됩니다.</p>' +
-            '<div class="log">' + dbMsg + '</div>' +
-            '<footer>출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</footer>' +
-            '</div></body></html>'
-        );
-        return;
-    }
+    const icon      = isReject ? '&#10060;' : '&#9989;';
+    const badgeBg   = isReject ? '#fef2f2'  : '#ecfdf5';
+    const badgeClr  = isReject ? '#991b1b'  : '#065f46';
+    const heading   = isReject
+        ? '&#48176;&#54252; &#48152;&#47140; &#50756;&#47308;'
+        : '&#127881; &#52636;&#54032;&#52828;&#44396; &#48176;&#54252; &#49849;&#51064;&#51060; &#50756;&#48225;&#54616;&#44172; &#49457;&#44277;&#54588;&#49845;&#45768;&#45796;!';
+    const bodyText  = isReject
+        ? '&#45824;&#54364;&#45768;&#51032; &#51648;&#49884;&#50640; &#46384;&#46972; &#48176;&#54252;&#47484; &#48152;&#47140;&#54558;&#49845;&#45768;&#45796;.'
+        : '&#45824;&#54364;&#45768;&#51032; &#47784;&#48148;&#51068; &#49849;&#51064;&#51060; &#54869;&#51064;&#46104;&#50632;&#49845;&#45768;&#45796;. Supabase &#44144;&#48260;&#45692;&#49828; DB&#50640; &#49849;&#51064; &#49345;&#53468;&#44032; &#51608;&#49884; &#44592;&#47197;&#46418;&#50632;&#49845;&#45768;&#45796;.';
 
-    // approve (기본값)
-    res.status(200).end(
-        '<!DOCTYPE html><html lang="ko"><head>' +
-        '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-        '<title>[출판친구] 배포 승인 완료</title>' +
-        '<style>*{box-sizing:border-box;margin:0;padding:0}' +
-        'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}' +
-        '.c{background:#fff;padding:32px 24px;border-radius:24px;box-shadow:0 8px 32px rgba(0,0,0,0.08);max-width:420px;width:100%;text-align:center;border:1px solid #e2e8f0}' +
-        '.ico{font-size:56px;margin-bottom:14px}.badge{display:inline-block;background:#ecfdf5;color:#065f46;padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:14px}' +
-        'h1{font-size:18px;font-weight:900;color:#1e293b;margin-bottom:10px}' +
+    const html =
+        '<!DOCTYPE html>' +
+        '<html lang="ko">' +
+        '<head>' +
+        '<meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>[&#52636;&#54032;&#52828;&#44396;] &#48176;&#54252; &#52376;&#47532;</title>' +
+        '<style>' +
+        '*{box-sizing:border-box;margin:0;padding:0}' +
+        'body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;' +
+        'background:#f8fafc;min-height:100vh;display:flex;align-items:center;' +
+        'justify-content:center;padding:16px}' +
+        '.card{background:#fff;padding:32px 24px;border-radius:24px;' +
+        'box-shadow:0 8px 32px rgba(0,0,0,.08);max-width:420px;width:100%;' +
+        'text-align:center;border:1px solid #e2e8f0}' +
+        '.ico{font-size:56px;margin-bottom:14px}' +
+        '.badge{display:inline-block;background:' + badgeBg + ';color:' + badgeClr + ';' +
+        'padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:14px}' +
+        'h1{font-size:17px;font-weight:900;color:#1e293b;margin-bottom:10px}' +
         'p{color:#64748b;font-size:13px;line-height:1.6;margin-bottom:12px}' +
-        '.log{background:#f1f5f9;padding:10px 12px;border-radius:10px;font-family:monospace;font-size:11px;text-align:left;color:#334155;border:1px solid #e2e8f0;margin-bottom:12px}' +
-        'footer{font-size:10px;color:#94a3b8}</style></head><body><div class="c">' +
-        '<div class="ico">✅</div>' +
-        '<div class="badge">11번 자동화 배포 관리자</div>' +
-        '<h1>🎉 출판친구 배포 승인이 완벽하게 성공했습니다!</h1>' +
-        '<p>대표님의 모바일 승인이 확인되었습니다. Supabase 거버넌스 DB에 승인 상태가 즉시 기록되었습니다.</p>' +
-        '<div class="log">' + dbMsg + '\npr: ' + pr + '</div>' +
-        '<footer>출판친구 자율 경영 거버넌스 파이프라인 (Antigravity)</footer>' +
-        '</div></body></html>'
-    );
+        '.log{background:#f1f5f9;padding:10px 12px;border-radius:10px;' +
+        'font-family:monospace;font-size:11px;text-align:left;color:#334155;' +
+        'border:1px solid #e2e8f0;margin-bottom:12px;word-break:break-all}' +
+        'footer{font-size:10px;color:#94a3b8}' +
+        '</style>' +
+        '</head>' +
+        '<body><div class="card">' +
+        '<div class="ico">' + icon + '</div>' +
+        '<div class="badge">11&#48264; &#51088;&#46041;&#54868; &#48176;&#54252; &#44288;&#47532;&#51088;</div>' +
+        '<h1>' + heading + '</h1>' +
+        '<p>' + bodyText + '</p>' +
+        '<div class="log">' + dbMsg + '</div>' +
+        '<footer>&#52636;&#54032;&#52828;&#44396; &#51088;&#50977; &#44221;&#50689; &#44144;&#48260;&#45692;&#49828; &#54028;&#51060;&#54532;&#46972;&#51064; (Antigravity)</footer>' +
+        '</div></body></html>';
+
+    return res.status(200).send(html);
 }
