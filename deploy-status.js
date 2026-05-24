@@ -3,8 +3,8 @@ import path from 'path';
 
 // Helper function to read status from Supabase (with master_config fallback)
 async function readStatus(pr) {
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://fquzouhstheqvuzzhxqs.supabase.co';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     const restUrl = `${supabaseUrl}/rest/v1`;
 
