@@ -86,8 +86,7 @@ async function readStatus(pr) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
-        console.error("❌ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not defined in process.env!");
-        return 'PENDING';
+        throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not defined in process.env!");
     }
 
     // Ensure trailing slash is cleaned
@@ -99,15 +98,20 @@ async function readStatus(pr) {
         'Authorization': `Bearer ${supabaseKey}`
     };
 
+    let errorList = [];
+
     // Attempt 1: read from deploy_status table
     try {
-        const url = `${restUrl}/deploy_status?pr=eq.${pr}&select=status`;
+        const url = `${restUrl}/deploy_status?pr=eq.${encodeURIComponent(pr)}&select=status`;
         const list = await httpCall(url, 'GET', headers);
         if (list && list.length > 0) {
             return list[0].status;
         }
+        console.warn(`⚠️ PR '${pr}' not found in deploy_status table, trying fallback.`);
+        errorList.push(`[deploy_status Table] PR '${pr}' not found in table`);
     } catch (e) {
         console.warn("⚠️ deploy_status table read failed, trying fallback:", e.message);
+        errorList.push(`[deploy_status Table Error] ${e.message}`);
     }
 
     // Attempt 2: fallback to master_config
@@ -118,11 +122,14 @@ async function readStatus(pr) {
             const deployState = list[0].data || {};
             return deployState[pr] || 'PENDING';
         }
+        errorList.push(`[master_config Table] Row 'deploy-state' not found`);
     } catch (err) {
         console.error("❌ Fallback master_config read failed:", err.message);
+        errorList.push(`[master_config Fallback Error] ${err.message}`);
     }
     
-    return 'PENDING';
+    // Throw a combined error to activate the handler's global try-catch and output to client
+    throw new Error(`Supabase Read Status Failed for PR '${pr}'. Details:\n${errorList.join('\n')}`);
 }
 
 export default async function handler(req, res) {
@@ -137,14 +144,22 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { pr } = req.query;
+    try {
+        const { pr } = req.query;
 
-    if (!pr) {
-        return res.status(400).json({ error: 'Missing pr query parameter.' });
+        if (!pr) {
+            return res.status(400).json({ error: 'Missing pr query parameter.' });
+        }
+
+        // Read status from Supabase
+        const status = await readStatus(pr);
+
+        return res.status(200).json({ pr, status });
+    } catch (globalErr) {
+        console.error("🚨 GLOBAL CRITICAL ERROR in deploy-status handler:", globalErr);
+        return res.status(500).json({ 
+            error: 'Internal Server Error', 
+            message: globalErr.message 
+        });
     }
-
-    // Read status from Supabase
-    const status = await readStatus(pr);
-
-    return res.status(200).json({ pr, status });
 }
