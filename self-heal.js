@@ -245,8 +245,8 @@ function processTransaction(data) {
         const host = req.headers.host || 'publish79.vercel.app';
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const baseUrl = `${protocol}://${host}`;
-        const approveUrl = `${baseUrl}/api/deploy-approval?action=approve&pr=${patchBranch}&file=${filename}`;
-        const rejectUrl = `${baseUrl}/api/deploy-approval?action=reject&pr=${patchBranch}&file=${filename}`;
+        const approveUrl = `${baseUrl}/api/deploy-approval?action=approve&pr=${encodeURIComponent(patchBranch)}&file=${encodeURIComponent(filename)}`;
+        const rejectUrl = `${baseUrl}/api/deploy-approval?action=reject&pr=${encodeURIComponent(patchBranch)}&file=${encodeURIComponent(filename)}`;
 
         await sendDiscordHealReport(filename, lineno, fixExplanation, prUrl, approveUrl, rejectUrl);
 

@@ -2,17 +2,6 @@
 // fetch를 bare 키워드로 사용 (send-error.js와 동일한 방식 — 프로젝트 표준)
 
 // ── Supabase REST 헬퍼 ─────────────────────────────────────────────────────
-function getSupabaseConfig() {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-        throw new Error('[ENV 오류] SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 Vercel 환경 변수에 없습니다.');
-    }
-    // trailing slash 제거
-    const base = url.replace(/\/+$/, '') + '/rest/v1';
-    return { base, key };
-}
-
 async function dbUpsert(base, key, table, payload) {
     const endpoint = base + '/' + table;
     const resp = await fetch(endpoint, {
@@ -50,18 +39,23 @@ async function dbSelect(base, key, table, query) {
     return body ? JSON.parse(body) : [];
 }
 
-// ── 상태 저장 (deploy_status → master_config 순서로 폴백) ─────────────────
+// ── 상태 저장 (deploy_status → master_config 순서로 폴백, 절대 throw 안 함) ──
 async function saveStatus(pr, status) {
-    const { base, key } = getSupabaseConfig();
-    const errors = [];
+    // env 체크
+    const rawUrl = process.env.SUPABASE_URL;
+    const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!rawUrl || !key) {
+        console.error('[deploy-approval] ENV 누락: SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 없음');
+        return { ok: false, reason: 'ENV_MISSING' };
+    }
+    const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
 
     // 1차: deploy_status 테이블
     try {
         await dbUpsert(base, key, 'deploy_status', { pr: pr, status: status });
         console.log('[deploy-approval] deploy_status upsert OK: pr=' + pr + ' status=' + status);
-        return;
+        return { ok: true };
     } catch (e) {
-        errors.push('[deploy_status] ' + e.message);
         console.warn('[deploy-approval] deploy_status 실패:', e.message);
     }
 
@@ -75,13 +69,14 @@ async function saveStatus(pr, status) {
         state[pr] = status;
         await dbUpsert(base, key, 'master_config', { id: 'deploy-state', data: state });
         console.log('[deploy-approval] master_config fallback OK');
-        return;
+        return { ok: true };
     } catch (e) {
-        errors.push('[master_config] ' + e.message);
         console.error('[deploy-approval] master_config 실패:', e.message);
     }
 
-    throw new Error('DB 저장 완전 실패:\n' + errors.join('\n'));
+    // 양쪽 모두 실패해도 크래시 없이 경고만 반환
+    console.error('[deploy-approval] DB 저장 완전 실패. 화면은 정상 표시.');
+    return { ok: false, reason: 'DB_WRITE_FAILED' };
 }
 
 // ── HTML 빌더 ─────────────────────────────────────────────────────────────
@@ -136,8 +131,11 @@ export default async function handler(req, res) {
 
         // ── APPROVE ────────────────────────────────────────────────────────
         if (action === 'approve') {
-            // Supabase에 APPROVED 기록
-            await saveStatus(pr, 'APPROVED');
+            // Supabase에 APPROVED 기록 (실패해도 화면 크래시 없음)
+            const dbResult = await saveStatus(pr, 'APPROVED');
+            const dbLog = dbResult.ok
+                ? '✅ Supabase DB에 승인 상태 기록 완료 (deploy_status)'
+                : '⚠️ DB 기록 실패(' + (dbResult.reason || '?') + ') — 거버넌스 락은 수동 해제 필요';
 
             // GitHub 머지 (옵션)
             let mergeLog = '';
@@ -218,20 +216,24 @@ export default async function handler(req, res) {
             return res.status(200).send(buildHtml(
                 '✅', '#065f46', '#ecfdf5',
                 '배포 승인 완료!',
-                '대표님의 모바일 승인이 확인되어 즉시 소스코드 머지 및 Vercel Production 배포를 실행했습니다.',
-                '<div class="log">' + mergeLog + '\n' + vercelLog + '</div>'
+                '팅글킨니다! 출판친구 기술 자율 거버넌스 승인이 확인되어 Vercel Production 배포를 실행했습니다.',
+                '<div class="log">' + dbLog + '\n' + mergeLog + '\n' + vercelLog + '</div>'
             ));
         }
 
-        // ── REJECT ─────────────────────────────────────────────────────────
+        // ── REJECT ─────────────────────────────────────────────────────────────────
         if (action === 'reject') {
-            await saveStatus(pr, 'REJECTED');
+            const dbResult = await saveStatus(pr, 'REJECTED'); // 실패해도 화면 크래시 없음
+            const dbLog = dbResult.ok
+                ? '✅ Supabase DB에 반려 상태 기록 완료'
+                : '⚠️ DB 기록 실패(' + (dbResult.reason || '?') + ')';
+
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             return res.status(200).send(buildHtml(
                 '❌', '#991b1b', '#fef2f2',
                 '배포 반려 완료',
                 '대표님의 지시에 따라 자가치유 코드 패치를 반려하고 배포를 긴급 중단했습니다. 소스코드는 수정 이전 상태로 안전하게 유지됩니다.',
-                ''
+                '<div class="log">' + dbLog + '</div>'
             ));
         }
 
