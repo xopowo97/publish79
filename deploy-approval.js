@@ -3,11 +3,14 @@ import path from 'path';
 
 // Helper function to upsert status to Supabase (with master_config fallback)
 async function upsertStatus(pr, status) {
-    const supabaseKey = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://fquzouhstheqvuzzhxqs.supabase.co';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
     
+    const restUrl = `${supabaseUrl}/rest/v1`;
+
     // Attempt 1: deploy_status table
     try {
-        const res = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/deploy_status', {
+        const res = await fetch(`${restUrl}/deploy_status`, {
             method: 'POST',
             headers: {
                 'apikey': supabaseKey,
@@ -25,8 +28,11 @@ async function upsertStatus(pr, status) {
     // Attempt 2: fallback to master_config
     try {
         let deployState = {};
-        const getRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/master_config?id=eq.deploy-state&select=data', {
-            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        const getRes = await fetch(`${restUrl}/master_config?id=eq.deploy-state&select=data`, {
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`
+            }
         });
         if (getRes.ok) {
             const list = await getRes.json();
@@ -37,7 +43,7 @@ async function upsertStatus(pr, status) {
         
         deployState[pr] = status;
         
-        await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/master_config', {
+        await fetch(`${restUrl}/master_config`, {
             method: 'POST',
             headers: {
                 'apikey': supabaseKey,
