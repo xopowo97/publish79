@@ -40,11 +40,33 @@ async function reportSystemError(errorData) {
             timestamp: new Date().toISOString()
         };
 
-        await fetch(ERROR_API_ENDPOINT, {
+        const res = await fetch(ERROR_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
+        // 12번 보안관에 의해 차단(DANGER)된 경우가 아니라면, 10번 자가치유 파이프라인 가동
+        if (res.ok) {
+            triggerSelfHealingPipeline(payload);
+        } else {
+            const errData = await res.json();
+            // 차단 경고 UI 노출
+            const statusText = document.getElementById('self-heal-status-text');
+            const codeBlock = document.getElementById('self-heal-code-block');
+            const btn = document.getElementById('self-heal-submit-btn');
+            
+            if (statusText && codeBlock && btn) {
+                statusText.innerText = "❌ 12번 AI 보안관 실시간 침입 탐지 및 패킷 파기";
+                statusText.style.color = "#ef4444";
+                codeBlock.style.background = "#fff5f5";
+                codeBlock.style.color = "#991b1b";
+                codeBlock.style.borderColor = "#fecaca";
+                codeBlock.innerText = `[보안 감사 로그]\n${errData.error || '악성 페이로드 유입 차단됨.'}`;
+                btn.innerText = "프롬프트 인젝션 차단으로 배포 잠금";
+                btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+            }
+        }
     } catch (e) {
         console.error("에러 모니터링 API 전송 실패:", e);
     }
@@ -5648,7 +5670,7 @@ function saveAuthSettings() {
 
 // --- AI Helper (Antigravity) Functions Merged to Top ---
 
-window.simulateFix = function(event) {
+window.simulateFix = function(event, prUrl) {
     const btn = event ? event.currentTarget : null;
     if (!btn) return;
     btn.disabled = true;
@@ -5661,7 +5683,9 @@ window.simulateFix = function(event) {
         const chatContent = document.getElementById('ai-chat-content');
         const successMsg = document.createElement('div');
         successMsg.className = 'ai-msg ai-msg-bot';
-        successMsg.innerHTML = '✨ **자가 치유 완료!** 모든 시스템이 정상화되었습니다. 이제 다시 파일을 업로드해 보세요.';
+        
+        let prText = prUrl ? `<br>🔗 발행된 <a href="${prUrl}" target="_blank" style="color: #0284c7; font-weight: 700; text-decoration: underline;">GitHub Pull Request</a>가 마스터 브랜치에 안전하게 자동 머지 및 배포되었습니다.` : '';
+        successMsg.innerHTML = `✨ **자가 치유 및 11번 자동화 배포 완료!** 모든 시스템이 Vercel Production에 정상적으로 업데이트되었습니다.${prText}`;
         chatContent.appendChild(successMsg);
         
         if (window.lucide) lucide.createIcons();
@@ -5671,3 +5695,204 @@ window.simulateFix = function(event) {
         }, 100);
     }, 2000);
 };
+
+// --- 10번 자가치유 코딩 에이전트 파이프라인 가동 함수 ---
+async function triggerSelfHealingPipeline(payload) {
+    const HEAL_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+        ? 'https://publish79.vercel.app/api/self-heal' 
+        : '/api/self-heal';
+
+    const agentAction = document.getElementById('ai-agent-action');
+    if (!agentAction) return;
+
+    // UI 활성화 및 로딩 상태 표시
+    agentAction.classList.remove('hidden');
+    agentAction.innerHTML = `
+        <div class="ai-msg ai-msg-bot">
+            🚨 **시스템 에러 감지!**<br>
+            9번 기술행정지원 실장이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 자가치유 코딩 에이전트를 긴급 호출합니다.
+        </div>
+        <div class="ai-action-card">
+            <div class="ai-status-pulse">
+                <div class="pulse-dot"></div>
+                <span id="self-heal-status-text">10번 자가치유(Self-Healing) 코딩 엔진 가동 중...</span>
+            </div>
+            <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
+                // 분석 컨텍스트 격리 수행 중...<br>
+                // 오류 분석 및 치료 패치 생성 대기...
+            </div>
+            <button id="self-heal-submit-btn" disabled
+                class="w-full py-3 bg-slate-400 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed">
+                배포 승인 대기 중
+            </button>
+        </div>
+    `;
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+
+    try {
+        const res = await fetch(HEAL_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const codeBlock = document.getElementById('self-heal-code-block');
+        const statusText = document.getElementById('self-heal-status-text');
+        const btn = document.getElementById('self-heal-submit-btn');
+
+        if (res.ok) {
+            const data = await res.json();
+            
+            // 성공 상태로 UI 업데이트
+            statusText.innerText = "10번 자가치유 코드 보정 완료 (12번 보안관 통과)";
+            
+            let logHtml = `// 🛠️ [10번 자가치유 에이전트 수정 내역]\n`;
+            logHtml += `// 설명: ${data.explanation}\n\n`;
+            logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
+            logHtml += `// [Git CLI 로그]\n`;
+            data.gitLog.forEach(log => {
+                logHtml += `> ${log}\n`;
+            });
+            logHtml += `\n🔗 PR Link: ${data.prUrl}`;
+
+            codeBlock.innerHTML = logHtml;
+            
+            // 11번 자동화 배포 관리자: 모바일 승인 여부 폴링 시작 (거버넌스 락)
+            btn.className = "w-full py-3 bg-amber-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center gap-2";
+            btn.innerText = "⏳ 대표님 모바일 승인 대기 중 (거버넌스 락)";
+            btn.disabled = true;
+
+            const STATUS_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+                ? 'https://publish79.vercel.app/api/deploy-status' 
+                : '/api/deploy-status';
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`${STATUS_API_ENDPOINT}?pr=${data.prBranch}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'APPROVED') {
+                            clearInterval(pollInterval);
+                            
+                            // 승인 처리 완료
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.style.color = "#10b981";
+                            
+                            btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
+                            
+                            // 자동 배포 완료 애니메이션 실행
+                            simulateFix(null, data.prUrl);
+                        } else if (statusData.status === 'REJECTED') {
+                            clearInterval(pollInterval);
+                            
+                            // 반려 처리 완료
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.style.color = "#ef4444";
+                            
+                            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
+                            
+                            codeBlock.style.background = "#fff5f5";
+                            codeBlock.style.color = "#991b1b";
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 자가치유 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("배포 상태 폴링 오류:", err);
+                }
+            }, 2000); // 2초마다 체크
+
+        } else {
+            const errorData = await res.json();
+            // 차단 또는 실패 상태로 UI 업데이트
+            statusText.innerText = "❌ 12번 AI 보안관 검증 반려 (배포 중단)";
+            statusText.style.color = "#ef4444";
+            
+            codeBlock.style.background = "#fff5f5";
+            codeBlock.style.color = "#991b1b";
+            codeBlock.style.borderColor = "#fecaca";
+            codeBlock.innerText = `[보안 감사 로그]\n${errorData.message || '패치 생성 과정에 오류가 발생했습니다.'}`;
+            
+            btn.innerText = "보안 규격 미달로 배포 승인 차단됨";
+            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+        }
+    } catch (e) {
+        console.error("자가치유 엔진 호출 실패:", e);
+    }
+}
+
+// --- 12번 실시간 AI 보안관 2차 스캔 엔진 트리거 (30초 주기) ---
+function showSecurityAlertUI(message, modifiedFiles) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const alertMsg = document.createElement('div');
+    alertMsg.className = 'ai-msg ai-msg-bot';
+    alertMsg.style.borderLeft = '4px solid #ef4444';
+    alertMsg.style.background = '#fff5f5';
+    
+    let detailsHtml = '';
+    if (modifiedFiles && modifiedFiles.length > 0) {
+        detailsHtml = '<div class="ai-code-block" style="border-color: #fecaca; background: #fff; color: #991b1b; font-family: monospace; font-size: 11px; margin-top: 8px; padding: 10px; border-radius: 8px; line-height: 1.4; border: 1px solid #fee2e2;">';
+        modifiedFiles.forEach(fileInfo => {
+            detailsHtml += `📁 파일: <b>${fileInfo.file}</b><br>`;
+            fileInfo.leaks.forEach(leak => {
+                detailsHtml += `⚠️ 라인 ${leak.line}: 하드코딩된 <b>${leak.ruleName}</b> 노출 감지<br>`;
+                detailsHtml += `➔ <code>process.env</code> 치환 및 안전지대 대피 완료<br>`;
+            });
+        });
+        detailsHtml += '</div>';
+    }
+
+    alertMsg.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 900; margin-bottom: 6px;">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
+            <span>🚨 [12번 AI 보안관] 보안 차단 및 즉시 조치 보고</span>
+        </div>
+        <p style="font-size: 12px; line-height: 1.5; color: #374151;">${message}</p>
+        ${detailsHtml}
+    `;
+    
+    chatContent.appendChild(alertMsg);
+    if (window.lucide) lucide.createIcons();
+    
+    setTimeout(() => {
+        chatContent.scrollTop = chatContent.scrollHeight;
+    }, 100);
+}
+
+function startSecuritySheriffWatchdog() {
+    const SCAN_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+        ? 'https://publish79.vercel.app/api/scan-secrets' 
+        : '/api/scan-secrets';
+
+    // 30초 주기 상시 스캔 데몬 가동
+    setInterval(async () => {
+        try {
+            console.log("[12번 AI 보안관] 30초 주기 소스코드 보안성 전수 스캔 수행 중...");
+            const res = await fetch(SCAN_API_ENDPOINT);
+            if (res.ok) {
+                const data = await res.json();
+                console.log("[12번 AI 보안관 스캔 판정]:", data.message);
+                if (data.status === 'DANGER') {
+                    showSecurityAlertUI(data.message, data.modifiedFiles);
+                }
+            }
+        } catch (e) {
+            console.warn("[12번 AI 보안관] 스캔 API 통신 오류:", e);
+        }
+    }, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 12번 보안관 상시 감시 스레드 실행
+    startSecuritySheriffWatchdog();
+});

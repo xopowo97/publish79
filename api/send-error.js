@@ -2,6 +2,39 @@
 // Vercel Serverless Function을 사용하여 디스코드 웹훅의 CORS 제한을 극복하고, 토큰 노출을 차단합니다.
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
 
+// 12번 실시간 AI 보안관 1차 필터링 함수
+function runSecuritySheriff(payload) {
+    const message = String(payload.message || '');
+    const filename = String(payload.filename || '');
+    const fullText = `${message} ${filename}`;
+
+    // 1) Prompt Injection & Bypass 패턴 검사
+    const promptInjectionRegex = /(ignore\s+previous\s+instructions|system\s+override|sudo\b|chmod\b)/i;
+    // 2) XSS 패턴 검사
+    const xssRegex = /(<script\b[^>]*>|javascript:|onerror\s*=)/i;
+    // 3) SQL Injection 패턴 검사
+    const sqliRegex = /\b(union|select|insert|update|delete|drop|alter)\b/i;
+
+    let securityLevel = 'SAFE';
+    let matchedPattern = '';
+
+    if (promptInjectionRegex.test(fullText)) {
+        securityLevel = 'DANGER';
+        matchedPattern = 'Prompt Injection & System Bypass';
+    } else if (xssRegex.test(fullText)) {
+        securityLevel = 'DANGER';
+        matchedPattern = 'Cross-Site Scripting (XSS)';
+    } else if (sqliRegex.test(fullText) && (fullText.includes("'") || fullText.includes('"') || fullText.includes(';'))) {
+        securityLevel = 'DANGER';
+        matchedPattern = 'SQL Injection (SQLi)';
+    } else if (sqliRegex.test(fullText)) {
+        securityLevel = 'SUSPICIOUS';
+        matchedPattern = 'Suspicious SQL Keyword';
+    }
+
+    return { securityLevel, matchedPattern };
+}
+
 export default async function handler(req, res) {
     // 1. CORS 프리플라이트 요청 지원 (로컬 UAT 테스트가 가능하도록 허용)
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -23,6 +56,39 @@ export default async function handler(req, res) {
 
     try {
         const payload = req.body;
+
+        // 12번 실시간 AI 보안관 1차 필터링 수행
+        const { securityLevel, matchedPattern } = runSecuritySheriff(payload);
+        if (securityLevel === 'DANGER') {
+            const fields = [
+                { name: "발생 계정 (ID)", value: `\`${payload.userId || 'Anonymous'}\` (${payload.userRole || 'guest'})`, inline: true },
+                { name: "발생 파일", value: payload.filename || '알 수 없음', inline: true },
+                { name: "라인 번호", value: String(payload.lineno || '0'), inline: true },
+                { name: "에러 메시지", value: `\`\`\`${payload.message || 'No message'}\`\`\`` },
+                { name: "🛡️ 12번 실시간 AI 보안관 판정", value: `🚫 **DANGER (위험 - ${matchedPattern} 감지)**` },
+                { name: "조치 사항", value: "구글 Gemini API 분석 호출 즉시 차단 및 악성 패킷 즉각 파기(Drop) 완료" }
+            ];
+
+            const discordPayload = {
+                embeds: [{
+                    title: "🚨 보안 위협 감지: 12번 AI 보안관 긴급 보고",
+                    color: 15548997, // Red
+                    fields: fields,
+                    footer: { text: "Antigravity AI Autonomous Pipeline (Security Sheriff Active)" }
+                }]
+            };
+
+            await fetch(DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(discordPayload)
+            });
+
+            return res.status(400).json({
+                error: `Security Exception: Malicious payload (${matchedPattern}) detected and dropped by 12th AI Sheriff.`
+            });
+        }
+
         let aiAnalysisText = '';
 
         // 1. Google Gemini API 키 확인 및 호출 (9번 에이전트 자동 에러 분석)
