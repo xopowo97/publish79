@@ -44,16 +44,20 @@ export default async function handler(req, res) {
         }
 
         if (!fileExists) {
-            // 파일이 존재하지 않는 경우 모의 테스트용 가상 컨텍스트 설정
-            isolatedContext = `// [Virtual Mock File: ${filename || 'unknown.js'}]
+            // 파일이 Vercel 서버리스에서 읽히지 않는 경우 (클라이언트 파일 또는 경로 제한)
+            // 실제 파일 내용 없이 에러 정보만으로 Gemini가 분석 가능한 컨텍스트를 구성
+            isolatedContext = `// [Vercel Serverless Context - 파일 접근 불가]
+// 대상 파일: ${filename}
+// 에러 발생 라인: ${lineno}
 // 에러 메시지: ${message}
-// 라인 번호: ${lineno}
-function processTransaction(data) {
-    let price = data.price;
-    // Uncaught TypeError: Cannot read properties of undefined (reading 'price')
-    let vat = price * 0.1;
-    return price + vat;
-}`;
+//
+// Vercel 서버리스 환경에서는 클라이언트 사이드 파일(script.js 등)을 직접 읽을 수 없습니다.
+// 에러 메시지와 파일명을 기반으로 패치를 생성합니다.
+//
+// [에러 발생 컨텍스트 추정]
+// - 파일: ${filename}
+// - 라인: ${lineno}
+// - 원인: ${message}`;
         }
 
         // 2. 구글 Gemini API 호출을 통한 Hot-Fix 자율 생성
@@ -241,8 +245,8 @@ function processTransaction(data) {
         const host = req.headers.host || 'publish79.vercel.app';
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const baseUrl = `${protocol}://${host}`;
-        const approveUrl = `${baseUrl}/api/deploy-approval?action=approve&pr=${patchBranch}&file=${filename}`;
-        const rejectUrl = `${baseUrl}/api/deploy-approval?action=reject&pr=${patchBranch}&file=${filename}`;
+        const approveUrl = `${baseUrl}/api/deploy-approval?action=approve&pr=${encodeURIComponent(patchBranch)}&file=${encodeURIComponent(filename)}`;
+        const rejectUrl = `${baseUrl}/api/deploy-approval?action=reject&pr=${encodeURIComponent(patchBranch)}&file=${encodeURIComponent(filename)}`;
 
         await sendDiscordHealReport(filename, lineno, fixExplanation, prUrl, approveUrl, rejectUrl);
 
@@ -264,7 +268,7 @@ function processTransaction(data) {
 }
 
 async function sendDiscordSecurityReport(filename, patchCode) {
-    const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+    const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1508640595286032505/4W8xfbHpdQkjHi2SCq0fVz5deSIxWigsu9LWZlmwU8HS6aaba3C_cUQHMtgFmMeHVYfp';
     const payload = {
         embeds: [{
             title: "🚨 보안 긴급 정지: 12번 AI 보안관 최종 검문 반려",
@@ -286,7 +290,7 @@ async function sendDiscordSecurityReport(filename, patchCode) {
 }
 
 async function sendDiscordHealReport(filename, lineno, explanation, prUrl, approveUrl, rejectUrl) {
-    const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+    const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1508640595286032505/4W8xfbHpdQkjHi2SCq0fVz5deSIxWigsu9LWZlmwU8HS6aaba3C_cUQHMtgFmMeHVYfp';
     const payload = {
         embeds: [{
             title: "🤖 [10번 자가치유 코딩 에이전트] 치료 패치 완료 보고",
