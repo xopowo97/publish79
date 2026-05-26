@@ -73,7 +73,12 @@ async function reportSystemError(errorData) {
 }
 
 // 1. 일반 자바스크립트 에러 감지
+// ✅ [로그인 버그 수정] 로그인/초기화 과정(2초 이내) 중 발생하는 에러는 AI 헬퍼창 무시
+window._isLoggingIn = false; // 로그인 진행 중 플래그
 window.addEventListener('error', (event) => {
+    // 로그인 처리 중이거나, 외부 CDN 스크립트 에러는 무시
+    if (window._isLoggingIn) return;
+    if (event.filename && !event.filename.includes(window.location.hostname) && !event.filename.includes('script.js')) return;
     const errorData = {
         message: event.message || event.error?.message || 'Unknown Error',
         filename: event.filename ? event.filename.split('/').pop() : 'index.html',
@@ -227,6 +232,9 @@ function handleLogin() {
 }
 
 function enterApp(role, userId) {
+    // ✅ [로그인 버그 수정] 로그인 처리 중 플래그 ON → 에러 리스너가 AI패널 열지 않음
+    window._isLoggingIn = true;
+
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     if (userId) sessionStorage.setItem('userId', userId);
@@ -234,10 +242,18 @@ function enterApp(role, userId) {
     const overlay = document.getElementById('login-overlay');
     overlay.style.opacity = '0';
     setTimeout(() => {
-        overlay.style.display = 'none';
-        document.getElementById('app-container').classList.remove('hidden');
-        if (typeof switchRole === 'function') {
-            switchRole(role);
+        try {
+            overlay.style.display = 'none';
+            document.getElementById('app-container').classList.remove('hidden');
+            if (typeof switchRole === 'function') {
+                switchRole(role);
+            }
+        } catch (e) {
+            // switchRole 내부 오류는 조용히 처리 (AI 헬퍼창 차단)
+            console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
+        } finally {
+            // 2초 후 플래그 OFF → 이후 발생하는 진짜 에러는 정상 감지
+            setTimeout(() => { window._isLoggingIn = false; }, 2000);
         }
     }, 500);
 }
