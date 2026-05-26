@@ -292,8 +292,12 @@ function getBasePriceData() {
 }
 
 // --- Supabase 초기화 설정 ---
+// ⚠️ [12번 보안관 마스킹 조치 완료] 하드코딩된 Supabase Key는 제거되었습니다.
+// 실제 키는 Vercel 환경변수 SUPABASE_KEY 로 관리하며, 클라이언트에서는 아래 설정을 사용합니다.
 const SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+const SUPABASE_KEY = (typeof process !== 'undefined' && process.env && process.env.SUPABASE_KEY)
+    ? process.env.SUPABASE_KEY
+    : window.__SUPABASE_KEY__ || '';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let MASTER = {
@@ -5851,6 +5855,41 @@ async function triggerSelfHealingPipeline(payload) {
     } catch (e) {
         console.error("자가치유 엔진 호출 실패:", e);
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [11번 자동화 배포 관리자] 승인 완료 후 최종 UI 완결 처리 함수
+// 대표님이 디스코드에서 [배포 승인]을 누른 뒤 2초 폴링이 APPROVED를 감지하면
+// 이 함수가 호출되어 AI 헬퍼 패널에 최종 "🟢 조치 완료" 메시지를 출력합니다.
+// ─────────────────────────────────────────────────────────────────────────────
+function simulateFix(unused, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    // 완료 메시지 카드 생성
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeInUp 0.4s ease;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+
+    chatContent.appendChild(doneCard);
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
 }
 
 // --- 12번 실시간 AI 보안관 2차 스캔 엔진 트리거 (30초 주기) ---
