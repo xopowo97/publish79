@@ -1,6 +1,6 @@
 // api/send-error.js
 // Vercel Serverless Function을 사용하여 디스코드 웹훅의 CORS 제한을 극복하고, 토큰 노출을 차단합니다.
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1508640595286032505/4W8xfbHpdQkjHi2SCq0fVz5deSIxWigsu9LWZlmwU8HS6aaba3C_cUQHMtgFmMeHVYfp';
 
 // 12번 실시간 AI 보안관 1차 필터링 함수
 function runSecuritySheriff(payload) {
