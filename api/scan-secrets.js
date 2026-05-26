@@ -69,13 +69,17 @@ export default async function handler(req, res) {
                         fileModified = true;
 
                         // Save key to .env file
-                        writeToEnv(workspacePath, rule.envName, match);
+                        if (!process.env.VERCEL) {
+                            writeToEnv(workspacePath, rule.envName, match);
+                        }
                     }
                 }
             }
 
             if (fileModified) {
-                fs.writeFileSync(filePath, content, 'utf8');
+                if (!process.env.VERCEL) {
+                    fs.writeFileSync(filePath, content, 'utf8');
+                }
                 modifiedFiles.push({
                     file: path.basename(filePath),
                     leaks: fileLeaks
@@ -126,7 +130,7 @@ function writeToEnv(workspacePath, envName, value) {
 }
 
 async function sendDiscordAlert(modifiedFiles) {
-    const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1507261096820740156/GGvWtC0oN9MFJGHAKiB7IraMyf5HVDZJxdyj485AKSgfDQ2BWSRa9_ycQPVSRF2rlIIJ';
+    const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1508640595286032505/4W8xfbHpdQkjHi2SCq0fVz5deSIxWigsu9LWZlmwU8HS6aaba3C_cUQHMtgFmMeHVYfp';
     
     let description = "자가치유(10번) 코드 수정 과정에서 하드코딩된 API Key 유출 위험이 감지되었습니다.\n";
     for (const item of modifiedFiles) {
