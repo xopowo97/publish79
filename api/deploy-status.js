@@ -23,7 +23,7 @@ async function readStatus(pr) {
     // ── 1차: deploy_status 테이블 조회 ─────────────────────────────────────
     try {
         const endpoint = base + '/deploy_status?pr=eq.' + encodeURIComponent(pr) + '&select=status&limit=1&t=' + Date.now();
-        const resp = await fetch(endpoint, { method: 'GET', headers: authHeaders, cache: 'no-store' });
+        const resp = await fetch(endpoint, { method: 'GET', headers: authHeaders });
 
         if (!resp.ok) {
             const body = await resp.text();
@@ -47,7 +47,7 @@ async function readStatus(pr) {
     // ── 2차: master_config 폴백 ─────────────────────────────────────────────
     try {
         const endpoint = base + '/master_config?id=eq.deploy-state&select=data&limit=1&t=' + Date.now();
-        const resp = await fetch(endpoint, { method: 'GET', headers: authHeaders, cache: 'no-store' });
+        const resp = await fetch(endpoint, { method: 'GET', headers: authHeaders });
 
         if (!resp.ok) {
             const body = await resp.text();
