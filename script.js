@@ -262,9 +262,7 @@ function getBasePriceData() {
 // ⚠️ [12번 보안관 마스킹 조치 완료] 하드코딩된 Supabase Key는 제거되었습니다.
 // 실제 키는 Vercel 환경변수 SUPABASE_KEY 로 관리하며, 클라이언트에서는 아래 설정을 사용합니다.
 const SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
-const SUPABASE_KEY = (typeof process !== 'undefined' && process.env && process.env.SUPABASE_KEY)
-    ? process.env.SUPABASE_KEY
-    : window.__SUPABASE_KEY__ || '';
+const SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let MASTER = {
