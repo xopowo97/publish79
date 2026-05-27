@@ -174,6 +174,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 로그인 버튼 클릭 시 handleLogin() 호출 연결
+    const loginBtn = document.querySelector('#login-overlay button, .btn-primary');
+    if (loginBtn) {
+        loginBtn.onclick = null; // 인라인 onclick 제거하여 중복 호출 방지
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window._isLoggingIn = true;
+            if (typeof handleLogin === 'function') {
+                handleLogin();
+            }
+        });
+    }
+
     // AI 헬퍼 send 버튼 클릭 이벤트 + 파란색 비행기(fa-paper-plane) 아이콘 복구
     const sendBtn = document.querySelector('.ai-send-btn');
     const aiInput = document.querySelector('.ai-input');
@@ -326,6 +339,7 @@ function handleLogin() {
         }
     }
 
+    window._isLoggingIn = false;
     alert('아이디 또는 비밀번호가 올바르지 않습니다.');
 }
 
