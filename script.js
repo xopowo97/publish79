@@ -159,109 +159,47 @@ Object.defineProperty(window, 'currentUserRole', {
     get: function() { return sessionStorage.getItem('userRole') || 'admin'; }
 });
 
-// --- 로그인 관련 기능 추가 ---
+// --- [로그인 버그 수정] DOMContentLoaded: 세션 복원만 처리 ---
+// handleLogin/enterApp/logout은 MASTER 선언 이후에 정의됨 (TDZ 원천 차단)
 document.addEventListener('DOMContentLoaded', () => {
     const isLoggedIn = sessionStorage.getItem('isLoggedIn');
     if (isLoggedIn) {
         const role = sessionStorage.getItem('userRole');
-        document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('app-container').classList.remove('hidden');
+        const overlay = document.getElementById('login-overlay');
+        const appContainer = document.getElementById('app-container');
+        if (overlay) overlay.style.display = 'none';
+        if (appContainer) appContainer.classList.remove('hidden');
         if (typeof switchRole === 'function') {
             setTimeout(() => switchRole(role), 100);
         }
     }
-});
 
-function handleLogin() {
-    const id = document.getElementById('login-id').value.trim();
-    const pw = document.getElementById('login-pw').value.trim();
-
-    if (!MASTER.auth) {
-        MASTER.auth = {
-            admin: { id: 'admin', pw: '1234' },
-            publisher: { id: 'pub', pw: '1234' },
-            printer: { id: 'print', pw: '1234' }
+    // AI 헬퍼 send 버튼 클릭 이벤트 + 파란색 비행기(fa-paper-plane) 아이콘 복구
+    const sendBtn = document.getElementById('ai-send-btn');
+    const aiInput = document.querySelector('.ai-input');
+    if (sendBtn && !sendBtn.dataset.bound) {
+        sendBtn.dataset.bound = 'true';
+        // 아이콘 강제 복구 (lucide send = 파란색 비행기)
+        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        sendBtn.onclick = function() {
+            if (!aiInput || !aiInput.value.trim()) return;
+            const chatContent = document.getElementById('ai-chat-content');
+            if (!chatContent) return;
+            const userMsg = document.createElement('div');
+            userMsg.className = 'ai-msg ai-msg-user';
+            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
+            userMsg.textContent = aiInput.value.trim();
+            chatContent.appendChild(userMsg);
+            aiInput.value = '';
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
         };
-    }
-
-    // 1. 마스터 계정 체크
-    if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) {
-        enterApp('admin', id);
-        return;
-    }
-    if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) {
-        enterApp('publisher', id);
-        return;
-    }
-    if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) {
-        enterApp('printer', id);
-        return;
-    }
-
-    // 2. 파트너(출판사) DB 계정 체크
-    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
-    if (partner) {
-        if (partner.password === pw || (!partner.password && pw === '1234')) {
-            enterApp('publisher', partner.id);
-            return;
+        if (aiInput) {
+            aiInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendBtn.click();
+            });
         }
     }
-
-    // 3. 인쇄소 DB 계정 체크
-    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
-    if (printer) {
-        // 대표 계정 로그인
-        if (printer.password === pw || (!printer.password && pw === '1234')) {
-            enterApp('printer', printer.id);
-            return;
-        }
-        // 담당자 서브비번 로그인
-        if (printer.managers && printer.managers.length > 0) {
-            const manager = printer.managers.find(m => m.subPw === pw);
-            if (manager) {
-                // 정산관리 권한이 있으면 printer, 없으면 생산만 가능한 printer_worker
-                const isSettle = manager.perms && manager.perms.includes('settle');
-                const assignedRole = isSettle ? 'printer' : 'printer_worker';
-                enterApp(assignedRole, printer.id);
-                return;
-            }
-        }
-    }
-
-    alert('아이디 또는 비밀번호가 올바르지 않습니다.');
-}
-
-function enterApp(role, userId) {
-    // ✅ [로그인 버그 수정] 로그인 처리 중 플래그 ON → 에러 리스너가 AI패널 열지 않음
-    window._isLoggingIn = true;
-
-    sessionStorage.setItem('isLoggedIn', 'true');
-    sessionStorage.setItem('userRole', role);
-    if (userId) sessionStorage.setItem('userId', userId);
-
-    const overlay = document.getElementById('login-overlay');
-    overlay.style.opacity = '0';
-    setTimeout(() => {
-        try {
-            overlay.style.display = 'none';
-            document.getElementById('app-container').classList.remove('hidden');
-            if (typeof switchRole === 'function') {
-                switchRole(role);
-            }
-        } catch (e) {
-            // switchRole 내부 오류는 조용히 처리 (AI 헬퍼창 차단)
-            console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
-        } finally {
-            // 2초 후 플래그 OFF → 이후 발생하는 진짜 에러는 정상 감지
-            setTimeout(() => { window._isLoggingIn = false; }, 2000);
-        }
-    }, 500);
-}
-
-function logout() {
-    sessionStorage.clear();
-    location.reload();
-}
+});
 // -----------------------
 
 // 초기 기본 단가 데이터를 생성하는 함수
@@ -350,6 +288,72 @@ let MASTER = {
         printer: { id: 'print', pw: '1234' }
     }
 };
+
+// ✅ [로그인 버그 완전 수정] MASTER 선언 이후에 배치 → TDZ 원천 차단
+// handleLogin이 MASTER를 참조할 때 항상 초기화된 상태 보장
+function handleLogin() {
+    const id = document.getElementById('login-id').value.trim();
+    const pw = document.getElementById('login-pw').value.trim();
+
+    if (!MASTER.auth) {
+        MASTER.auth = {
+            admin: { id: 'admin', pw: '1234' },
+            publisher: { id: 'pub', pw: '1234' },
+            printer: { id: 'print', pw: '1234' }
+        };
+    }
+
+    if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) { enterApp('admin', id); return; }
+    if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) { enterApp('publisher', id); return; }
+    if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) { enterApp('printer', id); return; }
+
+    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
+    if (partner) {
+        if (partner.password === pw || (!partner.password && pw === '1234')) { enterApp('publisher', partner.id); return; }
+    }
+
+    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
+    if (printer) {
+        if (printer.password === pw || (!printer.password && pw === '1234')) { enterApp('printer', printer.id); return; }
+        if (printer.managers && printer.managers.length > 0) {
+            const manager = printer.managers.find(m => m.subPw === pw);
+            if (manager) {
+                const isSettle = manager.perms && manager.perms.includes('settle');
+                enterApp(isSettle ? 'printer' : 'printer_worker', printer.id);
+                return;
+            }
+        }
+    }
+
+    alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+}
+
+function enterApp(role, userId) {
+    window._isLoggingIn = true;
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', role);
+    if (userId) sessionStorage.setItem('userId', userId);
+
+    const overlay = document.getElementById('login-overlay');
+    if (overlay) overlay.style.opacity = '0';
+    setTimeout(() => {
+        try {
+            if (overlay) overlay.style.display = 'none';
+            const appContainer = document.getElementById('app-container');
+            if (appContainer) appContainer.classList.remove('hidden');
+            if (typeof switchRole === 'function') switchRole(role);
+        } catch (e) {
+            console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
+        } finally {
+            setTimeout(() => { window._isLoggingIn = false; }, 2000);
+        }
+    }, 500);
+}
+
+function logout() {
+    sessionStorage.clear();
+    location.reload();
+}
 
 let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
 
@@ -5714,30 +5718,34 @@ function saveAuthSettings() {
 
 // --- AI Helper (Antigravity) Functions Merged to Top ---
 
-window.simulateFix = function(event, prUrl) {
-    const btn = event ? event.currentTarget : null;
-    if (!btn) return;
-    btn.disabled = true;
-    btn.innerHTML = '<div class="flex items-center justify-center gap-2"><div class="pulse-dot bg-white"></div> 패치 배포 중...</div>';
-    
-    setTimeout(() => {
-        btn.innerHTML = '✅ 배포 완료 및 시스템 복구 성공!';
-        btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
-        
-        const chatContent = document.getElementById('ai-chat-content');
-        const successMsg = document.createElement('div');
-        successMsg.className = 'ai-msg ai-msg-bot';
-        
-        let prText = prUrl ? `<br>🔗 발행된 <a href="${prUrl}" target="_blank" style="color: #0284c7; font-weight: 700; text-decoration: underline;">GitHub Pull Request</a>가 마스터 브랜치에 안전하게 자동 머지 및 배포되었습니다.` : '';
-        successMsg.innerHTML = `✨ **자가 치유 및 11번 자동화 배포 완료!** 모든 시스템이 Vercel Production에 정상적으로 업데이트되었습니다.${prText}`;
-        chatContent.appendChild(successMsg);
-        
-        if (window.lucide) lucide.createIcons();
-        
-        setTimeout(() => {
-            chatContent.scrollTop = chatContent.scrollHeight;
-        }, 100);
-    }, 2000);
+// [수정] simulateFix: 폴링에서 null 이벤트로 호출될 때도 정상 작동
+window.simulateFix = function(eventOrNull, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    // 🟢 조치 완료 카드 생성
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeIn 0.4s ease; align-self:flex-start; max-width:100%; width:100%;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+    chatContent.appendChild(doneCard);
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
 };
 
 // --- 10번 자가치유 코딩 에이전트 파이프라인 가동 함수 ---
@@ -5871,41 +5879,6 @@ async function triggerSelfHealingPipeline(payload) {
     } catch (e) {
         console.error("자가치유 엔진 호출 실패:", e);
     }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// [11번 자동화 배포 관리자] 승인 완료 후 최종 UI 완결 처리 함수
-// 대표님이 디스코드에서 [배포 승인]을 누른 뒤 2초 폴링이 APPROVED를 감지하면
-// 이 함수가 호출되어 AI 헬퍼 패널에 최종 "🟢 조치 완료" 메시지를 출력합니다.
-// ─────────────────────────────────────────────────────────────────────────────
-function simulateFix(unused, prUrl) {
-    const chatContent = document.getElementById('ai-chat-content');
-    if (!chatContent) return;
-
-    // 완료 메시지 카드 생성
-    const doneCard = document.createElement('div');
-    doneCard.className = 'ai-msg ai-msg-bot';
-    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeInUp 0.4s ease;';
-    doneCard.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
-            <span style="font-size:20px;">🟢</span>
-            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
-        </div>
-        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
-            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
-            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
-        </p>
-        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
-            ✅ 거버넌스 락 해제 완료<br>
-            ✅ GitHub PR 자동 머지 완료<br>
-            ✅ Vercel 자동 빌드 & 배포 완료<br>
-            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
-        </div>
-    `;
-
-    chatContent.appendChild(doneCard);
-    if (window.lucide) lucide.createIcons();
-    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
 }
 
 // --- 12번 실시간 AI 보안관 2차 스캔 엔진 트리거 (30초 주기) ---
