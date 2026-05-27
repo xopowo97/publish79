@@ -35,7 +35,7 @@ async function readStatus(pr) {
 
         if (rows && rows.length > 0) {
             console.log('[deploy-status] deploy_status 조회 OK: pr=' + pr + ' status=' + rows[0].status);
-            return rows[0].status;
+            return { status: rows[0].status, errors };
         }
         // 행이 없음 = 아직 승인/반려 전 → PENDING (에러 아님)
         errors.push('[deploy_status] pr=' + pr + ' 행 없음 (아직 대기중)');
@@ -61,7 +61,7 @@ async function readStatus(pr) {
             const state  = rows[0].data || {};
             const status = state[pr] || 'PENDING';
             console.log('[deploy-status] master_config 폴백 OK: pr=' + pr + ' status=' + status);
-            return status;
+            return { status, errors };
         }
         errors.push('[master_config] deploy-state 행 없음');
     } catch (e) {
@@ -71,7 +71,7 @@ async function readStatus(pr) {
 
     // 양쪽 모두 행 없음 → PENDING (아직 승인/반려 전 정상 상태)
     console.log('[deploy-status] 상태 미발견, PENDING 반환. 사유: ' + errors.join(' | '));
-    return 'PENDING';
+    return { status: 'PENDING', errors };
 }
 
 export default async function handler(req, res) {
@@ -90,8 +90,8 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'pr 파라미터가 없습니다.' });
         }
 
-        const status = await readStatus(pr);
-        return res.status(200).json({ pr: pr, status: status });
+        const { status, errors } = await readStatus(pr);
+        return res.status(200).json({ pr: pr, status: status, errors: errors });
 
     } catch (err) {
         // 최후 방어선 — 절대 크래시 없음
