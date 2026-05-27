@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // AI 헬퍼 send 버튼 클릭 이벤트 + 파란색 비행기(fa-paper-plane) 아이콘 복구
-    const sendBtn = document.getElementById('ai-send-btn');
+    const sendBtn = document.querySelector('.ai-send-btn');
     const aiInput = document.querySelector('.ai-input');
     if (sendBtn && !sendBtn.dataset.bound) {
         sendBtn.dataset.bound = 'true';
@@ -292,6 +292,7 @@ let MASTER = {
 // ✅ [로그인 버그 완전 수정] MASTER 선언 이후에 배치 → TDZ 원천 차단
 // handleLogin이 MASTER를 참조할 때 항상 초기화된 상태 보장
 function handleLogin() {
+    window._isLoggingIn = true;
     const id = document.getElementById('login-id').value.trim();
     const pw = document.getElementById('login-pw').value.trim();
 
