@@ -2912,7 +2912,14 @@ function getFilteredOrders() {
     const pubSearch = document.getElementById('filter-publisher-name')?.value.toLowerCase() || "";
     const managerSearch = document.getElementById('filter-manager-name')?.value.toLowerCase() || "";
 
+    const role = sessionStorage.getItem('userRole');
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+
     return MASTER.orders.filter(o => {
+        if (role === 'publisher' && myPartner) {
+            if (o.pubName !== myPartner.name) return false;
+        }
         if (startDate && o.date < startDate) return false;
         if (endDate && o.date > endDate) return false;
         if (pubSearch && !o.pubName.toLowerCase().includes(pubSearch)) return false;
