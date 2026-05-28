@@ -4953,7 +4953,7 @@ async function openPriceTableModal(grade) {
                             <table class="w-full text-[9px] border-collapse">
                                 <thead><tr class="border-b text-slate-400"><th class="text-left">부수</th><th class="text-right">흑백</th><th class="text-right">컬러</th><th class="text-right">날개(O)</th><th class="text-right">날개(X)</th></tr></thead>
                                 <tbody>
-                                    ${(rs.ivs || []).slice(0, 3).map(t => `
+                                    ${(rs.ivs || []).map(t => `
                                         <tr class="text-right border-b border-white">
                                             <td class="text-left py-1">${t.s}~${t.e}</td>
                                             <td class="font-bold">${t.bw}원</td>
