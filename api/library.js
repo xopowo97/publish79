@@ -153,7 +153,7 @@ export default async function handler(req, res) {
         key:         LIBRARY_API_KEY,
         apiType:     'json',
         category:    '도서',
-        keyword:     keyword,
+        kwd:         keyword,
         pageNum:     '1',
         pageSize:    '10',
         displayType: 'detail'
@@ -192,19 +192,13 @@ export default async function handler(req, res) {
 
         const libraryData = await libraryRes.json();
 
-        // ============================================================
-        // 🔍 [임시 디버그] 원본 응답 데이터 확인 (Vercel 함수 로그에서 확인)
-        // → 국립중앙도서관 API가 어떤 JSON 키 구조로 데이터를 보내는지 파악
-        // → 확인 완료 후 이 로그는 제거 예정
-        // ============================================================
-        console.log('원본 응답 데이터:', JSON.stringify(libraryData, null, 2));
+
 
         // ============================================================
         // ✅ 통신 성공 — 결과 정제 후 클라이언트로 전달
         // ============================================================
-        // ✅ [타입 안전성] 응답 데이터에서 결과 배열을 안전하게 추출
-        // 국립중앙도서관 API 응답 구조: { result: [...] } 또는 { docs: [...] } 등 다양
-        const rawResults = libraryData.result ?? libraryData.docs ?? libraryData.data ?? null;
+        // ✅ 실제 API 응답 구조인 result 키값을 매핑하여 결과를 안전하게 추출
+        const rawResults = libraryData.result ?? null;
 
         // Array.isArray로 배열 여부 먼저 확인 →
         //   배열이면: 그대로 사용
@@ -214,8 +208,10 @@ export default async function handler(req, res) {
             ? rawResults
             : (rawResults !== null && rawResults !== undefined ? [rawResults] : []);
 
-        // totalCount도 안전하게 추출 (없으면 results 배열 길이로 대체)
-        const totalCount = libraryData.total ?? libraryData.totalCount ?? libraryData.totalPage ?? results.length;
+        // totalCount도 실제 API 응답의 total 키값으로 매핑 (없으면 results 배열 길이로 대체)
+        const totalCount = libraryData.total !== undefined && libraryData.total !== null
+            ? (typeof libraryData.total === 'number' ? libraryData.total : parseInt(libraryData.total, 10))
+            : results.length;
 
         console.log(`[library.js] ✅ [Proxy Test] Success → 검색 결과 ${totalCount}건 수신 완료. 키워드: "${keyword}"`);
 
