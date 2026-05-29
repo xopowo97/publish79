@@ -195,8 +195,20 @@ export default async function handler(req, res) {
         // ============================================================
         // ✅ 통신 성공 — 결과 정제 후 클라이언트로 전달
         // ============================================================
-        const results = libraryData.result || libraryData.docs || libraryData.data || libraryData;
-        const totalCount = libraryData.total || libraryData.totalCount || 0;
+        // ✅ [타입 안전성] 응답 데이터에서 결과 배열을 안전하게 추출
+        // 국립중앙도서관 API 응답 구조: { result: [...] } 또는 { docs: [...] } 등 다양
+        const rawResults = libraryData.result ?? libraryData.docs ?? libraryData.data ?? null;
+
+        // Array.isArray로 배열 여부 먼저 확인 →
+        //   배열이면: 그대로 사용
+        //   객체이면: [객체]로 감싸서 배열로 강제 변환
+        //   비어있으면: []로 방어 (시스템 전체 멈춤 방지)
+        const results = Array.isArray(rawResults)
+            ? rawResults
+            : (rawResults !== null && rawResults !== undefined ? [rawResults] : []);
+
+        // totalCount도 안전하게 추출 (없으면 results 배열 길이로 대체)
+        const totalCount = libraryData.total ?? libraryData.totalCount ?? libraryData.totalPage ?? results.length;
 
         console.log(`[library.js] ✅ [Proxy Test] Success → 검색 결과 ${totalCount}건 수신 완료. 키워드: "${keyword}"`);
 
