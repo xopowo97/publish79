@@ -35,7 +35,16 @@ async function fetchLibraryData(keyword) {
             console.log(`[Proxy Test] ✅ Success`);
             console.log(`  └ 키워드: "${keyword}" | 총 ${data.totalCount}건 수신`);
             console.log(`  └ 보안 로그: ${data.securityLog}`);
-            console.log('  └ 검색 결과 (상위 3건):', (data.results || []).slice(0, 3));
+            // ✅ [타입 안전성] Array.isArray로 배열 여부 확인 후 안전하게 slice
+            //   배열이면: 그대로 slice(0, 3)
+            //   객체이면: [객체]로 감싸서 slice 가능하게 강제 변환
+            //   비어있으면: []로 방어 (시스템 전체 멈춤 방지)
+            const rawResults = data.results;
+            const safeResults = Array.isArray(rawResults)
+                ? rawResults
+                : (rawResults !== null && rawResults !== undefined ? [rawResults] : []);
+            console.log('  └ 검색 결과 (상위 3건):', safeResults.slice(0, 3));
+
             return data;
         } else {
             // ❌ 서버 응답은 받았으나 에러 상태 (400, 502 등)
