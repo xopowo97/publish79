@@ -1,3 +1,92 @@
+// ============================================================
+// [1번 살피미 에이전트] 국립중앙도서관 딥서치 클라이언트 모듈
+// ============================================================
+// ⚠️ 중요: 이 함수는 절대 국립중앙도서관 API를 직접 호출하지 않습니다.
+//   API Key 노출(보안) 및 CORS 문제를 방지하기 위해 반드시
+//   서버리스 프록시 /api/library 를 경유하여 호출합니다.
+// 방어 루프: [클라이언트 호출] → [api/library.js 프록시]
+//            → [12번 보안관 키워드 스캔] → [국립중앙도서관 API]
+//            → (에러 발생 시) [9번 실장 포착] → [12번 보안관 DANGER 판정]
+// ============================================================
+
+// 프록시 API 엔드포인트 (로컬/Vercel 환경 자동 분기)
+const LIBRARY_PROXY_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'https://publish79.vercel.app/api/library'
+    : '/api/library';
+
+/**
+ * [1번 살피미 에이전트] 국립중앙도서관 도서 검색 함수
+ * @param {string} keyword - 검색할 도서 키워드 (예: '절판 도서', '출판')
+ * @returns {Promise<Object>} - 검색 결과 객체 { success, totalCount, results, proxyLog, securityLog }
+ */
+async function fetchLibraryData(keyword) {
+    console.log(`[Proxy Test] 🔍 1번 살피미 에이전트 → 검색 시작: "${keyword}"`);
+
+    try {
+        const res = await fetch(`${LIBRARY_PROXY_ENDPOINT}?keyword=${encodeURIComponent(keyword)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            // ✅ 통신 성공 — 결과 콘솔 출력
+            console.log(`[Proxy Test] ✅ Success`);
+            console.log(`  └ 키워드: "${keyword}" | 총 ${data.totalCount}건 수신`);
+            console.log(`  └ 보안 로그: ${data.securityLog}`);
+            console.log('  └ 검색 결과 (상위 3건):', (data.results || []).slice(0, 3));
+            return data;
+        } else {
+            // ❌ 서버 응답은 받았으나 에러 상태 (400, 502 등)
+            // → 9번 실장이 이미 api/library.js 내에서 에러를 포착하여 보고함
+            console.error(`[Proxy Test] ❌ 9번→12번 방어 작동`);
+            console.error(`  └ 에러: ${data.error || '알 수 없는 오류'}`);
+            console.error(`  └ 프록시 로그: ${data.proxyLog || '-'}`);
+            console.error(`  └ 보안 로그: ${data.securityLog || '-'}`);
+            return null;
+        }
+    } catch (networkError) {
+        // 네트워크 단절 등 fetch 자체 실패 시 9번 실장에 직접 보고
+        const errMsg = `[1번 살피미] 프록시 통신 실패 (네트워크 예외): ${networkError.message}`;
+        console.error(`[Proxy Test] ❌ 9번→12번 방어 작동: ${errMsg}`);
+
+        // 9번 기술행정지원 실장 에러 파이프라인 직접 연동
+        reportSystemError({
+            message: errMsg,
+            filename: 'api/library.js (proxy)',
+            lineno: 0,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'system_agent_01',
+            userRole: sessionStorage.getItem('userRole') || 'agent'
+        });
+        return null;
+    }
+}
+
+// ============================================================
+// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (정상 + 강제 에러)
+// 테스트가 완료된 후에는 이 블록을 주석 처리하거나 제거하세요.
+// ============================================================
+window.addEventListener('load', async () => {
+    // --- 테스트 1: 정상 통신 검증 ---
+    console.log('');
+    console.log('============================================================');
+    console.log('[Proxy Test] 🚀 1번 살피미 에이전트 검증 테스트 시작');
+    console.log('============================================================');
+    await fetchLibraryData('출판');
+
+    // --- 테스트 2: 9번→12번 방어 루프 강제 작동 검증 ---
+    // XSS 악성 키워드를 주입하여 12번 보안관이 DANGER 판정을 내리는지 확인
+    console.log('');
+    console.log('[Proxy Test] ⚔️  보안 방어 루프 강제 테스트 시작 (XSS 키워드 주입)...');
+    await fetchLibraryData('<script>alert("공격")</script>');
+
+    console.log('');
+    console.log('[Proxy Test] ✅ 검증 테스트 완료. 위 로그에서 Success / 9번→12번 방어 작동 확인.');
+    console.log('============================================================');
+});
+
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
 // Vercel Serverless Function 프록시 API 경로 정의
 const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
