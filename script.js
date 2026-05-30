@@ -3584,14 +3584,16 @@ function applyRoleVisibility() {
         priceLogBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
     }
 
-    // 6. AI 헬퍼 (FAB & Panel) 관리자 전용 노출 제어
+    // 6. AI 헬퍼 (FAB & Panel) 관리자 전용 노출 제어 (로그인 세션 확인 추가)
     const fab = document.getElementById('ai-fab');
     const panel = document.getElementById('ai-panel');
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+
     if (fab) {
-        fab.style.display = (role === 'admin') ? 'flex' : 'none';
+        fab.style.display = (isLoggedIn && role === 'admin') ? 'flex' : 'none';
     }
     if (panel) {
-        if (role !== 'admin') {
+        if (!isLoggedIn || role !== 'admin') {
             panel.classList.remove('active');
             panel.style.display = 'none';
         } else {
