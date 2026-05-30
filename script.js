@@ -708,7 +708,7 @@ function renderAll() {
         }
     } else {
         if (typeof showPage === 'function') {
-            showPage('spec');
+            showPage('agent-control');
         }
     }
     if (window.lucide) lucide.createIcons();
@@ -1392,6 +1392,7 @@ function showPage(p, isEdit = false) {
 
     // 페이지 제목 매핑
     const titles = {
+        'agent-control': '🤖 에이전트 통제실',
         'spec': '제작 사양 관리',
         'price': '단가관리',
         'order': '주문하기',
@@ -1423,6 +1424,7 @@ function showPage(p, isEdit = false) {
         priceTools.className = (p === 'price') ? 'mb-4 flex items-center gap-4 bg-slate-50 p-2 rounded-xl border' : 'hidden';
     }
 
+    if (p === 'agent-control') initAgentControlChart();
     if (p === 'spec') renderSpec();
     if (p === 'price') { renderGradeTabs(); renderPrice(); }
     if (p === 'partner') {
@@ -6066,3 +6068,111 @@ document.addEventListener('DOMContentLoaded', () => {
     // 12번 보안관 상시 감시 스레드 실행
     startSecuritySheriffWatchdog();
 });
+
+// ============================================================
+// 🤖 에이전트 통제실 — 차트 & 실시간 로그 시뮬레이션
+// ============================================================
+
+let acTrendChartInstance = null;
+
+function initAgentControlChart() {
+    const canvas = document.getElementById('ac-trend-chart');
+    if (!canvas) return;
+
+    // 기존 차트 인스턴스 파괴 (페이지 재진입 시 중복 방지)
+    if (acTrendChartInstance) {
+        acTrendChartInstance.destroy();
+        acTrendChartInstance = null;
+    }
+
+    const labels = ['5/24', '5/25', '5/26', '5/27', '5/28', '5/29', '5/30'];
+    const data = [58, 65, 72, 69, 81, 88, 94];
+
+    acTrendChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: '복간 수요 지수',
+                data,
+                borderColor: '#0284c7',
+                backgroundColor: 'rgba(2, 132, 199, 0.08)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#0284c7',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                borderWidth: 2.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0f172a',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f1f5f9',
+                    padding: 10,
+                    cornerRadius: 10
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10, weight: '700' }, color: '#94a3b8' }
+                },
+                y: {
+                    min: 40,
+                    max: 100,
+                    grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                    ticks: { font: { size: 10, weight: '700' }, color: '#94a3b8', stepSize: 20 }
+                }
+            }
+        }
+    });
+
+    // 실시간 로그 스트림 시뮬레이션 시작
+    startAgentLogStream();
+}
+
+const AC_LOG_POOL = [
+    { type: 'success', agent: '[살피미]',       msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
+    { type: 'info',    agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
+    { type: 'warn',    agent: '[다듬이]',        msg: '절판 도서 {n}건 필터링 처리 중' },
+    { type: 'success', agent: '[눈치왕]',        msg: '에러 감지 0건 · 시스템 정상 운영 중' },
+    { type: 'info',    agent: '[알림이]',        msg: '복간 후보 보고서 초안 생성 완료' },
+    { type: 'success', agent: '[보안관]',        msg: '비정상 API 호출 0건 · 보안 이상 없음' },
+    { type: 'info',    agent: '[지킴이]',        msg: 'SQL Injection 스캔 완료 · 위협 없음' },
+];
+
+let acLogIntervalId = null;
+
+function startAgentLogStream() {
+    // 중복 실행 방지
+    if (acLogIntervalId) clearInterval(acLogIntervalId);
+
+    acLogIntervalId = setInterval(() => {
+        const el = document.getElementById('ac-log-stream');
+        if (!el || !el.closest('.page-content.active')) {
+            clearInterval(acLogIntervalId);
+            acLogIntervalId = null;
+            return;
+        }
+        const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
+        const n = Math.floor(Math.random() * 50) + 50;
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+        const div = document.createElement('div');
+        div.className = `ac-log-entry ac-log-${pool.type}`;
+        div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
+
+        el.prepend(div);
+        // 최대 20개 유지
+        while (el.children.length > 20) {
+            el.removeChild(el.lastChild);
+        }
+    }, 4000);
+}
