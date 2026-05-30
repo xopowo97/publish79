@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 
 <head>
@@ -59,7 +59,10 @@
                 <span class="status-text">ONLINE DB 연동 대기중</span>
             </div>
             <nav class="flex-1 space-y-1 overflow-y-auto">
-                <div class="sidebar-item active" id="btn-spec" onclick="showPage('spec')">
+                <div class="sidebar-item active" id="btn-agent-control" onclick="showPage('agent-control')">
+                    <i data-lucide="cpu" class="w-4 h-4 mr-3"></i>🤖 에이전트 통제실
+                </div>
+                <div class="sidebar-item" id="btn-spec" onclick="showPage('spec')">
                     <i data-lucide="settings-2" class="w-4 h-4 mr-3"></i>제작 사양 관리
                 </div>
                 <div class="sidebar-item" id="btn-price" onclick="showPage('price')">
@@ -449,7 +452,8 @@
                                                 class="text-[10px] font-bold text-slate-400 mb-1 block">부분컬러페이지</label><input
                                                 type="number" id="ord-cp" value="0" class="input-pptx"
                                                 oninput="calculatePages(); sync();">
-                                            <p class="text-[10px] text-slate-500 italic mt-1">부분컬러페이지는 내지 인쇄에서 부분칼라 단면 또는 양면을 선택해야 사용할 수 있습니다.</p>
+                                            <p class="text-[10px] text-slate-500 italic mt-1">부분컬러페이지는 내지 인쇄에서 부분칼라 단면
+                                                또는 양면을 선택해야 사용할 수 있습니다.</p>
                                         </div>
                                         <div><label
                                                 class="text-[10px] font-bold text-slate-400 mb-1 block">흑백페이지(자동)</label><input
@@ -1433,6 +1437,203 @@
             </div>
         </div>
 
+        <!-- ==========================================
+             PAGE: 에이전트 통제실 (Agent Control Room)
+             ========================================== -->
+        <div id="page-agent-control" class="page-content active">
+
+            <!-- [상단] 13번 오케스트레이터 지시 카드 -->
+            <div class="ac-orchestrator-banner">
+                <div class="ac-orchestrator-icon">
+                    <i data-lucide="brain-circuit" class="w-7 h-7"></i>
+                </div>
+                <div class="ac-orchestrator-body">
+                    <div class="ac-orchestrator-label">🧠 13번 오케스트레이터 · 실시간 지시사항</div>
+                    <div class="ac-orchestrator-msg" id="orchestrator-msg">
+                        살피미의 국립중앙도서관 API 응답 완료. 데이터 신뢰도 92%. 다듬이에게 절판 도서 필터링 명령 전송 중...
+                    </div>
+                </div>
+                <div class="ac-orchestrator-score">
+                    <div class="ac-score-num" id="orchestrator-score">92<span>%</span></div>
+                    <div class="ac-score-label">데이터 신뢰도</div>
+                </div>
+            </div>
+
+            <!-- [3컬럼] 메인 대시보드 그리드 -->
+            <div class="ac-grid">
+
+                <!-- ★ 왼쪽 컬럼: 에이전트 조직도 -->
+                <div class="ac-panel">
+                    <div class="ac-panel-header">
+                        <i data-lucide="git-branch" class="w-4 h-4"></i>
+                        <span>에이전트 조직도</span>
+                        <span class="ac-panel-badge ac-badge-live">LIVE</span>
+                    </div>
+                    <div class="ac-org-tree">
+                        <!-- Dept 1: 데이터 수집 부서 -->
+                        <div class="ac-dept">
+                            <div class="ac-dept-title">📡 데이터 수집 부서</div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-green"></span>
+                                <span class="ac-agent-name">1번 살피미</span>
+                                <span class="ac-agent-task">API 수집 완료</span>
+                                <span class="ac-agent-tag">딥서치</span>
+                            </div>
+                        </div>
+                        <!-- Dept 2: 데이터 정제 부서 -->
+                        <div class="ac-dept">
+                            <div class="ac-dept-title">🧹 데이터 정제 부서</div>
+                            <div class="ac-agent-row ac-agent-running">
+                                <span class="ac-dot ac-dot-amber"></span>
+                                <span class="ac-agent-name">2번 다듬이</span>
+                                <span class="ac-agent-task">절판 필터 처리중</span>
+                                <span class="ac-agent-tag">정제</span>
+                            </div>
+                        </div>
+                        <!-- Dept 3: 분석·판단 부서 -->
+                        <div class="ac-dept">
+                            <div class="ac-dept-title">📊 분석·판단 부서</div>
+                            <div class="ac-agent-row ac-agent-idle">
+                                <span class="ac-dot ac-dot-slate"></span>
+                                <span class="ac-agent-name">3번 ~ 8번</span>
+                                <span class="ac-agent-task">대기중</span>
+                                <span class="ac-agent-tag">준비</span>
+                            </div>
+                        </div>
+                        <!-- Dept 4: 보안·모니터링 -->
+                        <div class="ac-dept">
+                            <div class="ac-dept-title">🔒 보안·모니터링 부서</div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-green"></span>
+                                <span class="ac-agent-name">9번 눈치왕</span>
+                                <span class="ac-agent-task">에러 감시중</span>
+                                <span class="ac-agent-tag">감시</span>
+                            </div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-green"></span>
+                                <span class="ac-agent-name">10번 지킴이</span>
+                                <span class="ac-agent-task">보안 정상</span>
+                                <span class="ac-agent-tag">보안</span>
+                            </div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-green"></span>
+                                <span class="ac-agent-name">11번 알림이</span>
+                                <span class="ac-agent-task">알림 대기</span>
+                                <span class="ac-agent-tag">알림</span>
+                            </div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-green"></span>
+                                <span class="ac-agent-name">12번 보안관</span>
+                                <span class="ac-agent-task">통제 정상</span>
+                                <span class="ac-agent-tag">통제</span>
+                            </div>
+                        </div>
+                        <!-- 13번 오케스트레이터 -->
+                        <div class="ac-dept ac-dept-orchestrator">
+                            <div class="ac-dept-title">🧠 총지휘부</div>
+                            <div class="ac-agent-row ac-agent-active">
+                                <span class="ac-dot ac-dot-purple"></span>
+                                <span class="ac-agent-name">13번 오케스트레이터</span>
+                                <span class="ac-agent-task">전체 지휘중</span>
+                                <span class="ac-agent-tag ac-tag-purple">지휘</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ★ 가운데 컬럼: 복간 후보 TOP3 + 트렌드 차트 -->
+                <div class="ac-panel">
+                    <div class="ac-panel-header">
+                        <i data-lucide="trophy" class="w-4 h-4"></i>
+                        <span>복간 후보 TOP 3</span>
+                        <span class="ac-panel-badge ac-badge-ai">AI 분석</span>
+                    </div>
+
+                    <!-- TOP3 카드 -->
+                    <div class="ac-top3-list" id="ac-top3-list">
+                        <div class="ac-book-card ac-rank-1">
+                            <div class="ac-rank-badge">🥇 1위</div>
+                            <div class="ac-book-info">
+                                <div class="ac-book-title">오래된 미래 (헬레나 노르베리-호지)</div>
+                                <div class="ac-book-meta">절판 · 2019 · 수요지수 <strong>98.2</strong></div>
+                            </div>
+                            <div class="ac-reprint-score">98<span>점</span></div>
+                        </div>
+                        <div class="ac-book-card ac-rank-2">
+                            <div class="ac-rank-badge">🥈 2위</div>
+                            <div class="ac-book-info">
+                                <div class="ac-book-title">탈학교의 사회 (이반 일리치)</div>
+                                <div class="ac-book-meta">절판 · 2017 · 수요지수 <strong>94.7</strong></div>
+                            </div>
+                            <div class="ac-reprint-score">95<span>점</span></div>
+                        </div>
+                        <div class="ac-book-card ac-rank-3">
+                            <div class="ac-rank-badge">🥉 3위</div>
+                            <div class="ac-book-info">
+                                <div class="ac-book-title">생각의 탄생 (루트번스타인)</div>
+                                <div class="ac-book-meta">절판 · 2020 · 수요지수 <strong>91.1</strong></div>
+                            </div>
+                            <div class="ac-reprint-score">91<span>점</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 트렌드 차트 -->
+                    <div class="ac-panel-header" style="margin-top: 20px;">
+                        <i data-lucide="trending-up" class="w-4 h-4"></i>
+                        <span>7일 수요 트렌드</span>
+                    </div>
+                    <div style="position: relative; height: 160px; margin-top: 8px;">
+                        <canvas id="ac-trend-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ★ 오른쪽 컬럼: 실시간 로그 스트림 -->
+                <div class="ac-panel">
+                    <div class="ac-panel-header">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>실시간 에이전트 로그</span>
+                        <span class="ac-panel-badge ac-badge-live">LIVE</span>
+                    </div>
+                    <div class="ac-log-stream" id="ac-log-stream">
+                        <div class="ac-log-entry ac-log-success">
+                            <span class="ac-log-time">14:03:12</span>
+                            <span class="ac-log-agent">[살피미]</span>
+                            <span>국립중앙도서관 API 호출 성공 · 도서 247건 수집</span>
+                        </div>
+                        <div class="ac-log-entry ac-log-info">
+                            <span class="ac-log-time">14:03:15</span>
+                            <span class="ac-log-agent">[오케스트레이터]</span>
+                            <span>데이터 정제 명령 → 다듬이 전송</span>
+                        </div>
+                        <div class="ac-log-entry ac-log-warn">
+                            <span class="ac-log-time">14:03:18</span>
+                            <span class="ac-log-agent">[다듬이]</span>
+                            <span>절판 도서 필터 처리중 · 62건 감지</span>
+                        </div>
+                        <div class="ac-log-entry ac-log-success">
+                            <span class="ac-log-time">14:03:22</span>
+                            <span class="ac-log-agent">[보안관]</span>
+                            <span>비정상 API 호출 0건 · 보안 정상</span>
+                        </div>
+                        <div class="ac-log-entry ac-log-info">
+                            <span class="ac-log-time">14:03:25</span>
+                            <span class="ac-log-agent">[눈치왕]</span>
+                            <span>에러 없음 · 시스템 안정 상태</span>
+                        </div>
+                        <div class="ac-log-entry ac-log-info">
+                            <span class="ac-log-time">14:03:28</span>
+                            <span class="ac-log-agent">[오케스트레이터]</span>
+                            <span>복간 타당성 점수 산출 준비중...</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <!-- ==========================================
+             END: 에이전트 통제실
+             ========================================== -->
+
         <!-- 주문 상세 정보 슬라이드 패널 -->
         <div id="order-details-overlay" class="hidden fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm transition-all"
             onclick="closeOrderDetails()"></div>
@@ -1496,8 +1697,12 @@
         </div>
         <div class="ai-footer">
             <input type="text" placeholder="Antigravity에게 질문하기..." class="ai-input">
-            <button class="ai-send-btn">
-                <i data-lucide="send" class="w-4 h-4"></i>
+            <button id="ai-send-btn" class="ai-send-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
             </button>
         </div>
     </div>
