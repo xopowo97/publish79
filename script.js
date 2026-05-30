@@ -3507,15 +3507,15 @@ function switchRole(newRole) {
 function applyRoleVisibility() {
     const role = currentUserRole;
 
-    // 1. 사이드바 메뉴 노출 매핑
+    // 1. 사이드바 메뉴 노출 매핑 (에이전트 통제실 btn-agent-control 은 admin 전용)
     const menuVisibility = {
-        admin: ['btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'],
+        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'],
         publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production'],
         printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
         printer_worker: ['btn-production'] // 작업자는 생산진행만 가능
     };
 
-    const allMenus = ['btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'];
+    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'];
     const allowed = menuVisibility[role] || allMenus;
 
     // 2. 사이드바 엘리먼트 노출 제어 및 명칭 치환
@@ -3582,6 +3582,21 @@ function applyRoleVisibility() {
     const priceLogBtn = document.getElementById('btn-show-price-log');
     if (priceLogBtn) {
         priceLogBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
+    }
+
+    // 6. AI 헬퍼 (FAB & Panel) 관리자 전용 노출 제어
+    const fab = document.getElementById('ai-fab');
+    const panel = document.getElementById('ai-panel');
+    if (fab) {
+        fab.style.display = (role === 'admin') ? 'flex' : 'none';
+    }
+    if (panel) {
+        if (role !== 'admin') {
+            panel.classList.remove('active');
+            panel.style.display = 'none';
+        } else {
+            panel.style.display = ''; // 기본 스타일 복구
+        }
     }
 }
 
