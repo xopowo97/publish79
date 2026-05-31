@@ -229,7 +229,7 @@ export default async function handler(req, res) {
         // Supabase reprint_candidates 테이블 UPSERT (ISBN 기준 중복 방지)
         // ========================================================
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
-        const upsertEndpoint = `${base}/reprint_candidates`;
+        const upsertEndpoint = `${base}/reprint_candidates?on_conflict=isbn`;
 
         const upsertRes = await fetch(upsertEndpoint, {
             method: 'POST',
