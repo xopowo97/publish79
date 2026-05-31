@@ -1459,6 +1459,20 @@
                 </div>
             </div>
 
+            <!-- [파이프라인 실행 컨트롤 패널] -->
+            <div class="ac-pipeline-control" id="ac-pipeline-control">
+                <div class="ac-pipeline-left">
+                    <span class="ac-pipeline-label">🔬 살피미 + 다듬이 파이프라인 수동 실행</span>
+                    <input type="text" id="pipeline-keyword-input" class="ac-pipeline-input" placeholder="검색 키워드 입력 (예: 절판 도서, 생태학...)" value="절판 도서">
+                    <button id="btn-trigger-pipeline" class="ac-pipeline-btn" onclick="triggerPipeline()">🚀 파이프라인 실행</button>
+                </div>
+                <div class="ac-pipeline-right">
+                    <span id="pipeline-status-text" class="ac-pipeline-status">대기 중 — 버튼을 눌러 파이프라인을 가동하세요.</span>
+                    <button id="btn-flashlight-mode" class="ac-flashlight-btn" onclick="toggleFlashlightMode()">⚡ 플래시 라이트 모드 시연</button>
+                </div>
+            </div>
+
+
             <!-- [3컬럼] 메인 대시보드 그리드 -->
             <div class="ac-grid">
 
@@ -1469,7 +1483,7 @@
                         <span>에이전트 조직도</span>
                         <span class="ac-panel-badge ac-badge-live">LIVE</span>
                     </div>
-                    <div class="ac-org-tree">
+                    <div class="ac-org-tree" id="ac-org-tree">
                         <!-- Dept 1: 데이터 수집 부서 -->
                         <div class="ac-dept">
                             <div class="ac-dept-title">📡 데이터 수집 부서</div>
