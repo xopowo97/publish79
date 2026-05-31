@@ -6114,7 +6114,12 @@ function initAgentControlChart() {
         acTrendChartInstance = null;
     }
 
-    const labels = ['5/24', '5/25', '5/26', '5/27', '5/28', '5/29', '5/30'];
+    const labels = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+    }
     const data = [58, 65, 72, 69, 81, 88, 94];
 
     acTrendChartInstance = new Chart(canvas, {
