@@ -950,3 +950,144 @@ th {
     .ac-orchestrator-score { border-top: 1px dashed rgba(148, 163, 184, 0.2); padding-top: 12px; width: 100%; }
     .ac-panel { min-height: unset; }
 }
+
+/* ============================================================
+   파이프라인 컨트롤 패널 스타일
+   ============================================================ */
+.ac-pipeline-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 16px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.ac-pipeline-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+.ac-pipeline-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: #7dd3fc;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+.ac-pipeline-input {
+    flex: 1;
+    min-width: 160px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+    outline: none;
+    font-family: 'Pretendard', sans-serif;
+    transition: border-color 0.2s;
+}
+.ac-pipeline-input:focus { border-color: #0284c7; }
+.ac-pipeline-input::placeholder { color: #475569; }
+.ac-pipeline-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    font-family: 'Pretendard', sans-serif;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+.ac-pipeline-btn:hover:not(:disabled) { background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%); transform: translateY(-1px); }
+.ac-pipeline-btn:disabled { background: #334155; cursor: not-allowed; transform: none; }
+.ac-pipeline-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.ac-pipeline-status {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    max-width: 300px;
+}
+
+/* 플래시 라이트 모드 버튼 */
+.ac-flashlight-btn {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    font-family: 'Pretendard', sans-serif;
+}
+.ac-flashlight-btn:hover { background: rgba(245, 158, 11, 0.2); box-shadow: 0 0 12px rgba(245, 158, 11, 0.3); }
+.ac-flashlight-btn.btn-flashlight-on {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+    animation: flashlight-pulse 0.8s ease-in-out infinite;
+}
+
+/* ============================================================
+   ⚡ 플래시 라이트 모드 — 과부하 경고 비주얼
+   ============================================================ */
+@keyframes flashlight-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@keyframes flashlight-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 에이전트 통제실 전체에 경고 오버레이 효과 */
+#page-agent-control.ac-flashlight-active {
+    animation: flashlight-blink 1.2s ease-in-out infinite;
+    position: relative;
+}
+#page-agent-control.ac-flashlight-active::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(239, 68, 68, 0.04);
+    pointer-events: none;
+    z-index: 1;
+    animation: flashlight-blink 0.6s ease-in-out infinite;
+}
+#page-agent-control.ac-flashlight-active .ac-orchestrator-banner {
+    border-color: rgba(239, 68, 68, 0.5) !important;
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 50%, #1a0a0a 100%) !important;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(239, 68, 68, 0.2) !important;
+}
+#page-agent-control.ac-flashlight-active .ac-orchestrator-label {
+    color: #fca5a5 !important;
+}
+#page-agent-control.ac-flashlight-active .ac-score-num {
+    color: #ef4444 !important;
+    text-shadow: 0 0 20px rgba(239, 68, 68, 0.6) !important;
+}
+#page-agent-control.ac-flashlight-active .ac-dot-green {
+    background: #f59e0b !important;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.6) !important;
+}
+#page-agent-control.ac-flashlight-active .ac-agent-active { background: rgba(245, 158, 11, 0.06) !important; }
