@@ -6302,7 +6302,7 @@ async function loadAgentControlDashboard() {
         let candidates = [];
         // Supabase 클라이언트에서 reprint_candidates 테이블 직접 조회 시도 (1순위)
         const { data, error } = await _supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3);
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
             candidates = data;
         } else {
             // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
