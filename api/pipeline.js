@@ -128,6 +128,33 @@ async function writeAuditLog(supabase_url, supabase_key, logData) {
 }
 
 // ============================================================
+// Supabase에 에이전트 상태 업데이트 (agents 테이블)
+// ============================================================
+async function updateAgentStatus(supabase_url, supabase_key, agentId, status, role) {
+    try {
+        const base = supabase_url.replace(/\/+$/, '') + '/rest/v1';
+        const endpoint = `${base}/agents?id=eq.${agentId}`;
+        await fetch(endpoint, {
+            method: 'PATCH',
+            headers: {
+                'apikey': supabase_key,
+                'Authorization': `Bearer ${supabase_key}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+                status: status,
+                role: role,
+                updated_at: new Date().toISOString()
+            })
+        });
+    } catch (_) {
+        // 에이전트 상태 업데이트 실패가 전체 파이프라인 가동을 막지 않음
+    }
+}
+
+
+// ============================================================
 // Vercel 서버리스 핸들러 (메인 진입점)
 // ============================================================
 export default async function handler(req, res) {
@@ -170,6 +197,11 @@ export default async function handler(req, res) {
         writeAuditLog(rawUrl, supKey, { agent_id, agent_name, log_level: level, message, metadata });
 
     try {
+        // [초기 상태 변경] 오케스트레이터 및 1번 살피미 작동 시작, 2번 다듬이 대기 상태 리셋
+        await updateAgentStatus(rawUrl, supKey, 13, 'running', '파이프라인 실행 지휘 중');
+        await updateAgentStatus(rawUrl, supKey, 1, 'running', '도서관 API 데이터 수집 중');
+        await updateAgentStatus(rawUrl, supKey, 2, 'idle', '대기중');
+
         // ========================================================
         // [1번 살피미] 국립중앙도서관 API 호출 (딥서치)
         // ========================================================
@@ -192,6 +224,10 @@ export default async function handler(req, res) {
         if (!libRes.ok) {
             const errText = await libRes.text();
             await log(1, '살피미', 'error', `API 호출 실패 (HTTP ${libRes.status}): ${errText.substring(0, 200)}`, { status: libRes.status });
+            
+            // 오류 상태 변경
+            await updateAgentStatus(rawUrl, supKey, 1, 'error', 'API 호출 오류');
+            await updateAgentStatus(rawUrl, supKey, 13, 'error', '파이프라인 실행 중단');
             return res.status(502).json({ error: '국립중앙도서관 API 오류', detail: errText.substring(0, 200) });
         }
 
@@ -203,10 +239,17 @@ export default async function handler(req, res) {
         await log(1, '살피미', 'success', `API 수집 완료 — ${totalCount}건 확보 (실 수신: ${results.length}건)`, { totalCount, received: results.length });
 
         if (results.length === 0) {
+            // 결과 없음 상태 변경
+            await updateAgentStatus(rawUrl, supKey, 1, 'success', '도서 수집 완료 (결과 없음)');
+            await updateAgentStatus(rawUrl, supKey, 13, 'success', '수집 결과 없어 종료');
             return res.status(200).json({
                 success: true, message: '수집 결과 없음 — 파이프라인 종료', inserted: 0
             });
         }
+
+        // [상태 변경] 1번 살피미 수집 성공 및 2번 다듬이 정제 가동
+        await updateAgentStatus(rawUrl, supKey, 1, 'success', '도서 수집 완료');
+        await updateAgentStatus(rawUrl, supKey, 2, 'running', '수집 도서 데이터 정제 중');
 
         // ========================================================
         // [2번 다듬이] 수집 데이터 정제 + 복간 점수 산출
@@ -220,10 +263,16 @@ export default async function handler(req, res) {
         await log(2, '다듬이', 'success', `정제 완료 — 복간 후보 ${refined.length}건 선별 (점수 30점 이상 필터)`, { candidates: refined.length });
 
         if (refined.length === 0) {
+            // 기준 미달 상태 변경
+            await updateAgentStatus(rawUrl, supKey, 2, 'success', '정제 완료 (기준 미달)');
+            await updateAgentStatus(rawUrl, supKey, 13, 'success', '복간 후보 기준 미달로 종료');
             return res.status(200).json({
                 success: true, message: '복간 후보 기준 미달 — DB 적재 없음', inserted: 0
             });
         }
+
+        // [상태 변경] 2번 다듬이 정제 성공
+        await updateAgentStatus(rawUrl, supKey, 2, 'success', '복간 후보 선별 완료');
 
         // ========================================================
         // Supabase reprint_candidates 테이블 UPSERT (ISBN 기준 중복 방지)
@@ -245,12 +294,18 @@ export default async function handler(req, res) {
         if (!upsertRes.ok) {
             const errText = await upsertRes.text();
             await log(13, '오케스트레이터', 'error', `DB 적재 실패 (HTTP ${upsertRes.status}): ${errText.substring(0, 200)}`, {});
+            
+            // 오류 상태 변경
+            await updateAgentStatus(rawUrl, supKey, 13, 'error', 'DB 적재 실패');
             return res.status(502).json({ error: 'Supabase 적재 실패', detail: errText.substring(0, 200) });
         }
 
         await log(13, '오케스트레이터', 'success', `파이프라인 완료 — ${refined.length}건 DB 적재 완료 (키워드: "${keyword}")`, {
             keyword, inserted: refined.length, pipelineStartAt
         });
+
+        // [상태 변경] 오케스트레이터 최종 파이프라인 및 DB 적재 성공 완료
+        await updateAgentStatus(rawUrl, supKey, 13, 'success', '파이프라인 및 DB 적재 완료');
 
         return res.status(200).json({
             success: true,
@@ -264,6 +319,10 @@ export default async function handler(req, res) {
     } catch (err) {
         const msg = err?.message ? String(err.message) : String(err);
         await log(9, '눈치왕', 'error', `파이프라인 예외 발생: ${msg}`, {});
+        
+        // 예외 상태 변경
+        await updateAgentStatus(rawUrl, supKey, 13, 'error', '파이프라인 가동 에러');
+        await updateAgentStatus(rawUrl, supKey, 9, 'error', '시스템 예외 포착 및 대응 대기');
         return res.status(500).json({ error: '파이프라인 내부 오류', detail: msg });
     }
 }
