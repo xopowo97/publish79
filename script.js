@@ -966,7 +966,7 @@ function syncData(type, id, field, value) {
     const list = ['sheetSpecs', 'rollSpecs', 'commons'].includes(type) ? priceData[type] : MASTER[type];
 
     if (typeof list[0] === 'object') {
-        const item = list.find(x => x.id === id);
+        const item = list.find(x => String(x.id) === String(id));
         if (item) {
             if (field.includes('.')) {
                 const parts = field.split('.');
@@ -1010,7 +1010,7 @@ function removeItem(type, id) {
     const target = ['sheetSpecs', 'rollSpecs', 'commons'].includes(type) ? priceData : MASTER;
 
     if (typeof target[type][0] === 'object') {
-        target[type] = target[type].filter(x => x.id !== id);
+        target[type] = target[type].filter(x => String(x.id) !== String(id));
     } else {
         target[type].splice(id, 1);
     }
@@ -1025,7 +1025,7 @@ function moveItem(type, id, direction) {
 
     let idx;
     if (typeof list[0] === 'object') {
-        idx = list.findIndex(x => x.id == id);
+        idx = list.findIndex(x => String(x.id) === String(id));
     } else {
         idx = parseInt(id);
     }
