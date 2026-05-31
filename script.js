@@ -467,6 +467,7 @@ function logout() {
 }
 
 let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
+let agentControlPollingIntervalId = null; // 에이전트 통제실 실시간 폴링 타이머 ID
 
 // 초기 등급 데이터 세팅
 function ensureGradeData() {
@@ -1374,6 +1375,12 @@ function showPage(p, isEdit = false) {
     const role = sessionStorage.getItem('userRole') || 'admin';
     updateMenuVisibility(role);
 
+    // 에이전트 통제실 실시간 폴링 타이머 초기화
+    if (agentControlPollingIntervalId) {
+        clearInterval(agentControlPollingIntervalId);
+        agentControlPollingIntervalId = null;
+    }
+
     // 파트너사 정보 수정 중(파일 선택 등) 페이지 이탈 방지
     if (currentBizFileData) {
         if (!confirm("수정사항(사업자등록증 등)이 저장되지 않았습니다. 이대로 페이지를 이동하시겠습니까?")) {
@@ -1424,7 +1431,12 @@ function showPage(p, isEdit = false) {
         priceTools.className = (p === 'price') ? 'mb-4 flex items-center gap-4 bg-slate-50 p-2 rounded-xl border' : 'hidden';
     }
 
-    if (p === 'agent-control') initAgentControlChart();
+    if (p === 'agent-control') {
+        initAgentControlChart();
+        loadAgentControlDashboard();
+        // 10초 주기로 실시간 데이터 갱신
+        agentControlPollingIntervalId = setInterval(loadAgentControlDashboard, 10000);
+    }
     if (p === 'spec') renderSpec();
     if (p === 'price') { renderGradeTabs(); renderPrice(); }
     if (p === 'partner') {
@@ -6150,7 +6162,7 @@ function initAgentControlChart() {
         }
     });
 
-    // 실시간 로그 스트림 시뮬레이션 시작
+    // 실시간 로그 스트림 — DB 연동 우선, 폴백 시 시뮬레이션
     startAgentLogStream();
 }
 
@@ -6166,9 +6178,15 @@ const AC_LOG_POOL = [
 
 let acLogIntervalId = null;
 
+// agent_audit_logs 마지막 조회 시점 추적 (실시간 폴링용)
+let _lastAuditLogId = 0;
+
 function startAgentLogStream() {
     // 중복 실행 방지
     if (acLogIntervalId) clearInterval(acLogIntervalId);
+
+    // 첫 실행 즉시 DB 로그 로드
+    _fetchAndRenderAuditLogs();
 
     acLogIntervalId = setInterval(() => {
         const el = document.getElementById('ac-log-stream');
@@ -6177,19 +6195,419 @@ function startAgentLogStream() {
             acLogIntervalId = null;
             return;
         }
-        const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
-        const n = Math.floor(Math.random() * 50) + 50;
-        const now = new Date();
-        const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        _fetchAndRenderAuditLogs();
+    }, 5000); // 5초 주기 실제 DB 폴링
+}
 
-        const div = document.createElement('div');
-        div.className = `ac-log-entry ac-log-${pool.type}`;
-        div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
+async function _fetchAndRenderAuditLogs() {
+    const el = document.getElementById('ac-log-stream');
+    if (!el) return;
 
-        el.prepend(div);
-        // 최대 20개 유지
-        while (el.children.length > 20) {
-            el.removeChild(el.lastChild);
+    try {
+        // Supabase에서 최신 감사 로그 조회 (최근 15건)
+        let logs = [];
+        const { data, error } = await _supabase
+            .from('agent_audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(15);
+
+        if (!error && data && data.length > 0) {
+            logs = data;
+        } else {
+            // DB 미연동 시 시뮬레이션 폴백
+            _appendSimulatedLog(el);
+            return;
         }
-    }, 4000);
+
+        // 새 로그만 필터 (id 기준)
+        const newLogs = logs.filter(l => l.id > _lastAuditLogId);
+        if (newLogs.length === 0) return;
+
+        // 최신 id 업데이트
+        _lastAuditLogId = Math.max(...logs.map(l => l.id));
+
+        // 새 로그를 최상단에 삽입 (최신순)
+        newLogs.forEach(log => {
+            const levelMap = { success: 'success', error: 'error', warn: 'warn', info: 'info' };
+            const level = levelMap[log.log_level] || 'info';
+            const dt = new Date(log.created_at);
+            const time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+
+            const div = document.createElement('div');
+            div.className = `ac-log-entry ac-log-${level}`;
+            div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">[${log.agent_name}]</span><span>${log.message}</span>`;
+            el.prepend(div);
+        });
+
+        // 최대 20개 유지
+        while (el.children.length > 20) el.removeChild(el.lastChild);
+
+    } catch (err) {
+        // 예외 시 시뮬레이션 폴백
+        _appendSimulatedLog(el);
+    }
+}
+
+function _appendSimulatedLog(el) {
+    if (!el) return;
+    const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
+    const n = Math.floor(Math.random() * 50) + 50;
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const div = document.createElement('div');
+    div.className = `ac-log-entry ac-log-${pool.type}`;
+    div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
+    el.prepend(div);
+    while (el.children.length > 20) el.removeChild(el.lastChild);
+}
+
+// ============================================================
+// 🤖 에이전트 통제실 실시간 데이터 연동 및 렌더링 엔진
+// ============================================================
+
+async function loadAgentControlDashboard() {
+    // 1. 에이전트 조직도 연동
+    try {
+        let agents = [];
+        // Supabase 클라이언트에서 agents 테이블 직접 조회 시도 (1순위)
+        const { data, error } = await _supabase.from('agents').select('*').order('id', { ascending: true });
+        if (!error && data && data.length > 0) {
+            agents = data;
+        } else {
+            // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
+            const res = await fetch('/api/agents');
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    agents = apiRes.data;
+                }
+            }
+        }
+
+        if (agents && agents.length > 0) {
+            renderDynamicAgentOrgTree(agents);
+        }
+    } catch (err) {
+        console.warn("에이전트 조직도 연동 실패 (로컬 모드 유지):", err);
+    }
+
+    // 2. 복간 추천 TOP 3 연동
+    try {
+        let candidates = [];
+        // Supabase 클라이언트에서 reprint_candidates 테이블 직접 조회 시도 (1순위)
+        const { data, error } = await _supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3);
+        if (!error && data) {
+            candidates = data;
+        } else {
+            // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
+            const res = await fetch('/api/reprint-candidates');
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    candidates = apiRes.data;
+                }
+            }
+        }
+
+        renderDynamicReprintCandidates(candidates);
+    } catch (err) {
+        console.warn("복간 추천 TOP 3 연동 실패:", err);
+    }
+}
+
+function renderDynamicAgentOrgTree(agents) {
+    const container = document.getElementById('ac-org-tree');
+    if (!container) return;
+
+    const deptMapping = {
+        'Front':    '📡 가치 창출 및 자율 서비스 본부',
+        'Back':     '⚙️ 인프라 엔진 및 행정 지원 본부',
+        'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
+    };
+
+    const tagMapping = {
+        1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '검수',
+        6: '디자인', 7: '영업', 8: '마케팅', 9: '감시', 10: '자가치유',
+        11: '배포', 12: '보안', 13: '지휘'
+    };
+
+    // 그루핑
+    const grouped = {};
+    agents.forEach(agent => {
+        const dept = agent.department || 'Etc';
+        if (!grouped[dept]) grouped[dept] = [];
+        grouped[dept].push(agent);
+    });
+
+    const deptOrder = ['Front', 'Back', 'Security', 'Etc'];
+    let html = '';
+
+    deptOrder.forEach(deptKey => {
+        const list = grouped[deptKey];
+        if (!list || list.length === 0) return;
+
+        const deptTitle = deptMapping[deptKey] || `${deptKey} 부서`;
+        const isOrchestratorDept = list.some(a => a.id === 13);
+
+        html += `
+        <div class="ac-dept ${isOrchestratorDept ? 'ac-dept-orchestrator' : ''}">
+            <div class="ac-dept-title">${deptTitle}</div>
+        `;
+
+        list.forEach(agent => {
+            let statusClass = 'ac-agent-idle';
+            let dotClass = 'ac-dot-slate';
+
+            if (agent.status === 'active' || agent.status === 'success') {
+                statusClass = 'ac-agent-active';
+                dotClass = agent.id === 13 ? 'ac-dot-purple' : 'ac-dot-green';
+            } else if (agent.status === 'running' || agent.status === 'processing') {
+                statusClass = 'ac-agent-running';
+                dotClass = 'ac-dot-amber';
+            } else if (agent.status === 'error' || agent.status === 'danger') {
+                statusClass = 'ac-agent-error';
+                dotClass = 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)] animate-pulse';
+            }
+
+            let taskText = '대기중';
+            if (agent.status === 'running' || agent.status === 'processing') {
+                taskText = agent.role || '작동중';
+            } else if (agent.status === 'active' || agent.status === 'success') {
+                taskText = agent.role || '조치 완료';
+            } else if (agent.status === 'error' || agent.status === 'danger') {
+                taskText = '⚠️ 오류 발생';
+            }
+
+            const tagText = tagMapping[agent.id] || '에이전트';
+            const isPurpleTag = agent.id === 13;
+
+            html += `
+            <div class="ac-agent-row ${statusClass}">
+                <span class="ac-dot ${dotClass}"></span>
+                <span class="ac-agent-name">${agent.id}번 ${agent.name}</span>
+                <span class="ac-agent-task truncate" style="margin-left: 8px;">${taskText}</span>
+                <span class="ac-agent-tag ${isPurpleTag ? 'ac-tag-purple' : ''}">${tagText}</span>
+            </div>
+            `;
+        });
+
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderDynamicReprintCandidates(candidates) {
+    const container = document.getElementById('ac-top3-list');
+    if (!container) return;
+
+    if (!candidates || candidates.length === 0) {
+        container.innerHTML = `
+        <div class="py-12 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <div class="text-slate-300 mx-auto mb-3" style="display: flex; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            </div>
+            <p class="text-xs text-slate-400 font-bold">후보 도서 분석 대기 중</p>
+            <p class="text-[10px] text-slate-400 mt-1">1번 살피미가 수집하고 2번 다듬이가 정제한<br>복간 대상 도서가 실시간으로 이곳에 표시됩니다.</p>
+        </div>
+        `;
+        return;
+    }
+
+    const rankEmojis = ['🥇', '🥈', '🥉'];
+
+    container.innerHTML = candidates.slice(0, 3).map((c, index) => {
+        const rankEmoji = rankEmojis[index] || '•';
+        const rankClass = `ac-rank-${index + 1}`;
+        const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
+        const loansText = c.library_loans ? c.library_loans.toLocaleString() : '0';
+
+        return `
+        <div class="ac-book-card ${rankClass}">
+            <div class="ac-rank-badge">${rankEmoji} ${index + 1}위</div>
+            <div class="ac-book-info">
+                <div class="ac-book-title">${c.title} (${c.author})</div>
+                <div class="ac-book-meta">
+                    ${c.is_out_of_print ? '절판' : '일반'} · ${pubYearText} · 대출 <strong>${loansText}</strong>건
+                </div>
+            </div>
+            <div class="ac-reprint-score">${c.reprint_score || 0}<span>점</span></div>
+        </div>
+        `;
+    }).join('');
+}
+
+// ============================================================
+// ⚡ 플래시 라이트 모드 — 시스템 과부하 방어 기제 시연 엔진
+// ============================================================
+
+let _flashlightModeActive = false;
+let _flashlightTimerId    = null;
+
+window.toggleFlashlightMode = function() {
+    const pageEl = document.getElementById('page-agent-control');
+    const btn    = document.getElementById('btn-flashlight-mode');
+
+    _flashlightModeActive = !_flashlightModeActive;
+
+    if (_flashlightModeActive) {
+        if (pageEl) pageEl.classList.add('ac-flashlight-active');
+        if (btn) { btn.textContent = '⚡ 플래시 라이트 ON — 클릭 시 해제'; btn.classList.add('btn-flashlight-on'); }
+
+        const msgEl   = document.getElementById('orchestrator-msg');
+        const scoreEl = document.getElementById('orchestrator-score');
+        if (msgEl)   msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
+        if (scoreEl) scoreEl.innerHTML = '67<span>%</span>';
+
+        _insertWarningLogs();
+
+        let countdown = 5;
+        _flashlightTimerId = setInterval(() => {
+            countdown--;
+            const m = document.getElementById('orchestrator-msg');
+            if (m) m.textContent = `⚡ 과부하 방어 기제 작동 중... 시스템 안정화까지 ${countdown}초`;
+            if (countdown <= 0) { clearInterval(_flashlightTimerId); _autoRecoverFromFlashlight(); }
+        }, 1000);
+    } else {
+        _autoRecoverFromFlashlight();
+    }
+};
+
+function _insertWarningLogs() {
+    const logEl = document.getElementById('ac-log-stream');
+    if (!logEl) return;
+    const warnings = [
+        { l: 'error',   a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
+        { l: 'warn',    a: '[살피미]',         m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
+        { l: 'warn',    a: '[보안관]',         m: '과부하 대응 2단계 방어 루틴 가동 완료' },
+        { l: 'success', a: '[눈치왕]',         m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
+    ];
+    warnings.forEach(w => {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = `ac-log-entry ac-log-${w.l}`;
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">${w.a}</span><span>${w.m}</span>`;
+        logEl.prepend(div);
+    });
+    while (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
+}
+
+function _autoRecoverFromFlashlight() {
+    if (_flashlightTimerId) { clearInterval(_flashlightTimerId); _flashlightTimerId = null; }
+    _flashlightModeActive = false;
+    const pageEl = document.getElementById('page-agent-control');
+    const btn    = document.getElementById('btn-flashlight-mode');
+    if (pageEl) pageEl.classList.remove('ac-flashlight-active');
+    if (btn) { btn.textContent = '⚡ 플래시 라이트 모드 시연'; btn.classList.remove('btn-flashlight-on'); }
+
+    const msgEl   = document.getElementById('orchestrator-msg');
+    const scoreEl = document.getElementById('orchestrator-score');
+    if (msgEl)   msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
+    if (scoreEl) scoreEl.innerHTML = '95<span>%</span>';
+
+    const logEl = document.getElementById('ac-log-stream');
+    if (logEl) {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = 'ac-log-entry ac-log-success';
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>✅ 시스템 안정화 완료 — 전 에이전트 정상 운영 상태 복귀</span>`;
+        logEl.prepend(div);
+    }
+}
+
+// ============================================================
+// 🚀 파이프라인 수동 트리거 — 대시보드 버튼 연동
+// ============================================================
+
+window.triggerPipeline = async function() {
+    const pipeBtn  = document.getElementById('btn-trigger-pipeline');
+    const statusEl = document.getElementById('pipeline-status-text');
+    const kwInput  = document.getElementById('pipeline-keyword-input');
+    const kw       = kwInput?.value?.trim() || '절판 도서';
+
+    if (pipeBtn) { pipeBtn.disabled = true; pipeBtn.textContent = '⏳ 실행 중...'; }
+    if (statusEl) { statusEl.textContent = `🔄 "${kw}" 검색 → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = '#f59e0b'; }
+
+    try {
+        const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'https://publish79.vercel.app/api/pipeline'
+            : '/api/pipeline';
+
+        const res  = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (statusEl) {
+                statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${data.inserted || 0}건 DB 적재`;
+                statusEl.style.color = '#10b981';
+            }
+            setTimeout(() => { loadAgentControlDashboard(); _lastAuditLogId = 0; }, 1500);
+        } else {
+            if (statusEl) { statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}`; statusEl.style.color = '#ef4444'; }
+        }
+    } catch (err) {
+        if (statusEl) { statusEl.textContent = `❌ 네트워크 오류: ${err.message}`; statusEl.style.color = '#ef4444'; }
+    } finally {
+        if (pipeBtn) { pipeBtn.disabled = false; pipeBtn.textContent = '🚀 파이프라인 실행'; }
+    }
+};
+
+// ============================================================
+// 🟢 모바일 디스코드 승인 → 대시보드 '조치 완료' 전환 연출 엔진
+// ============================================================
+
+let _approvalCheckInterval = null;
+
+window.startApprovalWatchdog = function(prId) {
+    if (_approvalCheckInterval) clearInterval(_approvalCheckInterval);
+    const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'https://publish79.vercel.app/api/deploy-status'
+        : '/api/deploy-status';
+
+    _approvalCheckInterval = setInterval(async () => {
+        try {
+            const res  = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'APPROVED') {
+                clearInterval(_approvalCheckInterval);
+                _approvalCheckInterval = null;
+                _triggerApprovalCompleteAnimation();
+            }
+        } catch (_) {}
+    }, 3000);
+};
+
+function _triggerApprovalCompleteAnimation() {
+    const msgEl   = document.getElementById('orchestrator-msg');
+    const scoreEl = document.getElementById('orchestrator-score');
+    if (msgEl)   msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
+    if (scoreEl) scoreEl.innerHTML = '100<span>%</span>';
+
+    document.querySelectorAll('.ac-agent-row').forEach((row, i) => {
+        setTimeout(() => {
+            row.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error');
+            row.classList.add('ac-agent-active');
+            const dot     = row.querySelector('.ac-dot');
+            const taskEl  = row.querySelector('.ac-agent-task');
+            if (dot && !dot.classList.contains('ac-dot-purple')) dot.className = 'ac-dot ac-dot-green';
+            if (taskEl && (taskEl.textContent.includes('대기') || taskEl.textContent.includes('처리'))) {
+                taskEl.textContent = '🟢 조치 완료';
+            }
+        }, i * 150);
+    });
+
+    const logEl = document.getElementById('ac-log-stream');
+    if (logEl) {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = 'ac-log-entry ac-log-success';
+        div.style.fontWeight = '900';
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>🟢 대표님 모바일 승인 완료 — 전 에이전트 조치 완료 상태로 전환</span>`;
+        logEl.prepend(div);
+    }
 }
