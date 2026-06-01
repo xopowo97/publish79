@@ -7395,133 +7395,173 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // 픽셀 단위 스케일 계산 (1mm = 1.6px로 세네카 두께 시각화 극대화)
-    const baseWidth = 240; // 앞표지/뒤표지 각각의 가로 픽셀
+    // 픽셀 단위 스케일 계산 (날개 100mm, 앞/뒤표지, 세네카 두께 시각화)
+    const wingWidth = 100; // 양쪽 날개 가로 픽셀
+    const baseWidth = 200; // 앞표지/뒤표지 각각의 가로 픽셀
     const spineWidth = Math.max(spineMm * 3.5, 12); // 책등 두께 픽셀화 (최소 12px)
-    const totalWidth = baseWidth * 2 + spineWidth;
+    const totalWidth = wingWidth * 2 + baseWidth * 2 + spineWidth;
     const height = 240; // 세로 픽셀
 
     // 캔버스 크기 조정
     canvas.width = totalWidth + 40; // 여백 포함
     canvas.height = height + 40;
 
-    // 전체 배경 지우기 및 도련 가이드 영역
+    // 전체 배경 지우기
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 도련선(재단 여백) 드로잉 (외곽 빨간선)
+    // 1. 도련선(재단 여백) 가이드라인 드로잉 (외곽 빨간선 - 실제 인쇄 크기보다 3mm 크게 제단선 위치 표시)
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.strokeRect(10, 10, totalWidth + 20, height + 20);
 
-    // 2. 표지 전개도 배경 (고급스러운 그라디언트 적용)
+    // 2. 표지 전개도 배경 (고급스러운 그라디언트 적용 - 5단 날개 포함 전개도 전체 칠하기)
     const gradient = ctx.createLinearGradient(20, 20, totalWidth + 20, 20);
-    gradient.addColorStop(0, '#1e293b'); // 뒤표지 어두운 톤
+    gradient.addColorStop(0, '#0f172a');     // 뒤날개 어두운 슬레이트
+    gradient.addColorStop(0.2, '#1e293b');    // 뒤표지 경계
     gradient.addColorStop(0.48, '#0f172a');
-    gradient.addColorStop(0.5, '#38bdf8'); // 책등 포인터 (스카이블루)
+    gradient.addColorStop(0.5, '#38bdf8');     // 책등 포인터 (스카이블루)
     gradient.addColorStop(0.52, '#0f172a');
-    gradient.addColorStop(1, '#0284c7'); // 앞표지 푸른 톤
+    gradient.addColorStop(0.8, '#0284c7');    // 앞표지 푸른 톤
+    gradient.addColorStop(1, '#0c4a6e');      // 앞날개 어두운 톤
     ctx.fillStyle = gradient;
     ctx.fillRect(20, 20, totalWidth, height);
     ctx.setLineDash([]); // 대시 리셋
 
-    // 3. 책등 분할 선 (접지 가이드 라인)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    // 3. 접지선(Fold Line) 드로잉 (얇은 백색 점선으로 접는 영역 표시)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
-    // 왼쪽 책등 경계선
-    ctx.beginPath();
-    ctx.moveTo(20 + baseWidth, 20);
-    ctx.lineTo(20 + baseWidth, height + 20);
-    ctx.stroke();
-    // 오른쪽 책등 경계선
-    ctx.beginPath();
-    ctx.moveTo(20 + baseWidth + spineWidth, 20);
-    ctx.lineTo(20 + baseWidth + spineWidth, height + 20);
-    ctx.stroke();
+    ctx.setLineDash([2, 3]);
 
-    // 4. 뒤표지 디자인 (왼쪽)
+    const xLeftWing = 20 + wingWidth;
+    const xSpineLeft = 20 + wingWidth + baseWidth;
+    const xSpineRight = 20 + wingWidth + baseWidth + spineWidth;
+    const xRightWing = 20 + wingWidth + baseWidth * 2 + spineWidth;
+
+    // 접지선 1: 뒤날개 - 뒤표지 경계
+    ctx.beginPath(); ctx.moveTo(xLeftWing, 20); ctx.lineTo(xLeftWing, height + 20); ctx.stroke();
+    // 접지선 2: 뒤표지 - 책등 경계
+    ctx.beginPath(); ctx.moveTo(xSpineLeft, 20); ctx.lineTo(xSpineLeft, height + 20); ctx.stroke();
+    // 접지선 3: 책등 - 앞표지 경계
+    ctx.beginPath(); ctx.moveTo(xSpineRight, 20); ctx.lineTo(xSpineRight, height + 20); ctx.stroke();
+    // 접지선 4: 앞표지 - 앞날개 경계
+    ctx.beginPath(); ctx.moveTo(xRightWing, 20); ctx.lineTo(xRightWing, height + 20); ctx.stroke();
+    
+    ctx.setLineDash([]); // 대시 리셋
+
+    // 텍스트 랩핑 헬퍼 함수
+    function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+        const characters = text.split('');
+        let line = '';
+        let currentY = y;
+        for (let i = 0; i < characters.length; i++) {
+            let testLine = line + characters[i];
+            let metrics = context.measureText(testLine);
+            if (metrics.width > maxWidth && i > 0) {
+                context.fillText(line, x, currentY);
+                line = characters[i];
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, currentY);
+    }
+
+    // 4. [뒤날개] (왼쪽 끝)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '800 8px sans-serif';
+    ctx.fillText('복간 기획배경', 30, 45);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '500 6.5px sans-serif';
+    const introText = '소중한 문학 유산을 오래 기억하기 위해 출판친구의 자율 오케스트레이션 에이전트가 데이터 정제 및 최종 조판 과정을 거쳐 복원한 도서입니다. 독자의 서재에서 다시 깨어납니다.';
+    drawWrappedText(ctx, introText, 30, 60, wingWidth - 20, 10);
+
+    // 5. [뒤표지] (왼쪽 중간)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '700 8px sans-serif';
-    ctx.fillText('출판친구 복간 프로젝트 v1.2', 40, 50);
+    ctx.fillText('출판친구 복간 프로젝트 v1.2', xLeftWing + 20, 45);
     
     // 바코드 모의 드로잉
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(40, height - 50, 60, 35);
+    ctx.fillRect(xLeftWing + 20, height - 50, 60, 35);
     ctx.fillStyle = '#000000';
-    for (let x = 45; x < 95; x += 3) {
+    for (let x = xLeftWing + 25; x < xLeftWing + 75; x += 3) {
         const w = Math.random() > 0.4 ? 1.5 : 0.5;
         ctx.fillRect(x, height - 47, w, 24);
     }
     ctx.font = '5px monospace';
-    ctx.fillText('9791192839401', 47, height - 18);
+    ctx.fillText('9791192839401', xLeftWing + 27, height - 18);
 
-    // 5. 책등 디자인 (세로 쓰기) - 두께가 넉넉할 때만 텍스트 렌더링
+    // 6. [책등] (중앙 세로쓰기)
     ctx.save();
-    ctx.translate(20 + baseWidth + spineWidth / 2, height / 2 + 20);
+    ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
     ctx.rotate(Math.PI / 2);
     ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
     
     if (spineMm >= 10) {
         ctx.font = '700 9px sans-serif';
-        ctx.textAlign = 'center';
         ctx.fillText(title.substring(0, 15), 0, 3);
     } else {
-        // 책등이 얇으면 실선만 드로잉
+        // 책등이 얇으면 실선 가이드만 표시
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-40, 0);
-        ctx.lineTo(40, 0);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke();
     }
     ctx.restore();
 
-    // 6. 앞표지 디자인 (오른쪽)
-    // 엠블럼 데코
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    // 7. [앞표지] (오른쪽 중간)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.beginPath();
-    ctx.arc(20 + baseWidth + spineWidth + baseWidth / 2, height / 2 + 20, 50, 0, Math.PI * 2);
+    ctx.arc(xSpineRight + baseWidth / 2, height / 2 + 20, 45, 0, Math.PI * 2);
     ctx.fill();
 
-    // 메인 도서명
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 13px sans-serif';
-    ctx.fillText(title.substring(0, 16), 20 + baseWidth + spineWidth + 30, height / 2 - 10);
-    if (title.length > 16) {
-        ctx.fillText(title.substring(16, 30), 20 + baseWidth + spineWidth + 30, height / 2 + 8);
+    ctx.textAlign = 'left';
+    ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
+    if (title.length > 14) {
+        ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
     }
 
-    // 브랜드 로고 및 띠지 대체 텍스트
     ctx.fillStyle = '#38bdf8';
     ctx.font = '900 8px sans-serif';
-    ctx.fillText('ANTI-GRAVITY REPRINT', 20 + baseWidth + spineWidth + 30, 50);
+    ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
 
-    // 하단 카피
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = '500 8px sans-serif';
-    ctx.fillText('출판친구 자율 출판 총괄 도서', 20 + baseWidth + spineWidth + 30, height - 30);
+    ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
 
-    // 7. 자 두께 치수 표시선 (세네카 아래 mm 표시)
+    // 8. [앞날개] (오른쪽 끝)
+    const author = window._currentSimBook?.author || '미상';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '800 8px sans-serif';
+    ctx.fillText('저자 소개', xRightWing + 15, 45);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '500 6.5px sans-serif';
+    const authorIntro = `저자: ${author}\n시대를 대표하는 고전 작품으로, 출판친구의 디지털 연속지 인쇄 가공 및 가상 조판 공정을 거쳐 재탄생했습니다.`;
+    drawWrappedText(ctx, authorIntro, xRightWing + 15, 60, wingWidth - 25, 10);
+
+    // 9. [자 하단 mm 치수 표시선] (책등 아래)
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(20 + baseWidth, height + 28);
-    ctx.lineTo(20 + baseWidth + spineWidth, height + 28);
+    ctx.moveTo(xSpineLeft, height + 28);
+    ctx.lineTo(xSpineRight, height + 28);
     ctx.stroke();
     
     // 치수 보조선
     ctx.beginPath();
-    ctx.moveTo(20 + baseWidth, height + 24);
-    ctx.lineTo(20 + baseWidth, height + 32);
-    ctx.moveTo(20 + baseWidth + spineWidth, height + 24);
-    ctx.lineTo(20 + baseWidth + spineWidth, height + 32);
+    ctx.moveTo(xSpineLeft, height + 24); ctx.lineTo(xSpineLeft, height + 32);
+    ctx.moveTo(xSpineRight, height + 24); ctx.lineTo(xSpineRight, height + 32);
     ctx.stroke();
 
     ctx.fillStyle = '#0284c7';
     ctx.font = '800 8px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${spineMm}mm`, 20 + baseWidth + spineWidth / 2, height + 38);
+    ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
 }
 
 // 북 커버 다운로드
@@ -7675,6 +7715,40 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
     // 1. 중복 검사
     const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
     
+    // 앞표지만 크롭하여 고도로 최적화된 저용량 JPEG 썸네일 이미지 생성 (웹 로딩 속도 최적화)
+    let frontCoverImage = '';
+    const mainCanvas = document.getElementById('sim-cover-canvas');
+    if (mainCanvas) {
+        try {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 300;
+            tempCanvas.height = 400;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 5단 전개도에서 앞표지의 정확한 좌표 및 너비/높이 산출
+            const wingWidth = 100;
+            const baseWidth = 200;
+            const spineWidth = Math.max(spineMm * 3.5, 12);
+            
+            const sourceX = 20 + wingWidth + baseWidth + spineWidth;
+            const sourceY = 20;
+            const sourceWidth = baseWidth;
+            const sourceHeight = 240;
+            
+            // 앞표지 영역 크롭 및 리사이징
+            tempCtx.drawImage(
+                mainCanvas, 
+                sourceX, sourceY, sourceWidth, sourceHeight, 
+                0, 0, 300, 400
+            );
+            
+            // 85% 품질의 가벼운 JPEG로 압축 변환 (평균 25~35KB 수준)
+            frontCoverImage = tempCanvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {
+            console.error("Failed to crop front cover image:", e);
+        }
+    }
+    
     const productData = {
         id: 'prod_' + Date.now(),
         title: title,
@@ -7683,7 +7757,7 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
         spine: spineMm,
         cost: unitCost,
         price: retailPrice,
-        desc: `[자율 복간] 13번 오케스트레이션 파이프라인에 의해 4대 표준 규격 검토 후 대표님이 최종 승인한 복간 도서 '${title}'입니다. 책등 두께 ${spineMm}mm 정합 완공.`,
+        desc: `[자율 복간] 13번 오케스트레이션 파이프라인에 의해 4대 표준 규격 검토 후 대표님이 최종 승인한 복간 도서 '${title}'입니다. 책등 두께 ${spineMm}mm 및 100mm 책날개 정합 완공.`,
         category: '소설/시/희곡',
         manager: '오케스트레이터',
         innerPaper: '백모조80g',
@@ -7693,9 +7767,10 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
         coverPrint: '표지-컬러단면',
         coating: '무광',
         binding: '무선제본',
-        wing: '날개 없음',
+        wing: '날개 있음(100mm)',
         facePaper: '없음',
         faceInsert: '없음',
+        image: frontCoverImage || 'book1.png', // 크롭된 최적화 표지 이미지 삽입
         created_at: new Date().toISOString()
     };
 
@@ -7728,6 +7803,7 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
             wing: productData.wing,
             face_paper: productData.facePaper,
             face_insert: productData.faceInsert,
+            image: productData.image, // 온라인 Supabase DB에도 최적화된 표지 썸네일 업로드
             created_at: productData.created_at
         }, { onConflict: 'title,spec' }); // 복합 유니크 제약
     } catch (e) {
