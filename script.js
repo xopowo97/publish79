@@ -7592,6 +7592,44 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
         
+        // 나눔명조 한글 폰트 동적 로드 및 임베딩 (실시간 한글 깨짐 방지)
+        let customFont;
+        let useFallback = false;
+        try {
+            const fontUrl = 'https://cdn.jsdelivr.net/npm/@kfonts/nanum-myeongjo/fonts/NanumMyeongjo-Regular.ttf';
+            const fontBytes = await fetch(fontUrl).then(res => {
+                if (!res.ok) throw new Error("Font download failed");
+                return res.arrayBuffer();
+            });
+            customFont = await pdfDoc.embedFont(fontBytes);
+        } catch (e) {
+            console.warn("한글 폰트 로드 실패, 영문 우회 모드로 전환합니다:", e.message);
+            useFallback = true;
+        }
+
+        // 안전한 텍스트 드로잉 헬퍼 (인코딩 크래시 방지 및 폰트 바인딩)
+        const drawTextSafely = (page, text, x, y, size, colorHex = '#1f2937') => {
+            const hex = colorHex.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16) / 255;
+            const g = parseInt(hex.substring(2, 4), 16) / 255;
+            const b = parseInt(hex.substring(4, 6), 16) / 255;
+            
+            const options = {
+                x: x,
+                y: y,
+                size: size,
+                color: PDFLib.rgb(r, g, b)
+            };
+            
+            if (useFallback) {
+                // 한글 폰트 로드 실패 시, 한글 문자를 물음표로 치환하여 Helvetica 인코딩 에러 방지
+                const asciiText = text.replace(/[^\x00-\x7F]/g, "?");
+                page.drawText(asciiText, options);
+            } else {
+                page.drawText(text, { ...options, font: customFont });
+            }
+        };
+
         // 표지 페이지 생성
         const page1 = pdfDoc.addPage([595.275, 841.889]); // A4 표준 크기
         const { width, height } = page1.getSize();
@@ -7608,55 +7646,21 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         });
 
         // 텍스트 기입
-        page1.drawText('VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', {
-            x: 50,
-            y: height - 60,
-            size: 10,
-            color: PDFLib.rgb(0.1, 0.5, 0.8)
-        });
-
-        page1.drawText('BOOK TITLE: ' + title, {
-            x: 50,
-            y: height - 120,
-            size: 18,
-            color: PDFLib.rgb(0.09, 0.16, 0.23)
-        });
-
-        page1.drawText('APPROVED SPECIFICATION: ' + specName, {
-            x: 50,
-            y: height - 160,
-            size: 11,
-            color: PDFLib.rgb(0.3, 0.4, 0.5)
-        });
-
-        page1.drawText('TOTAL PAGES: ' + pages + ' pages', {
-            x: 50,
-            y: height - 180,
-            size: 11,
-            color: PDFLib.rgb(0.3, 0.4, 0.5)
-        });
-
-        page1.drawText('CALCULATED SPINE (SENECA): ' + spineMm + ' mm', {
-            x: 50,
-            y: height - 200,
-            size: 11,
-            color: PDFLib.rgb(0.3, 0.4, 0.5)
-        });
+        drawTextSafely(page1, 'VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', 50, height - 60, 10, '#0ea5e9');
+        drawTextSafely(page1, '도서명: ' + title, 50, height - 120, 18, '#0f172a');
+        drawTextSafely(page1, '승인된 규격 판형: ' + specName, 50, height - 160, 11, '#475569');
+        drawTextSafely(page1, '총 페이지 수: ' + pages + ' pages', 50, height - 180, 11, '#475569');
+        drawTextSafely(page1, '계산된 책등(세네카): ' + spineMm + ' mm', 50, height - 200, 11, '#475569');
 
         // 가상 도련(Bleed 3mm) 및 Gutter 여백 설명 가이드 추가
-        page1.drawText('[VDP 조판 상세 가이드라인]', { x: 50, y: height - 280, size: 12, color: PDFLib.rgb(0.06, 0.37, 0.78) });
-        page1.drawText('1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', { x: 50, y: height - 310, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
-        page1.drawText('2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', { x: 50, y: height - 310 - 20, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
-        page1.drawText('3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', { x: 50, y: height - 310 - 40, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
-        page1.drawText('4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', { x: 50, y: height - 310 - 60, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
+        drawTextSafely(page1, '[VDP 조판 상세 가이드라인]', 50, height - 280, 12, '#0284c7');
+        drawTextSafely(page1, '1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', 50, height - 310, 9, '#1e293b');
+        drawTextSafely(page1, '2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', 50, height - 330, 9, '#1e293b');
+        drawTextSafely(page1, '3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', 50, height - 350, 9, '#1e293b');
+        drawTextSafely(page1, '4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', 50, height - 370, 9, '#1e293b');
 
         // 하단 서명
-        page1.drawText('CHIEF ORCHESTRATOR 13 & VDP TYPESETTER 4', {
-            x: 50,
-            y: 50,
-            size: 8,
-            color: PDFLib.rgb(0.5, 0.5, 0.5)
-        });
+        drawTextSafely(page1, 'CHIEF ORCHESTRATOR 13 & VDP TYPESETTER 4', 50, 50, 8, '#94a3b8');
 
         // 두 번째 페이지 추가 (내지 페이지 1p 예시)
         const page2 = pdfDoc.addPage([595.275, 841.889]);
@@ -7670,19 +7674,9 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             opacity: 0.5
         });
 
-        page2.drawText('Page 1', {
-            x: width / 2 - 15,
-            y: 40,
-            size: 10,
-            color: PDFLib.rgb(0.2, 0.2, 0.2)
-        });
-
-        page2.drawText('SAMPLE INNER CONTENT (SAMPLE TEXT FOR TYPESETTING VERIFICATION)', {
-            x: 50,
-            y: height - 100,
-            size: 10,
-            color: PDFLib.rgb(0.4, 0.4, 0.4)
-        });
+        drawTextSafely(page2, 'Page 1', width / 2 - 15, 40, 10, '#334155');
+        drawTextSafely(page2, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', 50, height - 100, 11, '#475569');
+        drawTextSafely(page2, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', 50, height - 130, 9, '#64748b');
 
         // PDF 다운로드 링크 생성
         const pdfBytes = await pdfDoc.save();
