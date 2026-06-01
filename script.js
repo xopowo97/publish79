@@ -7659,6 +7659,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         let useFallback = false;
         
         const fontUrls = [
+            './NanumMyeongjo.ttf', // 1순위: 로컬 호스팅 (CORS 및 CSP 블로킹 우회 및 초고속 로딩)
             'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
             'https://raw.githubusercontent.com/google/fonts/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
             'https://github.com/google/fonts/raw/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
