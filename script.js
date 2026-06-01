@@ -6709,6 +6709,14 @@ window.startBookSimulationByIndex = async function(index) {
     const book = window._currentCandidates[index];
     if (!book) return;
 
+    // Clean title and author of any HTML tags (e.g. search highlight span tags from API)
+    if (book.title) {
+        book.title = book.title.replace(/<\/?[^>]+(>|$)/g, "");
+    }
+    if (book.author) {
+        book.author = book.author.replace(/<\/?[^>]+(>|$)/g, "");
+    }
+
     // Save book globally to prevent quote escaping bugs in inline HTML event handlers
     window._currentSimBook = book;
 
