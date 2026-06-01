@@ -1251,6 +1251,24 @@ html, body {
         max-height: 95vh;
         border-radius: 16px;
     }
+
+    .ctrl-sim-footer {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+        text-align: center;
+        padding: 16px;
+    }
+
+    .ctrl-sim-footer div[style*="display:flex"] {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ctrl-sim-footer .ctrl-btn {
+        flex: 1;
+        justify-content: center;
+    }
 }
 
 /* 초소형 모바일: ~479px */
