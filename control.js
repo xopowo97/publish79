@@ -1005,8 +1005,27 @@ async function ctrlDownloadReprintPDF() {
             });
         }
 
+        // fontkit 동적 로드 (한글 폰트 임베딩 지원 모듈)
+        if (!window.fontkit) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://unpkg.com/@pdf-lib/fontkit@0.0.4/dist/fontkit.umd.min.js';
+                s.onload = resolve; s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
         const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.create();
+
+        // fontkit 등록
+        pdfDoc.registerFontkit(fontkit);
+
+        // 준비된 나눔명조 폰트 바이너리 로드
+        const fontUrl = ctrlApiUrl('/NanumMyeongjo.ttf');
+        const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+        const customFont = await pdfDoc.embedFont(fontBytes);
+
         const page   = pdfDoc.addPage([595.275, 841.889]);
 
         const specDim = { 'A5국판': [148,210], '신국판': [152,225], '46판': [128,188], '국배판': [210,297] };
@@ -1024,17 +1043,10 @@ async function ctrlDownloadReprintPDF() {
         page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5,0.5,0.5), borderDashArray:[2,2] });
         page.drawRectangle({ x: xOff-8.5, y: yOff-8.5, width: trimW+17, height: trimH+17, borderWidth: 0.75, borderColor: rgb(0.9,0.2,0.2) });
 
-        // 한글 폰트 인코딩 에러(WinAnsi) 방지를 위해 PDF 내부 텍스트는 영문으로 변환하여 출력합니다.
-        const englishTitle = book.id === 1 ? 'Old Future' : (book.id === 2 ? 'Deschooling Society' : (book.id === 3 ? 'The Art of Creation' : 'Reprint Book'));
-        let englishSpecName = 'Standard Edition';
-        if (spec.specName.includes('국배판')) englishSpecName = 'Kuk-Bae Edition (A4-like)';
-        else if (spec.specName.includes('신국판')) englishSpecName = 'Shin-Kuk Edition (152x225)';
-        else if (spec.specName.includes('A5국판')) englishSpecName = 'A5 Edition (148x210)';
-        else if (spec.specName.includes('46판')) englishSpecName = '46 Edition (128x188)';
-
-        page.drawText(`[Control Room Sim] ${englishTitle}`, { x: xOff+20, y: yOff+trimH-50, size:12, color:rgb(0.28,0.34,0.42) });
-        page.drawText(`Spec: ${englishSpecName} / Pages: ${spec.pages}p / Spine: ${spec.spineMm}mm`, { x: xOff+20, y: yOff+trimH-80, size:9, color:rgb(0.39,0.45,0.55) });
-        page.drawText(`Anti-Gravity Agent Control Room -- Autonomous Publishing Pipeline`, { x: xOff+20, y: yOff+30, size:8, color:rgb(0.39,0.45,0.55) });
+        // 한글 폰트를 사용하여 정상적으로 한국어 출력
+        page.drawText(`[통제실 시뮬레이션] ${book.title}`, { x: xOff+20, y: yOff+trimH-50, size: 12, font: customFont, color: rgb(0.28,0.34,0.42) });
+        page.drawText(`규격: ${spec.specName} / 페이지: ${spec.pages}p / 책등: ${spec.spineMm}mm`, { x: xOff+20, y: yOff+trimH-80, size: 9, font: customFont, color: rgb(0.39,0.45,0.55) });
+        page.drawText(`출판친구 자율출판 에이전트 통제실 -- 인쇄용 조판 시뮬레이터 결과물`, { x: xOff+20, y: yOff+30, size: 8, font: customFont, color: rgb(0.39,0.45,0.55) });
 
         const bytes = await pdfDoc.save();
         const link  = document.createElement('a');
