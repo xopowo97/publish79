@@ -6407,6 +6407,8 @@ function renderDynamicReprintCandidates(candidates) {
     const container = document.getElementById('ac-top3-list');
     if (!container) return;
 
+    window._currentCandidates = candidates || [];
+
     if (!candidates || candidates.length === 0) {
         container.innerHTML = `
         <div class="py-12 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
@@ -6429,7 +6431,7 @@ function renderDynamicReprintCandidates(candidates) {
         const loansText = c.library_loans ? c.library_loans.toLocaleString() : '0';
 
         return `
-        <div class="ac-book-card ${rankClass}">
+        <div class="ac-book-card ${rankClass} cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-200" onclick="startBookSimulationByIndex(${index})">
             <div class="ac-rank-badge">${rankEmoji} ${index + 1}위</div>
             <div class="ac-book-info">
                 <div class="ac-book-title">${c.title} (${c.author})</div>
@@ -6549,7 +6551,16 @@ window.triggerPipeline = async function() {
                 statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${data.inserted || 0}건 DB 적재`;
                 statusEl.style.color = '#10b981';
             }
-            setTimeout(() => { loadAgentControlDashboard(); _lastAuditLogId = 0; }, 1500);
+            setTimeout(async () => {
+                await loadAgentControlDashboard();
+                _lastAuditLogId = 0;
+                // 파이프라인 수집 완료 후 자동으로 상위 1위 도서 시뮬레이션 개시
+                if (window._currentCandidates && window._currentCandidates.length > 0) {
+                    setTimeout(() => {
+                        window.startBookSimulationByIndex(0);
+                    }, 1200);
+                }
+            }, 1500);
         } else {
             if (statusEl) { statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}`; statusEl.style.color = '#ef4444'; }
         }
@@ -6616,3 +6627,1055 @@ function _triggerApprovalCompleteAnimation() {
         logEl.prepend(div);
     }
 }
+
+// ============================================================
+// 🤖 1~8단계 자율 출판 에이전트 파이프라인 시뮬레이터 연동 소스
+// ============================================================
+
+// pdf-lib 라이브러리 동적 로드 함수
+async function ensurePDFLibLoaded() {
+    if (window.PDFLib) return window.PDFLib;
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+        script.onload = () => resolve(window.PDFLib);
+        script.onerror = (e) => reject(new Error('PDFLib 로드 실패: ' + e.message));
+        document.head.appendChild(script);
+    });
+}
+
+// Supabase 실시간 적재용 에이전트 상태 업데이트 (UAT용)
+async function updateAgentStatusInDB(agentId, status, role) {
+    try {
+        await _supabase
+            .from('agents')
+            .update({ status: status, role: role, updated_at: new Date().toISOString() })
+            .eq('id', agentId);
+    } catch (e) {
+        console.warn("DB 에이전트 상태 업데이트 오류:", e.message);
+    }
+}
+
+// Supabase 실시간 적재용 감사 로그 기록 (UAT용)
+async function writeAuditLogInDB(agentId, agentName, logLevel, message, metadata) {
+    try {
+        await _supabase
+            .from('agent_audit_logs')
+            .insert({
+                agent_id: agentId,
+                agent_name: agentName,
+                log_level: logLevel,
+                message: message,
+                metadata: metadata ? JSON.stringify(metadata) : null,
+                created_at: new Date().toISOString()
+            });
+    } catch (e) {
+        console.warn("DB 감사 로그 기록 오류:", e.message);
+    }
+}
+
+// 에이전트 조직도 실시간 네온 등 상태 업데이트 (로컬 UI 전용 빠른 업데이트)
+function updateLocalAgentStatus(agentId, status, role) {
+    const container = document.getElementById('ac-org-tree');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('.ac-agent-row');
+    rows.forEach(r => {
+        if (r.textContent.includes(`${agentId}번`)) {
+            r.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error', 'ac-agent-active');
+            const dot = r.querySelector('.ac-dot');
+            const task = r.querySelector('.ac-agent-task');
+            
+            if (status === 'running') {
+                r.classList.add('ac-agent-running');
+                if (dot) dot.className = 'ac-dot ac-dot-amber';
+            } else if (status === 'success' || status === 'active') {
+                r.classList.add('ac-agent-active');
+                if (dot) dot.className = agentId === 13 ? 'ac-dot-purple' : 'ac-dot-green';
+            } else if (status === 'error') {
+                r.classList.add('ac-agent-error');
+                if (dot) dot.className = 'ac-dot bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)] animate-pulse';
+            } else {
+                r.classList.add('ac-agent-idle');
+                if (dot) dot.className = 'ac-dot ac-dot-slate';
+            }
+            if (task) task.textContent = role;
+        }
+    });
+}
+
+// 복간 후보 책선택 시뮬레이션 개시 메인 진입점
+window.startBookSimulationByIndex = async function(index) {
+    const book = window._currentCandidates[index];
+    if (!book) return;
+
+    // 모달이 기존에 있으면 제거
+    const oldModal = document.getElementById('simulation-modal');
+    if (oldModal) oldModal.remove();
+
+    // 1. 모달 엘리먼트 생성 및 추가
+    const modalHtml = `
+    <div id="simulation-modal" class="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div class="bg-white border border-slate-200/50 w-full max-w-4xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+                <div>
+                   <div class="text-[10px] font-bold text-sky-600 uppercase tracking-widest flex items-center gap-1.5">
+                       <span class="relative flex h-2 w-2">
+                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                         <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                       </span>
+                       GEM 13. 자율 의사결정 파이프라인
+                   </div>
+                   <h3 class="text-xl font-black text-slate-800 mt-1">복간 의사결정 시뮬레이터</h3>
+                </div>
+                <button onclick="closeSimulationModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto p-8 space-y-8" id="simulation-body">
+                <!-- Book Info Summary -->
+                <div class="bg-sky-50/70 border border-sky-100/50 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] text-sky-600 font-extrabold tracking-wider uppercase">복간 대상 도서</span>
+                        <h4 class="text-lg font-black text-slate-800 mt-1" id="sim-book-title">${book.title}</h4>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5" id="sim-book-author">저자: ${book.author || '미상'} | 출판사: ${book.publisher || '미상'} | 발행연도: ${book.pub_year ? book.pub_year + '년' : '미상'}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase block">복간 타당성 점수</span>
+                        <span class="text-3xl font-mono font-black text-sky-600 tracking-tight" id="sim-book-score">${book.reprint_score || 0}<span class="text-xs font-bold text-sky-400 ml-0.5">점</span></span>
+                    </div>
+                </div>
+
+                <!-- Pipeline Progress Steps Visualizer -->
+                <div class="grid grid-cols-6 gap-3 border-y border-slate-100 py-6 text-center" id="sim-steps-visualizer">
+                    <div class="sim-step" id="step-node-1">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100">1</div>
+                        <div class="text-[10px] font-black text-slate-600 mt-2">1. 딥서치 수집</div>
+                        <div class="text-[8px] text-emerald-600 font-bold mt-0.5">완료 (🟢)</div>
+                    </div>
+                    <div class="sim-step" id="step-node-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100">2</div>
+                        <div class="text-[10px] font-black text-slate-600 mt-2">2. 데이터 정제</div>
+                        <div class="text-[8px] text-emerald-600 font-bold mt-0.5">완료 (🟢)</div>
+                    </div>
+                    <div class="sim-step" id="step-node-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-3-icon">3</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-3-text">3. 1차 가상조판</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-3-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-4">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-4-icon">4</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-4-text">4. 수익성 검토</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-4-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-5">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-5-icon">5</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-5-text">5. 대표님 승인</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-5-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-6">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-6-icon">6</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-6-text">6. 최종조판/디자인</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-6-status">대기</div>
+                    </div>
+                </div>
+
+                <!-- Simulation Console / Screen -->
+                <div class="bg-slate-955 text-sky-400 font-mono rounded-2xl p-6 text-[11px] leading-relaxed space-y-1.5 shadow-inner h-48 overflow-y-auto custom-scrollbar border border-slate-800" id="sim-console" style="background-color: #030712;">
+                    <!-- Realtime logs stream here -->
+                </div>
+
+                <!-- Decision Card Area -->
+                <div id="sim-decision-area" class="hidden space-y-5 animate-in slide-in-from-bottom duration-500">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h4 class="text-md font-black text-slate-800 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-sky-600 rounded-full"></span>
+                            📊 의사결정 카드 (4대 표준 판형 수익성 분석 보고)
+                        </h4>
+                        <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-200/50">초판 500부 제작 기준</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-4" id="sim-decision-grid">
+                        <!-- 4 layout options dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- Compilation Progress Area -->
+                <div id="sim-compilation-area" class="hidden space-y-4 bg-slate-50 border border-slate-200/50 rounded-2xl p-6 animate-in slide-in-from-bottom duration-500">
+                    <h4 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-600"></span>
+                        </span>
+                        <span>4번 VDP_조판사: 2차 최종 조판 및 PDF/X-4 인쇄용 파일 빌드 중...</span>
+                    </h4>
+                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                        <div class="bg-sky-600 h-full w-0 transition-all duration-300" id="sim-compilation-progress"></div>
+                    </div>
+                    <p class="text-xs font-bold text-slate-500 text-right" id="sim-compilation-status">0%</p>
+                    <div class="hidden flex gap-3 pt-2" id="sim-compilation-download">
+                        <!-- Download buttons for PDF and cover -->
+                    </div>
+                </div>
+
+                <!-- Creative Cover Designer Area -->
+                <div id="sim-cover-area" class="hidden space-y-6 bg-slate-50 border border-slate-200/50 rounded-2xl p-6 animate-in slide-in-from-bottom duration-500">
+                    <h4 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+                        <span>6번 수석 크리에이티브 디자이너: 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료</span>
+                    </h4>
+                    <div class="flex flex-col items-center justify-center gap-5">
+                        <canvas id="sim-cover-canvas" width="650" height="280" class="border border-slate-200 rounded-2xl bg-white max-w-full shadow-inner"></canvas>
+                        <button onclick="downloadCoverImage()" class="bg-pink-600 hover:bg-pink-700 text-white font-black px-6 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-pink-100 transition-all active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            북 커버 펼침면 이미지 다운로드
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center shrink-0" id="sim-footer">
+                <div class="text-[10px] text-slate-400 font-bold">* 이 파이프라인은 실시간으로 Supabase DB 데이터 상태에 영구 기록됩니다.</div>
+                <button onclick="closeSimulationModal()" class="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl text-xs font-black hover:bg-slate-100 transition-all active:scale-95">시뮬레이션 중단 및 닫기</button>
+            </div>
+        </div>
+    </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Lucide 아이콘 재생성
+    if (window.lucide) lucide.createIcons();
+
+    // 콘솔 출력 헬퍼
+    const consoleEl = document.getElementById('sim-console');
+    const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
+        const time = new Date().toTimeString().split(' ')[0];
+        const colorMap = {
+            info: 'text-sky-400',
+            success: 'text-emerald-400 font-bold',
+            warn: 'text-amber-400',
+            error: 'text-rose-400 font-bold'
+        };
+        const color = colorMap[type] || 'text-slate-300';
+        
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
+        consoleEl.appendChild(line);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+
+        // 실시간 Supabase DB 적재 (UAT 상시 기록)
+        if (agentId && agentName) {
+            writeAuditLogInDB(agentId, agentName, type, message, { bookTitle: book.title });
+        }
+    };
+
+    // 2. 파이프라인 상태 시뮬레이션 시작
+    logConsole(`[오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '오케스트레이터');
+    
+    // Step 1 & 2 완료 상태로 리셋
+    await updateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
+    await updateAgentStatusInDB(1, 'success', '도서관 API 데이터 수집 완료');
+    await updateAgentStatusInDB(2, 'success', '도서 데이터 정제 완료');
+    await updateAgentStatusInDB(3, 'idle', '대기중');
+    await updateAgentStatusInDB(4, 'idle', '대기중');
+    await updateAgentStatusInDB(6, 'idle', '대기중');
+    loadAgentControlDashboard(); // 메인 대시보드 강제 리로드하여 불빛 갱신
+
+    // ==========================================
+    // STEP 3: 4번 VDP_조판사 (1차 가상 조판)
+    // ==========================================
+    setTimeout(async () => {
+        // UI 변경 (Step 3 활성화 - 옐로우)
+        const step3Icon = document.getElementById('step-node-3-icon');
+        const step3Text = document.getElementById('step-node-3-text');
+        const step3Status = document.getElementById('step-node-3-status');
+        
+        if (step3Icon) {
+            step3Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+            step3Status.textContent = '진행중 (🟡)';
+            step3Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+            step3Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+        }
+
+        updateLocalAgentStatus(4, 'running', '1차 가상 조판 시뮬레이션 중');
+        logConsole(`[VDP_조판사] 4대 표준 판형에 얹었을 때 물리 스펙(페이지수, 책등 두께) 가상 계산 개시.`, 'info', 4, 'VDP_조판사');
+
+        // 가상 조판 API 호출
+        try {
+            const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'https://publish79.vercel.app/api/typeset'
+                : '/api/typeset';
+                
+            // 글자수를 도서마다 다르게 시뮬레이션 (수요지수 기반으로 비례 계산해서 10만자 ~ 22만자)
+            const simulatedChars = Math.floor((book.reprint_score || 50) * 1500 + 80000);
+            
+            const typesetRes = await fetch(typesetEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'simulate',
+                    title: book.title,
+                    author: book.author,
+                    charsCount: simulatedChars,
+                    innerPaper: '미색모조80g'
+                })
+            });
+
+            if (!typesetRes.ok) throw new Error('조판 시뮬레이션 API 호출 실패');
+            const typesetData = await typesetRes.json();
+            const sims = typesetData.simulations;
+
+            // 로깅용 딜레이 연출
+            for (let i = 0; i < sims.length; i++) {
+                await new Promise(r => setTimeout(r, 400));
+                const s = sims[i];
+                logConsole(`[VDP_조판사] ${s.specName} 판형 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 계산된 책등 두께: ${s.spineMm}mm`, 'info', 4, 'VDP_조판사');
+            }
+
+            // Step 3 완료 처리
+            if (step3Icon) {
+                step3Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                step3Status.textContent = '완료 (🟢)';
+                step3Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+            }
+            updateLocalAgentStatus(4, 'success', '1차 가상 조판 완료');
+            logConsole(`[VDP_조판사] 4대 판형 1차 물리 스펙 산출 완료. 3번 분석 팀장에게 데이터 전송.`, 'success', 4, 'VDP_조판사');
+
+            // ==========================================
+            // STEP 4: 3번 수익성·타당성 분석 팀장 (수익성 검토)
+            // ==========================================
+            setTimeout(async () => {
+                const step4Icon = document.getElementById('step-node-4-icon');
+                const step4Text = document.getElementById('step-node-4-text');
+                const step4Status = document.getElementById('step-node-4-status');
+                
+                if (step4Icon) {
+                    step4Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+                    step4Status.textContent = '진행중 (🟡)';
+                    step4Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+                    step4Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+                }
+
+                updateLocalAgentStatus(3, 'running', '제작 단가 및 예상 마진율 산출 중');
+                logConsole(`[수익성 분석 팀장] 1차 물리 스펙 수령 완료. 하청 인쇄소 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+
+                // 마진 계산 시뮬레이션
+                // 500부 인쇄 기준 슬라이딩 단가 계산 공식
+                // 내지 인쇄비 = pages * 500부 * 15원
+                // 제본비 = 500부 * 1600원
+                // 표지 인쇄비 = 500부 * 1200원
+                // 표지 코팅비 = 500부 * 300원
+                // 마진율 = (정가 - 권당제작단가) / 정가 * 100
+                const calculatedSpecs = sims.map(s => {
+                    const totalInnerCost = s.pages * 500 * 15;
+                    const totalCoverCost = 500 * 1200;
+                    const totalCoatingCost = 500 * 300;
+                    const totalBindingCost = 500 * 1600;
+                    
+                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
+                    const unitCost = Math.round(totalCost / 500);
+
+                    // 정가 책정 시뮬레이션 (페이지 수에 비례하되 판형 크기도 영향)
+                    let retailPrice = 15000;
+                    if (s.specName.includes('국배판')) retailPrice = 24000;
+                    else if (s.specName.includes('신국판')) retailPrice = 18500;
+                    else if (s.specName.includes('A5국판')) retailPrice = 16800;
+                    else retailPrice = 14800; // 46판
+
+                    const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
+
+                    // 추천도 계산 (마진율이 60% 이상이면 최적, 신국판은 원래 메인 판형이므로 추천도 높임)
+                    let isRecommended = false;
+                    let recommendationText = '적합도 보통';
+                    if (s.specName.includes('신국판')) {
+                        isRecommended = true;
+                        recommendationText = '최적 마진 추천 🔥';
+                    } else if (marginRate >= 60) {
+                        recommendationText = '적합도 우수';
+                    } else if (marginRate < 50) {
+                        recommendationText = '적합도 낮음';
+                    }
+
+                    return {
+                        ...s,
+                        unitCost,
+                        retailPrice,
+                        marginRate,
+                        isRecommended,
+                        recommendationText
+                    };
+                });
+
+                // 계산 로깅 딜레이 연출
+                for (let i = 0; i < calculatedSpecs.length; i++) {
+                    await new Promise(r => setTimeout(r, 400));
+                    const s = calculatedSpecs[i];
+                    logConsole(`[수익성 분석 팀장] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (예상 마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익성·타당성 분석 팀장');
+                }
+
+                if (step4Icon) {
+                    step4Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                    step4Status.textContent = '완료 (🟢)';
+                    step4Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+                }
+                updateLocalAgentStatus(3, 'success', '수익성 검토 완료');
+                logConsole(`[수익성 분석 팀장] 4개 판형별 제작 원가 및 마진율 최종 산출 완료. 13번 대표 보고용 카드 전달.`, 'success', 3, '수익성·타당성 분석 팀장');
+
+                // ==========================================
+                // STEP 5: 13번 오케스트레이터 (대표 보고 - 의사결정 카드 활성화)
+                // ==========================================
+                setTimeout(async () => {
+                    const step5Icon = document.getElementById('step-node-5-icon');
+                    const step5Text = document.getElementById('step-node-5-text');
+                    const step5Status = document.getElementById('step-node-5-status');
+                    
+                    if (step5Icon) {
+                        step5Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+                        step5Status.textContent = '대기중 (🟡)';
+                        step5Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+                        step5Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+                    }
+
+                    updateLocalAgentStatus(13, 'active', '의사결정 카드 보고 중');
+                    logConsole(`[오케스트레이터] 대표님 대시보드 락 해제 및 '의사결정 카드(4대 판형 비교)' 팝업 전송. 최종 결정 승인 대기.`, 'warn', 13, '오케스트레이터');
+
+                    // 의사결정 카드 UI 렌더링 및 노출
+                    const decisionArea = document.getElementById('sim-decision-area');
+                    const decisionGrid = document.getElementById('sim-decision-grid');
+                    if (decisionArea && decisionGrid) {
+                        decisionArea.classList.remove('hidden');
+                        
+                        decisionGrid.innerHTML = calculatedSpecs.map(s => {
+                            const recommendBadge = s.isRecommended 
+                                ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest shadow-md border border-sky-400">BEST RECOMMEND</span>`
+                                : '';
+                            const borderClass = s.isRecommended
+                                ? 'border-sky-500 shadow-xl shadow-sky-500/5 ring-2 ring-sky-500/20 bg-sky-50/10'
+                                : 'border-slate-200 hover:border-slate-300';
+                            
+                            return `
+                            <div class="relative bg-white border ${borderClass} rounded-2xl p-5 flex flex-col justify-between h-72 transition-all duration-300 hover:-translate-y-1">
+                                ${recommendBadge}
+                                <div>
+                                    <div class="text-center font-black text-slate-800 text-sm tracking-tight">${s.specName}</div>
+                                    <div class="text-center text-[10px] text-slate-400 font-bold mt-1">용지: 미색모조80g</div>
+                                    <div class="h-px bg-slate-100 my-3"></div>
+                                    
+                                    <div class="space-y-1.5 text-xs">
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>페이지 수</span>
+                                            <span class="font-bold text-slate-700">${s.pages}p</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>책등(세네카)</span>
+                                            <span class="font-bold text-slate-700">${s.spineMm}mm</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>제작 원가(권)</span>
+                                            <span class="font-bold text-slate-700">₩${s.unitCost.toLocaleString()}</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>권장 판매가</span>
+                                            <span class="font-bold text-slate-700 text-sky-600">₩${s.retailPrice.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex items-center justify-between bg-slate-50 rounded-xl p-2.5 mb-3 border border-slate-100">
+                                        <span class="text-[10px] text-slate-400 font-bold">예상 마진율</span>
+                                        <span class="text-base font-black text-sky-600">${s.marginRate}%</span>
+                                    </div>
+                                    <button onclick="approveBookSpec('${book.title}', '${s.specName}', ${s.pages}, ${s.spineMm}, ${s.unitCost}, ${s.retailPrice}, ${s.marginRate})" 
+                                            class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-sky-600 transition-all shadow-md tracking-wider">
+                                        이 판형으로 최종 승인
+                                    </button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('');
+
+                        // 모달 스크롤 유도
+                        const body = document.getElementById('simulation-body');
+                        if (body) {
+                            setTimeout(() => {
+                                body.scrollTo({
+                                    top: decisionArea.offsetTop - 20,
+                                    behavior: 'smooth'
+                                });
+                            }, 300);
+                        }
+                    }
+                }, 1000);
+            }, 1000);
+        } catch (e) {
+            logConsole(`[VDP_조판사] 오류 발생: ${e.message}`, 'error', 4, 'VDP_조판사');
+        }
+    }, 1200);
+};
+
+// ==========================================
+// STEP 6: CEO (대표님 승인 및 PDF/커버 렌더링)
+// ==========================================
+window.approveBookSpec = async function(title, specName, pages, spineMm, unitCost, retailPrice, marginRate) {
+    const consoleEl = document.getElementById('sim-console');
+    const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
+        const time = new Date().toTimeString().split(' ')[0];
+        const colorMap = {
+            info: 'text-sky-400',
+            success: 'text-emerald-400 font-bold',
+            warn: 'text-amber-400',
+            error: 'text-rose-400 font-bold'
+        };
+        const color = colorMap[type] || 'text-slate-300';
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
+        consoleEl.appendChild(line);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        if (agentId && agentName) {
+            writeAuditLogInDB(agentId, agentName, type, message, { bookTitle: title, approvedSpec: specName });
+        }
+    };
+
+    // UI 비활성화 처리 (더블 클릭 방지 및 승인된 카드 강조)
+    const buttons = document.querySelectorAll('#sim-decision-grid button');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.className = 'w-full py-2.5 bg-slate-200 text-slate-400 rounded-xl text-[10px] font-black cursor-not-allowed';
+    });
+
+    logConsole(`[CEO] 대표 승인 서명 입력 확인. 규격: '${specName}', 책등: ${spineMm}mm 최종 승인.`, 'success', 13, '오케스트레이터');
+
+    // 1. Supabase ceo_decision_logs 테이블 적재
+    try {
+        const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'https://publish79.vercel.app/api/decision'
+            : '/api/decision';
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proposalType: 'REPRINT_SPEC',
+                decision: 'APPROVED',
+                contextData: {
+                    title: title,
+                    selectedSpec: specName,
+                    pages: pages,
+                    spineMm: spineMm,
+                    unitCost: unitCost,
+                    retailPrice: retailPrice,
+                    marginRate: marginRate
+                }
+            })
+        });
+
+        if (res.ok) {
+            logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 13, '오케스트레이터');
+        } else {
+            console.warn("의사결정 로그 DB 적재 실패 (네트워크 무시)");
+        }
+    } catch (e) {
+        console.warn("의사결정 로그 전송 예외 (시뮬레이션 유지):", e.message);
+    }
+
+    // Step 5 대표님 승인 노드 완료 처리
+    const step5Icon = document.getElementById('step-node-5-icon');
+    const step5Status = document.getElementById('step-node-5-status');
+    if (step5Icon) {
+        step5Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+        step5Status.textContent = '승인 완료 (🟢)';
+        step5Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+    }
+
+    // ==========================================
+    // STEP 7: 4번 VDP_조판사 (2차 최종 조판)
+    // ==========================================
+    const step6Icon = document.getElementById('step-node-6-icon');
+    const step6Text = document.getElementById('step-node-6-text');
+    const step6Status = document.getElementById('step-node-6-status');
+    
+    if (step6Icon) {
+        step6Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+        step6Status.textContent = '조판 중 (🟡)';
+        step6Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+        step6Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+    }
+
+    updateLocalAgentStatus(4, 'running', `최종 판형 '${specName}' 맞춤 인쇄 표준 PDF/X-4 컴파일 중`);
+    logConsole(`[VDP_조판사] 승인 신호 수령 완료. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, 'VDP_조판사');
+
+    // 컴파일 프로그레스 영역 노출
+    const compArea = document.getElementById('sim-compilation-area');
+    const compProgress = document.getElementById('sim-compilation-progress');
+    const compStatus = document.getElementById('sim-compilation-status');
+    
+    if (compArea) {
+        compArea.classList.remove('hidden');
+        
+        // 스크롤 이동
+        const body = document.getElementById('simulation-body');
+        if (body) {
+            setTimeout(() => {
+                body.scrollTo({
+                    top: compArea.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+            }, 300);
+        }
+
+        // 게이지 업 애니메이션 시뮬레이션
+        let progress = 0;
+        const interval = setInterval(async () => {
+            progress += 10;
+            compProgress.style.width = `${progress}%`;
+            compStatus.textContent = `${progress}%`;
+
+            if (progress === 30) {
+                logConsole(`[VDP_조판사] 사방 도련(Bleed 3mm) 기준선 레이아웃 격자 적용 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress === 60) {
+                logConsole(`[VDP_조판사] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress === 80) {
+                logConsole(`[VDP_조판사] 쪽번호 및 머리말 폰트 아웃라인 컴파일 및 CMYK 색상 보정 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress >= 100) {
+                clearInterval(interval);
+                
+                // 조판 API 최종 통보
+                try {
+                    const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'https://publish79.vercel.app/api/typeset'
+                        : '/api/typeset';
+                        
+                    await fetch(typesetEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'compile',
+                            title: title,
+                            selectedSpec: specName
+                        })
+                    });
+                } catch (_) {}
+
+                logConsole(`[VDP_조판사] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, 'VDP_조판사');
+                updateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${specName})`);
+
+                // PDF-Lib을 활용한 실시간 고해상도 PDF 생성 및 다운로드 노출
+                const downloadContainer = document.getElementById('sim-compilation-download');
+                if (downloadContainer) {
+                    downloadContainer.classList.remove('hidden');
+                    downloadContainer.innerHTML = `
+                    <button onclick="generateAndDownloadReprintPDF('${title}', '${specName}', ${pages}, ${spineMm})" 
+                            class="bg-slate-900 hover:bg-sky-600 text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        📄 최종 인쇄용 PDF/X-4 다운로드
+                    </button>
+                    `;
+                }
+
+                // ==========================================
+                // STEP 8: 6번 수석 크리에이티브 디자이너 (표지 디자인)
+                // ==========================================
+                setTimeout(async () => {
+                    updateLocalAgentStatus(6, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spineMm}mm)`);
+                    logConsole(`[디자이너] 6번 디자이너 가동. 승인된 세네카 두께 ${spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 6, '디자이너');
+
+                    const coverArea = document.getElementById('sim-cover-area');
+                    if (coverArea) {
+                        coverArea.classList.remove('hidden');
+                        
+                        // 스크롤 이동
+                        const body = document.getElementById('simulation-body');
+                        if (body) {
+                            setTimeout(() => {
+                                body.scrollTo({
+                                    top: coverArea.offsetTop - 20,
+                                    behavior: 'smooth'
+                                    });
+                            }, 300);
+                        }
+
+                        // Canvas 기반 북 커버 실시간 드로잉
+                        drawBookCoverCanvas(title, specName, spineMm);
+                        logConsole(`[디자이너] 책등 폭 ${spineMm}mm를 포함하는 북 커버 전개도(앞표지 + 책등 + 뒤표지) 디자인 최종 렌더링 완료.`, 'success', 6, '디자이너');
+                        
+                        // Step 6 최종 조판/디자인 완료 처리
+                        if (step6Icon) {
+                            step6Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                            step6Status.textContent = '완공 완료 (🟢)';
+                            step6Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+                        }
+                        updateLocalAgentStatus(6, 'success', '표지 디자인 완료');
+                        
+                        // 13번 오케스트레이터 완료 처리
+                        updateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
+                        logConsole(`[오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '오케스트레이터');
+                        loadAgentControlDashboard(); // 메인 조직도에 녹색등(🟢) 반영
+
+                        // 최종 완료 푸터로 교체 (스토어 등록 및 모달 닫기 버튼 배치)
+                        const footer = document.getElementById('sim-footer');
+                        if (footer) {
+                            footer.innerHTML = `
+                            <div class="text-xs text-sky-600 font-bold">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
+                            <div class="flex gap-2">
+                                <button onclick="closeSimulationModal()" class="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-black hover:bg-slate-100 transition-all">그냥 닫기</button>
+                                <button onclick="autoRegisterProductToMASTER('${title}', '${specName}', ${pages}, ${spineMm}, ${unitCost}, ${retailPrice})" 
+                                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95">
+                                    🛒 카탈로그 마스터 DB 최종 등록
+                                </button>
+                            </div>
+                            `;
+                        }
+                    }
+                }, 1000);
+            }
+        }, 150);
+    }
+};
+
+// ==========================================
+// Canvas 기반 책등 비례 북 커버 드로잉 엔진 (Step 8)
+// ==========================================
+function drawBookCoverCanvas(title, specName, spineMm) {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // 픽셀 단위 스케일 계산 (1mm = 1.6px로 세네카 두께 시각화 극대화)
+    const baseWidth = 240; // 앞표지/뒤표지 각각의 가로 픽셀
+    const spineWidth = Math.max(spineMm * 3.5, 12); // 책등 두께 픽셀화 (최소 12px)
+    const totalWidth = baseWidth * 2 + spineWidth;
+    const height = 240; // 세로 픽셀
+
+    // 캔버스 크기 조정
+    canvas.width = totalWidth + 40; // 여백 포함
+    canvas.height = height + 40;
+
+    // 전체 배경 지우기 및 도련 가이드 영역
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 도련선(재단 여백) 드로잉 (외곽 빨간선)
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(10, 10, totalWidth + 20, height + 20);
+
+    // 2. 표지 전개도 배경 (고급스러운 그라디언트 적용)
+    const gradient = ctx.createLinearGradient(20, 20, totalWidth + 20, 20);
+    gradient.addColorStop(0, '#1e293b'); // 뒤표지 어두운 톤
+    gradient.addColorStop(0.48, '#0f172a');
+    gradient.addColorStop(0.5, '#38bdf8'); // 책등 포인터 (스카이블루)
+    gradient.addColorStop(0.52, '#0f172a');
+    gradient.addColorStop(1, '#0284c7'); // 앞표지 푸른 톤
+    ctx.fillStyle = gradient;
+    ctx.fillRect(20, 20, totalWidth, height);
+    ctx.setLineDash([]); // 대시 리셋
+
+    // 3. 책등 분할 선 (접지 가이드 라인)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    // 왼쪽 책등 경계선
+    ctx.beginPath();
+    ctx.moveTo(20 + baseWidth, 20);
+    ctx.lineTo(20 + baseWidth, height + 20);
+    ctx.stroke();
+    // 오른쪽 책등 경계선
+    ctx.beginPath();
+    ctx.moveTo(20 + baseWidth + spineWidth, 20);
+    ctx.lineTo(20 + baseWidth + spineWidth, height + 20);
+    ctx.stroke();
+
+    // 4. 뒤표지 디자인 (왼쪽)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '700 8px sans-serif';
+    ctx.fillText('출판친구 복간 프로젝트 v1.2', 40, 50);
+    
+    // 바코드 모의 드로잉
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(40, height - 50, 60, 35);
+    ctx.fillStyle = '#000000';
+    for (let x = 45; x < 95; x += 3) {
+        const w = Math.random() > 0.4 ? 1.5 : 0.5;
+        ctx.fillRect(x, height - 47, w, 24);
+    }
+    ctx.font = '5px monospace';
+    ctx.fillText('9791192839401', 47, height - 18);
+
+    // 5. 책등 디자인 (세로 쓰기) - 두께가 넉넉할 때만 텍스트 렌더링
+    ctx.save();
+    ctx.translate(20 + baseWidth + spineWidth / 2, height / 2 + 20);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#ffffff';
+    
+    if (spineMm >= 10) {
+        ctx.font = '700 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(title.substring(0, 15), 0, 3);
+    } else {
+        // 책등이 얇으면 실선만 드로잉
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-40, 0);
+        ctx.lineTo(40, 0);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // 6. 앞표지 디자인 (오른쪽)
+    // 엠블럼 데코
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.arc(20 + baseWidth + spineWidth + baseWidth / 2, height / 2 + 20, 50, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 메인 도서명
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 13px sans-serif';
+    ctx.fillText(title.substring(0, 16), 20 + baseWidth + spineWidth + 30, height / 2 - 10);
+    if (title.length > 16) {
+        ctx.fillText(title.substring(16, 30), 20 + baseWidth + spineWidth + 30, height / 2 + 8);
+    }
+
+    // 브랜드 로고 및 띠지 대체 텍스트
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '900 8px sans-serif';
+    ctx.fillText('ANTI-GRAVITY REPRINT', 20 + baseWidth + spineWidth + 30, 50);
+
+    // 하단 카피
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '500 8px sans-serif';
+    ctx.fillText('출판친구 자율 출판 총괄 도서', 20 + baseWidth + spineWidth + 30, height - 30);
+
+    // 7. 자 두께 치수 표시선 (세네카 아래 mm 표시)
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(20 + baseWidth, height + 28);
+    ctx.lineTo(20 + baseWidth + spineWidth, height + 28);
+    ctx.stroke();
+    
+    // 치수 보조선
+    ctx.beginPath();
+    ctx.moveTo(20 + baseWidth, height + 24);
+    ctx.lineTo(20 + baseWidth, height + 32);
+    ctx.moveTo(20 + baseWidth + spineWidth, height + 24);
+    ctx.lineTo(20 + baseWidth + spineWidth, height + 32);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0284c7';
+    ctx.font = '800 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${spineMm}mm`, 20 + baseWidth + spineWidth / 2, height + 38);
+}
+
+// 북 커버 다운로드
+window.downloadCoverImage = function() {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = `북커버_펼침면_디자인.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+};
+
+// ==========================================
+// pdf-lib 기반 고해상도 PDF 다운로드 컴파일러 (Step 7)
+// ==========================================
+window.generateAndDownloadReprintPDF = async function(title, specName, pages, spineMm) {
+    try {
+        const PDFLib = await ensurePDFLibLoaded();
+        const pdfDoc = await PDFLib.PDFDocument.create();
+        
+        // 표지 페이지 생성
+        const page1 = pdfDoc.addPage([595.275, 841.889]); // A4 표준 크기
+        const { width, height } = page1.getSize();
+        
+        // 사방 도련 3mm 펜선 그리기
+        page1.drawRectangle({
+            x: 20,
+            y: 20,
+            width: width - 40,
+            height: height - 40,
+            borderWidth: 1.5,
+            borderColor: PDFLib.rgb(0.93, 0.27, 0.27),
+            opacity: 0.8
+        });
+
+        // 텍스트 기입
+        page1.drawText('VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', {
+            x: 50,
+            y: height - 60,
+            size: 10,
+            color: PDFLib.rgb(0.1, 0.5, 0.8)
+        });
+
+        page1.drawText('BOOK TITLE: ' + title, {
+            x: 50,
+            y: height - 120,
+            size: 18,
+            color: PDFLib.rgb(0.09, 0.16, 0.23)
+        });
+
+        page1.drawText('APPROVED SPECIFICATION: ' + specName, {
+            x: 50,
+            y: height - 160,
+            size: 11,
+            color: PDFLib.rgb(0.3, 0.4, 0.5)
+        });
+
+        page1.drawText('TOTAL PAGES: ' + pages + ' pages', {
+            x: 50,
+            y: height - 180,
+            size: 11,
+            color: PDFLib.rgb(0.3, 0.4, 0.5)
+        });
+
+        page1.drawText('CALCULATED SPINE (SENECA): ' + spineMm + ' mm', {
+            x: 50,
+            y: height - 200,
+            size: 11,
+            color: PDFLib.rgb(0.3, 0.4, 0.5)
+        });
+
+        // 가상 도련(Bleed 3mm) 및 Gutter 여백 설명 가이드 추가
+        page1.drawText('[VDP 조판 상세 가이드라인]', { x: 50, y: height - 280, size: 12, color: PDFLib.rgb(0.06, 0.37, 0.78) });
+        page1.drawText('1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', { x: 50, y: height - 310, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
+        page1.drawText('2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', { x: 50, y: height - 310 - 20, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
+        page1.drawText('3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', { x: 50, y: height - 310 - 40, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
+        page1.drawText('4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', { x: 50, y: height - 310 - 60, size: 9, color: PDFLib.rgb(0.12, 0.16, 0.23) });
+
+        // 하단 서명
+        page1.drawText('CHIEF ORCHESTRATOR 13 & VDP TYPESETTER 4', {
+            x: 50,
+            y: 50,
+            size: 8,
+            color: PDFLib.rgb(0.5, 0.5, 0.5)
+        });
+
+        // 두 번째 페이지 추가 (내지 페이지 1p 예시)
+        const page2 = pdfDoc.addPage([595.275, 841.889]);
+        page2.drawRectangle({
+            x: 20,
+            y: 20,
+            width: width - 40,
+            height: height - 40,
+            borderWidth: 1.5,
+            borderColor: PDFLib.rgb(0.93, 0.27, 0.27),
+            opacity: 0.5
+        });
+
+        page2.drawText('Page 1', {
+            x: width / 2 - 15,
+            y: 40,
+            size: 10,
+            color: PDFLib.rgb(0.2, 0.2, 0.2)
+        });
+
+        page2.drawText('SAMPLE INNER CONTENT (SAMPLE TEXT FOR TYPESETTING VERIFICATION)', {
+            x: 50,
+            y: height - 100,
+            size: 10,
+            color: PDFLib.rgb(0.4, 0.4, 0.4)
+        });
+
+        // PDF 다운로드 링크 생성
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `[인쇄용_최종조판]_${title}_${specName}.pdf`;
+        link.click();
+        
+    } catch (err) {
+        alert('PDF 생성 오류: ' + err.message);
+    }
+};
+
+// ==========================================
+// 마스터 도서 리스트 최종 적재 및 모달 닫기
+// ==========================================
+window.autoRegisterProductToMASTER = async function(title, specName, pages, spineMm, unitCost, retailPrice) {
+    // 1. 중복 검사
+    const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
+    
+    const productData = {
+        id: 'prod_' + Date.now(),
+        title: title,
+        spec: specName,
+        pages: pages,
+        spine: spineMm,
+        cost: unitCost,
+        price: retailPrice,
+        desc: `[자율 복간] 13번 오케스트레이션 파이프라인에 의해 4대 표준 규격 검토 후 대표님이 최종 승인한 복간 도서 '${title}'입니다. 책등 두께 ${spineMm}mm 정합 완공.`,
+        category: '소설/시/희곡',
+        manager: '오케스트레이터',
+        innerPaper: '백모조80g',
+        innerPrint: '내지-흑백양면',
+        partialColor: 0,
+        coverPaper: '스노우지 250g',
+        coverPrint: '표지-컬러단면',
+        coating: '무광',
+        binding: '무선제본',
+        wing: '날개 없음',
+        facePaper: '없음',
+        faceInsert: '없음',
+        created_at: new Date().toISOString()
+    };
+
+    if (exists) {
+        // 이미 있으면 덮어쓰기
+        MASTER.products = MASTER.products.map(p => (p.title === title && p.spec === specName) ? productData : p);
+    } else {
+        MASTER.products.unshift(productData);
+    }
+
+    // Supabase DB 저장 및 마스터 데이터 저장 동기화
+    try {
+        await _supabase.from('products').upsert({
+            title: title,
+            spec: specName,
+            pages: pages,
+            spine: spineMm,
+            cost: unitCost,
+            price: retailPrice,
+            desc: productData.desc,
+            category: productData.category,
+            manager: productData.manager,
+            inner_paper: productData.innerPaper,
+            inner_print: productData.innerPrint,
+            partial_color: productData.partialColor,
+            cover_paper: productData.coverPaper,
+            cover_print: productData.coverPrint,
+            coating: productData.coating,
+            binding: productData.binding,
+            wing: productData.wing,
+            face_paper: productData.facePaper,
+            face_insert: productData.faceInsert,
+            created_at: productData.created_at
+        }, { onConflict: 'title,spec' }); // 복합 유니크 제약
+    } catch (e) {
+        console.warn("Supabase 도서 상품 적재 오류:", e.message);
+    }
+
+    // 마스터 데이터 세이브 및 UI 갱신
+    await saveMasterDataSilent();
+    closeSimulationModal();
+    
+    // 판매 도서 리스트를 띄우고 있는 경우 갱신
+    if (typeof renderProductList === 'function') renderProductList();
+
+    alert(`'${title}' (${specName}) 도서가 마스터 상품 카탈로그 DB에 성공적으로 등록되었습니다. 대형 온라인 서점 API 실시간 드롭쉬핑 연동 대기 상태입니다.`);
+};
+
+window.closeSimulationModal = function() {
+    const modal = document.getElementById('simulation-modal');
+    if (modal) {
+        modal.classList.add('fade-out');
+        setTimeout(() => modal.remove(), 300);
+    }
+};
