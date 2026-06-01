@@ -6709,6 +6709,9 @@ window.startBookSimulationByIndex = async function(index) {
     const book = window._currentCandidates[index];
     if (!book) return;
 
+    // Save book globally to prevent quote escaping bugs in inline HTML event handlers
+    window._currentSimBook = book;
+
     // 모달이 기존에 있으면 제거
     const oldModal = document.getElementById('simulation-modal');
     if (oldModal) oldModal.remove();
@@ -7047,7 +7050,10 @@ window.startBookSimulationByIndex = async function(index) {
                     if (decisionArea && decisionGrid) {
                         decisionArea.classList.remove('hidden');
                         
-                        decisionGrid.innerHTML = calculatedSpecs.map(s => {
+                        // Save calculated specs globally to prevent quote escaping bugs
+                        window._currentCalculatedSpecs = calculatedSpecs;
+
+                        decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => {
                             const recommendBadge = s.isRecommended 
                                 ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest shadow-md border border-sky-400">BEST RECOMMEND</span>`
                                 : '';
@@ -7088,7 +7094,7 @@ window.startBookSimulationByIndex = async function(index) {
                                         <span class="text-[10px] text-slate-400 font-bold">예상 마진율</span>
                                         <span class="text-base font-black text-sky-600">${s.marginRate}%</span>
                                     </div>
-                                    <button onclick="approveBookSpec('${book.title}', '${s.specName}', ${s.pages}, ${s.spineMm}, ${s.unitCost}, ${s.retailPrice}, ${s.marginRate})" 
+                                    <button onclick="approveBookSpec(${idx})" 
                                             class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-sky-600 transition-all shadow-md tracking-wider">
                                         이 판형으로 최종 승인
                                     </button>
@@ -7119,7 +7125,45 @@ window.startBookSimulationByIndex = async function(index) {
 // ==========================================
 // STEP 6: CEO (대표님 승인 및 PDF/커버 렌더링)
 // ==========================================
-window.approveBookSpec = async function(title, specName, pages, spineMm, unitCost, retailPrice, marginRate) {
+window.approveBookSpec = async function(specIndex) {
+    let title, specName, pages, spineMm, unitCost, retailPrice, marginRate;
+    
+    if (typeof specIndex === 'number' || !isNaN(specIndex)) {
+        const book = window._currentSimBook;
+        const spec = window._currentCalculatedSpecs[specIndex];
+        if (!book || !spec) {
+            console.error("Missing book or spec data for index:", specIndex);
+            return;
+        }
+        window._approvedSpec = spec;
+        
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+        unitCost = spec.unitCost;
+        retailPrice = spec.retailPrice;
+        marginRate = spec.marginRate;
+    } else {
+        // Fallback for direct argument calls (legacy compatibility)
+        title = arguments[0];
+        specName = arguments[1];
+        pages = arguments[2];
+        spineMm = arguments[3];
+        unitCost = arguments[4];
+        retailPrice = arguments[5];
+        marginRate = arguments[6];
+        
+        window._approvedSpec = {
+            specName,
+            pages,
+            spineMm,
+            unitCost,
+            retailPrice,
+            marginRate
+        };
+    }
+
     const consoleEl = document.getElementById('sim-console');
     const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
         const time = new Date().toTimeString().split(' ')[0];
@@ -7267,7 +7311,7 @@ window.approveBookSpec = async function(title, specName, pages, spineMm, unitCos
                 if (downloadContainer) {
                     downloadContainer.classList.remove('hidden');
                     downloadContainer.innerHTML = `
-                    <button onclick="generateAndDownloadReprintPDF('${title}', '${specName}', ${pages}, ${spineMm})" 
+                    <button onclick="generateAndDownloadReprintPDF()" 
                             class="bg-slate-900 hover:bg-sky-600 text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all active:scale-95">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         📄 최종 인쇄용 PDF/X-4 다운로드
@@ -7321,7 +7365,7 @@ window.approveBookSpec = async function(title, specName, pages, spineMm, unitCos
                             <div class="text-xs text-sky-600 font-bold">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
                             <div class="flex gap-2">
                                 <button onclick="closeSimulationModal()" class="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-black hover:bg-slate-100 transition-all">그냥 닫기</button>
-                                <button onclick="autoRegisterProductToMASTER('${title}', '${specName}', ${pages}, ${spineMm}, ${unitCost}, ${retailPrice})" 
+                                <button onclick="autoRegisterProductToMASTER()" 
                                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95">
                                     🛒 카탈로그 마스터 DB 최종 등록
                                 </button>
@@ -7487,6 +7531,15 @@ window.downloadCoverImage = function() {
 // pdf-lib 기반 고해상도 PDF 다운로드 컴파일러 (Step 7)
 // ==========================================
 window.generateAndDownloadReprintPDF = async function(title, specName, pages, spineMm) {
+    if (!title) {
+        const book = window._currentSimBook;
+        const spec = window._approvedSpec;
+        if (!book || !spec) return;
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+    }
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
@@ -7600,6 +7653,17 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
 // 마스터 도서 리스트 최종 적재 및 모달 닫기
 // ==========================================
 window.autoRegisterProductToMASTER = async function(title, specName, pages, spineMm, unitCost, retailPrice) {
+    if (!title) {
+        const book = window._currentSimBook;
+        const spec = window._approvedSpec;
+        if (!book || !spec) return;
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+        unitCost = spec.unitCost;
+        retailPrice = spec.retailPrice;
+    }
     // 1. 중복 검사
     const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
     
