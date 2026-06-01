@@ -6632,16 +6632,30 @@ function _triggerApprovalCompleteAnimation() {
 // 🤖 1~8단계 자율 출판 에이전트 파이프라인 시뮬레이터 연동 소스
 // ============================================================
 
-// pdf-lib 라이브러리 동적 로드 함수
+// pdf-lib 및 fontkit 라이브러리 동적 로드 함수
 async function ensurePDFLibLoaded() {
-    if (window.PDFLib) return window.PDFLib;
-    return new Promise((resolve, reject) => {
+    if (window.PDFLib && window.fontkit) return window.PDFLib;
+    
+    const loadFontkit = () => new Promise((resolve, reject) => {
+        if (window.fontkit) return resolve();
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(new Error('fontkit 로드 실패: ' + e.message));
+        document.head.appendChild(script);
+    });
+
+    const loadPDFLib = () => new Promise((resolve, reject) => {
+        if (window.PDFLib) return resolve(window.PDFLib);
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
         script.onload = () => resolve(window.PDFLib);
         script.onerror = (e) => reject(new Error('PDFLib 로드 실패: ' + e.message));
         document.head.appendChild(script);
     });
+
+    await Promise.all([loadFontkit(), loadPDFLib()]);
+    return window.PDFLib;
 }
 
 // Supabase 실시간 적재용 에이전트 상태 업데이트 (UAT용)
@@ -7653,6 +7667,11 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
+        
+        // fontkit 등록 (TTF 폰트 파일 파싱 및 임베딩에 반드시 필요)
+        if (window.fontkit) {
+            pdfDoc.registerFontkit(window.fontkit);
+        }
         
         // 나눔명조/나눔고딕 한글 폰트 동적 로딩 루프 (CORS 및 로딩 속도 최적화, fallback 방지)
         let customFont;
