@@ -7410,11 +7410,41 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 도련선(재단 여백) 가이드라인 드로잉 (외곽 빨간선 - 실제 인쇄 크기보다 3mm 크게 제단선 위치 표시)
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(10, 10, totalWidth + 20, height + 20);
+    const xLeftWing = 20 + wingWidth;
+    const xSpineLeft = 20 + wingWidth + baseWidth;
+    const xSpineRight = 20 + wingWidth + baseWidth + spineWidth;
+    const xRightWing = 20 + wingWidth + baseWidth * 2 + spineWidth;
+
+    // 1. 인쇄 표준 재단 표시선(Crop Marks / 톰보) 드로잉 - 금융오디세이 실무 도면 스타일
+    ctx.strokeStyle = '#64748b'; // 차분한 슬레이트 회색선
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([]); // 실선
+    
+    // 네 모퉁이 재단선 (Trim 경계 표시)
+    // Top-Left (20, 20)
+    ctx.beginPath(); ctx.moveTo(20, 3); ctx.lineTo(20, 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3, 20); ctx.lineTo(15, 20); ctx.stroke();
+    
+    // Top-Right (20 + totalWidth, 20)
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth, 3); ctx.lineTo(20 + totalWidth, 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20); ctx.lineTo(20 + totalWidth + 17, 20); ctx.stroke();
+    
+    // Bottom-Left (20, 20 + height)
+    ctx.beginPath(); ctx.moveTo(20, 20 + height + 5); ctx.lineTo(20, 20 + height + 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3, 20 + height); ctx.lineTo(15, 20 + height); ctx.stroke();
+    
+    // Bottom-Right (20 + totalWidth, 20 + height)
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth, 20 + height + 5); ctx.lineTo(20 + totalWidth, 20 + height + 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20 + height); ctx.lineTo(20 + totalWidth + 17, 20 + height); ctx.stroke();
+
+    // 접지 가이드 톰보 표시선 (세네카 및 책날개 접는선 지시용 바깥쪽 틱마크)
+    const foldLinesX = [xLeftWing, xSpineLeft, xSpineRight, xRightWing];
+    foldLinesX.forEach(x => {
+        // 상단 가이드 틱
+        ctx.beginPath(); ctx.moveTo(x, 5); ctx.lineTo(x, 15); ctx.stroke();
+        // 하단 가이드 틱
+        ctx.beginPath(); ctx.moveTo(x, 20 + height + 5); ctx.lineTo(x, 20 + height + 15); ctx.stroke();
+    });
 
     // 2. 표지 전개도 배경 (고급스러운 그라디언트 적용 - 5단 날개 포함 전개도 전체 칠하기)
     const gradient = ctx.createLinearGradient(20, 20, totalWidth + 20, 20);
@@ -7433,11 +7463,6 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 3]);
-
-    const xLeftWing = 20 + wingWidth;
-    const xSpineLeft = 20 + wingWidth + baseWidth;
-    const xSpineRight = 20 + wingWidth + baseWidth + spineWidth;
-    const xRightWing = 20 + wingWidth + baseWidth * 2 + spineWidth;
 
     // 접지선 1: 뒤날개 - 뒤표지 경계
     ctx.beginPath(); ctx.moveTo(xLeftWing, 20); ctx.lineTo(xLeftWing, height + 20); ctx.stroke();
@@ -7596,7 +7621,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         let customFont;
         let useFallback = false;
         try {
-            const fontUrl = 'https://cdn.jsdelivr.net/npm/@kfonts/nanum-myeongjo/fonts/NanumMyeongjo-Regular.ttf';
+            const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf';
             const fontBytes = await fetch(fontUrl).then(res => {
                 if (!res.ok) throw new Error("Font download failed");
                 return res.arrayBuffer();
