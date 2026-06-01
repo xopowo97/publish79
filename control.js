@@ -12,11 +12,23 @@
 // ───────────────────────────────────────────
 const CTRL_SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
 const CTRL_SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
-const _ctrl_supabase = supabase.createClient(CTRL_SUPABASE_URL, CTRL_SUPABASE_KEY);
+let _ctrl_supabase = null;
+try {
+    if (typeof supabase !== 'undefined') {
+        _ctrl_supabase = supabase.createClient(CTRL_SUPABASE_URL, CTRL_SUPABASE_KEY);
+    } else {
+        console.warn('[통제실] Supabase SDK 로드 실패. 오프라인 모드로 작동합니다.');
+    }
+} catch (e) {
+    console.warn('[통제실] Supabase 초기화 실패:', e);
+}
 
 function ctrlApiUrl(path) {
-    const isProduction = window.location.hostname === 'publish79.vercel.app';
-    return isProduction ? path : `https://publish79.vercel.app${path}`;
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.hostname === '' || 
+                    window.location.protocol === 'file:';
+    return isLocal ? `https://publish79.vercel.app${path}` : path;
 }
 
 // ───────────────────────────────────────────
@@ -25,7 +37,11 @@ function ctrlApiUrl(path) {
 let _ctrl_trendChart     = null;
 let _ctrl_logIntervalId  = null;
 let _ctrl_lastLogId      = 0;
-let _ctrl_candidates     = [];
+let _ctrl_candidates     = [
+    { id: 1, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
+    { id: 2, title: "탈학교의 사회", author: "이반 일리치", pub_year: 2017, library_loans: 8940, reprint_score: 95, is_out_of_print: true },
+    { id: 3, title: "생각의 탄생", author: "루트번스타인", pub_year: 2020, library_loans: 7120, reprint_score: 91, is_out_of_print: true }
+];
 let _ctrl_flashActive    = false;
 let _ctrl_flashTimerId   = null;
 let _ctrl_approvalLog    = [];  // 승인 이력 배열
@@ -40,10 +56,20 @@ let _ctrl_approvedSpec   = null;
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
-    initCtrlTrendChart();
+    try {
+        initCtrlTrendChart();
+    } catch (e) {
+        console.warn('[통제실] 차트 초기화 실패:', e);
+    }
     loadCtrlDashboard();
     startCtrlLogStream();
-    lucide.createIcons();
+    try {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    } catch (e) {
+        console.warn('[통제실] Lucide 아이콘 초기화 실패:', e);
+    }
 });
 
 // ───────────────────────────────────────────
@@ -71,6 +97,11 @@ function initClock() {
 function initCtrlTrendChart() {
     const canvas = document.getElementById('ctrl-trend-chart');
     if (!canvas) return;
+
+    if (typeof Chart === 'undefined') {
+        console.warn('[통제실] Chart.js 미로드. 차트 생략.');
+        return;
+    }
 
     if (_ctrl_trendChart) {
         _ctrl_trendChart.destroy();
@@ -133,6 +164,10 @@ function initCtrlTrendChart() {
 // 5. 대시보드 데이터 로드 (에이전트 조직도 + 복간 후보)
 // ───────────────────────────────────────────
 async function loadCtrlDashboard() {
+    if (!_ctrl_supabase) {
+        console.warn('[통제실] Supabase 객체가 없어 로컬 정적 데이터 모드로 실행합니다.');
+        return;
+    }
     // 5-1. 에이전트 조직도
     try {
         const { data, error } = await _ctrl_supabase
@@ -316,6 +351,7 @@ function ctrlUpdateLocalAgentStatus(agentId, status, role) {
 // 9. Supabase 에이전트 상태 업데이트 (DB 기록)
 // ───────────────────────────────────────────
 async function ctrlUpdateAgentStatusInDB(agentId, status, role) {
+    if (!_ctrl_supabase) return;
     try {
         await _ctrl_supabase
             .from('agents')
@@ -330,6 +366,7 @@ async function ctrlUpdateAgentStatusInDB(agentId, status, role) {
 // 10. 감사 로그 DB 기록
 // ───────────────────────────────────────────
 async function ctrlWriteAuditLog(agentId, agentName, logLevel, message, metadata) {
+    if (!_ctrl_supabase) return;
     try {
         await _ctrl_supabase.from('agent_audit_logs').insert({
             agent_id:   agentId,
@@ -372,6 +409,11 @@ function startCtrlLogStream() {
 async function _fetchAndRenderCtrlLogs() {
     const el = document.getElementById('ctrl-log-stream');
     if (!el) return;
+
+    if (!_ctrl_supabase) {
+        _appendCtrlSimulatedLog(el);
+        return;
+    }
 
     try {
         const { data, error } = await _ctrl_supabase
@@ -535,6 +577,7 @@ function _ctrlAutoRecover() {
 // 14. 시뮬레이션 모달 — 복간 후보 도서 선택 시 실행
 // ───────────────────────────────────────────
 async function ctrlStartSimByIndex(index) {
+    alert("도서 클릭이 확인되었습니다! (인덱스: " + index + ")");
     const book = _ctrl_candidates[index];
     if (!book) return;
 
@@ -554,7 +597,9 @@ async function ctrlStartSimByIndex(index) {
     wrap.className = 'ctrl-sim-overlay';
     wrap.innerHTML = buildSimModalHTML(book);
     document.body.appendChild(wrap);
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') {
+        try { lucide.createIcons(); } catch(e) {}
+    }
 
     // 콘솔 로그 헬퍼
     const consoleEl  = document.getElementById('ctrl-sim-console');
