@@ -940,10 +940,10 @@ function drawCtrlBookCover(title, specName, spineMm) {
     ctx.fillStyle = gradient;
     ctx.fillRect(20, 20, totalWidth, height);
 
-    // 접지 가이드선
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 3]);
+    // 접지 가이드선 (재단선 및 날개/책등 접지선 - 어두운 배경에서도 선명하게 보이도록 밝은 노란색 점선으로 보강)
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([4, 4]);
     [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
         ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
     });
@@ -1024,9 +1024,17 @@ async function ctrlDownloadReprintPDF() {
         page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5,0.5,0.5), borderDashArray:[2,2] });
         page.drawRectangle({ x: xOff-8.5, y: yOff-8.5, width: trimW+17, height: trimH+17, borderWidth: 0.75, borderColor: rgb(0.9,0.2,0.2) });
 
-        page.drawText(`[Control Room Sim] ${book.title}`, { x: xOff+20, y: yOff+trimH-50, size:12, color:rgb(0.28,0.34,0.42) });
-        page.drawText(`Spec: ${spec.specName} / Pages: ${spec.pages}p / Spine: ${spec.spineMm}mm`, { x: xOff+20, y: yOff+trimH-80, size:9, color:rgb(0.39,0.45,0.55) });
-        page.drawText(`Anti-Gravity Agent Control Room — Autonomous Publishing Pipeline`, { x: xOff+20, y: yOff+30, size:8, color:rgb(0.39,0.45,0.55) });
+        // 한글 폰트 인코딩 에러(WinAnsi) 방지를 위해 PDF 내부 텍스트는 영문으로 변환하여 출력합니다.
+        const englishTitle = book.id === 1 ? 'Old Future' : (book.id === 2 ? 'Deschooling Society' : (book.id === 3 ? 'The Art of Creation' : 'Reprint Book'));
+        let englishSpecName = 'Standard Edition';
+        if (spec.specName.includes('국배판')) englishSpecName = 'Kuk-Bae Edition (A4-like)';
+        else if (spec.specName.includes('신국판')) englishSpecName = 'Shin-Kuk Edition (152x225)';
+        else if (spec.specName.includes('A5국판')) englishSpecName = 'A5 Edition (148x210)';
+        else if (spec.specName.includes('46판')) englishSpecName = '46 Edition (128x188)';
+
+        page.drawText(`[Control Room Sim] ${englishTitle}`, { x: xOff+20, y: yOff+trimH-50, size:12, color:rgb(0.28,0.34,0.42) });
+        page.drawText(`Spec: ${englishSpecName} / Pages: ${spec.pages}p / Spine: ${spec.spineMm}mm`, { x: xOff+20, y: yOff+trimH-80, size:9, color:rgb(0.39,0.45,0.55) });
+        page.drawText(`Anti-Gravity Agent Control Room -- Autonomous Publishing Pipeline`, { x: xOff+20, y: yOff+30, size:8, color:rgb(0.39,0.45,0.55) });
 
         const bytes = await pdfDoc.save();
         const link  = document.createElement('a');
