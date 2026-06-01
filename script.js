@@ -6838,9 +6838,9 @@ window.startBookSimulationByIndex = async function(index) {
                     </h4>
                     <div class="flex flex-col items-center justify-center gap-5">
                         <canvas id="sim-cover-canvas" width="650" height="280" class="border border-slate-200 rounded-2xl bg-white max-w-full shadow-inner"></canvas>
-                        <button onclick="downloadCoverImage()" class="bg-pink-600 hover:bg-pink-700 text-white font-black px-6 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-pink-100 transition-all active:scale-95">
+                        <button onclick="downloadCoverPDF()" class="bg-pink-600 hover:bg-pink-700 text-white font-black px-6 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-pink-100 transition-all active:scale-95">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            북 커버 펼침면 이미지 다운로드
+                            북 커버 펼침면 PDF 다운로드
                         </button>
                     </div>
                 </div>
@@ -7589,7 +7589,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
 }
 
-// 북 커버 다운로드
+// 북 커버 이미지 다운로드 (하위 호환성 유지)
 window.downloadCoverImage = function() {
     const canvas = document.getElementById('sim-cover-canvas');
     if (!canvas) return;
@@ -7598,6 +7598,43 @@ window.downloadCoverImage = function() {
     link.download = `북커버_펼침면_디자인.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+};
+
+// 북 커버 펼침면 PDF 다운로드 (Step 8)
+window.downloadCoverPDF = async function() {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    
+    try {
+        const PDFLib = await ensurePDFLibLoaded();
+        const pdfDoc = await PDFLib.PDFDocument.create();
+        
+        // 캔버스 실시간 디자인 이미지를 PNG 데이터로 변환하여 임베딩
+        const imgDataUrl = canvas.toDataURL('image/png');
+        const pngImage = await pdfDoc.embedPng(imgDataUrl);
+        
+        // 캔버스 비율/해상도를 1:1로 보존하여 펼침면 단일 페이지 PDF 생성
+        const width = canvas.width;
+        const height = canvas.height;
+        const page = pdfDoc.addPage([width, height]);
+        
+        page.drawImage(pngImage, {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height
+        });
+        
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        const title = (window._currentSimBook?.title || '북커버').replace(/[\/\\?%*:|"<>\s]/g, '_');
+        link.href = URL.createObjectURL(blob);
+        link.download = `[인쇄용_표지]_${title}_펼침면.pdf`;
+        link.click();
+    } catch (err) {
+        alert('표지 PDF 생성 오류: ' + err.message);
+    }
 };
 
 // ==========================================
@@ -7617,18 +7654,35 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
         
-        // 나눔명조 한글 폰트 동적 로드 및 임베딩 (실시간 한글 깨짐 방지)
+        // 나눔명조/나눔고딕 한글 폰트 동적 로딩 루프 (CORS 및 로딩 속도 최적화, fallback 방지)
         let customFont;
         let useFallback = false;
-        try {
-            const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf';
-            const fontBytes = await fetch(fontUrl).then(res => {
-                if (!res.ok) throw new Error("Font download failed");
-                return res.arrayBuffer();
-            });
-            customFont = await pdfDoc.embedFont(fontBytes);
-        } catch (e) {
-            console.warn("한글 폰트 로드 실패, 영문 우회 모드로 전환합니다:", e.message);
+        
+        const fontUrls = [
+            'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf',
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
+        ];
+        
+        for (const url of fontUrls) {
+            try {
+                console.log(`[PDF] 한글 폰트 로드 시도: ${url}`);
+                const fontBytes = await fetch(url).then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.arrayBuffer();
+                });
+                customFont = await pdfDoc.embedFont(fontBytes);
+                console.log(`[PDF] 한글 폰트 임베딩 완료: ${url}`);
+                break;
+            } catch (e) {
+                console.warn(`[PDF] 한글 폰트 로드 실패 (${url}):`, e.message);
+            }
+        }
+        
+        if (!customFont) {
+            console.warn("[PDF] 모든 한글 폰트 로드 실패, ASCII 대체 모드로 전환합니다.");
             useFallback = true;
         }
 
@@ -7646,62 +7700,143 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 color: PDFLib.rgb(r, g, b)
             };
             
-            if (useFallback) {
-                // 한글 폰트 로드 실패 시, 한글 문자를 물음표로 치환하여 Helvetica 인코딩 에러 방지
-                const asciiText = text.replace(/[^\x00-\x7F]/g, "?");
+            if (useFallback || !customFont) {
+                const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
                 page.drawText(asciiText, options);
             } else {
-                page.drawText(text, { ...options, font: customFont });
+                try {
+                    page.drawText(String(text), { ...options, font: customFont });
+                } catch (fontErr) {
+                    console.warn(`Font encoding error for text "${text}":`, fontErr.message);
+                    // 폰트 미지원 문자 인코딩 예외 발생 시 ASCII로 치환하여 크래시 방지
+                    const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
+                    page.drawText(asciiText, options);
+                }
             }
         };
 
-        // 표지 페이지 생성
-        const page1 = pdfDoc.addPage([595.275, 841.889]); // A4 표준 크기
-        const { width, height } = page1.getSize();
+        // 판형별 mm 규격 정의 및 PDF 포인트 변환
+        const specDimensions = {
+            'A5국판': { w: 148, h: 210 },
+            '신국판': { w: 152, h: 225 },
+            '46판': { w: 128, h: 188 },
+            '국배판': { w: 210, h: 297 }
+        };
         
-        // 사방 도련 3mm 펜선 그리기
-        page1.drawRectangle({
-            x: 20,
-            y: 20,
-            width: width - 40,
-            height: height - 40,
-            borderWidth: 1.5,
-            borderColor: PDFLib.rgb(0.93, 0.27, 0.27),
-            opacity: 0.8
-        });
+        let trimWidthMm = 152;
+        let trimHeightMm = 225;
+        
+        for (const key in specDimensions) {
+            if (specName.includes(key)) {
+                trimWidthMm = specDimensions[key].w;
+                trimHeightMm = specDimensions[key].h;
+                break;
+            }
+        }
+        
+        const mmToPt = 72 / 25.4;
+        const trimWidth = trimWidthMm * mmToPt;
+        const trimHeight = trimHeightMm * mmToPt;
+        
+        const pageW = 595.275; // A4 가로 (pt)
+        const pageH = 841.889; // A4 세로 (pt)
+        
+        const xOffset = (pageW - trimWidth) / 2;
+        const yOffset = (pageH - trimHeight) / 2;
+        
+        // 십자형 재단선 드로잉 헬퍼
+        const drawCropMarkAtCorner = (page, cx, cy) => {
+            // 가로선
+            page.drawLine({
+                start: { x: cx - 15, y: cy },
+                end: { x: cx - 3, y: cy },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            page.drawLine({
+                start: { x: cx + 3, y: cy },
+                end: { x: cx + 15, y: cy },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            // 세로선
+            page.drawLine({
+                start: { x: cx, y: cy - 15 },
+                end: { x: cx, y: cy - 3 },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            page.drawLine({
+                start: { x: cx, y: cy + 3 },
+                end: { x: cx, y: cy + 15 },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+        };
+        
+        const applyPageLayoutAndDielines = (page) => {
+            // 1. 실제 재단 영역 (Trim Box: 회색 점선)
+            page.drawRectangle({
+                x: xOffset,
+                y: yOffset,
+                width: trimWidth,
+                height: trimHeight,
+                borderWidth: 0.5,
+                borderColor: PDFLib.rgb(0.5, 0.5, 0.5),
+                borderDashArray: [2, 2]
+            });
+
+            // 2. 도련 영역 (Bleed Box: 빨간색 실선)
+            // 3mm = 8.5039 pt
+            const bleedPt = 3 * mmToPt;
+            page.drawRectangle({
+                x: xOffset - bleedPt,
+                y: yOffset - bleedPt,
+                width: trimWidth + bleedPt * 2,
+                height: trimHeight + bleedPt * 2,
+                borderWidth: 0.75,
+                borderColor: PDFLib.rgb(0.9, 0.2, 0.2),
+            });
+
+            // 3. 네 모퉁이 십자형 재단 마크
+            drawCropMarkAtCorner(page, xOffset, yOffset); // Bottom-Left
+            drawCropMarkAtCorner(page, xOffset + trimWidth, yOffset); // Bottom-Right
+            drawCropMarkAtCorner(page, xOffset, yOffset + trimHeight); // Top-Left
+            drawCropMarkAtCorner(page, xOffset + trimWidth, yOffset + trimHeight); // Top-Right
+        };
+
+        // --- 1페이지 (인증서 / 정보 요약 페이지) ---
+        const page1 = pdfDoc.addPage([pageW, pageH]);
+        applyPageLayoutAndDielines(page1);
 
         // 텍스트 기입
-        drawTextSafely(page1, 'VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', 50, height - 60, 10, '#0ea5e9');
-        drawTextSafely(page1, '도서명: ' + title, 50, height - 120, 18, '#0f172a');
-        drawTextSafely(page1, '승인된 규격 판형: ' + specName, 50, height - 160, 11, '#475569');
-        drawTextSafely(page1, '총 페이지 수: ' + pages + ' pages', 50, height - 180, 11, '#475569');
-        drawTextSafely(page1, '계산된 책등(세네카): ' + spineMm + ' mm', 50, height - 200, 11, '#475569');
+        drawTextSafely(page1, 'VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', 50, pageH - 60, 10, '#0ea5e9');
+        drawTextSafely(page1, '도서명: ' + title, 50, pageH - 120, 18, '#0f172a');
+        drawTextSafely(page1, '승인된 규격 판형: ' + specName, 50, pageH - 160, 11, '#475569');
+        drawTextSafely(page1, '총 페이지 수: ' + pages + ' pages', 50, pageH - 180, 11, '#475569');
+        drawTextSafely(page1, '계산된 책등(세네카): ' + spineMm + ' mm', 50, pageH - 200, 11, '#475569');
 
         // 가상 도련(Bleed 3mm) 및 Gutter 여백 설명 가이드 추가
-        drawTextSafely(page1, '[VDP 조판 상세 가이드라인]', 50, height - 280, 12, '#0284c7');
-        drawTextSafely(page1, '1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', 50, height - 310, 9, '#1e293b');
-        drawTextSafely(page1, '2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', 50, height - 330, 9, '#1e293b');
-        drawTextSafely(page1, '3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', 50, height - 350, 9, '#1e293b');
-        drawTextSafely(page1, '4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', 50, height - 370, 9, '#1e293b');
+        drawTextSafely(page1, '[VDP 조판 상세 가이드라인]', 50, pageH - 280, 12, '#0284c7');
+        drawTextSafely(page1, '1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', 50, pageH - 310, 9, '#1e293b');
+        drawTextSafely(page1, '2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', 50, pageH - 330, 9, '#1e293b');
+        drawTextSafely(page1, '3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', 50, pageH - 350, 9, '#1e293b');
+        drawTextSafely(page1, '4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', 50, pageH - 370, 9, '#1e293b');
 
         // 하단 서명
         drawTextSafely(page1, 'CHIEF ORCHESTRATOR 13 & VDP TYPESETTER 4', 50, 50, 8, '#94a3b8');
 
-        // 두 번째 페이지 추가 (내지 페이지 1p 예시)
-        const page2 = pdfDoc.addPage([595.275, 841.889]);
-        page2.drawRectangle({
-            x: 20,
-            y: 20,
-            width: width - 40,
-            height: height - 40,
-            borderWidth: 1.5,
-            borderColor: PDFLib.rgb(0.93, 0.27, 0.27),
-            opacity: 0.5
-        });
+        // --- 2페이지 (실제 본문 샘플 페이지 - 선택 판형 내부로 컨텐츠 가두기) ---
+        const page2 = pdfDoc.addPage([pageW, pageH]);
+        applyPageLayoutAndDielines(page2);
 
-        drawTextSafely(page2, 'Page 1', width / 2 - 15, 40, 10, '#334155');
-        drawTextSafely(page2, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', 50, height - 100, 11, '#475569');
-        drawTextSafely(page2, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', 50, height - 130, 9, '#64748b');
+        // 본문 텍스트가 Centered Trim Box 내부로 가도록 위치 자동 계산
+        const page2ContentX = xOffset + 30;
+        const page2ContentY = yOffset + trimHeight - 60;
+        
+        drawTextSafely(page2, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
+        drawTextSafely(page2, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page2ContentX, page2ContentY, 11, '#475569');
+        drawTextSafely(page2, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page2ContentX, page2ContentY - 30, 9, '#64748b');
 
         // PDF 다운로드 링크 생성
         const pdfBytes = await pdfDoc.save();
