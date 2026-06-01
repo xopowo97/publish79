@@ -41,15 +41,15 @@ const LIBRARY_API_BASE = 'https://www.nl.go.kr/NL/search/openApi/search.do';
 function runDataRefiner_Dadumeui(rawBook) {
     if (!rawBook) return null;
 
-    // 필드 정규화 (국립중앙도서관 API 응답 키 매핑)
-    const title  = String(rawBook.titleInfo   || rawBook.title   || '').trim();
-    const author = String(rawBook.authorInfo  || rawBook.author  || '미상').trim();
+    // 필드 정규화 (국립중앙도서관 API 응답 키 매핑) 및 HTML 태그(검색 하이라이트 등) 제거
+    const title  = String(rawBook.titleInfo   || rawBook.title   || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    const author = String(rawBook.authorInfo  || rawBook.author  || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "");
     const isbn   = String(rawBook.isbn        || rawBook.EA_ISBN || '').replace(/[^0-9X]/gi, '');
     const pubYear = parseInt(
         String(rawBook.pubYearInfo || rawBook.pubYear || rawBook.pubDate || '0').substring(0, 4),
         10
     ) || null;
-    const publisher = String(rawBook.publisherInfo || rawBook.publisher || '').trim();
+    const publisher = String(rawBook.publisherInfo || rawBook.publisher || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
     const loanCount = parseInt(rawBook.loanCnt || rawBook.loan_count || 0, 10) || 0;
 
     // 유효성 검사 (제목 없으면 스킵)
