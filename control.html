@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에이전트 통제실 | 출판친구 Anti-Gravity</title>
+    <meta name="description" content="출판친구 자율 출판 에이전트 통제실 — 1~13번 에이전트 실시간 모니터링 및 파이프라인 제어">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 통제실 전용 스타일시트 (기존 style.css 절대 불러오지 않음) -->
+    <link rel="stylesheet" href="control.css">
+</head>
+<body>
+
+    <!-- ==========================================
+         에이전트 통제실 전용 UI
+         ========================================== -->
+
+    <!-- 상단 헤더 네비게이션 -->
+    <header class="ctrl-header">
+        <div class="ctrl-header-inner">
+            <!-- 로고 / 브랜드 -->
+            <div class="ctrl-logo">
+                <div class="ctrl-logo-icon">
+                    <i data-lucide="brain-circuit"></i>
+                </div>
+                <div>
+                    <div class="ctrl-logo-title">Anti-Gravity Control</div>
+                    <div class="ctrl-logo-sub">에이전트 통제실 v2.0</div>
+                </div>
+            </div>
+
+            <!-- 상태 인디케이터 -->
+            <div class="ctrl-status-bar">
+                <div class="ctrl-status-item">
+                    <span class="ctrl-dot ctrl-dot-green pulse"></span>
+                    <span class="ctrl-status-label">시스템 정상</span>
+                </div>
+                <div class="ctrl-status-item">
+                    <span class="ctrl-dot ctrl-dot-purple pulse"></span>
+                    <span class="ctrl-status-label">13번 지휘중</span>
+                </div>
+                <div class="ctrl-status-item ctrl-clock" id="ctrl-clock">
+                    00:00:00
+                </div>
+            </div>
+
+            <!-- 실무 엔진 링크 -->
+            <nav class="ctrl-nav">
+                <a href="index.html" class="ctrl-nav-link" target="_blank">
+                    <i data-lucide="external-link"></i>
+                    <span>실무 엔진</span>
+                </a>
+                <button class="ctrl-nav-btn" onclick="triggerCtrlPipeline()">
+                    <i data-lucide="play"></i>
+                    <span>파이프라인</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 레이아웃 -->
+    <main class="ctrl-main">
+
+        <!-- 13번 오케스트레이터 배너 -->
+        <div class="ctrl-orchestrator-banner" id="ctrl-orch-banner">
+            <div class="ctrl-orch-icon">
+                <i data-lucide="brain-circuit"></i>
+            </div>
+            <div class="ctrl-orch-body">
+                <div class="ctrl-orch-label">🧠 13번 오케스트레이터 · 실시간 지시사항</div>
+                <div class="ctrl-orch-msg" id="ctrl-orch-msg">
+                    살피미의 국립중앙도서관 API 응답 완료. 데이터 신뢰도 92%. 다듬이에게 절판 도서 필터링 명령 전송 중...
+                </div>
+            </div>
+            <div class="ctrl-orch-score">
+                <div class="ctrl-score-num" id="ctrl-orch-score">92<span>%</span></div>
+                <div class="ctrl-score-label">데이터 신뢰도</div>
+            </div>
+        </div>
+
+        <!-- 파이프라인 컨트롤 패널 -->
+        <div class="ctrl-pipeline-panel">
+            <div class="ctrl-pipeline-left">
+                <label class="ctrl-pipeline-label">
+                    <i data-lucide="flask-conical"></i>
+                    살피미 + 다듬이 파이프라인 수동 실행
+                </label>
+                <input type="text" id="ctrl-keyword-input" class="ctrl-input"
+                       placeholder="검색 키워드 (예: 절판 도서, 생태학...)" value="절판 도서">
+                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary" onclick="triggerCtrlPipeline()">
+                    <i data-lucide="rocket"></i>
+                    파이프라인 실행
+                </button>
+            </div>
+            <div class="ctrl-pipeline-right">
+                <span id="ctrl-pipeline-status" class="ctrl-pipeline-status">
+                    대기 중 — 버튼을 눌러 파이프라인을 가동하세요.
+                </span>
+                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash" onclick="toggleCtrlFlashlight()">
+                    <i data-lucide="zap"></i>
+                    플래시 라이트 모드 시연
+                </button>
+            </div>
+        </div>
+
+        <!-- 3컬럼 메인 대시보드 그리드 -->
+        <div class="ctrl-grid">
+
+            <!-- 왼쪽: 에이전트 조직도 -->
+            <div class="ctrl-panel">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="git-branch"></i>
+                    <span>에이전트 조직도</span>
+                    <span class="ctrl-badge ctrl-badge-live">LIVE</span>
+                </div>
+                <div class="ctrl-org-tree" id="ctrl-org-tree">
+                    <!-- 가치 창출 및 자율 서비스 본부 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">📡 가치 창출 및 자율 서비스 본부</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">1번 살피미</span>
+                            <span class="ctrl-agent-task">API 수집 완료</span>
+                            <span class="ctrl-agent-tag">딥서치</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-running">
+                            <span class="ctrl-dot ctrl-dot-amber"></span>
+                            <span class="ctrl-agent-name">2번 다듬이</span>
+                            <span class="ctrl-agent-task">절판 필터 처리중</span>
+                            <span class="ctrl-agent-tag">정제</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">3번 분석 팀장</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">분석</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">4번 VDP_조판사</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">조판</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">5번 검수 대리</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">검수</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">6번 크리에이티브 디자이너</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">디자인</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">7번 영업 전문가</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">영업</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">8번 마케터</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">마케팅</span>
+                        </div>
+                    </div>
+                    <!-- 인프라 엔진 및 행정 지원 본부 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">⚙️ 인프라 엔진 및 행정 지원 본부</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">9번 눈치왕</span>
+                            <span class="ctrl-agent-task">에러 감시중</span>
+                            <span class="ctrl-agent-tag">감시</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">10번 자가치유</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">치유</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">11번 자동화 배포관리자</span>
+                            <span class="ctrl-agent-task">알림 대기</span>
+                            <span class="ctrl-agent-tag">배포</span>
+                        </div>
+                    </div>
+                    <!-- AI 보안 관제실 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">🛡️ AI 실시간 보안 및 통제 관제실</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">12번 보안관</span>
+                            <span class="ctrl-agent-task">보안 정상</span>
+                            <span class="ctrl-agent-tag">보안</span>
+                        </div>
+                    </div>
+                    <!-- 총지휘부 -->
+                    <div class="ctrl-dept ctrl-dept-orch">
+                        <div class="ctrl-dept-title">🧠 총지휘부</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-purple"></span>
+                            <span class="ctrl-agent-name">13번 오케스트레이터</span>
+                            <span class="ctrl-agent-task">전체 지휘중</span>
+                            <span class="ctrl-agent-tag ctrl-tag-purple">지휘</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 가운데: 복간 후보 TOP3 + 트렌드 차트 -->
+            <div class="ctrl-panel">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="trophy"></i>
+                    <span>복간 후보 TOP 3</span>
+                    <span class="ctrl-badge ctrl-badge-ai">AI 분석</span>
+                </div>
+
+                <div class="ctrl-top3-list" id="ctrl-top3-list">
+                    <div class="ctrl-book-card ctrl-rank-1">
+                        <div class="ctrl-rank-badge">🥇 1위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">오래된 미래 (헬레나 노르베리-호지)</div>
+                            <div class="ctrl-book-meta">절판 · 2019 · 수요지수 <strong>98.2</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">98<span>점</span></div>
+                    </div>
+                    <div class="ctrl-book-card ctrl-rank-2">
+                        <div class="ctrl-rank-badge">🥈 2위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">탈학교의 사회 (이반 일리치)</div>
+                            <div class="ctrl-book-meta">절판 · 2017 · 수요지수 <strong>94.7</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">95<span>점</span></div>
+                    </div>
+                    <div class="ctrl-book-card ctrl-rank-3">
+                        <div class="ctrl-rank-badge">🥉 3위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">생각의 탄생 (루트번스타인)</div>
+                            <div class="ctrl-book-meta">절판 · 2020 · 수요지수 <strong>91.1</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">91<span>점</span></div>
+                    </div>
+                </div>
+
+                <!-- 7일 수요 트렌드 차트 -->
+                <div class="ctrl-panel-header" style="margin-top: 24px;">
+                    <i data-lucide="trending-up"></i>
+                    <span>7일 수요 트렌드</span>
+                </div>
+                <div style="position: relative; height: 160px; margin-top: 8px;">
+                    <canvas id="ctrl-trend-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 실시간 에이전트 로그 -->
+            <div class="ctrl-panel">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="activity"></i>
+                    <span>실시간 에이전트 로그</span>
+                    <span class="ctrl-badge ctrl-badge-live">LIVE</span>
+                </div>
+                <div class="ctrl-log-stream" id="ctrl-log-stream">
+                    <div class="ctrl-log-entry ctrl-log-success">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[살피미]</span>
+                        <span>국립중앙도서관 API 호출 성공 · 도서 247건 수집</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-info">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[오케스트레이터]</span>
+                        <span>데이터 정제 명령 → 다듬이 전송</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-warn">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[다듬이]</span>
+                        <span>절판 도서 필터 처리중 · 62건 감지</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-success">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[보안관]</span>
+                        <span>비정상 API 호출 0건 · 보안 정상</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-info">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[눈치왕]</span>
+                        <span>에러 없음 · 시스템 안정 상태</span>
+                    </div>
+                </div>
+
+                <!-- 승인 로그 섹션 -->
+                <div class="ctrl-panel-header" style="margin-top: 24px;">
+                    <i data-lucide="clipboard-check"></i>
+                    <span>대표님 승인 로그</span>
+                    <span class="ctrl-badge ctrl-badge-ceo">CEO</span>
+                </div>
+                <div class="ctrl-approval-log" id="ctrl-approval-log">
+                    <div class="ctrl-approval-empty">
+                        <i data-lucide="inbox"></i>
+                        <p>아직 승인 기록이 없습니다.<br>파이프라인 실행 후 의사결정 카드를 승인하면 이곳에 기록됩니다.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- END: 3컬럼 그리드 -->
+
+    </main>
+
+    <!-- 시뮬레이션 모달 (동적 생성 공간) -->
+    <!-- JS에서 document.body.insertAdjacentHTML로 삽입 -->
+
+    <!-- control.js (통제실 전용 스크립트) -->
+    <script src="control.js"></script>
+</body>
+</html>
