@@ -102,153 +102,6 @@ const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.lo
     ? 'https://publish79.vercel.app/api/send-error' 
     : '/api/send-error';
 
-// 에러 감지 시 AI Helper 패널 및 안심 케어 메시지 표시 (유저 안심 케어)
-function showAIPanelOnError() {
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
-    const agentAction = document.getElementById('ai-agent-action');
-    
-    if (panel) panel.classList.add('active');
-    if (fab) {
-        fab.classList.add('active');
-        fab.style.opacity = '0';
-        fab.style.pointerEvents = 'none';
-    }
-    if (agentAction) agentAction.classList.remove('hidden');
-    
-    const chatContent = document.getElementById('ai-chat-content');
-    if (chatContent) {
-        setTimeout(() => {
-            chatContent.scrollTop = chatContent.scrollHeight;
-        }, 100);
-    }
-}
-
-// 에러 로그를 서버리스 API 프록시로 송신 (9번 에이전트 연계)
-async function reportSystemError(errorData) {
-    try {
-        const payload = {
-            message: errorData.message,
-            filename: errorData.filename || '알 수 없음',
-            lineno: errorData.lineno || 0,
-            colno: errorData.colno || 0,
-            userId: errorData.userId,
-            userRole: errorData.userRole,
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString()
-        };
-
-        const res = await fetch(ERROR_API_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        // 12번 보안관에 의해 차단(DANGER)된 경우가 아니라면, 10번 자가치유 파이프라인 가동
-        if (res.ok) {
-            triggerSelfHealingPipeline(payload);
-        } else {
-            const errData = await res.json();
-            // 차단 경고 UI 노출
-            const statusText = document.getElementById('self-heal-status-text');
-            const codeBlock = document.getElementById('self-heal-code-block');
-            const btn = document.getElementById('self-heal-submit-btn');
-            
-            if (statusText && codeBlock && btn) {
-                statusText.innerText = "❌ 12번 AI 보안관 실시간 침입 탐지 및 패킷 파기";
-                statusText.style.color = "#ef4444";
-                codeBlock.style.background = "#fff5f5";
-                codeBlock.style.color = "#991b1b";
-                codeBlock.style.borderColor = "#fecaca";
-                codeBlock.innerText = `[보안 감사 로그]\n${errData.error || '악성 페이로드 유입 차단됨.'}`;
-                btn.innerText = "프롬프트 인젝션 차단으로 배포 잠금";
-                btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
-            }
-        }
-    } catch (e) {
-        console.error("에러 모니터링 API 전송 실패:", e);
-    }
-}
-
-// 1. 일반 자바스크립트 에러 감지
-// ✅ [로그인 버그 수정] 로그인/초기화 과정(2초 이내) 중 발생하는 에러는 AI 헬퍼창 무시
-window._isLoggingIn = false; // 로그인 진행 중 플래그
-window.addEventListener('error', (event) => {
-    // 로그인 처리 중이거나, 외부 CDN 스크립트 에러는 무시
-    if (window._isLoggingIn) return;
-    if (event.filename && !event.filename.includes(window.location.hostname) && !event.filename.includes('script.js')) return;
-    const errorData = {
-        message: event.message || event.error?.message || 'Unknown Error',
-        filename: event.filename ? event.filename.split('/').pop() : 'index.html',
-        lineno: event.lineno,
-        colno: event.colno,
-        userId: sessionStorage.getItem('userId') || 'Anonymous',
-        userRole: sessionStorage.getItem('userRole') || 'guest'
-    };
-    reportSystemError(errorData);
-    showAIPanelOnError();
-});
-
-// 2. 비동기 Promise 에러 감지 (Supabase 등 API 호출 에러)
-window.addEventListener('unhandledrejection', (event) => {
-    try {
-        // 폴링 중단 및 네트워크 중단 오류는 무시 (거버넌스 락 폴링 오류 등)
-        const reason = event.reason;
-        const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
-        if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
-            return; // 네트워크 오류는 UI 에러로 처리하지 않음
-        }
-        const errorData = {
-            message: 'Unhandled Rejection: ' + reasonMsg,
-            filename: 'Promise / Async Call',
-            lineno: 0,
-            userId: sessionStorage.getItem('userId') || 'Anonymous',
-            userRole: sessionStorage.getItem('userRole') || 'guest'
-        };
-        reportSystemError(errorData);
-        showAIPanelOnError();
-    } catch (e) {
-        console.error('[unhandledrejection handler] 내부 오류:', e);
-    }
-});
-
-// 3. 수동 테스트용 데모 에러 발생기 (try-catch로 컨테이너 크래시 방지)
-window.triggerAIError = function(testName = 'Manual Demo') {
-    try {
-        console.log("테스트 에러를 인위적으로 발생시킵니다.");
-        const err = new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
-        // throw 대신 에러 이벤트를 직접 파이프라인으로 전달 (unhandled 방지)
-        reportSystemError({
-            message: err.message,
-            filename: 'script.js',
-            lineno: 105,
-            colno: 0,
-            userId: sessionStorage.getItem('userId') || 'Anonymous',
-            userRole: sessionStorage.getItem('userRole') || 'guest'
-        });
-        showAIPanelOnError();
-    } catch (e) {
-        console.error('[triggerAIError] 내부 오류:', e);
-    }
-};
-
-// AI Helper 패널 토글 함수
-window.toggleAIPanel = function() {
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
-    if (!panel || !fab) return;
-    
-    panel.classList.toggle('active');
-    if (panel.classList.contains('active')) {
-        fab.style.opacity = '0';
-        fab.style.pointerEvents = 'none';
-    } else {
-        fab.style.opacity = '1';
-        fab.style.pointerEvents = 'all';
-    }
-    
-    if (window.lucide) lucide.createIcons();
-};
 
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
 
@@ -285,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /*
     // AI 헬퍼 send 버튼 클릭 이벤트 + 파란색 비행기(fa-paper-plane) 아이콘 복구
     const sendBtn = document.querySelector('.ai-send-btn');
     const aiInput = document.querySelector('.ai-input');
@@ -310,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+    */
 });
 // -----------------------
 
@@ -709,7 +564,7 @@ function renderAll() {
         }
     } else {
         if (typeof showPage === 'function') {
-            showPage('agent-control');
+            showPage('spec');
         }
     }
     if (window.lucide) lucide.createIcons();
@@ -1432,10 +1287,9 @@ function showPage(p, isEdit = false) {
     }
 
     if (p === 'agent-control') {
-        initAgentControlChart();
-        loadAgentControlDashboard();
-        // 10초 주기로 실시간 데이터 갱신
-        agentControlPollingIntervalId = setInterval(loadAgentControlDashboard, 10000);
+        // initAgentControlChart();
+        // loadAgentControlDashboard();
+        // agentControlPollingIntervalId = setInterval(loadAgentControlDashboard, 10000);
     }
     if (p === 'spec') renderSpec();
     if (p === 'price') { renderGradeTabs(); renderPrice(); }
@@ -3596,22 +3450,6 @@ function applyRoleVisibility() {
         priceLogBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
     }
 
-    // 6. AI 헬퍼 (FAB & Panel) 관리자 전용 노출 제어 (로그인 세션 확인 추가)
-    const fab = document.getElementById('ai-fab');
-    const panel = document.getElementById('ai-panel');
-    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-
-    if (fab) {
-        fab.style.display = (isLoggedIn && role === 'admin') ? 'flex' : 'none';
-    }
-    if (panel) {
-        if (!isLoggedIn || role !== 'admin') {
-            panel.classList.remove('active');
-            panel.style.display = 'none';
-        } else {
-            panel.style.display = ''; // 기본 스타일 복구
-        }
-    }
 }
 
 function liveFilterTable() {
@@ -5865,6 +5703,10 @@ function saveAuthSettings() {
     });
 }
 
+// ============================================================
+// ⚠️ 비활성화(이식 완료): 아래 AI 헬퍼 및 자가치유 관련 기능은 독립 에이전트 통제실(control.js)로 이식 완료되어 비활성화되었습니다.
+// ============================================================
+/*
 // --- AI Helper (Antigravity) Functions Merged to Top ---
 
 // [수정] simulateFix: 폴링에서 null 이벤트로 호출될 때도 정상 작동
@@ -6097,6 +5939,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 12번 보안관 상시 감시 스레드 실행
     startSecuritySheriffWatchdog();
 });
+*/
 
 // ============================================================
 // 🤖 에이전트 통제실 — 차트 & 실시간 로그 시뮬레이션
@@ -7825,38 +7668,17 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             drawCropMarkAtCorner(page, xOffset + trimWidth, yOffset + trimHeight); // Top-Right
         };
 
-        // --- 1페이지 (인증서 / 정보 요약 페이지) ---
+        // --- 1페이지 (실제 본문 샘플 페이지 - 선택 판형 내부로 컨텐츠 가두기) ---
         const page1 = pdfDoc.addPage([pageW, pageH]);
         applyPageLayoutAndDielines(page1);
 
-        // 텍스트 기입
-        drawTextSafely(page1, 'VDP_TYPESETTER COMPLETED HIGH-RESOLUTION PDF', 50, pageH - 60, 10, '#0ea5e9');
-        drawTextSafely(page1, '도서명: ' + title, 50, pageH - 120, 18, '#0f172a');
-        drawTextSafely(page1, '승인된 규격 판형: ' + specName, 50, pageH - 160, 11, '#475569');
-        drawTextSafely(page1, '총 페이지 수: ' + pages + ' pages', 50, pageH - 180, 11, '#475569');
-        drawTextSafely(page1, '계산된 책등(세네카): ' + spineMm + ' mm', 50, pageH - 200, 11, '#475569');
-
-        // 가상 도련(Bleed 3mm) 및 Gutter 여백 설명 가이드 추가
-        drawTextSafely(page1, '[VDP 조판 상세 가이드라인]', 50, pageH - 280, 12, '#0284c7');
-        drawTextSafely(page1, '1. Bleed Box (도련): 상하좌우 사방 외곽선에 재단 밀림을 대비한 +3mm가 정확하게 포함됨.', 50, pageH - 310, 9, '#1e293b');
-        drawTextSafely(page1, '2. Gutter (내지 안쪽 여백): 홀수(우측), 짝수(좌측) 페이지의 제본 여백 변위(18mm)가 적용됨.', 50, pageH - 330, 9, '#1e293b');
-        drawTextSafely(page1, '3. Color Profile: 인쇄소 표준 색상 CMYK 및 PDF/X-4 프로파일 규격을 충족함.', 50, pageH - 350, 9, '#1e293b');
-        drawTextSafely(page1, '4. Resolution: 원본 글자체 아웃라인 렌더링 및 본문 백터(Vector) 글리프 폰트 보존.', 50, pageH - 370, 9, '#1e293b');
-
-        // 하단 서명
-        drawTextSafely(page1, 'CHIEF ORCHESTRATOR 13 & VDP TYPESETTER 4', 50, 50, 8, '#94a3b8');
-
-        // --- 2페이지 (실제 본문 샘플 페이지 - 선택 판형 내부로 컨텐츠 가두기) ---
-        const page2 = pdfDoc.addPage([pageW, pageH]);
-        applyPageLayoutAndDielines(page2);
-
         // 본문 텍스트가 Centered Trim Box 내부로 가도록 위치 자동 계산
-        const page2ContentX = xOffset + 30;
-        const page2ContentY = yOffset + trimHeight - 60;
+        const page1ContentX = xOffset + 30;
+        const page1ContentY = yOffset + trimHeight - 60;
         
-        drawTextSafely(page2, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
-        drawTextSafely(page2, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page2ContentX, page2ContentY, 11, '#475569');
-        drawTextSafely(page2, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page2ContentX, page2ContentY - 30, 9, '#64748b');
+        drawTextSafely(page1, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
+        drawTextSafely(page1, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page1ContentX, page1ContentY, 11, '#475569');
+        drawTextSafely(page1, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page1ContentX, page1ContentY - 30, 9, '#64748b');
 
         // PDF 다운로드 링크 생성
         const pdfBytes = await pdfDoc.save();
