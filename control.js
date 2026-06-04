@@ -1247,3 +1247,381 @@ function ctrlShowEl(id) {
     el.classList.remove('hidden');
     el.style.removeProperty('display');
 }
+
+// ───────────────────────────────────────────
+// 23. AI Helper (Antigravity) 및 자가치유 파이프라인 연동
+// ───────────────────────────────────────────
+
+window.toggleAIPanel = function() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    if (!panel || !fab) return;
+    
+    panel.classList.toggle('active');
+    if (panel.classList.contains('active')) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    } else {
+        fab.classList.remove('active');
+        fab.style.opacity = '1';
+        fab.style.pointerEvents = 'all';
+    }
+    
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+};
+
+function showAIPanelOnError() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+    
+    if (panel) panel.classList.add('active');
+    if (fab) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    }
+    if (agentAction) agentAction.classList.remove('hidden');
+    
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+}
+
+async function reportSystemError(errorData) {
+    try {
+        const payload = {
+            message: errorData.message,
+            filename: errorData.filename || '알 수 없음',
+            lineno: errorData.lineno || 0,
+            colno: errorData.colno || 0,
+            userId: errorData.userId,
+            userRole: errorData.userRole,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(ctrlApiUrl('/api/send-error'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            triggerSelfHealingPipeline(payload);
+        } else {
+            const errData = await res.json();
+            const statusText = document.getElementById('self-heal-status-text');
+            const codeBlock = document.getElementById('self-heal-code-block');
+            const btn = document.getElementById('self-heal-submit-btn');
+            
+            if (statusText && codeBlock && btn) {
+                statusText.innerText = "❌ 12번 AI 보안관 실시간 침입 탐지 및 패킷 파기";
+                statusText.style.color = "#ef4444";
+                codeBlock.style.background = "#fff5f5";
+                codeBlock.style.color = "#991b1b";
+                codeBlock.style.borderColor = "#fecaca";
+                codeBlock.innerText = `[보안 감사 로그]\n${errData.error || '악성 페이로드 유입 차단됨.'}`;
+                btn.innerText = "프롬프트 인젝션 차단으로 배포 잠금";
+                btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+            }
+        }
+    } catch (e) {
+        console.error("에러 모니터링 API 전송 실패:", e);
+    }
+}
+
+window.triggerAIError = function(testName = 'Manual Demo') {
+    try {
+        console.log("테스트 에러를 인위적으로 발생시킵니다.");
+        const err = new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+        reportSystemError({
+            message: err.message,
+            filename: 'control.js',
+            lineno: 105,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'admin_control',
+            userRole: sessionStorage.getItem('userRole') || 'admin'
+        });
+        showAIPanelOnError();
+    } catch (e) {
+        console.error('[triggerAIError] 내부 오류:', e);
+    }
+};
+
+window.simulateFix = function(eventOrNull, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeIn 0.4s ease; align-self:flex-start; max-width:100%; width:100%;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+    chatContent.appendChild(doneCard);
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+};
+
+async function triggerSelfHealingPipeline(payload) {
+    const agentAction = document.getElementById('ai-agent-action');
+    if (!agentAction) return;
+
+    agentAction.classList.remove('hidden');
+    agentAction.innerHTML = `
+        <div class="ai-msg ai-msg-bot">
+            🚨 **시스템 에러 감지!**<br>
+            9번 기술행정지원 실장이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 자가치유 코딩 에이전트를 긴급 호출합니다.
+        </div>
+        <div class="ai-action-card">
+            <div class="ai-status-pulse">
+                <div class="pulse-dot"></div>
+                <span id="self-heal-status-text">10번 자가치유(Self-Healing) 코딩 엔진 가동 중...</span>
+            </div>
+            <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
+                // 분석 컨텍스트 격리 수행 중...<br>
+                // 오류 분석 및 치료 패치 생성 대기...
+            </div>
+            <button id="self-heal-submit-btn" disabled
+                class="w-full py-3 bg-slate-400 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed">
+                배포 승인 대기 중
+            </button>
+        </div>
+    `;
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+
+    try {
+        const res = await fetch(ctrlApiUrl('/api/self-heal'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const codeBlock = document.getElementById('self-heal-code-block');
+        const statusText = document.getElementById('self-heal-status-text');
+        const btn = document.getElementById('self-heal-submit-btn');
+
+        if (res.ok) {
+            const data = await res.json();
+            statusText.innerText = "10번 자가치유 코드 보정 완료 (12번 보안관 통과)";
+            
+            let logHtml = `// 🛠️ [10번 자가치유 에이전트 수정 내역]\n`;
+            logHtml += `// 설명: ${data.explanation}\n\n`;
+            logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
+            logHtml += `// [Git CLI 로그]\n`;
+            data.gitLog.forEach(log => {
+                logHtml += `> ${log}\n`;
+            });
+            logHtml += `\n🔗 PR Link: ${data.prUrl}`;
+
+            codeBlock.innerHTML = logHtml;
+            btn.className = "w-full py-3 bg-amber-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center gap-2";
+            btn.innerText = "⏳ 대표님 모바일 승인 대기 중 (거버넌스 락)";
+            btn.disabled = true;
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(ctrlApiUrl(`/api/deploy-status?pr=${data.prBranch}`));
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'APPROVED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.style.color = "#10b981";
+                            btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
+                            simulateFix(null, data.prUrl);
+                        } else if (statusData.status === 'REJECTED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.style.color = "#ef4444";
+                            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
+                            codeBlock.style.background = "#fff5f5";
+                            codeBlock.style.color = "#991b1b";
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 자가치유 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("배포 상태 폴링 오류:", err);
+                }
+            }, 2000);
+
+        } else {
+            const errorData = await res.json();
+            statusText.innerText = "❌ 12번 AI 보안관 검증 반려 (배포 중단)";
+            statusText.style.color = "#ef4444";
+            codeBlock.style.background = "#fff5f5";
+            codeBlock.style.color = "#991b1b";
+            codeBlock.style.borderColor = "#fecaca";
+            codeBlock.innerText = `[보안 감사 로그]\n${errorData.message || '패치 생성 과정에 오류가 발생했습니다.'}`;
+            btn.innerText = "보안 규격 미달로 배포 승인 차단됨";
+            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+        }
+    } catch (e) {
+        console.error("자가치유 엔진 호출 실패:", e);
+    }
+}
+
+function showSecurityAlertUI(message, modifiedFiles) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const alertMsg = document.createElement('div');
+    alertMsg.className = 'ai-msg ai-msg-bot';
+    alertMsg.style.borderLeft = '4px solid #ef4444';
+    alertMsg.style.background = '#fff5f5';
+    
+    let detailsHtml = '';
+    if (modifiedFiles && modifiedFiles.length > 0) {
+        detailsHtml = '<div class="ai-code-block" style="border-color: #fecaca; background: #fff; color: #991b1b; font-family: monospace; font-size: 11px; margin-top: 8px; padding: 10px; border-radius: 8px; line-height: 1.4; border: 1px solid #fee2e2;">';
+        modifiedFiles.forEach(fileInfo => {
+            detailsHtml += `📁 파일: <b>${fileInfo.file}</b><br>`;
+            fileInfo.leaks.forEach(leak => {
+                detailsHtml += `⚠️ 라인 ${leak.line}: 하드코딩된 <b>${leak.ruleName}</b> 노출 감지<br>`;
+                detailsHtml += `➔ <code>process.env</code> 치환 및 안전지대 대피 완료<br>`;
+            });
+        });
+        detailsHtml += '</div>';
+    }
+
+    alertMsg.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 900; margin-bottom: 6px;">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
+            <span>🚨 [12번 AI 보안관] 보안 차단 및 즉시 조치 보고</span>
+        </div>
+        <p style="font-size: 12px; line-height: 1.5; color: #374151;">${message}</p>
+        ${detailsHtml}
+    `;
+    
+    chatContent.appendChild(alertMsg);
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+    
+    setTimeout(() => {
+        chatContent.scrollTop = chatContent.scrollHeight;
+    }, 100);
+}
+
+function startSecuritySheriffWatchdog() {
+    setInterval(async () => {
+        try {
+            const res = await fetch(ctrlApiUrl('/api/scan-secrets'));
+            if (res.ok) {
+                const data = await res.json();
+                if (data.alert && data.modifiedFiles && data.modifiedFiles.length > 0) {
+                    showSecurityAlertUI(data.message, data.modifiedFiles);
+                }
+            }
+        } catch (e) {
+            console.warn("보안관 스캔 엔진 통신 장애 (백그라운드 대기):", e.message);
+        }
+    }, 30000);
+}
+
+// ───────────────────────────────────────────
+// 24. AI Helper UI 이벤트 바인딩 및 초기 설정
+// ───────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const sendBtn = document.querySelector('.ai-send-btn');
+    const aiInput = document.querySelector('.ai-input');
+    
+    if (sendBtn) {
+        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        sendBtn.onclick = function() {
+            if (!aiInput || !aiInput.value.trim()) return;
+            const chatContent = document.getElementById('ai-chat-content');
+            if (!chatContent) return;
+            
+            const userMsg = document.createElement('div');
+            userMsg.className = 'ai-msg ai-msg-user';
+            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
+            userMsg.textContent = aiInput.value.trim();
+            chatContent.appendChild(userMsg);
+            
+            aiInput.value = '';
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+        };
+        
+        if (aiInput) {
+            aiInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendBtn.click();
+            });
+        }
+    }
+
+    // 에러 리스너 등록
+    window.addEventListener('error', (event) => {
+        // control.js에서 발생한 에러만 포착 (CORS/외부 CDN/확장프로그램/빈 파일명 에러 무시)
+        if (!event.filename || !event.filename.includes('control.js')) return;
+        const errorData = {
+            message: event.message || event.error?.message || 'Unknown Error',
+            filename: event.filename.split('/').pop(),
+            lineno: event.lineno,
+            colno: event.colno,
+            userId: sessionStorage.getItem('userId') || 'admin_control',
+            userRole: sessionStorage.getItem('userRole') || 'admin'
+        };
+        reportSystemError(errorData);
+        showAIPanelOnError();
+    });
+
+    // 비동기 에러 리스너
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            const reason = event.reason;
+            const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+            if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+                return;
+            }
+            // 외부 promise rejection 무시 (control.js 스택을 포함한 경우만 에러 포착)
+            if (reason && reason.stack && !reason.stack.includes('control.js')) {
+                return;
+            }
+            const errorData = {
+                message: 'Unhandled Rejection: ' + reasonMsg,
+                filename: 'Promise / Async Call',
+                lineno: 0,
+                userId: sessionStorage.getItem('userId') || 'admin_control',
+                userRole: sessionStorage.getItem('userRole') || 'admin'
+            };
+            reportSystemError(errorData);
+            showAIPanelOnError();
+        } catch (e) {
+            console.error('[unhandledrejection handler] 내부 오류:', e);
+        }
+    });
+
+    // 보안관 스캔 백그라운드 구동 시작
+    startSecuritySheriffWatchdog();
+});
