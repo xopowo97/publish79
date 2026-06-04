@@ -20,6 +20,14 @@
 
     <!-- 통제실 전용 스타일시트 (기존 style.css 절대 불러오지 않음) -->
     <link rel="stylesheet" href="control.css">
+
+    <!-- 보안 체크: 최고 관리자(admin) 로그인 상태 확인 -->
+    <script>
+        if (sessionStorage.getItem('isLoggedIn') !== 'true' || sessionStorage.getItem('userRole') !== 'admin') {
+            alert('에이전트 통제실에 접근할 권한이 없습니다. 최고 관리자 계정으로 로그인해주세요.');
+            window.location.href = 'index.html';
+        }
+    </script>
 </head>
 <body>
 
