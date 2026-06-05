@@ -46,6 +46,18 @@ let _ctrl_flashActive    = false;
 let _ctrl_flashTimerId   = null;
 let _ctrl_approvalLog    = [];  // 승인 이력 배열
 
+// 로테이션 표준 키워드 및 재시도 상태 관리
+const CTRL_KEYWORD_ROTATION = [
+    '절판 인문학',
+    '품절 한국소설',
+    '절판 그림책',
+    '절판 철학',
+    '복간 경제 경영',
+    '저작권 만료 명저',
+    '지역 향토 자료'
+];
+let _ctrl_pipeline_retry_count = 0;
+
 // 글로벌 시뮬레이션 상태
 let _ctrl_simBook        = null;
 let _ctrl_simSpecs       = null;
@@ -465,14 +477,37 @@ function _appendCtrlSimulatedLog(el) {
 // ───────────────────────────────────────────
 // 12. 파이프라인 실행 트리거
 // ───────────────────────────────────────────
-async function triggerCtrlPipeline() {
+async function triggerCtrlPipeline(isRetry = false) {
     const btn      = document.getElementById('ctrl-btn-pipeline');
     const statusEl = document.getElementById('ctrl-pipeline-status');
     const kwInput  = document.getElementById('ctrl-keyword-input');
-    const kw       = kwInput?.value?.trim() || '절판 도서';
+    
+    // 로테이션 인덱스 복원
+    let rotIdx = parseInt(localStorage.getItem('ctrl_rotation_index') || '0', 10);
+    if (isNaN(rotIdx) || rotIdx < 0 || rotIdx >= CTRL_KEYWORD_ROTATION.length) {
+        rotIdx = 0;
+    }
+
+    let kw = kwInput?.value?.trim() || '';
+    
+    // 사용자가 입력하지 않았거나, 기본값('절판 도서')이거나, 재시도(CORS/0건 자동 순환) 중인 경우 로테이션 키워드 자동 적용
+    let isAutoRotation = false;
+    if (kw === '' || kw === '절판 도서' || isRetry) {
+        kw = CTRL_KEYWORD_ROTATION[rotIdx];
+        if (kwInput) {
+            kwInput.value = kw;
+        }
+        isAutoRotation = true;
+    }
+
+    if (!isRetry) {
+        _ctrl_pipeline_retry_count = 0; // 최초 수동 가동 시 카운터 초기화
+    }
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg> 실행 중...'; }
-    if (statusEl) { statusEl.textContent = `🔄 "${kw}" → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = 'var(--ctrl-amber)'; }
+    
+    const retryPrefix = _ctrl_pipeline_retry_count > 0 ? `[재시도 ${_ctrl_pipeline_retry_count}/3] ` : '';
+    if (statusEl) { statusEl.textContent = `${retryPrefix}🔄 "${kw}" → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = 'var(--ctrl-amber)'; }
 
     try {
         const endpoint = ctrlApiUrl('/api/pipeline');
@@ -480,15 +515,66 @@ async function triggerCtrlPipeline() {
         const data = await res.json();
 
         if (res.ok && data.success) {
+            const insertedCount = parseInt(data.inserted || 0, 10);
+
+            // 실패 대비 가드: 수집 결과가 0건이고 자동 로테이션 모드인 경우 자동 스킵
+            if (insertedCount === 0 && isAutoRotation) {
+                _ctrl_pipeline_retry_count++;
+                
+                // 감사 로그 DB 적재
+                await ctrlWriteAuditLog(13, '오케스트레이터', 'warn', `⚠️ "${kw}" 수집 결과 0건 감지 ➔ 다음 키워드로 자동 순환 건너뛰기`, { keyword: kw, retry: _ctrl_pipeline_retry_count });
+
+                if (_ctrl_pipeline_retry_count <= 3) {
+                    // 다음 로테이션으로 인덱스 이동 후 로컬 저장
+                    rotIdx = (rotIdx + 1) % CTRL_KEYWORD_ROTATION.length;
+                    localStorage.setItem('ctrl_rotation_index', rotIdx);
+                    
+                    if (statusEl) {
+                        statusEl.textContent = `⚠️ "${kw}" 결과 없음. 다음 키워드로 자동 건너뛰는 중... (${_ctrl_pipeline_retry_count}/3)`;
+                        statusEl.style.color = 'var(--ctrl-amber)';
+                    }
+                    
+                    // 1초 후 자동 재시도
+                    setTimeout(() => {
+                        triggerCtrlPipeline(true);
+                    }, 1000);
+                    return;
+                } else {
+                    // 3회 실패 시 중단 및 실패 보고
+                    if (statusEl) {
+                        statusEl.textContent = `❌ 3회 연속 수집 데이터가 없습니다. 다른 검색어를 입력해 주세요.`;
+                        statusEl.style.color = 'var(--ctrl-rose)';
+                    }
+                    await ctrlWriteAuditLog(13, '오케스트레이터', 'error', `❌ 3회 연속 자동 로테이션 수집 결과 없음으로 파이프라인 안전 차단`, { lastKeyword: kw });
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> 파이프라인 실행`;
+                    }
+                    return;
+                }
+            }
+
+            // 정상 완료
             if (statusEl) {
-                statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${data.inserted || 0}건 DB 적재`;
+                statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${insertedCount}건 DB 적재`;
                 statusEl.style.color = 'var(--ctrl-green)';
             }
+
+            // 성공 시 다음 가동을 대비하여 로테이션 인덱스를 미리 한 칸 밀어둠
+            if (isAutoRotation) {
+                rotIdx = (rotIdx + 1) % CTRL_KEYWORD_ROTATION.length;
+                localStorage.setItem('ctrl_rotation_index', rotIdx);
+            }
+
             setTimeout(async () => {
                 _ctrl_lastLogId = 0;
                 await loadCtrlDashboard();
+                
+                // 오케스트레이터 AI 헬퍼 연동 추천 카드 제안 가동
                 if (_ctrl_candidates && _ctrl_candidates.length > 0) {
-                    setTimeout(() => ctrlStartSimByIndex(0), 1200);
+                    setTimeout(() => {
+                        triggerOrchestratorRecommendation();
+                    }, 1000);
                 }
             }, 1500);
         } else {
@@ -497,11 +583,91 @@ async function triggerCtrlPipeline() {
     } catch (err) {
         if (statusEl) { statusEl.textContent = `❌ 네트워크 오류: ${err.message}`; statusEl.style.color = 'var(--ctrl-rose)'; }
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> 파이프라인 실행`;
+        // 재귀 호출 중인 경우는 최종 호출 마감에서만 버튼 상태를 활성화함
+        if (_ctrl_pipeline_retry_count === 0 || _ctrl_pipeline_retry_count > 3) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> 파이프라인 실행`;
+            }
         }
     }
+}
+
+// ───────────────────────────────────────────
+// 12-1. 13번 오케스트레이터 AI 헬퍼 자율 복간 추천 제안 카드 연동
+// ───────────────────────────────────────────
+function triggerOrchestratorRecommendation() {
+    if (!_ctrl_candidates || _ctrl_candidates.length === 0) return;
+
+    // Supabase에서 reprint_score desc 정렬되어 오므로 첫 번째 도서가 항상 최고 점수
+    const topBook = _ctrl_candidates[0];
+    
+    const cleanTitle  = (topBook.title || '').replace(/<\/?[^>]+(>|$)/g, '');
+    const cleanAuthor = (topBook.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
+    const score       = topBook.reprint_score || 0;
+    const loans       = topBook.library_loans ? topBook.library_loans.toLocaleString() : '0';
+    const pubYear     = topBook.pub_year ? `${topBook.pub_year}년` : '연도 미상';
+
+    // AI 헬퍼 패널 활성화 (닫혀 있을 때만)
+    const panel = document.getElementById('ai-panel');
+    const fab   = document.getElementById('ai-fab');
+    if (panel && !panel.classList.contains('active')) {
+        toggleAIPanel();
+    }
+
+    // AI 헬퍼 FAB 아이콘에 골드 네온 펄스 활성화
+    if (fab) {
+        fab.classList.add('pulse-gold');
+    }
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const recommendCard = document.createElement('div');
+    recommendCard.className = 'ai-msg ai-msg-bot';
+    recommendCard.style.cssText = 'border-left: 4px solid var(--ctrl-purple, #a855f7); background: rgba(168, 85, 247, 0.05); border-radius: 12px; padding: 14px; margin-bottom: 12px; animation: fadeIn 0.4s ease; align-self: flex-start; max-width: 100%; width: 100%; box-sizing: border-box;';
+    recommendCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:var(--ctrl-purple, #a855f7); font-weight:900; margin-bottom:8px; font-size:12px;">
+            <span style="font-size:16px; animation: dotPulse 1.2s infinite;">🧠</span>
+            <span>[13번 오케스트레이터] 복간 의사결정 제안</span>
+        </div>
+        <p style="font-size:12px; color:#1e293b; line-height:1.6; margin-bottom:8px; font-weight:600;">
+            새로운 도서 분석 결과 최고 타당성을 지닌 도서가 식별되어 보고합니다. 복간을 진행하시겠습니까?
+        </p>
+        <div style="background: #ffffff; border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 10px; padding: 12px; font-size:11px; margin-bottom:10px; color: #475569;">
+            <div style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:4px;">📚 ${cleanTitle}</div>
+            <div style="margin-bottom:6px;">저자: ${cleanAuthor} | 발행: ${pubYear}</div>
+            <div style="display:flex; justify-content:space-between; border-top: 1px solid rgba(0,0,0,0.05); padding-top:6px; margin-top:6px;">
+                <span>📊 복간 타당성 점수</span>
+                <strong style="color:#0ea5e9; font-size:12px;">${score}점</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                <span>📈 연간 대출 횟수</span>
+                <strong style="color:#0f172a;">${loans}회</strong>
+            </div>
+        </div>
+        <button onclick="ctrlLaunchSimFromOrchestrator(0)"
+            style="width: 100%; background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; border: none; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; padding: 10px 0; transition: all 0.2s; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);"
+            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+            🚀 시뮬레이션 가동 및 의사결정 카드 열기
+        </button>
+    `;
+    
+    chatContent.appendChild(recommendCard);
+    
+    // 전역 스크립트 연결용으로 헬퍼 함수 선언
+    window.ctrlLaunchSimFromOrchestrator = function(index) {
+        // FAB 골드 펄스 해제
+        if (fab) {
+            fab.classList.remove('pulse-gold');
+        }
+        ctrlStartSimByIndex(index);
+    };
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
 }
 
 // ───────────────────────────────────────────
