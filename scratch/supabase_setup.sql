@@ -83,6 +83,10 @@ CREATE TABLE IF NOT EXISTS reprint_candidates (
     demand_index    NUMERIC(5,2) DEFAULT 0,
     is_out_of_print BOOLEAN DEFAULT true,
     status          TEXT DEFAULT 'candidate',
+    is_simulated    BOOLEAN DEFAULT false,
+    copyright_status TEXT DEFAULT 'protected',
+    author_status   TEXT DEFAULT 'unknown',
+    estimated_royalty_rate NUMERIC(4,2) DEFAULT 10.00,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -175,6 +179,50 @@ BEGIN
     END IF;
 EXCEPTION WHEN undefined_table THEN
     NULL;
+END $$;
+
+-- [멱등성] is_simulated 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'is_simulated'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN is_simulated BOOLEAN DEFAULT false;
+    END IF;
+END $$;
+
+-- [멱등성] copyright_status 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'copyright_status'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN copyright_status TEXT DEFAULT 'protected';
+    END IF;
+END $$;
+
+-- [멱등성] author_status 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'author_status'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN author_status TEXT DEFAULT 'unknown';
+    END IF;
+END $$;
+
+-- [멱등성] estimated_royalty_rate 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'estimated_royalty_rate'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN estimated_royalty_rate NUMERIC(4,2) DEFAULT 10.00;
+    END IF;
 END $$;
 
 -- reprint_candidates 인덱스 (복간 점수 조회 최적화)
