@@ -6272,12 +6272,15 @@ function renderDynamicReprintCandidates(candidates) {
         const rankClass = `ac-rank-${index + 1}`;
         const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const loansText = c.library_loans ? c.library_loans.toLocaleString() : '0';
+        const simulatedBadge = c.is_simulated
+            ? `<span class="inline-block bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 font-black animate-pulse align-middle shadow-sm">통계 보정 중</span>`
+            : '';
 
         return `
         <div class="ac-book-card ${rankClass} cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-200" onclick="startBookSimulationByIndex(${index})">
             <div class="ac-rank-badge">${rankEmoji} ${index + 1}위</div>
             <div class="ac-book-info">
-                <div class="ac-book-title">${c.title} (${c.author})</div>
+                <div class="ac-book-title">${c.title} (${c.author})${simulatedBadge}</div>
                 <div class="ac-book-meta">
                     ${c.is_out_of_print ? '절판' : '일반'} · ${pubYearText} · 대출 <strong>${loansText}</strong>건
                 </div>
