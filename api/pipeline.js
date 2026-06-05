@@ -2,7 +2,7 @@
 // ============================================================
 // [자율 파이프라인] 1번 살피미 + 2번 다듬이 실전 결합 엔진
 // ============================================================
-// 역할: 국립중앙도서관 API(살피미)로 수집 → 다듬이(정제) → Supabase reprint_candidates 자동 적재
+// 역할: 알라딘 OpenAPI(살피미)로 수집 → 도서관 정보나루 대출 통계 연동 및 폴백 처리 → 다듬이(정제/저작권 판별) → Supabase reprint_candidates 자동 적재
 // + agent_audit_logs에 실행 로그 기록 (실시간 로그 스트림 소스)
 // 담당: 안티그래비티 (Antigravity AI Agent)
 // ============================================================
@@ -31,57 +31,66 @@ function checkRateLimit(ip) {
     return true; // 허용
 }
 
-const LIBRARY_API_KEY = process.env.LIBRARY_API_KEY;
-const LIBRARY_API_BASE = 'https://www.nl.go.kr/NL/search/openApi/search.do';
+const ALADIN_API_KEY = process.env.ALADIN_API_KEY;
+const LIBRARY_NARU_API_KEY = process.env.LIBRARY_NARU_API_KEY;
 
 // ============================================================
 // [2번 다듬이 에이전트] 수집된 원시 데이터 정제 함수
-// 절판/희귀 판별 → 복간 점수 산출 → DB 표준 스키마 변환
+// 절판/희귀 판별 → 다차원 복간 점수 산출 → 저작권 메타데이터 Heuristic 판별 → DB 표준 스키마 변환
 // ============================================================
 function runDataRefiner_Dadumeui(rawBook) {
     if (!rawBook) return null;
 
-    // 필드 정규화 (국립중앙도서관 API 응답 키 매핑) 및 HTML 태그(검색 하이라이트 등) 제거
-    const title  = String(rawBook.titleInfo   || rawBook.title   || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
-    const author = String(rawBook.authorInfo  || rawBook.author  || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "");
-    const isbn   = String(rawBook.isbn        || rawBook.EA_ISBN || '').replace(/[^0-9X]/gi, '');
+    // 필드 정규화 및 HTML 태그 제거
+    const title  = String(rawBook.title || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    const author = String(rawBook.author || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    const isbn   = String(rawBook.isbn13 || rawBook.isbn || '').replace(/[^0-9X]/gi, '');
+    
+    // 출판연도 추출 (예: "2015-03-20" -> 2015)
     const pubYear = parseInt(
-        String(rawBook.pubYearInfo || rawBook.pubYear || rawBook.pubDate || '0').substring(0, 4),
+        String(rawBook.pubDate || '0').substring(0, 4),
         10
     ) || null;
-    const publisher = String(rawBook.publisherInfo || rawBook.publisher || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
-    const loanCount = parseInt(rawBook.loanCnt || rawBook.loan_count || 0, 10) || 0;
+    
+    const publisher = String(rawBook.publisher || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    const loanCount = parseInt(rawBook.library_loans || 0, 10) || 0;
+    const stockStatus = String(rawBook.stockStatus || '').trim();
+    const isSimulated = !!rawBook.is_simulated;
 
-    // 유효성 검사 (제목 없으면 스킵)
     if (!title) return null;
 
-    // [2번 다듬이 핵심 로직] 복간 점수(reprint_score) 산출 알고리즘
-    // 기준: 대출 횟수 기반 수요 지수 + 출판연도 절판 가중치
-    let score = 0;
+    // [복간 점수 다차원화 가중치 산식]
+    // 1. 대출 점수 (60%): 최대 650건 기준 100점 척도
+    const loanScore = Math.min(100, Math.round((loanCount / 650) * 100));
 
-    // 대출 횟수 점수 (최대 60점)
-    if (loanCount >= 500)      score += 60;
-    else if (loanCount >= 200) score += 50;
-    else if (loanCount >= 100) score += 40;
-    else if (loanCount >= 50)  score += 30;
-    else if (loanCount >= 10)  score += 20;
-    else                       score += 10;
+    // 2. 희소성 점수 (40%): 절판 100점, 품절 50점, 정상 유통 0점
+    let scarcityScore = 0;
+    if (stockStatus === '절판') {
+        scarcityScore = 100;
+    } else if (stockStatus === '품절') {
+        scarcityScore = 50;
+    }
 
-    // 출판연도 절판 가중치 (최대 30점)
+    // 최종 복간 점수 계산 (각각 60%, 40% 가중치 적용 및 반올림)
+    const score = Math.min(100, Math.round((loanScore * 0.6) + (scarcityScore * 0.4)));
+
+    // 절판 여부 판별 (알라딘 상태값 우선, 없으면 연도 7년 기준 예비 룰 적용)
     const currentYear = new Date().getFullYear();
     const age = pubYear ? (currentYear - pubYear) : 0;
-    if (age >= 15)       score += 30;
-    else if (age >= 10)  score += 20;
-    else if (age >= 5)   score += 10;
+    const isOutOfPrint = (stockStatus === '절판' || stockStatus === '품절' || age >= 7);
 
-    // ISBN 존재 여부 보너스 (10점)
-    if (isbn && isbn.length >= 10) score += 10;
+    // [저작권 상태 Heuristic 판별]
+    let copyrightStatus = 'protected';
+    let authorStatus = 'unknown';
+    let estimatedRoyaltyRate = 10.00; // 기본 인세율 10%
 
-    // 100점 상한
-    score = Math.min(score, 100);
-
-    // 절판 추정 (출판 후 7년 이상 경과 시 절판 추정)
-    const isOutOfPrint = age >= 7;
+    if (pubYear && age >= 70) {
+        copyrightStatus = 'public_domain';
+        authorStatus = 'deceased'; // 사망 추정
+        estimatedRoyaltyRate = 0.00; // 퍼블릭 도메인은 인세 0%
+    } else {
+        authorStatus = 'alive'; // 기본 생존 추정
+    }
 
     return {
         title,
@@ -91,10 +100,15 @@ function runDataRefiner_Dadumeui(rawBook) {
         publisher: publisher || null,
         library_loans: loanCount,
         reprint_score: score,
-        demand_index: Math.min(loanCount / 5, 100), // 최대 100
+        demand_index: loanScore, // 대출 점수와 동일하게 설정하여 일관성 유지
         is_out_of_print: isOutOfPrint,
         status: 'candidate',
-        created_at: new Date().toISOString()
+        is_simulated: isSimulated,
+        copyright_status: copyrightStatus,
+        author_status: authorStatus,
+        estimated_royalty_rate: estimatedRoyaltyRate,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
     };
 }
 
@@ -153,7 +167,6 @@ async function updateAgentStatus(supabase_url, supabase_key, agentId, status, ro
     }
 }
 
-
 // ============================================================
 // Vercel 서버리스 핸들러 (메인 진입점)
 // ============================================================
@@ -183,8 +196,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'SUPABASE 환경변수 미설정' });
     }
 
-    if (!LIBRARY_API_KEY) {
-        return res.status(500).json({ error: 'LIBRARY_API_KEY 환경변수 미설정' });
+    if (!ALADIN_API_KEY) {
+        return res.status(500).json({ error: 'ALADIN_API_KEY 환경변수 미설정' });
     }
 
     // 검색 키워드 파싱 (GET: ?keyword=절판, POST: { keyword: "절판" })
@@ -199,44 +212,48 @@ export default async function handler(req, res) {
     try {
         // [초기 상태 변경] 오케스트레이터 및 1번 살피미 작동 시작, 2번 다듬이 대기 상태 리셋
         await updateAgentStatus(rawUrl, supKey, 13, 'running', '파이프라인 실행 지휘 중');
-        await updateAgentStatus(rawUrl, supKey, 1, 'running', '도서관 API 데이터 수집 중');
+        await updateAgentStatus(rawUrl, supKey, 1, 'running', '알라딘 API 데이터 수집 중');
         await updateAgentStatus(rawUrl, supKey, 2, 'idle', '대기중');
 
         // ========================================================
-        // [1번 살피미] 국립중앙도서관 API 호출 (딥서치)
+        // [1번 살피미] 알라딘 OpenAPI 책 검색 API 호출
         // ========================================================
-        await log(1, '살피미', 'info', `국립중앙도서관 API 호출 시작 — 키워드: "${keyword}"`, { keyword });
+        await log(1, '살피미', 'info', `알라딘 OpenAPI 호출 시작 — 키워드: "${keyword}"`, { keyword });
 
-        const params = new URLSearchParams({
-            key:         LIBRARY_API_KEY,
-            apiType:     'json',
-            category:    '도서',
-            kwd:         keyword,
-            pageNum:     '1',
-            pageSize:    '20',
-            displayType: 'detail'
+        const aladinUrl = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_API_KEY}&Query=${encodeURIComponent(keyword)}&QueryType=Keyword&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
+
+        const aladinRes = await fetch(aladinUrl, {
+            headers: { 'User-Agent': 'Antigravity-SalPimi/1.0' }
         });
 
-        const libRes = await fetch(`${LIBRARY_API_BASE}?${params.toString()}`, {
-            headers: { 'Accept': 'application/json', 'User-Agent': 'Antigravity-SalPimi/1.0' }
-        });
-
-        if (!libRes.ok) {
-            const errText = await libRes.text();
-            await log(1, '살피미', 'error', `API 호출 실패 (HTTP ${libRes.status}): ${errText.substring(0, 200)}`, { status: libRes.status });
+        if (!aladinRes.ok) {
+            const errText = await aladinRes.text();
+            await log(1, '살피미', 'error', `알라딘 API 호출 실패 (HTTP ${aladinRes.status}): ${errText.substring(0, 200)}`, { status: aladinRes.status });
             
             // 오류 상태 변경
-            await updateAgentStatus(rawUrl, supKey, 1, 'error', 'API 호출 오류');
+            await updateAgentStatus(rawUrl, supKey, 1, 'error', '알라딘 API 호출 오류');
             await updateAgentStatus(rawUrl, supKey, 13, 'error', '파이프라인 실행 중단');
-            return res.status(502).json({ error: '국립중앙도서관 API 오류', detail: errText.substring(0, 200) });
+            return res.status(502).json({ error: '알라딘 OpenAPI 오류', detail: errText.substring(0, 200) });
         }
 
-        const libData = await libRes.json();
-        const rawResults = libData.result ?? [];
-        const results = Array.isArray(rawResults) ? rawResults : (rawResults ? [rawResults] : []);
-        const totalCount = parseInt(libData.total ?? results.length, 10) || 0;
+        let aladinText = await aladinRes.text();
+        if (aladinText.endsWith(';')) {
+            aladinText = aladinText.substring(0, aladinText.length - 1);
+        }
+        
+        let aladinData;
+        try {
+            aladinData = JSON.parse(aladinText);
+        } catch (pe) {
+            await log(1, '살피미', 'error', `알라딘 응답 파싱 실패`, { raw: aladinText.substring(0, 200) });
+            throw pe;
+        }
 
-        await log(1, '살피미', 'success', `API 수집 완료 — ${totalCount}건 확보 (실 수신: ${results.length}건)`, { totalCount, received: results.length });
+        const rawResults = aladinData.item ?? [];
+        const results = Array.isArray(rawResults) ? rawResults : (rawResults ? [rawResults] : []);
+        const totalCount = parseInt(aladinData.totalResults ?? results.length, 10) || 0;
+
+        await log(1, '살피미', 'success', `알라딘 수집 완료 — ${totalCount}건 확보 (실 수신: ${results.length}건)`, { totalCount, received: results.length });
 
         if (results.length === 0) {
             // 결과 없음 상태 변경
@@ -252,13 +269,61 @@ export default async function handler(req, res) {
         await updateAgentStatus(rawUrl, supKey, 2, 'running', '수집 도서 데이터 정제 중');
 
         // ========================================================
-        // [2번 다듬이] 수집 데이터 정제 + 복간 점수 산출
+        // [1번 살피미 + 2번 다듬이] 도서관 정보나루 대출 통계 연쇄 호출 및 정제
         // ========================================================
-        await log(2, '다듬이', 'info', `정제 파이프라인 시작 — ${results.length}건 입력`, { input: results.length });
+        await log(2, '다듬이', 'info', `대출 통계 연동 및 정제 시작 — ${results.length}건 대상`, { input: results.length });
 
-        const refined = results
-            .map(runDataRefiner_Dadumeui)
-            .filter(r => r !== null && r.reprint_score >= 30); // 30점 이상만 후보
+        const refined = [];
+        
+        for (const item of results) {
+            const isbn = String(item.isbn13 || item.isbn || '').replace(/[^0-9X]/gi, '');
+            let libraryLoans = 0;
+            let isSimulated = false;
+
+            if (isbn && LIBRARY_NARU_API_KEY) {
+                try {
+                    const naruUrl = `http://data4library.kr/api/srchDtlList?authKey=${LIBRARY_NARU_API_KEY}&isbn13=${isbn}&loaninfoYN=Y&format=json`;
+                    const naruRes = await fetch(naruUrl);
+                    if (!naruRes.ok) {
+                        throw new Error(`HTTP Error ${naruRes.status}`);
+                    }
+                    const naruData = await naruRes.json();
+                    
+                    if (naruData?.response?.detail?.[0]?.book?.loanCnt !== undefined) {
+                        libraryLoans = parseInt(naruData.response.detail[0].book.loanCnt, 10) || 0;
+                    } else if (naruData?.response?.loanInfo?.[0]?.Total?.loanCnt !== undefined) {
+                        libraryLoans = parseInt(naruData.response.loanInfo[0].Total.loanCnt, 10) || 0;
+                    } else if (naruData?.response?.loanInfo?.[0]?.total?.loanCnt !== undefined) {
+                        libraryLoans = parseInt(naruData.response.loanInfo[0].total.loanCnt, 10) || 0;
+                    } else {
+                        throw new Error('대출 통계 응답 구조 비정상');
+                    }
+                } catch (err) {
+                    isSimulated = true;
+                    libraryLoans = Math.floor(Math.random() * 601) + 50; // 50~650 랜덤 대출수
+                    console.log(`[INFO] Fallback mode: Simulated Data applied (ISBN: ${isbn}, Reason: ${err.message})`);
+                    await log(2, '다듬이', 'warn', `[INFO] Fallback mode: Simulated Data applied (ISBN: ${isbn})`, { isbn, reason: err.message });
+                }
+            } else {
+                // ISBN이 없거나 정보나루 API 키가 설정되지 않은 경우에도 폴백 적용
+                isSimulated = true;
+                libraryLoans = Math.floor(Math.random() * 601) + 50;
+                console.log(`[INFO] Fallback mode: Simulated Data applied (ISBN: ${isbn || 'N/A'}, Reason: No Key/ISBN)`);
+                await log(2, '다듬이', 'warn', `[INFO] Fallback mode: Simulated Data applied (ISBN: ${isbn || 'N/A'})`, { isbn });
+            }
+
+            const rawBookMerged = {
+                ...item,
+                library_loans: libraryLoans,
+                is_simulated: isSimulated
+            };
+
+            const refinedBook = runDataRefiner_Dadumeui(rawBookMerged);
+            // 복간 후보 기준: 복간 점수 30점 이상
+            if (refinedBook && refinedBook.reprint_score >= 30) {
+                refined.push(refinedBook);
+            }
+        }
 
         await log(2, '다듬이', 'success', `정제 완료 — 복간 후보 ${refined.length}건 선별 (점수 30점 이상 필터)`, { candidates: refined.length });
 
