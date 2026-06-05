@@ -6140,27 +6140,36 @@ async function loadAgentControlDashboard() {
         console.warn("에이전트 조직도 연동 실패 (로컬 모드 유지):", err);
     }
 
-    // 2. 복간 추천 TOP 3 연동
+    // 2. 복간 추천 TOP 3 및 실시간 수집 피드 연동
     try {
         let candidates = [];
-        // Supabase 클라이언트에서 reprint_candidates 테이블 직접 조회 시도 (1순위)
-        const { data, error } = await _supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3);
-        if (!error && data && data.length > 0) {
-            candidates = data;
+        let latestCandidates = [];
+        // Supabase 클라이언트 직접 조회 시도 (1순위)
+        const [top3Res, latestRes] = await Promise.all([
+            _supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3),
+            _supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false }).limit(8)
+        ]);
+
+        if (!top3Res.error && top3Res.data && top3Res.data.length > 0 &&
+            !latestRes.error && latestRes.data) {
+            candidates = top3Res.data;
+            latestCandidates = latestRes.data;
         } else {
             // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
             const res = await fetch('/api/reprint-candidates');
             if (res.ok) {
                 const apiRes = await res.json();
                 if (apiRes.success) {
-                    candidates = apiRes.data;
+                    candidates = apiRes.top3 || apiRes.data || [];
+                    latestCandidates = apiRes.latest || [];
                 }
             }
         }
 
         renderDynamicReprintCandidates(candidates);
+        renderDynamicReprintFeed(latestCandidates);
     } catch (err) {
-        console.warn("복간 추천 TOP 3 연동 실패:", err);
+        console.warn("복간 추천 및 실시간 피드 연동 실패:", err);
     }
 }
 
@@ -6290,6 +6299,78 @@ function renderDynamicReprintCandidates(candidates) {
         `;
     }).join('');
 }
+
+function renderDynamicReprintFeed(latestCandidates) {
+    const container = document.getElementById('ac-feed-list');
+    if (!container) return;
+
+    if (!latestCandidates || latestCandidates.length === 0) {
+        container.innerHTML = `
+        <div class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 w-full">
+            <p class="text-[10px] text-slate-400 font-bold">실시간 도서 수집 대기 중...</p>
+        </div>
+        `;
+        return;
+    }
+
+    const categoryStyles = {
+        '소설': 'bg-rose-50 text-rose-600 border border-rose-100',
+        '에세이': 'bg-pink-50 text-pink-600 border border-pink-100',
+        '인문학': 'bg-violet-50 text-violet-600 border border-violet-100',
+        '사회과학': 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+        '역사': 'bg-amber-50 text-amber-700 border border-amber-100',
+        '과학': 'bg-cyan-50 text-cyan-600 border border-cyan-100',
+        '예술': 'bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100',
+        '경제경영': 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+        '자기계발': 'bg-sky-50 text-sky-600 border border-sky-100',
+        '종교': 'bg-teal-50 text-teal-600 border border-teal-100',
+        '어린이': 'bg-yellow-50 text-yellow-600 border border-yellow-100',
+        '청소년': 'bg-orange-50 text-orange-600 border border-orange-100',
+        '미분류': 'bg-slate-50 text-slate-500 border border-slate-200'
+    };
+
+    container.innerHTML = latestCandidates.map(c => {
+        const title = (c.title || '').replace(/<\/?[^>]+(>|$)/g, "");
+        const author = (c.author || '미상').replace(/<\/?[^>]+(>|$)/g, "");
+        const category = c.category || '미분류';
+        const catClass = categoryStyles[category] || 'bg-slate-50 text-slate-500 border border-slate-200';
+        
+        const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
+        const publisher = c.publisher || '출판사 미상';
+        const score = c.reprint_score || 0;
+        
+        const simulatedBadge = c.is_simulated
+            ? `<span class="inline-block bg-amber-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black animate-pulse align-middle shadow-sm ml-1.5">통계 보정 중</span>`
+            : '';
+
+        return `
+        <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-sky-300 hover:shadow-sm cursor-pointer transition-all duration-200"
+             onclick="startBookSimulationByFeedIsbn('${c.isbn}')">
+            <div class="flex flex-col gap-1 min-w-0 flex-1 pr-3">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${catClass}">${category}</span>
+                    ${simulatedBadge}
+                </div>
+                <div class="text-[11px] font-extrabold text-slate-800 truncate">${title} (${author})</div>
+                <div class="text-[9px] text-slate-400 font-medium truncate">${pubYearText} · ${publisher}</div>
+            </div>
+            <div class="flex flex-col items-end justify-center shrink-0">
+                <span class="text-[9px] text-slate-400 font-bold">복간지수</span>
+                <span class="text-xs font-black text-sky-600">${score}점</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    window._latestFeedCandidates = latestCandidates;
+}
+
+window.startBookSimulationByFeedIsbn = function(isbn) {
+    const book = window._latestFeedCandidates?.find(b => b.isbn === isbn);
+    if (book) {
+        window.startBookSimulationByBook(book);
+    }
+};
 
 // ============================================================
 // ⚡ 플래시 라이트 모드 — 시스템 과부하 방어 기제 시연 엔진
@@ -6567,6 +6648,11 @@ function updateLocalAgentStatus(agentId, status, role) {
 // 복간 후보 책선택 시뮬레이션 개시 메인 진입점
 window.startBookSimulationByIndex = async function(index) {
     const book = window._currentCandidates[index];
+    if (!book) return;
+    return window.startBookSimulationByBook(book);
+};
+
+window.startBookSimulationByBook = async function(book) {
     if (!book) return;
 
     // Clean title and author of any HTML tags (e.g. search highlight span tags from API)
