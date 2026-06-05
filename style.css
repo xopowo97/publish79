@@ -522,7 +522,7 @@ th {
 /* 3컬럼 메인 그리드 */
 .ac-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
@@ -535,6 +535,7 @@ th {
     border: 1px solid #e2e8f0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     min-height: 380px;
+    min-width: 0;
 }
 .ac-panel-header {
     display: flex;
