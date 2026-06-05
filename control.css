@@ -1665,3 +1665,22 @@ html, body {
         transform: translateY(0) scale(1);
     }
 }
+
+/* =============================================
+   AI Helper Gold Pulse (Orchestrator Recommended)
+   ============================================= */
+.ai-fab.pulse-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    animation: ai-fab-pulse-gold 1.5s infinite ease-in-out !important;
+}
+
+@keyframes ai-fab-pulse-gold {
+    0%, 100% {
+        box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4), 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 15px 30px rgba(245, 158, 11, 0.6), 0 0 0 12px rgba(245, 158, 11, 0);
+    }
+}
+
