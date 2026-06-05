@@ -55,29 +55,41 @@ export default async function handler(req, res) {
         }
 
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
-        // 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
-        const endpoint = `${base}/reprint_candidates?select=*&order=reprint_score.desc&limit=3`;
+        
+        // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
+        const top3Url = `${base}/reprint_candidates?select=*&order=reprint_score.desc&limit=3`;
+        // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
+        const latestUrl = `${base}/reprint_candidates?select=*&order=created_at.desc&limit=8`;
 
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-                'apikey': key,
-                'Authorization': `Bearer ${key}`,
-                'Accept': 'application/json'
-            }
-        });
+        const headers = {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Accept': 'application/json'
+        };
 
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Supabase 조회 실패 (${response.status}): ${errText}`);
+        const [top3Res, latestRes] = await Promise.all([
+            fetch(top3Url, { method: 'GET', headers }),
+            fetch(latestUrl, { method: 'GET', headers })
+        ]);
+
+        if (!top3Res.ok) {
+            const errText = await top3Res.text();
+            throw new Error(`Supabase TOP3 조회 실패 (${top3Res.status}): ${errText}`);
+        }
+        if (!latestRes.ok) {
+            const errText = await latestRes.text();
+            throw new Error(`Supabase LATEST 조회 실패 (${latestRes.status}): ${errText}`);
         }
 
-        const candidates = await response.json();
+        const top3Data = await top3Res.json();
+        const latestData = await latestRes.json();
 
         return res.status(200).json({
             success: true,
-            count: candidates.length,
-            data: candidates
+            count: top3Data.length,
+            data: top3Data, // 하위 호환용 기존 필드
+            top3: top3Data,
+            latest: latestData
         });
 
     } catch (err) {
