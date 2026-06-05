@@ -406,7 +406,7 @@ html, body {
 ─────────────────────────────────────────── */
 .ctrl-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
@@ -420,6 +420,7 @@ html, body {
     border-radius: var(--ctrl-radius);
     padding: 20px;
     transition: all 0.3s ease;
+    min-width: 0;
 }
 
 .ctrl-panel:hover {
