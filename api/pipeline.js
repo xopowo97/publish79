@@ -88,9 +88,9 @@ function parseCategory(categoryName) {
 function runDataRefiner_Dadumeui(rawBook) {
     if (!rawBook) return null;
 
-    // 필드 정규화 및 HTML 태그 제거
-    const title  = String(rawBook.title || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
-    const author = String(rawBook.author || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    // 필드 정규화 및 HTML 태그 제거 및 길이 초과 방지 가드 적용
+    const title  = String(rawBook.title || '').trim().replace(/<\/?[^>]+(>|$)/g, "").substring(0, 255);
+    const author = String(rawBook.author || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "").substring(0, 150);
     const isbn   = String(rawBook.isbn13 || rawBook.isbn || '').replace(/[^0-9X]/gi, '');
     
     // [무결성 가드] ISBN이 아예 없거나 규격 미달인 도서는 DB 적재/중복 연산 시 오류를 유발하므로 필터링 탈락
@@ -102,7 +102,7 @@ function runDataRefiner_Dadumeui(rawBook) {
         10
     ) || null;
     
-    const publisher = String(rawBook.publisher || '').trim().replace(/<\/?[^>]+(>|$)/g, "");
+    const publisher = String(rawBook.publisher || '').trim().replace(/<\/?[^>]+(>|$)/g, "").substring(0, 150);
     const loanCount = parseInt(rawBook.library_loans || 0, 10) || 0;
     const stockStatus = String(rawBook.stockStatus || '').trim();
     const isSimulated = !!rawBook.is_simulated;
