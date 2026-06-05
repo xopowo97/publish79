@@ -194,20 +194,39 @@ async function loadCtrlDashboard() {
         console.warn('[통제실] 에이전트 조직도 DB 연동 실패 (정적 UI 유지):', e.message);
     }
 
-    // 5-2. 복간 후보 TOP3
+    // 5-2. 복간 후보 및 실시간 피드 연동
     try {
-        const { data, error } = await _ctrl_supabase
-            .from('reprint_candidates')
-            .select('*')
-            .order('reprint_score', { ascending: false })
-            .limit(3);
-
-        if (!error && data && data.length > 0) {
-            _ctrl_candidates = data;
-            renderCtrlReprintCandidates(data);
+        let top3 = [];
+        let latest = [];
+        // Vercel API 우선 호출 (CORS 방어용 ctrlApiUrl 래퍼 사용)
+        const endpoint = ctrlApiUrl('/api/reprint-candidates');
+        const res = await fetch(endpoint);
+        if (res.ok) {
+            const apiRes = await res.json();
+            if (apiRes.success) {
+                top3 = apiRes.top3 || apiRes.data || [];
+                latest = apiRes.latest || [];
+            }
         }
+        
+        // 백엔드 API 실패 시 Supabase 직접 조회 폴백
+        if (top3.length === 0 && _ctrl_supabase) {
+            const [top3Res, latestRes] = await Promise.all([
+                _ctrl_supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3),
+                _ctrl_supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false }).limit(8)
+            ]);
+            if (!top3Res.error && top3Res.data) top3 = top3Res.data;
+            if (!latestRes.error && latestRes.data) latest = latestRes.data;
+        }
+
+        if (top3 && top3.length > 0) {
+            _ctrl_candidates = top3;
+            renderCtrlReprintCandidates(top3);
+        }
+        
+        renderCtrlReprintFeed(latest);
     } catch (e) {
-        console.warn('[통제실] 복간 후보 DB 연동 실패 (정적 UI 유지):', e.message);
+        console.warn('[통제실] 복간 후보 및 피드 연동 실패 (정적 UI 유지):', e.message);
     }
 }
 
@@ -329,6 +348,76 @@ function renderCtrlReprintCandidates(candidates) {
         </div>`;
     }).join('');
 }
+
+function renderCtrlReprintFeed(latestCandidates) {
+    const container = document.getElementById('ctrl-feed-list');
+    if (!container) return;
+
+    if (!latestCandidates || latestCandidates.length === 0) {
+        container.innerHTML = `
+        <div style="padding:24px; text-align:center; color:var(--ctrl-text-mute); font-size:11px; font-weight:600;">
+            실시간 도서 수집 대기 중...
+        </div>`;
+        return;
+    }
+
+    const categoryStyles = {
+        '소설': 'background: rgba(244, 63, 94, 0.1); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.2);',
+        '에세이': 'background: rgba(236, 72, 153, 0.1); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.2);',
+        '인문학': 'background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2);',
+        '사회과학': 'background: rgba(99, 102, 241, 0.1); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.2);',
+        '역사': 'background: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.2);',
+        '과학': 'background: rgba(6, 182, 212, 0.1); color: #0891b2; border: 1px solid rgba(6, 182, 212, 0.2);',
+        '예술': 'background: rgba(217, 70, 239, 0.1); color: #d012db; border: 1px solid rgba(217, 70, 239, 0.2);',
+        '경제경영': 'background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2);',
+        '자기계발': 'background: rgba(14, 165, 233, 0.1); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.2);',
+        '종교': 'background: rgba(20, 184, 166, 0.1); color: #0d9488; border: 1px solid rgba(20, 184, 166, 0.2);',
+        '어린이': 'background: rgba(234, 179, 8, 0.1); color: #ca8a04; border: 1px solid rgba(234, 179, 8, 0.2);',
+        '청소년': 'background: rgba(249, 115, 22, 0.1); color: #ea580c; border: 1px solid rgba(249, 115, 22, 0.2);',
+        '미분류': 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);'
+    };
+
+    container.innerHTML = latestCandidates.map(c => {
+        const title = (c.title || '').replace(/<\/?[^>]+(>|$)/g, "");
+        const author = (c.author || '미상').replace(/<\/?[^>]+(>|$)/g, "");
+        const category = c.category || '미분류';
+        const catStyle = categoryStyles[category] || 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);';
+        
+        const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
+        const publisher = c.publisher || '출판사 미상';
+        const score = c.reprint_score || 0;
+        
+        const simulatedBadge = c.is_simulated
+            ? `<span style="background:#f59e0b; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.3); animation: pulse 1.5s infinite;">통계 보정 중</span>`
+            : '';
+
+        return `
+        <div class="ctrl-feed-card" onclick="startCtrlSimByFeedIsbn('${c.isbn}')"
+             style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: all 0.2s; gap: 10px;">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; ${catStyle}">${category}</span>
+                    ${simulatedBadge}
+                </div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--ctrl-text-main, #f1f5f9); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${title} (${author})</div>
+                <div style="font-size: 9px; color: var(--ctrl-text-mute, #64748b); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${pubYear} · ${publisher}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; shrink-0; min-width: 50px;">
+                <span style="font-size: 8px; color: var(--ctrl-text-mute, #64748b); font-weight: 700;">복간지수</span>
+                <span style="font-size: 13px; font-weight: 900; color: #0ea5e9;">${score}점</span>
+            </div>
+        </div>`;
+    }).join('');
+
+    window._latestCtrlFeedCandidates = latestCandidates;
+}
+
+window.startCtrlSimByFeedIsbn = function(isbn) {
+    const book = window._latestCtrlFeedCandidates?.find(b => b.isbn === isbn);
+    if (book) {
+        startCtrlSimByBookData(book);
+    }
+};
 
 // ───────────────────────────────────────────
 // 8. 에이전트 상태 로컬 UI 업데이트
@@ -746,8 +835,12 @@ function _ctrlAutoRecover() {
 // 14. 시뮬레이션 모달 — 복간 후보 도서 선택 시 실행
 // ───────────────────────────────────────────
 async function ctrlStartSimByIndex(index) {
-    alert("도서 클릭이 확인되었습니다! (인덱스: " + index + ")");
     const book = _ctrl_candidates[index];
+    if (!book) return;
+    return startCtrlSimByBookData(book);
+}
+
+async function startCtrlSimByBookData(book) {
     if (!book) return;
 
     // HTML 태그 제거
