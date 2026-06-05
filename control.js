@@ -314,12 +314,15 @@ function renderCtrlReprintCandidates(candidates) {
         const rankClass = `ctrl-rank-${i + 1}`;
         const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const loans   = c.library_loans ? c.library_loans.toLocaleString() : '0';
+        const simulatedBadge = c.is_simulated
+            ? `<span style="background:#f59e0b; color:#fff; font-size:9px; padding:1px 4.5px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.4);">통계 보정 중</span>`
+            : '';
 
         return `
         <div class="ctrl-book-card ${rankClass}" onclick="ctrlStartSimByIndex(${i})" style="cursor:pointer;">
             <div class="ctrl-rank-badge">${rankEmojis[i]} ${i + 1}위</div>
             <div class="ctrl-book-info">
-                <div class="ctrl-book-title">${c.title} (${c.author})</div>
+                <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}</div>
                 <div class="ctrl-book-meta">${c.is_out_of_print ? '절판' : '일반'} · ${pubYear} · 대출 <strong>${loans}</strong>건</div>
             </div>
             <div class="ctrl-reprint-score">${c.reprint_score || 0}<span>점</span></div>
