@@ -46,6 +46,9 @@ function runDataRefiner_Dadumeui(rawBook) {
     const author = String(rawBook.author || '미상').trim().replace(/<\/?[^>]+(>|$)/g, "");
     const isbn   = String(rawBook.isbn13 || rawBook.isbn || '').replace(/[^0-9X]/gi, '');
     
+    // [무결성 가드] ISBN이 아예 없거나 규격 미달인 도서는 DB 적재/중복 연산 시 오류를 유발하므로 필터링 탈락
+    if (!isbn || isbn.length < 10) return null;
+    
     // 출판연도 추출 (예: "2015-03-20" -> 2015)
     const pubYear = parseInt(
         String(rawBook.pubDate || '0').substring(0, 4),
@@ -342,6 +345,17 @@ export default async function handler(req, res) {
         // ========================================================
         // Supabase reprint_candidates 테이블 UPSERT (ISBN 기준 중복 방지)
         // ========================================================
+        
+        // 단일 전송 목록 내 동일 ISBN 중복 요소 사전 제거 (Postgres cardinality error 방지)
+        const uniqueRefined = [];
+        const seenIsbns = new Set();
+        for (const book of refined) {
+            if (!seenIsbns.has(book.isbn)) {
+                seenIsbns.add(book.isbn);
+                uniqueRefined.push(book);
+            }
+        }
+
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
         const upsertEndpoint = `${base}/reprint_candidates?on_conflict=isbn`;
 
@@ -353,7 +367,7 @@ export default async function handler(req, res) {
                 'Content-Type': 'application/json',
                 'Prefer': 'resolution=merge-duplicates,return=minimal'
             },
-            body: JSON.stringify(refined)
+            body: JSON.stringify(uniqueRefined)
         });
 
         if (!upsertRes.ok) {
@@ -365,8 +379,8 @@ export default async function handler(req, res) {
             return res.status(502).json({ error: 'Supabase 적재 실패', detail: errText.substring(0, 200) });
         }
 
-        await log(13, '오케스트레이터', 'success', `파이프라인 완료 — ${refined.length}건 DB 적재 완료 (키워드: "${keyword}")`, {
-            keyword, inserted: refined.length, pipelineStartAt
+        await log(13, '오케스트레이터', 'success', `파이프라인 완료 — ${uniqueRefined.length}건 DB 적재 완료 (키워드: "${keyword}")`, {
+            keyword, inserted: uniqueRefined.length, pipelineStartAt
         });
 
         // [상태 변경] 오케스트레이터 최종 파이프라인 및 DB 적재 성공 완료
@@ -374,11 +388,11 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `파이프라인 완료: 살피미 ${totalCount}건 수집 → 다듬이 정제 → ${refined.length}건 DB 적재`,
+            message: `파이프라인 완료: 살피미 ${totalCount}건 수집 → 다듬이 정제 → ${uniqueRefined.length}건 DB 적재`,
             keyword,
             totalCollected: totalCount,
-            inserted: refined.length,
-            sample: refined.slice(0, 3).map(r => ({ title: r.title, author: r.author, score: r.reprint_score }))
+            inserted: uniqueRefined.length,
+            sample: uniqueRefined.slice(0, 3).map(r => ({ title: r.title, author: r.author, score: r.reprint_score }))
         });
 
     } catch (err) {
