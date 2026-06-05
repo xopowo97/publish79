@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS reprint_candidates (
     copyright_status TEXT DEFAULT 'protected',
     author_status   TEXT DEFAULT 'unknown',
     estimated_royalty_rate NUMERIC(4,2) DEFAULT 10.00,
+    category        TEXT DEFAULT '미분류',
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -222,6 +223,17 @@ BEGIN
         WHERE table_name = 'reprint_candidates' AND column_name = 'estimated_royalty_rate'
     ) THEN
         ALTER TABLE reprint_candidates ADD COLUMN estimated_royalty_rate NUMERIC(4,2) DEFAULT 10.00;
+    END IF;
+END $$;
+
+-- [멱등성] category 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'category'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN category TEXT DEFAULT '미분류';
     END IF;
 END $$;
 
