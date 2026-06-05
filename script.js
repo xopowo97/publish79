@@ -6344,7 +6344,7 @@ function renderDynamicReprintFeed(latestCandidates) {
             : '';
 
         return `
-        <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-sky-300 hover:shadow-sm cursor-pointer transition-all duration-200"
+        <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-sky-300 hover:shadow-sm cursor-pointer transition-all duration-200 w-full min-w-0"
              onclick="startBookSimulationByFeedIsbn('${c.isbn}')">
             <div class="flex flex-col gap-1 min-w-0 flex-1 pr-3">
                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -6489,7 +6489,11 @@ window.triggerPipeline = async function() {
                 }
             }, 1500);
         } else {
-            if (statusEl) { statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}`; statusEl.style.color = '#ef4444'; }
+            if (statusEl) {
+                const detailMsg = data.detail ? ` (${data.detail})` : '';
+                statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}${detailMsg}`;
+                statusEl.style.color = '#ef4444';
+            }
         }
     } catch (err) {
         if (statusEl) { statusEl.textContent = `❌ 네트워크 오류: ${err.message}`; statusEl.style.color = '#ef4444'; }
