@@ -393,7 +393,7 @@ function renderCtrlReprintFeed(latestCandidates) {
 
         return `
         <div class="ctrl-feed-card" onclick="startCtrlSimByFeedIsbn('${c.isbn}')"
-             style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: all 0.2s; gap: 10px;">
+             style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: all 0.2s; gap: 10px; width: 100%; min-width: 0;">
             <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; ${catStyle}">${category}</span>
@@ -670,7 +670,11 @@ async function triggerCtrlPipeline(isRetry = false) {
                 }
             }, 1500);
         } else {
-            if (statusEl) { statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}`; statusEl.style.color = 'var(--ctrl-rose)'; }
+            if (statusEl) { 
+                const detailMsg = data.detail ? ` (${data.detail})` : '';
+                statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}${detailMsg}`; 
+                statusEl.style.color = 'var(--ctrl-rose)'; 
+            }
         }
     } catch (err) {
         if (statusEl) { statusEl.textContent = `❌ 네트워크 오류: ${err.message}`; statusEl.style.color = 'var(--ctrl-rose)'; }
