@@ -34,6 +34,53 @@ function checkRateLimit(ip) {
 const ALADIN_API_KEY = process.env.ALADIN_API_KEY;
 const LIBRARY_NARU_API_KEY = process.env.LIBRARY_NARU_API_KEY;
 
+// 알라딘 categoryName 파싱 헬퍼 함수
+function parseCategory(categoryName) {
+    if (!categoryName) return '미분류';
+    const parts = categoryName.split('>');
+    // 보통 2번째 요소가 대분류 장르 (국내도서 > 소설/시/희곡 > ...)
+    let mainCat = parts[1] ? parts[1].trim() : (parts[0] ? parts[0].trim() : '미분류');
+    
+    if (mainCat.includes('소설') || mainCat.includes('시') || mainCat.includes('희곡')) {
+        return '소설';
+    }
+    if (mainCat.includes('에세이') || mainCat.includes('수필')) {
+        return '에세이';
+    }
+    if (mainCat.includes('인문학') || mainCat.includes('인문')) {
+        return '인문학';
+    }
+    if (mainCat.includes('사회과학') || mainCat.includes('정치') || mainCat.includes('사회')) {
+        return '사회과학';
+    }
+    if (mainCat.includes('역사')) {
+        return '역사';
+    }
+    if (mainCat.includes('과학') || mainCat.includes('수학') || mainCat.includes('공학')) {
+        return '과학';
+    }
+    if (mainCat.includes('예술') || mainCat.includes('대중문화') || mainCat.includes('미술')) {
+        return '예술';
+    }
+    if (mainCat.includes('경제') || mainCat.includes('경영') || mainCat.includes('비즈니스') || mainCat.includes('금융') || mainCat.includes('재테크')) {
+        return '경제경영';
+    }
+    if (mainCat.includes('자기계발')) {
+        return '자기계발';
+    }
+    if (mainCat.includes('종교')) {
+        return '종교';
+    }
+    if (mainCat.includes('유아') || mainCat.includes('어린이') || mainCat.includes('아동') || mainCat.includes('그림책')) {
+        return '어린이';
+    }
+    if (mainCat.includes('청소년')) {
+        return '청소년';
+    }
+    
+    return mainCat.split('/')[0].trim();
+}
+
 // ============================================================
 // [2번 다듬이 에이전트] 수집된 원시 데이터 정제 함수
 // 절판/희귀 판별 → 다차원 복간 점수 산출 → 저작권 메타데이터 Heuristic 판별 → DB 표준 스키마 변환
@@ -59,6 +106,8 @@ function runDataRefiner_Dadumeui(rawBook) {
     const loanCount = parseInt(rawBook.library_loans || 0, 10) || 0;
     const stockStatus = String(rawBook.stockStatus || '').trim();
     const isSimulated = !!rawBook.is_simulated;
+    const categoryName = String(rawBook.categoryName || '').trim();
+    const category = parseCategory(categoryName);
 
     if (!title) return null;
 
@@ -110,6 +159,7 @@ function runDataRefiner_Dadumeui(rawBook) {
         copyright_status: copyrightStatus,
         author_status: authorStatus,
         estimated_royalty_rate: estimatedRoyaltyRate,
+        category: category,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
