@@ -6285,13 +6285,33 @@ function renderDynamicReprintCandidates(candidates) {
             ? `<span class="inline-block bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 font-black animate-pulse align-middle shadow-sm">통계 보정 중</span>`
             : '';
 
+        // 수요 온도 연산 및 라벨 매핑 (TailwindCSS 클래스 적용)
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'bg-sky-50 text-sky-600 border border-sky-100';
+        let tempEmoji = '🔵';
+        let tempLabel = '미온';
+        if (temp >= 90) {
+            tempClass = 'bg-rose-50 text-rose-600 border border-rose-200 animate-pulse';
+            tempEmoji = '🔴';
+            tempLabel = '끓는점';
+        } else if (temp >= 70) {
+            tempClass = 'bg-orange-50 text-orange-600 border border-orange-100';
+            tempEmoji = '🟠';
+            tempLabel = '고온';
+        } else if (temp >= 50) {
+            tempClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
+            tempEmoji = '🟡';
+            tempLabel = '온열';
+        }
+
         return `
         <div class="ac-book-card ${rankClass} cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-200" onclick="startBookSimulationByIndex(${index})">
             <div class="ac-rank-badge">${rankEmoji} ${index + 1}위</div>
             <div class="ac-book-info">
                 <div class="ac-book-title">${c.title} (${c.author})${simulatedBadge}</div>
-                <div class="ac-book-meta">
-                    ${c.is_out_of_print ? '절판' : '일반'} · ${pubYearText} · 대출 <strong>${loansText}</strong>건
+                <div class="ac-book-meta flex items-center gap-1.5 flex-wrap mt-1">
+                    <span class="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded border ${tempClass}">${tempEmoji} ${temp}℃ ${tempLabel}</span>
+                    <span class="text-[10px] text-slate-400 font-medium">${c.is_out_of_print ? '절판' : '일반'} · ${pubYearText} · 대출 <strong class="text-sky-600 font-bold">${loansText}</strong>건</span>
                 </div>
             </div>
             <div class="ac-reprint-score">${c.reprint_score || 0}<span>점</span></div>
@@ -6343,12 +6363,28 @@ function renderDynamicReprintFeed(latestCandidates) {
             ? `<span class="inline-block bg-amber-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black animate-pulse align-middle shadow-sm ml-1.5">통계 보정 중</span>`
             : '';
 
+        // 수요 온도 연산 및 라벨 매핑 (TailwindCSS 클래스 적용)
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'bg-sky-50 text-sky-600 border border-sky-100';
+        let tempEmoji = '🔵';
+        if (temp >= 90) {
+            tempClass = 'bg-rose-50 text-rose-600 border border-rose-200 animate-pulse';
+            tempEmoji = '🔴';
+        } else if (temp >= 70) {
+            tempClass = 'bg-orange-50 text-orange-600 border border-orange-100';
+            tempEmoji = '🟠';
+        } else if (temp >= 50) {
+            tempClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
+            tempEmoji = '🟡';
+        }
+
         return `
         <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-sky-300 hover:shadow-sm cursor-pointer transition-all duration-200 w-full min-w-0"
              onclick="startBookSimulationByFeedIsbn('${c.isbn}')">
             <div class="flex flex-col gap-1 min-w-0 flex-1 pr-3">
                 <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${catClass}">${category}</span>
+                    <span class="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.2 rounded border ${tempClass}">${tempEmoji} ${temp}℃</span>
                     ${simulatedBadge}
                 </div>
                 <div class="text-[11px] font-extrabold text-slate-800 truncate">${title} (${author})</div>
