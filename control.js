@@ -48,13 +48,8 @@ let _ctrl_approvalLog    = [];  // 승인 이력 배열
 
 // 로테이션 표준 키워드 및 재시도 상태 관리
 const CTRL_KEYWORD_ROTATION = [
-    '절판 인문학',
-    '품절 한국소설',
-    '절판 그림책',
-    '절판 철학',
-    '복간 경제 경영',
-    '저작권 만료 명저',
-    '지역 향토 자료'
+    '소설', '에세이', '인문학', '경제경영', '사회과학', '역사',
+    '과학', '예술', '자기계발', '종교', '어린이', '청소년'
 ];
 let _ctrl_pipeline_retry_count = 0;
 
@@ -337,12 +332,34 @@ function renderCtrlReprintCandidates(candidates) {
             ? `<span style="background:#f59e0b; color:#fff; font-size:9px; padding:1px 4.5px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.4);">통계 보정 중</span>`
             : '';
 
+        // 수요 온도 연산 및 라벨 매핑
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'ctrl-temp-cool';
+        let tempLabel = '미온';
+        let tempEmoji = '🔵';
+        if (temp >= 90) {
+            tempClass = 'ctrl-temp-boiling';
+            tempLabel = '끓는점';
+            tempEmoji = '🔴';
+        } else if (temp >= 70) {
+            tempClass = 'ctrl-temp-hot';
+            tempLabel = '고온';
+            tempEmoji = '🟠';
+        } else if (temp >= 50) {
+            tempClass = 'ctrl-temp-warm';
+            tempLabel = '온열';
+            tempEmoji = '🟡';
+        }
+
         return `
         <div class="ctrl-book-card ${rankClass}" onclick="ctrlStartSimByIndex(${i})" style="cursor:pointer;">
             <div class="ctrl-rank-badge">${rankEmojis[i]} ${i + 1}위</div>
             <div class="ctrl-book-info">
                 <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}</div>
-                <div class="ctrl-book-meta">${c.is_out_of_print ? '절판' : '일반'} · ${pubYear} · 대출 <strong>${loans}</strong>건</div>
+                <div class="ctrl-book-meta" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
+                    <span class="ctrl-temp-badge ${tempClass}">${tempEmoji} ${temp}℃ ${tempLabel}</span>
+                    <span>${c.is_out_of_print ? '절판' : '일반'} · ${pubYear} · 대출 <strong>${loans}</strong>건</span>
+                </div>
             </div>
             <div class="ctrl-reprint-score">${c.reprint_score || 0}<span>점</span></div>
         </div>`;
@@ -391,12 +408,28 @@ function renderCtrlReprintFeed(latestCandidates) {
             ? `<span style="background:#f59e0b; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.3); animation: pulse 1.5s infinite;">통계 보정 중</span>`
             : '';
 
+        // 수요 온도 연산 및 라벨 매핑
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'ctrl-temp-cool';
+        let tempEmoji = '🔵';
+        if (temp >= 90) {
+            tempClass = 'ctrl-temp-boiling';
+            tempEmoji = '🔴';
+        } else if (temp >= 70) {
+            tempClass = 'ctrl-temp-hot';
+            tempEmoji = '🟠';
+        } else if (temp >= 50) {
+            tempClass = 'ctrl-temp-warm';
+            tempEmoji = '🟡';
+        }
+
         return `
         <div class="ctrl-feed-card" onclick="startCtrlSimByFeedIsbn('${c.isbn}')"
              style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: all 0.2s; gap: 10px; width: 100%; min-width: 0;">
             <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; ${catStyle}">${category}</span>
+                    <span class="ctrl-temp-badge ${tempClass}" style="padding: 1px 6.5px; border-radius: 10px; font-size: 8px;">${tempEmoji} ${temp}℃</span>
                     ${simulatedBadge}
                 </div>
                 <div style="font-size: 11px; font-weight: 700; color: var(--ctrl-text-main, #f1f5f9); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${title} (${author})</div>
