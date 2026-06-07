@@ -105,8 +105,20 @@
                     <i data-lucide="flask-conical"></i>
                     살피미 + 다듬이 파이프라인 수동 실행
                 </label>
-                <input type="text" id="ctrl-keyword-input" class="ctrl-input"
-                       placeholder="검색 키워드 (예: 절판 도서, 생태학...)" value="절판 도서">
+                <select id="ctrl-keyword-input" class="ctrl-input ctrl-select">
+                    <option value="소설">소설</option>
+                    <option value="에세이">에세이</option>
+                    <option value="인문학">인문학</option>
+                    <option value="경제경영">경제경영</option>
+                    <option value="사회과학">사회과학</option>
+                    <option value="역사">역사</option>
+                    <option value="과학">과학</option>
+                    <option value="예술">예술</option>
+                    <option value="자기계발">자기계발</option>
+                    <option value="종교">종교</option>
+                    <option value="어린이">어린이</option>
+                    <option value="청소년">청소년</option>
+                </select>
                 <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary" onclick="triggerCtrlPipeline()">
                     <i data-lucide="rocket"></i>
                     파이프라인 실행
