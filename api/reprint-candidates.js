@@ -54,12 +54,15 @@ export default async function handler(req, res) {
             throw new Error('SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않았습니다.');
         }
 
+        const category = req.query.category || '';
+        const categoryFilter = (category && category !== 'all') ? `&category=eq.${encodeURIComponent(category)}` : '';
+
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
         
         // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
-        const top3Url = `${base}/reprint_candidates?select=*&order=reprint_score.desc&limit=3`;
+        const top3Url = `${base}/reprint_candidates?select=*${categoryFilter}&order=reprint_score.desc&limit=3`;
         // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
-        const latestUrl = `${base}/reprint_candidates?select=*&order=created_at.desc&limit=8`;
+        const latestUrl = `${base}/reprint_candidates?select=*${categoryFilter}&order=created_at.desc&limit=8`;
 
         const headers = {
             'apikey': key,
