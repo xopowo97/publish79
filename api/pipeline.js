@@ -533,6 +533,76 @@ export default async function handler(req, res) {
         writeAuditLog(rawUrl, supKey, { agent_id, agent_name, log_level: level, message, metadata });
 
     try {
+        // [지능형 로테이션] '전체보기(all)' 또는 비어있을 때 작동
+        let isIntelligentRotation = false;
+        if (keyword === 'all' || !keyword) {
+            isIntelligentRotation = true;
+            
+            const baseRest = rawUrl.replace(/\/+$/, '') + '/rest/v1';
+            let rotKeyword = '소설'; // 기본 폴백
+            
+            try {
+                const checkRes = await fetch(`${baseRest}/reprint_candidates?select=category,demand_temperature,updated_at`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supKey,
+                        'Authorization': `Bearer ${supKey}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (checkRes.ok) {
+                    const dbBooks = await checkRes.json();
+                    
+                    // 12대 표준 분야 정의
+                    const rotationCategories = [
+                        '소설', '에세이', '인문학', '경제경영', '사회과학', '역사',
+                        '과학', '예술', '자기계발', '종교', '어린이', '청소년'
+                    ];
+                    
+                    const stats = {};
+                    rotationCategories.forEach(cat => {
+                        stats[cat] = { count: 0, totalTemp: 0 };
+                    });
+                    
+                    dbBooks.forEach(b => {
+                        const cat = b.category || '미분류';
+                        if (stats[cat] !== undefined) {
+                            stats[cat].count += 1;
+                            const temp = b.demand_temperature !== undefined ? parseFloat(b.demand_temperature) : 0;
+                            stats[cat].totalTemp += temp;
+                        }
+                    });
+                    
+                    // 1. 적재 건수(count)가 0인 카테고리 최우선
+                    // 2. 적재 건수(count)가 적은 순
+                    // 3. 평균 온도가 낮은 순
+                    const sorted = rotationCategories.map(cat => {
+                        const s = stats[cat];
+                        const avgTemp = s.count > 0 ? (s.totalTemp / s.count) : 0;
+                        return { category: cat, count: s.count, avgTemp: avgTemp };
+                    }).sort((a, b) => {
+                        if (a.count === 0 && b.count > 0) return -1;
+                        if (b.count === 0 && a.count > 0) return 1;
+                        if (a.count === 0 && b.count === 0) return 0;
+                        
+                        if (a.count !== b.count) return a.count - b.count;
+                        return a.avgTemp - b.avgTemp;
+                    });
+                    
+                    if (sorted.length > 0) {
+                        rotKeyword = sorted[0].category;
+                    }
+                }
+            } catch (errCheck) {
+                console.warn('[지능형 로테이션] 스캔 실패, 기본 폴백 적용:', errCheck.message);
+            }
+            
+            keyword = rotKeyword;
+            // 지능형 로테이션 감사 로그 기록
+            await log(13, '오케스트레이터', 'info', `[지능형 로테이션] 데이터 취약성 분석 완료 ➔ 탐색 우선순위 선정 분야: "${keyword}"`, { selectedKeyword: keyword });
+        }
+
         // [초기 에이전트 상태 설정]
         await updateAgentStatus(rawUrl, supKey, 13, 'running', '파이프라인 실행 지휘 중');
         await updateAgentStatus(rawUrl, supKey, 1, 'running', '도서관정보나루 대출 인기작 수집 중');
