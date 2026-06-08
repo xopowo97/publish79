@@ -119,7 +119,7 @@ export default async function handler(req, res) {
             const specsDefinition = [
                 { name: 'A5국판(148x210)', density: 460 },
                 { name: '신국판(152x225)', density: 550 },
-                { name: '46판(128x188)', density: 360 },
+                { name: '46배판형(188x257)', density: 720 },
                 { name: '국배판(210x297)', density: 920 }
             ];
 
