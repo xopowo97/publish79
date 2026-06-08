@@ -1047,6 +1047,7 @@ async function startCtrlSimByBookData(book) {
                     const unitCost  = Math.round(totalCost / 500);
                     let retailPrice = 15000;
                     if (s.specName.includes('국배판'))  retailPrice = 24000;
+                    else if (s.specName.includes('46배판형')) retailPrice = 21000;
                     else if (s.specName.includes('신국판')) retailPrice = 18500;
                     else if (s.specName.includes('A5국판'))  retailPrice = 16800;
                     else retailPrice = 14800;
@@ -1399,7 +1400,7 @@ async function ctrlDownloadReprintPDF() {
 
         const page   = pdfDoc.addPage([595.275, 841.889]);
 
-        const specDim = { 'A5국판': [148,210], '신국판': [152,225], '46판': [128,188], '국배판': [210,297] };
+        const specDim = { 'A5국판': [148,210], '신국판': [152,225], '46배판형': [188,257], '국배판': [210,297] };
         let [tw, th] = [152, 225];
         for (const [k, v] of Object.entries(specDim)) {
             if (spec.specName.includes(k)) { [tw, th] = v; break; }
