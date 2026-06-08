@@ -77,6 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
         console.warn('[통제실] Lucide 아이콘 초기화 실패:', e);
     }
+
+    // 분야 드롭다운 변경 시 실시간 필터 갱신 연동
+    const kwInput = document.getElementById('ctrl-keyword-input');
+    if (kwInput) {
+        kwInput.addEventListener('change', () => {
+            loadCtrlDashboard();
+        });
+    }
 });
 
 // ───────────────────────────────────────────
@@ -168,6 +176,39 @@ function initCtrlTrendChart() {
 }
 
 // ───────────────────────────────────────────
+// 4-1. 데이터 로딩 스켈레톤 UI 렌더러
+// ───────────────────────────────────────────
+function renderCtrlSkeletons() {
+    const top3Container = document.getElementById('ctrl-top3-list');
+    const feedContainer = document.getElementById('ctrl-feed-list');
+    
+    if (top3Container) {
+        top3Container.innerHTML = Array(3).fill(0).map((_, i) => `
+            <div class="ctrl-book-card" style="opacity: 0.6; animation: pulse 1.5s infinite; border: 1px dashed rgba(255,255,255,0.1); background: rgba(255,255,255,0.01); height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background: rgba(255,255,255,0.07); height: 12px; width: 60%; border-radius: 4px;"></div>
+                    <div style="background: rgba(255,255,255,0.04); height: 10px; width: 40%; border-radius: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.07); height: 28px; width: 28px; border-radius: 4px;"></div>
+            </div>
+        `).join('');
+    }
+    
+    if (feedContainer) {
+        feedContainer.innerHTML = Array(4).fill(0).map(() => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.01); border: 1px dashed rgba(255,255,255,0.05); border-radius: 12px; height: 58px; opacity: 0.5; animation: pulse 1.5s infinite; gap: 10px; width: 100%; box-sizing: border-box;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="background: rgba(255,255,255,0.07); height: 8px; width: 30%; border-radius: 4px;"></div>
+                    <div style="background: rgba(255,255,255,0.05); height: 10px; width: 70%; border-radius: 4px;"></div>
+                    <div style="background: rgba(255,255,255,0.03); height: 8px; width: 50%; border-radius: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); height: 18px; width: 45px; border-radius: 4px;"></div>
+            </div>
+        `).join('');
+    }
+}
+
+// ───────────────────────────────────────────
 // 5. 대시보드 데이터 로드 (에이전트 조직도 + 복간 후보)
 // ───────────────────────────────────────────
 async function loadCtrlDashboard() {
@@ -189,12 +230,18 @@ async function loadCtrlDashboard() {
         console.warn('[통제실] 에이전트 조직도 DB 연동 실패 (정적 UI 유지):', e.message);
     }
 
+    const kwInput = document.getElementById('ctrl-keyword-input');
+    const category = kwInput ? kwInput.value : 'all';
+
+    // 데이터 로드 전 스켈레톤 로딩 가동
+    renderCtrlSkeletons();
+
     // 5-2. 복간 후보 및 실시간 피드 연동
     try {
         let top3 = [];
         let latest = [];
         // Vercel API 우선 호출 (CORS 방어용 ctrlApiUrl 래퍼 사용)
-        const endpoint = ctrlApiUrl('/api/reprint-candidates');
+        const endpoint = ctrlApiUrl('/api/reprint-candidates?category=' + encodeURIComponent(category));
         const res = await fetch(endpoint);
         if (res.ok) {
             const apiRes = await res.json();
@@ -206,9 +253,17 @@ async function loadCtrlDashboard() {
         
         // 백엔드 API 실패 시 Supabase 직접 조회 폴백
         if (top3.length === 0 && _ctrl_supabase) {
+            let topQuery = _ctrl_supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false });
+            let latestQuery = _ctrl_supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false });
+            
+            if (category && category !== 'all') {
+                topQuery = topQuery.eq('category', category);
+                latestQuery = latestQuery.eq('category', category);
+            }
+            
             const [top3Res, latestRes] = await Promise.all([
-                _ctrl_supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3),
-                _ctrl_supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false }).limit(8)
+                topQuery.limit(3),
+                latestQuery.limit(8)
             ]);
             if (!top3Res.error && top3Res.data) top3 = top3Res.data;
             if (!latestRes.error && latestRes.data) latest = latestRes.data;
@@ -217,6 +272,14 @@ async function loadCtrlDashboard() {
         if (top3 && top3.length > 0) {
             _ctrl_candidates = top3;
             renderCtrlReprintCandidates(top3);
+        } else {
+            const container = document.getElementById('ctrl-top3-list');
+            if (container) {
+                container.innerHTML = `
+                <div style="padding:24px; text-align:center; color:var(--ctrl-text-mute);">
+                    <p style="font-size:11px; font-weight:600;">선택하신 카테고리의 분석 대기 중<br>파이프라인을 실행하면 실시간으로 표시됩니다.</p>
+                </div>`;
+            }
         }
         
         renderCtrlReprintFeed(latest);
@@ -615,14 +678,19 @@ async function triggerCtrlPipeline(isRetry = false) {
 
     let kw = kwInput?.value?.trim() || '';
     
-    // 사용자가 입력하지 않았거나, 기본값('절판 도서')이거나, 재시도(CORS/0건 자동 순환) 중인 경우 로테이션 키워드 자동 적용
+    // 지능형 로테이션 및 재시도/빈값 수집 파라미터 처리
     let isAutoRotation = false;
-    if (kw === '' || kw === '절판 도서' || isRetry) {
-        kw = CTRL_KEYWORD_ROTATION[rotIdx];
-        if (kwInput) {
-            kwInput.value = kw;
+    if (kw === 'all' || kw === '' || kw === '절판 도서' || isRetry) {
+        if (isRetry) {
+            kw = CTRL_KEYWORD_ROTATION[rotIdx];
+            if (kwInput) {
+                kwInput.value = kw;
+            }
+            isAutoRotation = true;
+        } else {
+            kw = 'all';
+            isAutoRotation = true;
         }
-        isAutoRotation = true;
     }
 
     if (!isRetry) {
@@ -632,7 +700,11 @@ async function triggerCtrlPipeline(isRetry = false) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg> 실행 중...'; }
     
     const retryPrefix = _ctrl_pipeline_retry_count > 0 ? `[재시도 ${_ctrl_pipeline_retry_count}/3] ` : '';
-    if (statusEl) { statusEl.textContent = `${retryPrefix}🔄 "${kw}" → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = 'var(--ctrl-amber)'; }
+    if (statusEl) { 
+        const displayKw = (kw === 'all') ? '지능형 분석 분야' : `"${kw}"`;
+        statusEl.textContent = `${retryPrefix}🔄 ${displayKw} → 살피미 → 다듬이 파이프라인 가동 중...`; 
+        statusEl.style.color = 'var(--ctrl-amber)'; 
+    }
 
     try {
         const endpoint = ctrlApiUrl('/api/pipeline');
