@@ -95,6 +95,22 @@ function resolveKdc(keyword) {
 // ============================================================
 function parseCategory(classNm) {
     const c = String(classNm || '').trim();
+    
+    // 1차: 분류명 텍스트 한글 키워드 기준 매핑 (분류 기호 누락 또는 한글 명칭 유입 대응)
+    if (c.includes('소설')) return '소설';
+    if (c.includes('에세이') || c.includes('수필')) return '에세이';
+    if (c.includes('인문') || c.includes('철학')) return '인문학';
+    if (c.includes('사회')) return '사회과학';
+    if (c.includes('역사') || c.includes('지리')) return '역사';
+    if (c.includes('과학') || c.includes('수학') || c.includes('공학') || c.includes('기술')) return '과학';
+    if (c.includes('예술') || c.includes('미술') || c.includes('음악')) return '예술';
+    if (c.includes('자기계발') || c.includes('자기관리')) return '자기계발';
+    if (c.includes('종교')) return '종교';
+    if (c.includes('어린이') || c.includes('아동') || c.includes('그림책')) return '어린이';
+    if (c.includes('청소년')) return '청소년';
+    if (c.includes('경영') || c.includes('경제') || c.includes('비즈니스')) return '경제경영';
+
+    // 2차: 숫자 기반 KDC 분류 기호(KDC 번호) 기준 매핑
     if (c.startsWith('8')) {
         if (c.includes('아동') || c.includes('어린이') || c.includes('그림')) return '어린이';
         if (c.includes('청소년')) return '청소년';
@@ -104,10 +120,8 @@ function parseCategory(classNm) {
     if (c.startsWith('1')) return '인문학';
     if (c.startsWith('2')) return '종교';
     if (c.startsWith('3')) return '사회과학';
-    if (c.startsWith('4')) return '과학';
-    if (c.startsWith('5')) return '과학';
-    if (c.startsWith('6')) return '예술';
-    if (c.startsWith('7')) return '예술';
+    if (c.startsWith('4') || c.startsWith('5')) return '과학';
+    if (c.startsWith('6') || c.startsWith('7')) return '예술';
     if (c.startsWith('9')) return '역사';
     return '미분류';
 }
@@ -466,7 +480,8 @@ async function fetchLibraryNaruLoanList(apiKey, kdc, pageSize = 50) {
             publisher: book.publisher || '',
             pub_year:  book.publication_year || book.pubDate || '0',
             loanCnt:   parseInt(book.loan_count || book.loanCnt || 0, 10) || 0,
-            classNm:   book.class_nm || book.classNm || ''
+            // class_no(분류기호 번호)를 우선 스캔하고 없으면 class_nm(한글명)을 할당하여 매핑 성공률 극대화
+            classNm:   book.class_no || book.classNo || book.class_nm || book.classNm || ''
         };
     }).filter(b => b.isbn13 && b.isbn13.length >= 10);
 }
@@ -644,6 +659,7 @@ export default async function handler(req, res) {
                 pub_year:  String(b.pub_year),
                 loanCnt:   b.loanCnt,
                 classNm:   '',
+                category:  fallbackCat, // 자율 카테고리 정보 동적 바인딩
                 // 폴백 데이터는 stockStatus가 이미 내장 → 알라딘 조회 스킵용
                 _prefetchedStockStatus: b.stockStatus
             }));
@@ -670,7 +686,7 @@ export default async function handler(req, res) {
             const isbn = naruBook.isbn13;
             let stockStatus = '절판'; // 기본값
             let publisher = naruBook.publisher || '';
-            let category = parseCategory(naruBook.classNm);
+            let category = naruBook.category || parseCategory(naruBook.classNm);
 
             // 폴백 데이터의 경우 알라딘 호출 없이 내장값 사용
             if (naruBook._prefetchedStockStatus) {
