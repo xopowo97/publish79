@@ -301,6 +301,22 @@ function renderCtrlAgentOrgTree(agents) {
         'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
     };
 
+    const nameMapping = {
+        1: '딥서치_살피미',
+        2: '데이터정제_다듬이',
+        3: '수익분석_계산이',
+        4: '조판_조판이',
+        5: '교정/교열_고치미',
+        6: 'VDP_이지퍼비터(ezpubitor)',
+        7: 'B2B영업_영업이',
+        8: '마케팅_알리미',
+        9: '에러감지_눈치왕',
+        10: '코드수정_닥터',
+        11: '배포_배달이',
+        12: '보안통제_보안관',
+        13: '(총괄) 오케스트레이터'
+    };
+
     const tagMapping = {
         1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '교정',
         6: '가변조판', 7: '영업', 8: '마케팅', 9: '감시', 10: '자가치유',
@@ -350,10 +366,11 @@ function renderCtrlAgentOrgTree(agents) {
             const tagText   = tagMapping[agent.id] || '에이전트';
             const isPurple  = agent.id === 13;
 
+            const agentName = nameMapping[agent.id] || agent.name;
             html += `
             <div class="ctrl-agent-row ${rowClass}">
                 <span class="ctrl-dot ${dotClass}"></span>
-                <span class="ctrl-agent-name">${agent.id}번 ${agent.name}</span>
+                <span class="ctrl-agent-name">${agent.id}번 ${agentName}</span>
                 <span class="ctrl-agent-task">${taskText}</span>
                 <span class="ctrl-agent-tag ${isPurple ? 'ctrl-tag-purple' : ''}">${tagText}</span>
             </div>`;
