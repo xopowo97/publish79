@@ -1212,9 +1212,72 @@ async function startCtrlSimByBookData(book) {
                 ctrlUpdateLocalAgentStatus(3, 'running', '제작 단가 및 예상 마진율 산출 중');
                 logConsole(`[수익성 분석 팀장] 1차 물리 스펙 수령. 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
 
+                // B2B 출판사 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동
+                const qty = book._a5Recommended ? 30 : 500;
+                logConsole(`[수익성 분석 팀장] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+
+                // Supabase에서 실서버 일반등급 단가 불러오기
+                let gradeData = null;
+                if (_ctrl_supabase) {
+                    try {
+                        const { data, error } = await _ctrl_supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
+                        if (!error && data?.data) {
+                            gradeData = data.data.pricesByGrade?.['일반등급(표준)'];
+                            logConsole(`[수익성 분석 팀장] 실서버 '일반등급(표준)' 원격 단가 테이블 매핑 성공.`, 'success', 3, '수익성·타당성 분석 팀장');
+                        }
+                    } catch (err) {
+                        console.warn('[통제실] master_config 로드 실패, 폴백 단가 적용:', err.message);
+                    }
+                }
+
                 const calculatedSpecs = sims.map(s => {
-                    const totalCost = (s.pages * 500 * 15) + (500 * 1200) + (500 * 300) + (500 * 1600);
-                    const unitCost  = Math.round(totalCost / 500);
+                    let pageCost = 15; // 기본 폴백 단가 (면당)
+                    const isSheetfed = qty < 50; // 50부 미만 시 낱장(Sheet-fed) 인쇄 강제
+
+                    if (isSheetfed) {
+                        // 1. 디지털 낱장 단가 매핑
+                        if (s.specName.includes('A5국판')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('A5국판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 8; // A5 4판걸이 요율 (기본 8원)
+                        } else if (s.specName.includes('신국판')) {
+                            // 신국판은 낱장 규격에 없으므로 2판거리 패널티 요율 12원 고정 적용
+                            pageCost = 12;
+                        } else if (s.specName.includes('46배판형')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('46배판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        } else {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && s.specName.includes(x.n.split('(')[0]));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        }
+                    } else {
+                        // 2. 디지털 연속지 단가 매핑 (50부 이상)
+                        let rollSpecName = '신국판';
+                        if (s.specName.includes('A5국판')) rollSpecName = 'A5국판';
+                        else if (s.specName.includes('46배판형')) rollSpecName = '46배판';
+                        else if (s.specName.includes('국배판')) rollSpecName = '국배판';
+                        
+                        const match = gradeData?.rollSpecs?.find(x => x.n && x.n.includes(rollSpecName));
+                        if (match && match.ivs) {
+                            const interval = match.ivs.find(iv => qty >= iv.s && qty <= iv.e);
+                            pageCost = (interval && typeof interval.bw === 'number') ? interval.bw : 8; // 연속지 요율 (기본 8원)
+                        } else {
+                            pageCost = s.specName.includes('국배판') ? 12 : s.specName.includes('46배판형') ? 10 : 8;
+                        }
+                    }
+
+                    // 공통 단가 매핑 (표지, 코팅, 제본)
+                    const coverPrintCost = gradeData?.commons?.find(x => x.n && x.n.includes('표지컬러단면'))?.v || 1200;
+                    const coatingCost = gradeData?.commons?.find(x => x.n && x.n.includes('코팅'))?.v || 300;
+                    const bindingCost = 1600; // 제본비 기본
+
+                    const totalInnerCost = s.pages * qty * pageCost;
+                    const totalCoverCost = qty * coverPrintCost;
+                    const totalCoatingCost = qty * coatingCost;
+                    const totalBindingCost = qty * bindingCost;
+
+                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
+                    const unitCost  = Math.round(totalCost / qty);
+
                     let retailPrice = 15000;
                     if (s.specName.includes('국배판'))  retailPrice = 24000;
                     else if (s.specName.includes('46배판형')) retailPrice = 21000;
@@ -1223,7 +1286,8 @@ async function startCtrlSimByBookData(book) {
                     else retailPrice = 14800;
 
                     const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
-                    const isRecommended   = s.specName.includes('신국판');
+                    // B2B 최적화 시에는 A5국판을 BEST로 제안하고, 자체 복간 시에는 신국판을 BEST로 추천
+                    const isRecommended = book._a5Recommended ? s.specName.includes('A5국판') : s.specName.includes('신국판');
                     const recommendationText = isRecommended ? '최적 마진 추천 🔥' : (marginRate >= 60 ? '적합도 우수' : marginRate < 50 ? '적합도 낮음' : '적합도 보통');
 
                     return { ...s, unitCost, retailPrice, marginRate, isRecommended, recommendationText };
@@ -1673,6 +1737,8 @@ function _addCtrlApprovalLog(title, specName, marginRate) {
 // 21. 시뮬레이션 모달 HTML 빌더
 // ───────────────────────────────────────────
 function buildSimModalHTML(book) {
+    const processTitle = book._a5Recommended ? 'B2B 출판사 제안 프로세스' : '자체 콘텐츠 제작 프로세스';
+    const qtyText = book._a5Recommended ? '소량 30부 제작 기준' : '초판 500부 제작 기준';
     return `
     <div class="ctrl-sim-modal" onclick="event.stopPropagation()">
         <!-- Header -->
@@ -1682,7 +1748,7 @@ function buildSimModalHTML(book) {
                     <span style="width:8px;height:8px;border-radius:50%;background:var(--ctrl-sky);display:inline-block;animation:dotPulse 1.2s infinite;"></span>
                     GEM 13. 자율 의사결정 파이프라인
                 </div>
-                <div class="ctrl-sim-title">복간 의사결정 시뮬레이터</div>
+                <div class="ctrl-sim-title">${processTitle}</div>
             </div>
             <button class="ctrl-sim-close" onclick="ctrlCloseSimModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1732,7 +1798,7 @@ function buildSimModalHTML(book) {
                         <span style="width:4px; height:16px; background:var(--ctrl-sky); border-radius:2px; display:inline-block;"></span>
                         📊 의사결정 카드 (4대 표준 판형 수익성 분석)
                     </h4>
-                    <span style="font-size:10px; background:rgba(245,158,11,0.1); color:var(--ctrl-amber); padding:3px 10px; border-radius:6px; font-weight:800; border:1px solid rgba(245,158,11,0.2);">초판 500부 제작 기준</span>
+                    <span style="font-size:10px; background:rgba(245,158,11,0.1); color:var(--ctrl-amber); padding:3px 10px; border-radius:6px; font-weight:800; border:1px solid rgba(245,158,11,0.2);">${qtyText}</span>
                 </div>
                 <div class="ctrl-decision-grid" id="ctrl-decision-grid"></div>
             </div>
