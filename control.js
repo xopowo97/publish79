@@ -924,6 +924,8 @@ function checkPrintCostOptimization(bookData, printQty) {
 
     const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
     const totalCostA5      = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
+    const shinkukPerCopy   = totalPages * printCostPerPageShinkuk + coverProcessingCost;
+    const a5PerCopy        = totalPages * printCostPerPageA5 + coverProcessingCost;
     const savingPerCopy    = (totalCostShinkuk - totalCostA5) / qty;
     const savingTotal      = totalCostShinkuk - totalCostA5;
     const savingPct        = Math.round(((totalCostShinkuk - totalCostA5) / totalCostShinkuk) * 100);
@@ -967,8 +969,8 @@ function checkPrintCostOptimization(bookData, printQty) {
             📢 <strong>8번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>VDP_이지퍼비터(ezpubitor) 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
         </p>
         <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
-            <strong style="color:#dc2626;">📌 ${qty}부 소량 제작 감지 (디지털 낱장 가동 강제)</strong><br>
-            현재 신국판(152x225) 기준 낱장 인쇄 시 2판거리 배열 제약으로 면당 <strong>12원</strong> 요율이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 4판거리 배열이 확보되어 면당 <strong>8원</strong>으로 원가가 대폭 절감됩니다.
+            <strong style="color:#dc2626;">📌 ${qty}부 제작 절감 제안</strong><br>
+            현재 신국판(152x225)으로 제작 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}%로 절감됩니다.
         </p>
         <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
             <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
@@ -990,9 +992,6 @@ function checkPrintCostOptimization(bookData, printQty) {
                 <span style="font-weight:700; color:#64748b;">권당 원가 절감</span>
                 <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
             </div>
-        </div>
-        <div style="font-size:10px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">
-            ※ 일반등급 표준 단가 기준: 표지 1,500원(코팅 200 + 날개 800 + 제본 500)이 정식 합산된 공인 제작 단가입니다.
         </div>
         <button
             onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
