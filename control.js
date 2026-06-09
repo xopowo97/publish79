@@ -772,6 +772,10 @@ async function triggerCtrlPipeline(isRetry = false) {
                     setTimeout(() => {
                         triggerOrchestratorRecommendation();
                     }, 1000);
+                    // [이지퍼비터] 인쇄 원가 최적화 제안 카드 — 복간 추천 카드 후 2.5초 뒤 표시
+                    setTimeout(() => {
+                        checkPrintCostOptimization(_ctrl_candidates[0], 30);
+                    }, 2500);
                 }
             }, 1500);
         } else {
@@ -869,6 +873,172 @@ function triggerOrchestratorRecommendation() {
         try { lucide.createIcons(); } catch(e) {}
     }
     setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+}
+
+// ───────────────────────────────────────────
+// 12-2. [이지퍼비터] 인쇄 원가 최적화 컨설팅 — 신국판 50부 미만 감지 시
+//        AI 헬퍼 패널에 "A5 판형 33.3% 절감" 제안 카드 자동 표시
+// ───────────────────────────────────────────
+/**
+ * @param {object} bookData   - 복간 후보 도서 데이터 ({ title, author, reprint_score, ... })
+ * @param {number} printQty   - 제작 부수 (기본값 30부 적용 — 소량 시뮬레이션 대표값)
+ *
+ * 판단 로직:
+ *   · 디지털 낱장 기준 신국판(152×225mm): 315×467mm 트레이에 2판 → 면당 12원
+ *   · 디지털 낱장 기준 A5(148×210mm)   : 315×467mm 트레이에 4판 → 면당 8원
+ *   · 50부 미만 → 연속지(롤) 전환 불가 → 낱장 강제
+ *   · 따라서 신국판 + qty < 50 조합에서는 A5 전환 시 면당 33.3% 절감
+ */
+function checkPrintCostOptimization(bookData, printQty) {
+    // 기본 부수 미입력 시 소량 대표값 30부 적용
+    const qty = (typeof printQty === 'number' && printQty > 0) ? printQty : 30;
+
+    // ─── 조건 판단: 신국판 + 50부 미만 ───
+    const isSheetfedForced   = qty < 50;               // 연속지 전환 불가 임계치
+    const defaultSpecIsShinkuk = true;                  // 복간 후보 도서 기본 사양: 신국판
+
+    if (!isSheetfedForced || !defaultSpecIsShinkuk) return; // 조건 미충족 시 제안 안 함
+
+    // ─── 원가 계산 ───
+    const totalPages      = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
+    const printCostPerPageShinkuk = 12; // 원/면 (신국판 2판거리)
+    const printCostPerPageA5     =  8; // 원/면 (A5 4판거리)
+
+    const totalCostShinkuk = totalPages * printCostPerPageShinkuk * qty;
+    const totalCostA5      = totalPages * printCostPerPageA5      * qty;
+    const savingPerCopy    = (totalCostShinkuk - totalCostA5) / qty;
+    const savingTotal      = totalCostShinkuk - totalCostA5;
+    const savingPct        = Math.round(((totalCostShinkuk - totalCostA5) / totalCostShinkuk) * 100);
+
+    const cleanTitle  = (bookData.title  || '').replace(/<\/?[^>]+(>|$)/g, '');
+    const cleanAuthor = (bookData.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
+
+    // ─── AI 헬퍼 패널 활성화 ───
+    const panel = document.getElementById('ai-panel');
+    const fab   = document.getElementById('ai-fab');
+    if (panel && !panel.classList.contains('active')) {
+        toggleAIPanel();
+    }
+    if (fab) fab.classList.add('pulse-gold');
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    // ─── 제안 카드 HTML 생성 ───
+    const costCard = document.createElement('div');
+    costCard.className = 'ai-msg ai-msg-bot';
+    costCard.id = 'ezpubitor-cost-card';
+    costCard.style.cssText = `
+        border-left: 4px solid #10b981;
+        background: rgba(16, 185, 129, 0.06);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+        animation: fadeIn 0.4s ease;
+        align-self: flex-start;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    `;
+    costCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
+            <span style="font-size:17px;">💡</span>
+            <span>[이지퍼비터] 인쇄 원가 최적화 제안</span>
+        </div>
+        <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
+            <strong style="color:#dc2626;">📌 ${qty}부 소량 제작 감지!</strong><br>
+            현재 신국판 기준 디지털 낱장 인쇄 시 면당 <strong>12원</strong>이 부과됩니다.
+            A5 판형으로 조정하면 트레이 1장에 4판이 올라가 면당 <strong>8원</strong>으로 낮아져
+            <strong style="color:#10b981;">33.3% 원가 절감</strong>이 가능합니다.
+        </p>
+        <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
+            <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;">
+                <div style="color:#64748b;">제작 부수</div>
+                <div style="font-weight:800; color:#0f172a;">${qty}부</div>
+                <div style="color:#64748b;">예상 페이지</div>
+                <div style="font-weight:800; color:#0f172a;">${totalPages}p</div>
+                <div style="color:#dc2626;">신국판 인쇄비</div>
+                <div style="font-weight:800; color:#dc2626;">₩${totalCostShinkuk.toLocaleString()}</div>
+                <div style="color:#10b981;">A5 전환 인쇄비</div>
+                <div style="font-weight:800; color:#10b981;">₩${totalCostA5.toLocaleString()}</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
+                <span style="font-weight:700; color:#64748b;">💰 절감 예상액</span>
+                <span style="font-size:15px; font-weight:900; color:#10b981;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
+                <span style="font-weight:700; color:#64748b;">권당 절감</span>
+                <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
+            </div>
+        </div>
+        <div style="font-size:10px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">
+            ※ PDF/X-4 표준 폰트 임베디드 처리로 서버에 폰트 없이도 신국판→A5 비례 축소(93%) 완벽 적용 가능.
+        </div>
+        <button
+            onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
+            id="ezpubitor-approve-btn"
+            style="width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; padding:10px 0; transition:all 0.2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);"
+            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
+        >
+            ✅ A5 판형 최적화 승인 및 시뮬레이션 가동
+        </button>
+        <button
+            onclick="document.getElementById('ezpubitor-cost-card')?.remove()"
+            style="width:100%; background:transparent; color:#94a3b8; border:1px solid rgba(148,163,184,0.2); border-radius:8px; font-size:10px; font-weight:700; cursor:pointer; padding:6px 0; margin-top:6px; transition:all 0.2s;"
+            onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'"
+        >
+            이 제안 닫기
+        </button>
+    `;
+
+    chatContent.appendChild(costCard);
+
+    // A5 최적화 승인 처리 함수 등록 (전역)
+    window.ctrlApproveA5Optimization = function(bookIdOrIdx) {
+        if (fab) fab.classList.remove('pulse-gold');
+
+        // 승인 버튼 상태 변경
+        const approveBtn = document.getElementById('ezpubitor-approve-btn');
+        if (approveBtn) {
+            approveBtn.textContent = '🚀 A5 최적화 시뮬레이션 가동 중...';
+            approveBtn.disabled = true;
+        }
+
+        // 감사 로그 기록
+        ctrlWriteAuditLog(
+            3, '수익성·타당성 분석 팀장', 'success',
+            `[이지퍼비터] A5 판형 원가 최적화 승인 — ${cleanTitle} · ${qty}부 · 절감액 ₩${savingTotal.toLocaleString()} (${savingPct}%↓)`,
+            { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct, approvedSpec: 'A5국판' }
+        );
+
+        // 메인 오케스트레이터 배너 메시지 업데이트
+        const orchMsg = document.getElementById('ctrl-orch-msg');
+        if (orchMsg) {
+            orchMsg.textContent = `[이지퍼비터] A5 최적화 승인 완료. ${cleanTitle} · A5판 기준 최종 조판 시뮬레이션 실행 중...`;
+        }
+
+        // 0.5초 후 시뮬레이션 모달 자동 가동
+        setTimeout(() => {
+            // 후보 목록에서 해당 도서 찾아 시뮬레이션 실행
+            const targetBook = _ctrl_candidates.find(b => b.id === bookIdOrIdx) || _ctrl_candidates[0];
+            if (targetBook) {
+                startCtrlSimByBookData({ ...targetBook, _a5Recommended: true });
+            } else {
+                ctrlStartSimByIndex(0);
+            }
+        }, 500);
+    };
+
+    // 스크롤 유도
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+    // 감사 로그 출력
+    ctrlWriteAuditLog(
+        13, '오케스트레이터', 'warn',
+        `[이지퍼비터] 신국판 ${qty}부 소량 주문 감지 → A5 전환 시 ₩${savingTotal.toLocaleString()} 절감(${savingPct}%) 제안 카드 발행`,
+        { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct }
+    );
 }
 
 // ───────────────────────────────────────────
