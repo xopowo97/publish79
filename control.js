@@ -302,8 +302,8 @@ function renderCtrlAgentOrgTree(agents) {
     };
 
     const tagMapping = {
-        1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '검수',
-        6: '디자인', 7: '영업', 8: '마케팅', 9: '감시', 10: '치유',
+        1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '교정',
+        6: '가변조판', 7: '영업', 8: '마케팅', 9: '감시', 10: '자가치유',
         11: '배포', 12: '보안', 13: '지휘'
     };
 
@@ -585,13 +585,13 @@ async function ctrlWriteAuditLog(agentId, agentName, logLevel, message, metadata
 // 11. 실시간 로그 스트림
 // ───────────────────────────────────────────
 const CTRL_LOG_POOL = [
-    { type: 'success', agent: '[살피미]',        msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
-    { type: 'info',    agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
-    { type: 'warn',    agent: '[다듬이]',         msg: '절판 도서 {n}건 필터링 처리 중' },
-    { type: 'success', agent: '[눈치왕]',         msg: '에러 감지 0건 · 시스템 정상 운영 중' },
-    { type: 'info',    agent: '[알림이]',         msg: '복간 후보 보고서 초안 생성 완료' },
-    { type: 'success', agent: '[보안관]',         msg: '비정상 API 호출 0건 · 보안 이상 없음' },
-    { type: 'info',    agent: '[자가치유]',       msg: 'SQL Injection 스캔 완료 · 위협 없음' },
+    { type: 'success', agent: '[딥서치_살피미]',        msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
+    { type: 'info',    agent: '[(총괄) 오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
+    { type: 'warn',    agent: '[데이터정제_다듬이]',         msg: '절판 도서 {n}건 필터링 처리 중' },
+    { type: 'success', agent: '[에러감지_눈치왕]',         msg: '에러 감지 0건 · 시스템 정상 운영 중' },
+    { type: 'info',    agent: '[마케팅_알리미]',         msg: '복간 후보 보고서 초안 생성 완료' },
+    { type: 'success', agent: '[보안통제_보안관]',         msg: '비정상 API 호출 0건 · 보안 이상 없음' },
+    { type: 'info',    agent: '[코드수정_닥터]',       msg: 'SQL Injection 스캔 완료 · 위협 없음' },
 ];
 
 function startCtrlLogStream() {
@@ -834,7 +834,7 @@ function triggerOrchestratorRecommendation() {
     recommendCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:var(--ctrl-purple, #a855f7); font-weight:900; margin-bottom:8px; font-size:12px;">
             <span style="font-size:16px; animation: dotPulse 1.2s infinite;">🧠</span>
-            <span>[13번 오케스트레이터] 복간 의사결정 제안</span>
+            <span>[13번 (총괄) 오케스트레이터] 복간 의사결정 제안</span>
         </div>
         <p style="font-size:12px; color:#1e293b; line-height:1.6; margin-bottom:8px; font-weight:600;">
             새로운 도서 분석 결과 최고 타당성을 지닌 도서가 식별되어 보고합니다. 복간을 진행하시겠습니까?
@@ -899,13 +899,14 @@ function checkPrintCostOptimization(bookData, printQty) {
 
     if (!isSheetfedForced || !defaultSpecIsShinkuk) return; // 조건 미충족 시 제안 안 함
 
-    // ─── 원가 계산 ───
+    // ─── 원가 계산 (대표님 단가 요율 공식 반영: 내지비 + 표지/코팅/제본 1500원 합산) ───
     const totalPages      = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
     const printCostPerPageShinkuk = 12; // 원/면 (신국판 2판거리)
     const printCostPerPageA5     =  8; // 원/면 (A5 4판거리)
+    const coverProcessingCost    = 1500; // 원 (코팅 200원 + 날개 800원 + 제본 500원 합산)
 
-    const totalCostShinkuk = totalPages * printCostPerPageShinkuk * qty;
-    const totalCostA5      = totalPages * printCostPerPageA5      * qty;
+    const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
+    const totalCostA5      = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
     const savingPerCopy    = (totalCostShinkuk - totalCostA5) / qty;
     const savingTotal      = totalCostShinkuk - totalCostA5;
     const savingPct        = Math.round(((totalCostShinkuk - totalCostA5) / totalCostShinkuk) * 100);
@@ -942,14 +943,15 @@ function checkPrintCostOptimization(bookData, printQty) {
     `;
     costCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
-            <span style="font-size:17px;">💡</span>
-            <span>[이지퍼비터] 인쇄 원가 최적화 제안</span>
+            <span style="font-size:17px;">💼</span>
+            <span>[7번 B2B영업_영업이] 복간 및 원가 최적화 영업 제안</span>
         </div>
+        <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
+            📢 <strong>8번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>VDP_이지퍼비터(ezpubitor) 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
+        </p>
         <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
-            <strong style="color:#dc2626;">📌 ${qty}부 소량 제작 감지!</strong><br>
-            현재 신국판 기준 디지털 낱장 인쇄 시 면당 <strong>12원</strong>이 부과됩니다.
-            A5 판형으로 조정하면 트레이 1장에 4판이 올라가 면당 <strong>8원</strong>으로 낮아져
-            <strong style="color:#10b981;">33.3% 원가 절감</strong>이 가능합니다.
+            <strong style="color:#dc2626;">📌 ${qty}부 소량 제작 감지 (디지털 낱장 가동 강제)</strong><br>
+            현재 신국판(152x225) 기준 낱장 인쇄 시 2판거리 배열 제약으로 면당 <strong>12원</strong> 요율이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 4판거리 배열이 확보되어 면당 <strong>8원</strong>으로 원가가 대폭 절감됩니다.
         </p>
         <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
             <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
@@ -958,22 +960,22 @@ function checkPrintCostOptimization(bookData, printQty) {
                 <div style="font-weight:800; color:#0f172a;">${qty}부</div>
                 <div style="color:#64748b;">예상 페이지</div>
                 <div style="font-weight:800; color:#0f172a;">${totalPages}p</div>
-                <div style="color:#dc2626;">신국판 인쇄비</div>
+                <div style="color:#dc2626;">신국판 총제작비</div>
                 <div style="font-weight:800; color:#dc2626;">₩${totalCostShinkuk.toLocaleString()}</div>
-                <div style="color:#10b981;">A5 전환 인쇄비</div>
+                <div style="color:#10b981;">A5 전환 총제작비</div>
                 <div style="font-weight:800; color:#10b981;">₩${totalCostA5.toLocaleString()}</div>
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">💰 절감 예상액</span>
+                <span style="font-weight:700; color:#64748b;">💰 B2B 절감 예상액</span>
                 <span style="font-size:15px; font-weight:900; color:#10b981;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">권당 절감</span>
+                <span style="font-weight:700; color:#64748b;">권당 원가 절감</span>
                 <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
             </div>
         </div>
         <div style="font-size:10px; color:#94a3b8; margin-bottom:10px; line-height:1.5;">
-            ※ PDF/X-4 표준 폰트 임베디드 처리로 서버에 폰트 없이도 신국판→A5 비례 축소(93%) 완벽 적용 가능.
+            ※ 일반등급 표준 단가 기준: 표지 1,500원(코팅 200 + 날개 800 + 제본 500)이 정식 합산된 공인 제작 단가입니다.
         </div>
         <button
             onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
@@ -981,7 +983,7 @@ function checkPrintCostOptimization(bookData, printQty) {
             style="width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; padding:10px 0; transition:all 0.2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);"
             onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
         >
-            ✅ A5 판형 최적화 승인 및 시뮬레이션 가동
+            ✅ A5 판형 최적화 승인 및 제안 송출
         </button>
         <button
             onclick="document.getElementById('ezpubitor-cost-card')?.remove()"
@@ -1007,15 +1009,15 @@ function checkPrintCostOptimization(bookData, printQty) {
 
         // 감사 로그 기록
         ctrlWriteAuditLog(
-            3, '수익성·타당성 분석 팀장', 'success',
-            `[이지퍼비터] A5 판형 원가 최적화 승인 — ${cleanTitle} · ${qty}부 · 절감액 ₩${savingTotal.toLocaleString()} (${savingPct}%↓)`,
+            3, '수익분석_계산이', 'success',
+            `[VDP_이지퍼비터(ezpubitor)] A5 판형 원가 최적화 승인 — ${cleanTitle} · ${qty}부 · 절감액 ₩${savingTotal.toLocaleString()} (${savingPct}%↓)`,
             { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct, approvedSpec: 'A5국판' }
         );
 
         // 메인 오케스트레이터 배너 메시지 업데이트
         const orchMsg = document.getElementById('ctrl-orch-msg');
         if (orchMsg) {
-            orchMsg.textContent = `[이지퍼비터] A5 최적화 승인 완료. ${cleanTitle} · A5판 기준 최종 조판 시뮬레이션 실행 중...`;
+            orchMsg.textContent = `[VDP_이지퍼비터(ezpubitor)] A5 최적화 승인 완료. ${cleanTitle} · A5판 기준 최종 조판 시뮬레이션 실행 중...`;
         }
 
         // 0.5초 후 시뮬레이션 모달 자동 가동
@@ -1035,8 +1037,8 @@ function checkPrintCostOptimization(bookData, printQty) {
 
     // 감사 로그 출력
     ctrlWriteAuditLog(
-        13, '오케스트레이터', 'warn',
-        `[이지퍼비터] 신국판 ${qty}부 소량 주문 감지 → A5 전환 시 ₩${savingTotal.toLocaleString()} 절감(${savingPct}%) 제안 카드 발행`,
+        13, '(총괄) 오케스트레이터', 'warn',
+        `[VDP_이지퍼비터(ezpubitor)] 신국판 ${qty}부 소량 주문 감지 → A5 전환 시 ₩${savingTotal.toLocaleString()} 절감(${savingPct}%) 제안 카드 발행`,
         { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct }
     );
 }
@@ -1080,10 +1082,10 @@ function _insertCtrlWarningLogs() {
     const logEl = document.getElementById('ctrl-log-stream');
     if (!logEl) return;
     const warnings = [
-        { type: 'error',   agent: '오케스트레이터', msg: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
-        { type: 'warn',    agent: '살피미',         msg: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
-        { type: 'warn',    agent: '보안관',         msg: '과부하 대응 2단계 방어 루틴 가동 완료' },
-        { type: 'success', agent: '눈치왕',         msg: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
+        { type: 'error',   agent: '(총괄) 오케스트레이터', msg: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
+        { type: 'warn',    agent: '딥서치_살피미',         msg: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
+        { type: 'warn',    agent: '보안통제_보안관',         msg: '과부하 대응 2단계 방어 루틴 가동 완료' },
+        { type: 'success', agent: '에러감지_눈치왕',         msg: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
     ];
     warnings.forEach(w => _appendCtrlLogEntry(logEl, w.type, w.agent, w.msg, new Date()));
 }
@@ -1164,11 +1166,11 @@ async function startCtrlSimByBookData(book) {
     };
 
     // 파이프라인 시뮬레이션 시작
-    logConsole(`[오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '오케스트레이터');
+    logConsole(`[(총괄) 오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '(총괄) 오케스트레이터');
 
     await ctrlUpdateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
-    await ctrlUpdateAgentStatusInDB(1, 'success', '도서관 API 데이터 수집 완료');
-    await ctrlUpdateAgentStatusInDB(2, 'success', '도서 데이터 정제 완료');
+    await ctrlUpdateAgentStatusInDB(1, 'success', '도서관 정보나루 및 알라딘 API 데이터 수집 완료');
+    await ctrlUpdateAgentStatusInDB(2, 'success', '수집 데이터 정제 및 저작권 확인 완료');
     ctrlUpdateLocalAgentStatus(1, 'success', '수집 완료');
     ctrlUpdateLocalAgentStatus(2, 'success', '정제 완료');
     ctrlUpdateLocalAgentStatus(13, 'running', '파이프라인 지휘 중');
@@ -1177,7 +1179,7 @@ async function startCtrlSimByBookData(book) {
     setTimeout(async () => {
         _ctrlSetStep(3, 'active', '진행중 (🟡)');
         ctrlUpdateLocalAgentStatus(4, 'running', '1차 가상 조판 시뮬레이션 중');
-        logConsole(`[VDP_조판사] 4대 표준 판형에 얹었을 때 물리 스펙 가상 계산 개시.`, 'info', 4, 'VDP_조판사');
+        logConsole(`[조판_조판이] 4대 표준 판형에 얹었을 때 물리 스펙 가상 계산 개시.`, 'info', 4, '조판_조판이');
 
         try {
             const res  = await fetch(ctrlApiUrl('/api/typeset'), {
@@ -1199,22 +1201,22 @@ async function startCtrlSimByBookData(book) {
             for (let i = 0; i < sims.length; i++) {
                 await new Promise(r => setTimeout(r, 400));
                 const s = sims[i];
-                logConsole(`[VDP_조판사] ${s.specName} 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 책등: ${s.spineMm}mm`, 'info', 4, 'VDP_조판사');
+                logConsole(`[조판_조판이] ${s.specName} 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 책등: ${s.spineMm}mm`, 'info', 4, '조판_조판이');
             }
 
             _ctrlSetStep(3, 'done', '완료 (🟢)');
             ctrlUpdateLocalAgentStatus(4, 'success', '1차 가상 조판 완료');
-            logConsole(`[VDP_조판사] 4대 판형 물리 스펙 산출 완료. 수익성 분석 팀장에게 데이터 전송.`, 'success', 4, 'VDP_조판사');
+            logConsole(`[조판_조판이] 4대 판형 물리 스펙 산출 완료. 수익분석_계산이에게 데이터 전송.`, 'success', 4, '조판_조판이');
 
             // STEP 4: 수익성 검토
             setTimeout(async () => {
                 _ctrlSetStep(4, 'active', '진행중 (🟡)');
                 ctrlUpdateLocalAgentStatus(3, 'running', '제작 단가 및 예상 마진율 산출 중');
-                logConsole(`[수익성 분석 팀장] 1차 물리 스펙 수령. 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+                logConsole(`[수익분석_계산이] 1차 물리 스펙 수령. 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익분석_계산이');
 
                 // B2B 출판사 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동
                 const qty = book._a5Recommended ? 30 : 500;
-                logConsole(`[수익성 분석 팀장] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+                logConsole(`[수익분석_계산이] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익분석_계산이');
 
                 // Supabase에서 실서버 일반등급 단가 불러오기
                 let gradeData = null;
@@ -1223,7 +1225,7 @@ async function startCtrlSimByBookData(book) {
                         const { data, error } = await _ctrl_supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
                         if (!error && data?.data) {
                             gradeData = data.data.pricesByGrade?.['일반등급(표준)'];
-                            logConsole(`[수익성 분석 팀장] 실서버 '일반등급(표준)' 원격 단가 테이블 매핑 성공.`, 'success', 3, '수익성·타당성 분석 팀장');
+                            logConsole(`[수익분석_계산이] 실서버 '일반등급(표준)' 원격 단가 테이블 매핑 성공.`, 'success', 3, '수익분석_계산이');
                         }
                     } catch (err) {
                         console.warn('[통제실] master_config 로드 실패, 폴백 단가 적용:', err.message);
@@ -1296,18 +1298,18 @@ async function startCtrlSimByBookData(book) {
                 for (let i = 0; i < calculatedSpecs.length; i++) {
                     await new Promise(r => setTimeout(r, 400));
                     const s = calculatedSpecs[i];
-                    logConsole(`[수익성 분석 팀장] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익성·타당성 분석 팀장');
+                    logConsole(`[수익분석_계산이] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익분석_계산이');
                 }
 
                 _ctrlSetStep(4, 'done', '완료 (🟢)');
                 ctrlUpdateLocalAgentStatus(3, 'success', '수익성 검토 완료');
-                logConsole(`[수익성 분석 팀장] 4개 판형별 원가 및 마진율 최종 산출 완료. 의사결정 카드 전달.`, 'success', 3, '수익성·타당성 분석 팀장');
+                logConsole(`[수익분석_계산이] 4개 판형별 원가 및 마진율 최종 산출 완료. 의사결정 카드 전달.`, 'success', 3, '수익분석_계산이');
 
                 // STEP 5: CEO 의사결정 카드
                 setTimeout(() => {
                     _ctrlSetStep(5, 'active', '대기중 (🟡)');
                     ctrlUpdateLocalAgentStatus(13, 'active', '의사결정 카드 보고 중');
-                    logConsole(`[오케스트레이터] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 13, '오케스트레이터');
+                    logConsole(`[(총괄) 오케스트레이터] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 13, '(총괄) 오케스트레이터');
 
                     _ctrl_simSpecs = calculatedSpecs;
 
@@ -1379,7 +1381,7 @@ async function ctrlApproveSpec(specIndex) {
         btn.textContent = btn === event?.currentTarget ? '✅ 승인됨' : '—';
     });
 
-    logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 13, '오케스트레이터');
+    logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 13, '(총괄) 오케스트레이터');
 
     // 승인 로그 기록 (API)
     try {
@@ -1400,7 +1402,7 @@ async function ctrlApproveSpec(specIndex) {
                 }
             })
         });
-        logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 13, '오케스트레이터');
+        logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 13, '(총괄) 오케스트레이터');
     } catch (_) { /* 시뮬레이션 계속 */ }
 
     // 승인 이력 UI 업데이트
@@ -1411,7 +1413,7 @@ async function ctrlApproveSpec(specIndex) {
     // STEP 7: 2차 최종 조판 프로그레스
     _ctrlSetStep(6, 'active', '조판 중 (🟡)');
     ctrlUpdateLocalAgentStatus(4, 'running', `최종 판형 '${spec.specName}' PDF/X-4 컴파일 중`);
-    logConsole(`[VDP_조판사] 승인 신호 수령. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, 'VDP_조판사');
+    logConsole(`[조판_조판이] 승인 신호 수령. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, '조판_조판이');
 
     // 컴파일 프로그레스 바 노출
     const compArea = document.getElementById('ctrl-compile-area');
@@ -1429,12 +1431,12 @@ async function ctrlApproveSpec(specIndex) {
             if (progFill)  progFill.style.width  = `${progress}%`;
             if (progLabel) progLabel.textContent  = `${progress}%`;
 
-            if (progress === 30) logConsole(`[VDP_조판사] 사방 도련(Bleed 3mm) 기준선 레이아웃 적용 중...`, 'info', 4, 'VDP_조판사');
-            else if (progress === 60) logConsole(`[VDP_조판사] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, 'VDP_조판사');
-            else if (progress === 80) logConsole(`[VDP_조판사] 쪽번호 및 머리말 폰트 아웃라인 컴파일 중...`, 'info', 4, 'VDP_조판사');
+            if (progress === 30) logConsole(`[조판_조판이] 사방 도련(Bleed 3mm) 기준선 레이아웃 적용 중...`, 'info', 4, '조판_조판이');
+            else if (progress === 60) logConsole(`[조판_조판이] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, '조판_조판이');
+            else if (progress === 80) logConsole(`[조판_조판이] 쪽번호 및 머리말 폰트 아웃라인 컴파일 중...`, 'info', 4, '조판_조판이');
             else if (progress >= 100) {
                 clearInterval(iv);
-                logConsole(`[VDP_조판사] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, 'VDP_조판사');
+                logConsole(`[조판_조판이] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, '조판_조판이');
                 ctrlUpdateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${spec.specName})`);
 
                 // PDF 다운로드 버튼 노출
@@ -1451,7 +1453,7 @@ async function ctrlApproveSpec(specIndex) {
                 // STEP 8: 북 커버 디자인
                 setTimeout(async () => {
                     ctrlUpdateLocalAgentStatus(6, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spec.spineMm}mm)`);
-                    logConsole(`[디자이너] 6번 디자이너 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 6, '디자이너');
+                    logConsole(`[VDP_이지퍼비터(ezpubitor)] 6번 이지퍼비터 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 6, 'VDP_이지퍼비터(ezpubitor)');
 
                     const coverArea = document.getElementById('ctrl-cover-area');
                     if (coverArea) {
@@ -1460,12 +1462,12 @@ async function ctrlApproveSpec(specIndex) {
                         if (body) setTimeout(() => body.scrollTo({ top: coverArea.offsetTop - 20, behavior: 'smooth' }), 300);
 
                         drawCtrlBookCover(book.title, spec.specName, spec.spineMm);
-                        logConsole(`[디자이너] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 6, '디자이너');
+                        logConsole(`[VDP_이지퍼비터(ezpubitor)] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 6, 'VDP_이지퍼비터(ezpubitor)');
 
                         _ctrlSetStep(6, 'done', '완공 완료 (🟢)');
                         ctrlUpdateLocalAgentStatus(6, 'success', '표지 디자인 완료');
                         ctrlUpdateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
-                        logConsole(`[오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '오케스트레이터');
+                        logConsole(`[(총괄) 오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '(총괄) 오케스트레이터');
                         loadCtrlDashboard();
 
                         // 최종 완료 푸터
@@ -1746,7 +1748,7 @@ function buildSimModalHTML(book) {
             <div>
                 <div class="ctrl-sim-title-label">
                     <span style="width:8px;height:8px;border-radius:50%;background:var(--ctrl-sky);display:inline-block;animation:dotPulse 1.2s infinite;"></span>
-                    GEM 13. 자율 의사결정 파이프라인
+                    13번 (총괄) 오케스트레이터 자율 의사결정 파이프라인
                 </div>
                 <div class="ctrl-sim-title">${processTitle}</div>
             </div>
@@ -1774,12 +1776,12 @@ function buildSimModalHTML(book) {
             <!-- 파이프라인 스텝 시각화 -->
             <div class="ctrl-step-visualizer">
                 ${[
-                    ['1', '딥서치 수집', 'done', '완료 (🟢)'],
-                    ['2', '데이터 정제', 'done', '완료 (🟢)'],
-                    ['3', '1차 가상조판', 'idle', '대기'],
-                    ['4', '수익성 검토', 'idle', '대기'],
+                    ['1', '딥서치_살피미', 'done', '완료 (🟢)'],
+                    ['2', '데이터정제_다듬이', 'done', '완료 (🟢)'],
+                    ['3', '조판_조판이', 'idle', '대기'],
+                    ['4', '수익분석_계산이', 'idle', '대기'],
                     ['5', '대표님 승인', 'idle', '대기'],
-                    ['6', '최종조판/디자인', 'idle', '대기'],
+                    ['6', '최종조판/VDP', 'idle', '대기'],
                 ].map(([num, name, state, status]) => `
                 <div class="ctrl-step">
                     <div class="ctrl-step-icon ${state}" id="ctrl-step-${num}-icon">${num}</div>
@@ -1808,7 +1810,7 @@ function buildSimModalHTML(book) {
                 <div class="ctrl-compile-area" style="display:flex; flex-direction:column; gap:12px;">
                     <div class="ctrl-compile-title">
                         <span style="width:8px;height:8px;border-radius:50%;background:var(--ctrl-sky);display:inline-block;animation:dotPulse 1.2s infinite;"></span>
-                        4번 VDP_조판사: 2차 최종 조판 및 PDF/X-4 인쇄용 파일 빌드 중...
+                        4번 조판_조판이: 2차 최종 조판 및 PDF/X-4 인쇄용 파일 빌드 중...
                     </div>
                     <div class="ctrl-progress-track">
                         <div class="ctrl-progress-fill" id="ctrl-compile-fill"></div>
@@ -1823,7 +1825,7 @@ function buildSimModalHTML(book) {
                 <div class="ctrl-cover-area">
                     <div class="ctrl-cover-title">
                         <span style="width:8px;height:8px;border-radius:50%;background:#f472b6;display:inline-block;"></span>
-                        6번 수석 크리에이티브 디자이너: 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료
+                        6번 VDP_이지퍼비터(ezpubitor): 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료
                     </div>
                     <canvas id="ctrl-cover-canvas" width="650" height="280" style="border:1px solid var(--ctrl-border); border-radius:12px; max-width:100%;"></canvas>
                     <button onclick="ctrlDownloadCoverPDF()" class="ctrl-btn-cover-pdf">
@@ -1973,7 +1975,7 @@ window.simulateFix = function(eventOrNull, prUrl) {
     doneCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
             <span style="font-size:20px;">🟢</span>
-            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
+            <span>[11번 배포_배달이] 조치 완료 보고</span>
         </div>
         <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
             대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
@@ -2001,12 +2003,12 @@ async function triggerSelfHealingPipeline(payload) {
     agentAction.innerHTML = `
         <div class="ai-msg ai-msg-bot">
             🚨 **시스템 에러 감지!**<br>
-            9번 기술행정지원 실장이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 자가치유 코딩 에이전트를 긴급 호출합니다.
+            9번 에러감지_눈치왕이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 코드수정_닥터 에이전트를 긴급 호출합니다.
         </div>
         <div class="ai-action-card">
             <div class="ai-status-pulse">
                 <div class="pulse-dot"></div>
-                <span id="self-heal-status-text">10번 자가치유(Self-Healing) 코딩 엔진 가동 중...</span>
+                <span id="self-heal-status-text">10번 코드수정_닥터(자가치유) 코딩 엔진 가동 중...</span>
             </div>
             <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
                 // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
@@ -2040,9 +2042,9 @@ async function triggerSelfHealingPipeline(payload) {
 
         if (res.ok) {
             const data = await res.json();
-            statusText.innerText = "10번 자가치유 코드 보정 완료 (12번 보안관 통과)";
+            statusText.innerText = "10번 코드수정_닥터 코드 보정 완료 (12번 보안통제_보안관 통과)";
             
-            let logHtml = `// 🛠️ [10번 자가치유 에이전트 수정 내역]\n`;
+            let logHtml = `// 🛠️ [10번 코드수정_닥터 에이전트 수정 내역]\n`;
             logHtml += `// 설명: ${data.explanation}\n\n`;
             logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
             logHtml += `// [Git CLI 로그]\n`;
@@ -2063,20 +2065,20 @@ async function triggerSelfHealingPipeline(payload) {
                         const statusData = await statusRes.json();
                         if (statusData.status === 'APPROVED') {
                             clearInterval(pollInterval);
-                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 승인 확인 (배포 개시)";
                             statusText.style.color = "#10b981";
                             btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
                             btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
                             simulateFix(null, data.prUrl);
                         } else if (statusData.status === 'REJECTED') {
                             clearInterval(pollInterval);
-                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 배포 반려 (배포 거부)";
                             statusText.style.color = "#ef4444";
                             btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
                             btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
                             codeBlock.style.background = "#fff5f5";
                             codeBlock.style.color = "#991b1b";
-                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 자가치유 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 코드수정_닥터의 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
                         }
                     }
                 } catch (err) {
@@ -2086,7 +2088,7 @@ async function triggerSelfHealingPipeline(payload) {
 
         } else {
             const errorData = await res.json();
-            statusText.innerText = "❌ 12번 AI 보안관 검증 반려 (배포 중단)";
+            statusText.innerText = "❌ 12번 보안통제_보안관 검증 반려 (배포 중단)";
             statusText.style.color = "#ef4444";
             codeBlock.style.background = "#fff5f5";
             codeBlock.style.color = "#991b1b";
@@ -2125,7 +2127,7 @@ function showSecurityAlertUI(message, modifiedFiles) {
     alertMsg.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 900; margin-bottom: 6px;">
             <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
-            <span>🚨 [12번 AI 보안관] 보안 차단 및 즉시 조치 보고</span>
+            <span>🚨 [12번 보안통제_보안관] 보안 차단 및 즉시 조치 보고</span>
         </div>
         <p style="font-size: 12px; line-height: 1.5; color: #374151;">${message}</p>
         ${detailsHtml}
