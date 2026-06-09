@@ -6711,6 +6711,8 @@ window.startBookSimulationByBook = async function(book) {
     if (oldModal) oldModal.remove();
 
     // 1. 모달 엘리먼트 생성 및 추가
+    const processTitle = book._a5Recommended ? 'B2B 출판사 제안 프로세스' : '자체 콘텐츠 제작 프로세스';
+    const qtyText = book._a5Recommended ? '소량 30부 제작 기준' : '초판 500부 제작 기준';
     const modalHtml = `
     <div id="simulation-modal" class="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
         <div class="bg-white border border-slate-200/50 w-full max-w-4xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300">
@@ -6724,7 +6726,7 @@ window.startBookSimulationByBook = async function(book) {
                        </span>
                        GEM 13. 자율 의사결정 파이프라인
                    </div>
-                   <h3 class="text-xl font-black text-slate-800 mt-1">복간 의사결정 시뮬레이터</h3>
+                   <h3 class="text-xl font-black text-slate-800 mt-1">${processTitle}</h3>
                 </div>
                 <button onclick="closeSimulationModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all text-slate-400 hover:text-slate-600">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -6791,7 +6793,7 @@ window.startBookSimulationByBook = async function(book) {
                             <span class="w-1.5 h-4 bg-sky-600 rounded-full"></span>
                             📊 의사결정 카드 (4대 표준 판형 수익성 분석 보고)
                         </h4>
-                        <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-200/50">초판 500부 제작 기준</span>
+                        <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-200/50">${qtyText}</span>
                     </div>
                     <div class="grid grid-cols-4 gap-4" id="sim-decision-grid">
                         <!-- 4 layout options dynamically rendered -->
@@ -6955,54 +6957,77 @@ window.startBookSimulationByBook = async function(book) {
                     step4Text.className = 'text-[10px] font-black text-slate-800 mt-2';
                 }
 
-                updateLocalAgentStatus(3, 'running', '제작 단가 및 예상 마진율 산출 중');
-                logConsole(`[수익성 분석 팀장] 1차 물리 스펙 수령 완료. 하청 인쇄소 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+                // B2B 최적화 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동
+                const qty = book._a5Recommended ? 30 : 500;
+                logConsole(`[수익성 분석 팀장] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
 
-                // 마진 계산 시뮬레이션
-                // 500부 인쇄 기준 슬라이딩 단가 계산 공식
-                // 내지 인쇄비 = pages * 500부 * 15원
-                // 제본비 = 500부 * 1600원
-                // 표지 인쇄비 = 500부 * 1200원
-                // 표지 코팅비 = 500부 * 300원
-                // 마진율 = (정가 - 권당제작단가) / 정가 * 100
+                // 로드된 실서버 일반등급 단가 불러오기
+                const gradeData = MASTER.pricesByGrade?.['일반등급(표준)'];
+                if (gradeData) {
+                    logConsole(`[수익성 분석 팀장] 실서버 '일반등급(표준)' 원격 단가 테이블 매핑 성공.`, 'success', 3, '수익성·타당성 분석 팀장');
+                }
+
                 const calculatedSpecs = sims.map(s => {
-                    const totalInnerCost = s.pages * 500 * 15;
-                    const totalCoverCost = 500 * 1200;
-                    const totalCoatingCost = 500 * 300;
-                    const totalBindingCost = 500 * 1600;
-                    
-                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
-                    const unitCost = Math.round(totalCost / 500);
+                    let pageCost = 15; // 기본 폴백 단가 (면당)
+                    const isSheetfed = qty < 50; // 50부 미만 시 낱장(Sheet-fed) 인쇄 강제
 
-                    // 정가 책정 시뮬레이션 (페이지 수에 비례하되 판형 크기도 영향)
-                    let retailPrice = 15000;
-                    if (s.specName.includes('국배판')) retailPrice = 24000;
-                    else if (s.specName.includes('신국판')) retailPrice = 18500;
-                    else if (s.specName.includes('A5국판')) retailPrice = 16800;
-                    else retailPrice = 14800; // 46판
-
-                    const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
-
-                    // 추천도 계산 (마진율이 60% 이상이면 최적, 신국판은 원래 메인 판형이므로 추천도 높임)
-                    let isRecommended = false;
-                    let recommendationText = '적합도 보통';
-                    if (s.specName.includes('신국판')) {
-                        isRecommended = true;
-                        recommendationText = '최적 마진 추천 🔥';
-                    } else if (marginRate >= 60) {
-                        recommendationText = '적합도 우수';
-                    } else if (marginRate < 50) {
-                        recommendationText = '적합도 낮음';
+                    if (isSheetfed) {
+                        // 1. 디지털 낱장 단가 매핑
+                        if (s.specName.includes('A5국판')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('A5국판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 8; // A5 4판걸이 요율 (기본 8원)
+                        } else if (s.specName.includes('신국판')) {
+                            // 신국판은 낱장 규격에 없으므로 2판거리 패널티 요율 12원 고정 적용
+                            pageCost = 12;
+                        } else if (s.specName.includes('46배판형')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('46배판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        } else {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && s.specName.includes(x.n.split('(')[0]));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        }
+                    } else {
+                        // 2. 디지털 연속지 단가 매핑 (50부 이상)
+                        let rollSpecName = '신국판';
+                        if (s.specName.includes('A5국판')) rollSpecName = 'A5국판';
+                        else if (s.specName.includes('46배판형')) rollSpecName = '46배판';
+                        else if (s.specName.includes('국배판')) rollSpecName = '국배판';
+                        
+                        const match = gradeData?.rollSpecs?.find(x => x.n && x.n.includes(rollSpecName));
+                        if (match && match.ivs) {
+                            const interval = match.ivs.find(iv => qty >= iv.s && qty <= iv.e);
+                            pageCost = (interval && typeof interval.bw === 'number') ? interval.bw : 8; // 연속지 요율 (기본 8원)
+                        } else {
+                            pageCost = s.specName.includes('국배판') ? 12 : s.specName.includes('46배판형') ? 10 : 8;
+                        }
                     }
 
-                    return {
-                        ...s,
-                        unitCost,
-                        retailPrice,
-                        marginRate,
-                        isRecommended,
-                        recommendationText
-                    };
+                    // 공통 단가 매핑 (표지, 코팅, 제본)
+                    const coverPrintCost = gradeData?.commons?.find(x => x.n && x.n.includes('표지컬러단면'))?.v || 1200;
+                    const coatingCost = gradeData?.commons?.find(x => x.n && x.n.includes('코팅'))?.v || 300;
+                    const bindingCost = 1600; // 제본비 기본
+
+                    const totalInnerCost = s.pages * qty * pageCost;
+                    const totalCoverCost = qty * coverPrintCost;
+                    const totalCoatingCost = qty * coatingCost;
+                    const totalBindingCost = qty * bindingCost;
+
+                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
+                    const unitCost  = Math.round(totalCost / qty);
+
+                    let retailPrice = 15000;
+                    if (s.specName.includes('국배판'))  retailPrice = 24000;
+                    else if (s.specName.includes('46배판형')) retailPrice = 21000;
+                    else if (s.specName.includes('신국판')) retailPrice = 18500;
+                    else if (s.specName.includes('A5국판'))  retailPrice = 16800;
+                    else retailPrice = 14800;
+
+                    const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
+                    // B2B 최적화 시에는 A5국판을 BEST로 제안하고, 자체 복간 시에는 신국판을 BEST로 추천
+                    const isRecommended = book._a5Recommended ? s.specName.includes('A5국판') : s.specName.includes('신국판');
+                    const recommendationText = isRecommended ? '최적 마진 추천 🔥' : (marginRate >= 60 ? '적합도 우수' : marginRate < 50 ? '적합도 낮음' : '적합도 보통');
+
+                    return { ...s, unitCost, retailPrice, marginRate, isRecommended, recommendationText };
                 });
 
                 // 계산 로깅 딜레이 연출
