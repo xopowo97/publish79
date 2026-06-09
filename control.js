@@ -1284,17 +1284,27 @@ async function startCtrlSimByBookData(book) {
                         }
                     }
 
-                    // 공통 단가 매핑 (표지, 코팅, 제본)
-                    const coverPrintCost = gradeData?.commons?.find(x => x.n && x.n.includes('표지컬러단면'))?.v || 1200;
-                    const coatingCost = gradeData?.commons?.find(x => x.n && x.n.includes('코팅'))?.v || 300;
-                    const bindingCost = 1600; // 제본비 기본
+                    // 공통 단가 매핑 (날개, 코팅, 제본)
+                    const wingCost = gradeData?.commons?.find(x => x.n && x.n.includes('표지날개있음'))?.v || 800;
+                    
+                    let coatingCost = 200;
+                    if (isSheetfed) {
+                        coatingCost = (gradeData?.sheetCommons && typeof gradeData.sheetCommons['코팅방식_무광'] === 'number') ? gradeData.sheetCommons['코팅방식_무광'] : 200;
+                    } else {
+                        coatingCost = (gradeData?.rollCommons && typeof gradeData.rollCommons['코팅방식_무광'] === 'number') ? gradeData.rollCommons['코팅방식_무광'] : 200;
+                    }
+
+                    let bindingCost = 500;
+                    if (isSheetfed) {
+                        bindingCost = (gradeData?.sheetCommons && typeof gradeData.sheetCommons['제본방식_무선제본'] === 'number') ? gradeData.sheetCommons['제본방식_무선제본'] : 500;
+                    } else {
+                        bindingCost = (gradeData?.rollCommons && typeof gradeData.rollCommons['제본방식_무선제본'] === 'number') ? gradeData.rollCommons['제본방식_무선제본'] : 500;
+                    }
 
                     const totalInnerCost = s.pages * qty * pageCost;
-                    const totalCoverCost = qty * coverPrintCost;
-                    const totalCoatingCost = qty * coatingCost;
-                    const totalBindingCost = qty * bindingCost;
+                    const totalCoverCost = qty * (wingCost + coatingCost + bindingCost); // 표지 가공비 합산 (800 + 200 + 500 = 1500원)
 
-                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
+                    const totalCost = totalInnerCost + totalCoverCost;
                     const unitCost  = Math.round(totalCost / qty);
 
                     let retailPrice = 15000;
