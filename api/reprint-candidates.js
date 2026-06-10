@@ -55,7 +55,14 @@ export default async function handler(req, res) {
         }
 
         const category = req.query.category || '';
-        const categoryFilter = (category && category !== 'all') ? `&category=eq.${encodeURIComponent(category)}` : '';
+        let categoryFilter = '';
+        if (category && category !== 'all') {
+            if (category === '저작권 만료' || category === 'public_domain') {
+                categoryFilter = '&copyright_status=eq.public_domain';
+            } else {
+                categoryFilter = `&category=eq.${encodeURIComponent(category)}`;
+            }
+        }
 
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
         
