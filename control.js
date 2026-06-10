@@ -278,6 +278,7 @@ async function loadCtrlDashboard() {
             _ctrl_candidates = top3;
             renderCtrlReprintCandidates(top3);
         } else {
+            _ctrl_candidates = [];
             const container = document.getElementById('ctrl-top3-list');
             if (container) {
                 container.innerHTML = `
@@ -875,7 +876,7 @@ async function triggerCtrlPipeline(isRetry = false) {
 }
 
 // ───────────────────────────────────────────
-// 12-1. 13번 오케스트레이터 AI 헬퍼 자율 복간 추천 제안 카드 연동
+// 12-1. 16번 판다 AI 헬퍼 자율 복간 추천 제안 카드 연동
 // ───────────────────────────────────────────
 function triggerOrchestratorRecommendation() {
     if (!_ctrl_candidates || _ctrl_candidates.length === 0) return;
@@ -910,7 +911,7 @@ function triggerOrchestratorRecommendation() {
     recommendCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:var(--ctrl-purple, #a855f7); font-weight:900; margin-bottom:8px; font-size:12px;">
             <span style="font-size:16px; animation: dotPulse 1.2s infinite;">🧠</span>
-            <span>[13번 (총괄) 오케스트레이터] 복간 의사결정 제안</span>
+            <span>[16번 (총괄) 판다(Panda)] 복간 의사결정 제안</span>
         </div>
         <p style="font-size:12px; color:#1e293b; line-height:1.6; margin-bottom:8px; font-weight:600;">
             새로운 도서 분석 결과 최고 타당성을 지닌 도서가 식별되어 보고합니다. 복간을 진행하시겠습니까?
@@ -1022,10 +1023,10 @@ function checkPrintCostOptimization(bookData, printQty) {
     costCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
             <span style="font-size:17px;">💼</span>
-            <span>[7번 B2B영업_영업이] 복간 및 원가 최적화 영업 제안</span>
+            <span>[10번 영업_영업이] 복간 및 원가 최적화 영업 제안</span>
         </div>
         <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
-            📢 <strong>8번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>VDP_이지퍼비터(ezpubitor) 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
+            📢 <strong>11번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>8번 이지퍼비터_POD 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
         </p>
         <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
             <strong style="color:#dc2626;">📌 ${qty}부 제작 절감 제안</strong><br>
@@ -1241,14 +1242,14 @@ async function startCtrlSimByBookData(book) {
     };
 
     // 파이프라인 시뮬레이션 시작
-    logConsole(`[(총괄) 오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '(총괄) 오케스트레이터');
+    logConsole(`[판다] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 16, '판다');
 
     await ctrlUpdateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
     await ctrlUpdateAgentStatusInDB(1, 'success', '도서관 정보나루 및 알라딘 API 데이터 수집 완료');
     await ctrlUpdateAgentStatusInDB(2, 'success', '수집 데이터 정제 및 저작권 확인 완료');
     ctrlUpdateLocalAgentStatus(1, 'success', '수집 완료');
     ctrlUpdateLocalAgentStatus(2, 'success', '정제 완료');
-    ctrlUpdateLocalAgentStatus(13, 'running', '파이프라인 지휘 중');
+    ctrlUpdateLocalAgentStatus(16, 'running', '파이프라인 지휘 중');
 
     // STEP 3: 가상 조판
     setTimeout(async () => {
@@ -1393,8 +1394,8 @@ async function startCtrlSimByBookData(book) {
                 // STEP 5: CEO 의사결정 카드
                 setTimeout(() => {
                     _ctrlSetStep(5, 'active', '대기중 (🟡)');
-                    ctrlUpdateLocalAgentStatus(13, 'active', '의사결정 카드 보고 중');
-                    logConsole(`[(총괄) 오케스트레이터] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 13, '(총괄) 오케스트레이터');
+                    ctrlUpdateLocalAgentStatus(16, 'active', '의사결정 카드 보고 중');
+                    logConsole(`[판다] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 16, '판다');
 
                     _ctrl_simSpecs = calculatedSpecs;
 
@@ -1466,7 +1467,7 @@ async function ctrlApproveSpec(specIndex) {
         btn.textContent = btn === event?.currentTarget ? '✅ 승인됨' : '—';
     });
 
-    logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 13, '(총괄) 오케스트레이터');
+    logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 16, '판다');
 
     // 승인 로그 기록 (API)
     try {
@@ -1487,7 +1488,7 @@ async function ctrlApproveSpec(specIndex) {
                 }
             })
         });
-        logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 13, '(총괄) 오케스트레이터');
+        logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 16, '판다');
     } catch (_) { /* 시뮬레이션 계속 */ }
 
     // 승인 이력 UI 업데이트
@@ -1537,8 +1538,8 @@ async function ctrlApproveSpec(specIndex) {
 
                 // STEP 8: 북 커버 디자인
                 setTimeout(async () => {
-                    ctrlUpdateLocalAgentStatus(6, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spec.spineMm}mm)`);
-                    logConsole(`[VDP_이지퍼비터(ezpubitor)] 6번 이지퍼비터 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 6, 'VDP_이지퍼비터(ezpubitor)');
+                    ctrlUpdateLocalAgentStatus(8, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spec.spineMm}mm)`);
+                    logConsole(`[이지퍼비터_POD] 8번 이지퍼비터_POD 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 8, '이지퍼비터_POD');
 
                     const coverArea = document.getElementById('ctrl-cover-area');
                     if (coverArea) {
@@ -1547,12 +1548,12 @@ async function ctrlApproveSpec(specIndex) {
                         if (body) setTimeout(() => body.scrollTo({ top: coverArea.offsetTop - 20, behavior: 'smooth' }), 300);
 
                         drawCtrlBookCover(book.title, spec.specName, spec.spineMm);
-                        logConsole(`[VDP_이지퍼비터(ezpubitor)] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 6, 'VDP_이지퍼비터(ezpubitor)');
+                        logConsole(`[이지퍼비터_POD] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 8, '이지퍼비터_POD');
 
                         _ctrlSetStep(6, 'done', '완공 완료 (🟢)');
-                        ctrlUpdateLocalAgentStatus(6, 'success', '표지 디자인 완료');
-                        ctrlUpdateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
-                        logConsole(`[(총괄) 오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '(총괄) 오케스트레이터');
+                        ctrlUpdateLocalAgentStatus(8, 'success', '표지 디자인 완료');
+                        ctrlUpdateLocalAgentStatus(16, 'success', '파이프라인 및 DB 적재 완료');
+                        logConsole(`[판다] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 16, '판다');
                         loadCtrlDashboard();
 
                         // 최종 완료 푸터
@@ -2017,7 +2018,7 @@ async function reportSystemError(errorData) {
             const btn = document.getElementById('self-heal-submit-btn');
             
             if (statusText && codeBlock && btn) {
-                statusText.innerText = "❌ 12번 AI 보안관 실시간 침입 탐지 및 패킷 파기";
+                statusText.innerText = "❌ 15번 보안_보안관 실시간 침입 탐지 및 패킷 파기";
                 statusText.style.color = "#ef4444";
                 codeBlock.style.background = "#fff5f5";
                 codeBlock.style.color = "#991b1b";
@@ -2060,7 +2061,7 @@ window.simulateFix = function(eventOrNull, prUrl) {
     doneCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
             <span style="font-size:20px;">🟢</span>
-            <span>[11번 배포_배달이] 조치 완료 보고</span>
+            <span>[14번 배포_배달이] 조치 완료 보고</span>
         </div>
         <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
             대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
@@ -2088,12 +2089,12 @@ async function triggerSelfHealingPipeline(payload) {
     agentAction.innerHTML = `
         <div class="ai-msg ai-msg-bot">
             🚨 **시스템 에러 감지!**<br>
-            9번 에러감지_눈치왕이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 코드수정_닥터 에이전트를 긴급 호출합니다.
+            12번 감시_눈치왕이 에러를 포착하여 분석 보고서를 작성했습니다. 13번 자가치유_닥터 에이전트를 긴급 호출합니다.
         </div>
         <div class="ai-action-card">
             <div class="ai-status-pulse">
                 <div class="pulse-dot"></div>
-                <span id="self-heal-status-text">10번 코드수정_닥터(자가치유) 코딩 엔진 가동 중...</span>
+                <span id="self-heal-status-text">13번 자가치유_닥터(자가치유) 코딩 엔진 가동 중...</span>
             </div>
             <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
                 // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
@@ -2127,9 +2128,9 @@ async function triggerSelfHealingPipeline(payload) {
 
         if (res.ok) {
             const data = await res.json();
-            statusText.innerText = "10번 코드수정_닥터 코드 보정 완료 (12번 보안통제_보안관 통과)";
+            statusText.innerText = "13번 자가치유_닥터 코드 보정 완료 (15번 보안_보안관 통과)";
             
-            let logHtml = `// 🛠️ [10번 코드수정_닥터 에이전트 수정 내역]\n`;
+            let logHtml = `// 🛠️ [13번 자가치유_닥터 에이전트 수정 내역]\n`;
             logHtml += `// 설명: ${data.explanation}\n\n`;
             logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
             logHtml += `// [Git CLI 로그]\n`;
@@ -2150,20 +2151,20 @@ async function triggerSelfHealingPipeline(payload) {
                         const statusData = await statusRes.json();
                         if (statusData.status === 'APPROVED') {
                             clearInterval(pollInterval);
-                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.innerText = "14번 배포_배달이: 대표님 모바일 승인 확인 (배포 개시)";
                             statusText.style.color = "#10b981";
                             btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
                             btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
                             simulateFix(null, data.prUrl);
                         } else if (statusData.status === 'REJECTED') {
                             clearInterval(pollInterval);
-                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.innerText = "14번 배포_배달이: 대표님 모바일 배포 반려 (배포 거부)";
                             statusText.style.color = "#ef4444";
                             btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
                             btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
                             codeBlock.style.background = "#fff5f5";
                             codeBlock.style.color = "#991b1b";
-                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 코드수정_닥터의 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 자가치유_닥터의 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
                         }
                     }
                 } catch (err) {
@@ -2173,7 +2174,7 @@ async function triggerSelfHealingPipeline(payload) {
 
         } else {
             const errorData = await res.json();
-            statusText.innerText = "❌ 12번 보안통제_보안관 검증 반려 (배포 중단)";
+            statusText.innerText = "❌ 15번 보안_보안관 검증 반려 (배포 중단)";
             statusText.style.color = "#ef4444";
             codeBlock.style.background = "#fff5f5";
             codeBlock.style.color = "#991b1b";
@@ -2212,7 +2213,7 @@ function showSecurityAlertUI(message, modifiedFiles) {
     alertMsg.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 900; margin-bottom: 6px;">
             <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
-            <span>🚨 [12번 보안통제_보안관] 보안 차단 및 즉시 조치 보고</span>
+            <span>🚨 [15번 보안_보안관] 보안 차단 및 즉시 조치 보고</span>
         </div>
         <p style="font-size: 12px; line-height: 1.5; color: #374151;">${message}</p>
         ${detailsHtml}
