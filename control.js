@@ -993,6 +993,8 @@ function checkPrintCostOptimization(bookData, printQty) {
     const cleanTitle  = (bookData.title  || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (bookData.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
 
+    const isPublicDomain = bookData.copyright_status === 'public_domain';
+
     // ─── AI 헬퍼 패널 활성화 ───
     const panel = document.getElementById('ai-panel');
     const fab   = document.getElementById('ai-fab');
@@ -1020,55 +1022,108 @@ function checkPrintCostOptimization(bookData, printQty) {
         width: 100%;
         box-sizing: border-box;
     `;
-    costCard.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
-            <span style="font-size:17px;">💼</span>
-            <span>[10번 영업_영업이] 복간 및 원가 최적화 영업 제안</span>
-        </div>
-        <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
-            📢 <strong>11번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>8번 이지퍼비터_POD 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
-        </p>
-        <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
-            <strong style="color:#dc2626;">📌 ${qty}부 제작 절감 제안</strong><br>
-            현재 신국판(152x225)으로 제작 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}%로 절감됩니다.
-        </p>
-        <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
-            <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;">
-                <div style="color:#64748b;">제작 부수</div>
-                <div style="font-weight:800; color:#0f172a;">${qty}부</div>
-                <div style="color:#64748b;">예상 페이지</div>
-                <div style="font-weight:800; color:#0f172a;">${totalPages}p</div>
-                <div style="color:#dc2626;">신국판 총제작비</div>
-                <div style="font-weight:800; color:#dc2626;">₩${totalCostShinkuk.toLocaleString()}</div>
-                <div style="color:#10b981;">A5 전환 총제작비</div>
-                <div style="font-weight:800; color:#10b981;">₩${totalCostA5.toLocaleString()}</div>
+
+    if (isPublicDomain) {
+        costCard.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
+                <span style="font-size:17px;">💼</span>
+                <span>[10번 영업_영업이] 글로벌 아동 도서 IP 패키징 제안</span>
             </div>
-            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">💰 B2B 절감 예상액</span>
-                <span style="font-size:15px; font-weight:900; color:#10b981;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</span>
+            <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
+                📢 <strong>11번 마케팅_알리미</strong>의 해외 아동 도서 트렌드 및 수요 분석에 따라 <strong>7번 화가</strong> 및 <strong>6번 번역이</strong> 에이전트 연동을 통한 IP 재해석을 제안합니다.
+            </p>
+            <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
+                <strong style="color:#0ea5e9;">📌 글로벌 아동 도서 IP 패키징 제안</strong><br>
+                본 도서는 저작권 소멸 도서로 신규 현대식 삽화 제작 및 다국어 글로벌 번역에 재투자하여 고품질 글로벌 아동 도서로 기획할 것을 제안합니다.
+            </p>
+            <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
+                <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:6px 12px;">
+                    <div style="color:#64748b;">기획 타겟 언어</div>
+                    <div style="font-weight:800; color:#0f172a;">영어 / 일본어 / 중국어</div>
+                    <div style="color:#64748b;">로열티(인세) 비율</div>
+                    <div style="font-weight:800; color:#10b981;">0.00% (Free)</div>
+                    <div style="color:#64748b;">신규 탑재 삽화</div>
+                    <div style="font-weight:800; color:#0f172a;">AI 파스텔 일러스트 4종</div>
+                    <div style="color:#64748b;">권장 배포 사양</div>
+                    <div style="font-weight:800; color:#0f172a;">ePub3 멀티미디어 전자책</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
+                    <span style="font-weight:700; color:#64748b;">💡 예상 마진 개선도</span>
+                    <span style="font-size:15px; font-weight:900; color:#10b981;">+10% (인세 절감분)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
+                    <span style="font-weight:700; color:#64748b;">2차 창작 라이선스</span>
+                    <span style="font-weight:800; color:#059669;">상업적 이용 무제한</span>
+                </div>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">권당 원가 절감</span>
-                <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
+            <button
+                onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
+                id="ezpubitor-approve-btn"
+                style="width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; padding:10px 0; transition:all 0.2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);"
+                onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
+            >
+                🚀 글로벌 IP 재해석 프로젝트 승인 및 ePub3 패키징 가동
+            </button>
+            <button
+                onclick="document.getElementById('ezpubitor-cost-card')?.remove()"
+                style="width:100%; background:transparent; color:#94a3b8; border:1px solid rgba(148,163,184,0.2); border-radius:8px; font-size:10px; font-weight:700; cursor:pointer; padding:6px 0; margin-top:6px; transition:all 0.2s;"
+                onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'"
+            >
+                이 제안 닫기
+            </button>
+        `;
+    } else {
+        costCard.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
+                <span style="font-size:17px;">💼</span>
+                <span>[10번 영업_영업이] 복간 및 원가 최적화 영업 제안</span>
             </div>
-        </div>
-        <button
-            onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
-            id="ezpubitor-approve-btn"
-            style="width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; padding:10px 0; transition:all 0.2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);"
-            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
-        >
-            ✅ A5 판형 최적화 승인 및 제안 송출
-        </button>
-        <button
-            onclick="document.getElementById('ezpubitor-cost-card')?.remove()"
-            style="width:100%; background:transparent; color:#94a3b8; border:1px solid rgba(148,163,184,0.2); border-radius:8px; font-size:10px; font-weight:700; cursor:pointer; padding:6px 0; margin-top:6px; transition:all 0.2s;"
-            onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'"
-        >
-            이 제안 닫기
-        </button>
-    `;
+            <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
+                📢 <strong>11번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>8번 이지퍼비터_POD 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
+            </p>
+            <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
+                <strong style="color:#dc2626;">📌 ${qty}부 제작 절감 제안</strong><br>
+                현재 신국판(152x225)으로 제작 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}%로 절감됩니다.
+            </p>
+            <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;">
+                    <div style="color:#64748b;">제작 부수</div>
+                    <div style="font-weight:800; color:#0f172a;">${qty}부</div>
+                    <div style="color:#64748b;">예상 페이지</div>
+                    <div style="font-weight:800; color:#0f172a;">${totalPages}p</div>
+                    <div style="color:#dc2626;">신국판 총제작비</div>
+                    <div style="font-weight:800; color:#dc2626;">₩${totalCostShinkuk.toLocaleString()}</div>
+                    <div style="color:#10b981;">A5 전환 총제작비</div>
+                    <div style="font-weight:800; color:#10b981;">₩${totalCostA5.toLocaleString()}</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
+                    <span style="font-weight:700; color:#64748b;">💰 B2B 절감 예상액</span>
+                    <span style="font-size:15px; font-weight:900; color:#10b981;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
+                    <span style="font-weight:700; color:#64748b;">권당 원가 절감</span>
+                    <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
+                </div>
+            </div>
+            <button
+                onclick="ctrlApproveA5Optimization(${bookData.id || 0})"
+                id="ezpubitor-approve-btn"
+                style="width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; padding:10px 0; transition:all 0.2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);"
+                onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
+            >
+                ✅ A5 판형 최적화 승인 및 제안 송출
+            </button>
+            <button
+                onclick="document.getElementById('ezpubitor-cost-card')?.remove()"
+                style="width:100%; background:transparent; color:#94a3b8; border:1px solid rgba(148,163,184,0.2); border-radius:8px; font-size:10px; font-weight:700; cursor:pointer; padding:6px 0; margin-top:6px; transition:all 0.2s;"
+                onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'"
+            >
+                이 제안 닫기
+            </button>
+        `;
+    }
 
     chatContent.appendChild(costCard);
 
@@ -1079,21 +1134,38 @@ function checkPrintCostOptimization(bookData, printQty) {
         // 승인 버튼 상태 변경
         const approveBtn = document.getElementById('ezpubitor-approve-btn');
         if (approveBtn) {
-            approveBtn.textContent = '🚀 A5 최적화 시뮬레이션 가동 중...';
+            approveBtn.textContent = isPublicDomain 
+                ? '🚀 글로벌 번역 및 삽화 작업 가동 중...' 
+                : '🚀 A5 최적화 시뮬레이션 가동 중...';
             approveBtn.disabled = true;
         }
 
-        // 감사 로그 기록
-        ctrlWriteAuditLog(
-            3, '수익분석_계산이', 'success',
-            `[VDP_이지퍼비터(ezpubitor)] A5 판형 원가 최적화 승인 — ${cleanTitle} · ${qty}부 · 절감액 ₩${savingTotal.toLocaleString()} (${savingPct}%↓)`,
-            { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct, approvedSpec: 'A5국판' }
-        );
+        if (isPublicDomain) {
+            // 감사 로그 기록
+            ctrlWriteAuditLog(
+                3, '수익분석_계산이', 'success',
+                `[IP_글로벌_패키징] 저작권 만료 아동 도서 글로벌 IP 사업화 승인 — ${cleanTitle} · 인세 0% · 다국어 번역 및 AI 삽화 프로젝트 개시`,
+                { bookTitle: cleanTitle, copyrightStatus: 'public_domain', approvedSpec: 'ePub3국제표준' }
+            );
 
-        // 메인 오케스트레이터 배너 메시지 업데이트
-        const orchMsg = document.getElementById('ctrl-orch-msg');
-        if (orchMsg) {
-            orchMsg.textContent = `[VDP_이지퍼비터(ezpubitor)] A5 최적화 승인 완료. ${cleanTitle} · A5판 기준 최종 조판 시뮬레이션 실행 중...`;
+            // 메인 오케스트레이터 배너 메시지 업데이트
+            const orchMsg = document.getElementById('ctrl-orch-msg');
+            if (orchMsg) {
+                orchMsg.textContent = `[16번 판다] 글로벌 IP 재해석 승인 완료. ${cleanTitle} · 다국어 번역(6번) 및 가상 삽화(7번) 기반 ePub3 패키징 빌드 중...`;
+            }
+        } else {
+            // 감사 로그 기록
+            ctrlWriteAuditLog(
+                3, '수익분석_계산이', 'success',
+                `[VDP_이지퍼비터(ezpubitor)] A5 판형 원가 최적화 승인 — ${cleanTitle} · ${qty}부 · 절감액 ₩${savingTotal.toLocaleString()} (${savingPct}%↓)`,
+                { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct, approvedSpec: 'A5국판' }
+            );
+
+            // 메인 오케스트레이터 배너 메시지 업데이트
+            const orchMsg = document.getElementById('ctrl-orch-msg');
+            if (orchMsg) {
+                orchMsg.textContent = `[VDP_이지퍼비터(ezpubitor)] A5 최적화 승인 완료. ${cleanTitle} · A5판 기준 최종 조판 시뮬레이션 실행 중...`;
+            }
         }
 
         // 0.5초 후 시뮬레이션 모달 자동 가동
@@ -1101,7 +1173,7 @@ function checkPrintCostOptimization(bookData, printQty) {
             // 후보 목록에서 해당 도서 찾아 시뮬레이션 실행
             const targetBook = _ctrl_candidates.find(b => b.id === bookIdOrIdx) || _ctrl_candidates[0];
             if (targetBook) {
-                startCtrlSimByBookData({ ...targetBook, _a5Recommended: true });
+                startCtrlSimByBookData({ ...targetBook, _a5Recommended: !isPublicDomain, _isPublicDomain: isPublicDomain });
             } else {
                 ctrlStartSimByIndex(0);
             }
@@ -1112,11 +1184,19 @@ function checkPrintCostOptimization(bookData, printQty) {
     setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
 
     // 감사 로그 출력
-    ctrlWriteAuditLog(
-        13, '(총괄) 오케스트레이터', 'warn',
-        `[VDP_이지퍼비터(ezpubitor)] 신국판 ${qty}부 소량 주문 감지 → A5 전환 시 ₩${savingTotal.toLocaleString()} 절감(${savingPct}%) 제안 카드 발행`,
-        { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct }
-    );
+    if (isPublicDomain) {
+        ctrlWriteAuditLog(
+            13, '(총괄) 오케스트레이터', 'warn',
+            `[IP_글로벌_패키징] 저작권 만료 도서 감지 → 글로벌 아동 도서 IP 재해석 및 다국어 번역/삽화 패키징 제안 카드 발행`,
+            { bookTitle: cleanTitle, copyrightStatus: 'public_domain' }
+        );
+    } else {
+        ctrlWriteAuditLog(
+            13, '(총괄) 오케스트레이터', 'warn',
+            `[VDP_이지퍼비터(ezpubitor)] 신국판 ${qty}부 소량 주문 감지 → A5 전환 시 ₩${savingTotal.toLocaleString()} 절감(${savingPct}%) 제안 카드 발행`,
+            { bookTitle: cleanTitle, printQty: qty, savingTotal, savingPct }
+        );
+    }
 }
 
 // ───────────────────────────────────────────
@@ -1241,8 +1321,14 @@ async function startCtrlSimByBookData(book) {
         }
     };
 
+    const isPublicDomain = book._isPublicDomain || book.copyright_status === 'public_domain';
+
     // 파이프라인 시뮬레이션 시작
-    logConsole(`[판다] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 16, '판다');
+    if (isPublicDomain) {
+        logConsole(`[판다] 도서 '${book.title}' 글로벌 IP 재해석 및 다국어 패키징 파이프라인 시뮬레이션 개시.`, 'info', 16, '판다');
+    } else {
+        logConsole(`[판다] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 16, '판다');
+    }
 
     await ctrlUpdateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
     await ctrlUpdateAgentStatusInDB(1, 'success', '도서관 정보나루 및 알라딘 API 데이터 수집 완료');
@@ -1251,11 +1337,16 @@ async function startCtrlSimByBookData(book) {
     ctrlUpdateLocalAgentStatus(2, 'success', '정제 완료');
     ctrlUpdateLocalAgentStatus(16, 'running', '파이프라인 지휘 중');
 
-    // STEP 3: 가상 조판
+    // STEP 3: 가상 조판 (IP 트랙에서는 줄거리 분석 및 현대화 콘셉트 기획)
     setTimeout(async () => {
         _ctrlSetStep(3, 'active', '진행중 (🟡)');
-        ctrlUpdateLocalAgentStatus(4, 'running', '1차 가상 조판 시뮬레이션 중');
-        logConsole(`[조판_조판이] 4대 표준 판형에 얹었을 때 물리 스펙 가상 계산 개시.`, 'info', 4, '조판_조판이');
+        ctrlUpdateLocalAgentStatus(4, 'running', isPublicDomain ? '아웃라인 기획 및 줄거리 분석 중' : '1차 가상 조판 시뮬레이션 중');
+        
+        if (isPublicDomain) {
+            logConsole(`[조판_조판이] 방정환 아동 문학 원작 줄거리 분석 및 2차 창작 현대화 콘셉트 기획 개시.`, 'info', 4, '조판_조판이');
+        } else {
+            logConsole(`[조판_조판이] 4대 표준 판형에 얹었을 때 물리 스펙 가상 계산 개시.`, 'info', 4, '조판_조판이');
+        }
 
         try {
             const res  = await fetch(ctrlApiUrl('/api/typeset'), {
@@ -1277,22 +1368,38 @@ async function startCtrlSimByBookData(book) {
             for (let i = 0; i < sims.length; i++) {
                 await new Promise(r => setTimeout(r, 400));
                 const s = sims[i];
-                logConsole(`[조판_조판이] ${s.specName} 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 책등: ${s.spineMm}mm`, 'info', 4, '조판_조판이');
+                if (isPublicDomain) {
+                    logConsole(`[조판_조판이] ${s.specName} 기반 글로벌 로컬라이징 2차 창작 아웃라인 기획 완료.`, 'info', 4, '조판_조판이');
+                } else {
+                    logConsole(`[조판_조판이] ${s.specName} 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 책등: ${s.spineMm}mm`, 'info', 4, '조판_조판이');
+                }
             }
 
             _ctrlSetStep(3, 'done', '완료 (🟢)');
-            ctrlUpdateLocalAgentStatus(4, 'success', '1차 가상 조판 완료');
-            logConsole(`[조판_조판이] 4대 판형 물리 스펙 산출 완료. 수익분석_계산이에게 데이터 전송.`, 'success', 4, '조판_조판이');
+            ctrlUpdateLocalAgentStatus(4, 'success', isPublicDomain ? '기획 아웃라인 수립 완료' : '1차 가상 조판 완료');
+            
+            if (isPublicDomain) {
+                logConsole(`[조판_조판이] 글로벌 IP 아웃라인 수립 완료. 수익분석_계산이에게 B2B 수익성 검토 전송.`, 'success', 4, '조판_조판이');
+            } else {
+                logConsole(`[조판_조판이] 4대 판형 물리 스펙 산출 완료. 수익분석_계산이에게 데이터 전송.`, 'success', 4, '조판_조판이');
+            }
 
             // STEP 4: 수익성 검토
             setTimeout(async () => {
                 _ctrlSetStep(4, 'active', '진행중 (🟡)');
-                ctrlUpdateLocalAgentStatus(3, 'running', '제작 단가 및 예상 마진율 산출 중');
-                logConsole(`[수익분석_계산이] 1차 물리 스펙 수령. 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익분석_계산이');
+                ctrlUpdateLocalAgentStatus(3, 'running', isPublicDomain ? '인세 0% 반영 순이익률 시뮬레이션 중' : '제작 단가 및 예상 마진율 산출 중');
+                
+                if (isPublicDomain) {
+                    logConsole(`[수익분석_계산이] 저작권료 0% 반영에 따른 B2B 예상 순이익률 및 마진 분석 개시.`, 'info', 3, '수익분석_계산이');
+                } else {
+                    logConsole(`[수익분석_계산이] 1차 물리 스펙 수령. 단가표 및 용지 가격 매핑 개시.`, 'info', 3, '수익분석_계산이');
+                }
 
-                // B2B 출판사 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동
-                const qty = book._a5Recommended ? 30 : 500;
-                logConsole(`[수익분석_계산이] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익분석_계산이');
+                // B2B 출판사 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동 (단, IP 트랙은 B2B 형태로 30부 제안)
+                const qty = (book._a5Recommended || isPublicDomain) ? 30 : 500;
+                if (!isPublicDomain) {
+                    logConsole(`[수익분석_계산이] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익분석_계산이');
+                }
 
                 // Supabase에서 실서버 일반등급 단가 불러오기
                 let gradeData = null;
@@ -1375,7 +1482,7 @@ async function startCtrlSimByBookData(book) {
 
                     const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
                     // B2B 최적화 시에는 A5국판을 BEST로 제안하고, 자체 복간 시에는 신국판을 BEST로 추천
-                    const isRecommended = book._a5Recommended ? s.specName.includes('A5국판') : s.specName.includes('신국판');
+                    const isRecommended = book._a5Recommended || isPublicDomain ? s.specName.includes('A5국판') : s.specName.includes('신국판');
                     const recommendationText = isRecommended ? '최적 마진 추천 🔥' : (marginRate >= 60 ? '적합도 우수' : marginRate < 50 ? '적합도 낮음' : '적합도 보통');
 
                     return { ...s, unitCost, retailPrice, marginRate, isRecommended, recommendationText };
@@ -1384,18 +1491,32 @@ async function startCtrlSimByBookData(book) {
                 for (let i = 0; i < calculatedSpecs.length; i++) {
                     await new Promise(r => setTimeout(r, 400));
                     const s = calculatedSpecs[i];
-                    logConsole(`[수익분석_계산이] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익분석_계산이');
+                    if (isPublicDomain) {
+                        logConsole(`[수익분석_계산이] ${s.specName} 기획 예상 마진율: ${s.marginRate}% ➔ ${s.recommendationText}`, 'info', 3, '수익분석_계산이');
+                    } else {
+                        logConsole(`[수익분석_계산이] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익분석_계산이');
+                    }
                 }
 
                 _ctrlSetStep(4, 'done', '완료 (🟢)');
                 ctrlUpdateLocalAgentStatus(3, 'success', '수익성 검토 완료');
-                logConsole(`[수익분석_계산이] 4개 판형별 원가 및 마진율 최종 산출 완료. 의사결정 카드 전달.`, 'success', 3, '수익분석_계산이');
+                
+                if (isPublicDomain) {
+                    logConsole(`[수익분석_계산이] 저작권 프리 순이익 마진 분석 완료. 대표님 의사결정 카드 전송.`, 'success', 3, '수익분석_계산이');
+                } else {
+                    logConsole(`[수익분석_계산이] 4개 판형별 원가 및 마진율 최종 산출 완료. 의사결정 카드 전달.`, 'success', 3, '수익분석_계산이');
+                }
 
                 // STEP 5: CEO 의사결정 카드
                 setTimeout(() => {
                     _ctrlSetStep(5, 'active', '대기중 (🟡)');
                     ctrlUpdateLocalAgentStatus(16, 'active', '의사결정 카드 보고 중');
-                    logConsole(`[판다] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 16, '판다');
+                    
+                    if (isPublicDomain) {
+                        logConsole(`[판다] 대표님 대시보드 '글로벌 아동 도서 IP 패키지 의사결정 카드' 전송. 최종 승인 대기.`, 'warn', 16, '판다');
+                    } else {
+                        logConsole(`[판다] 대표님 대시보드 '의사결정 카드(4대 판형 비교)' 전송. 최종 결정 승인 대기.`, 'warn', 16, '판다');
+                    }
 
                     _ctrl_simSpecs = calculatedSpecs;
 
@@ -1404,22 +1525,41 @@ async function startCtrlSimByBookData(book) {
                     const decisionGrid = document.getElementById('ctrl-decision-grid');
                     if (decisionArea && decisionGrid) {
                         ctrlShowEl(decisionArea);
-                        decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => `
-                        <div class="ctrl-decision-card ${s.isRecommended ? 'recommended' : ''}">
-                            ${s.isRecommended ? '<div class="ctrl-decision-badge-best">BEST RECOMMEND</div>' : ''}
-                            <div class="ctrl-decision-spec-name">${s.specName}</div>
-                            <div class="ctrl-decision-specs">
-                                <div class="ctrl-decision-spec-row"><span class="label">페이지 수</span><span class="value">${s.pages}p</span></div>
-                                <div class="ctrl-decision-spec-row"><span class="label">책등(세네카)</span><span class="value">${s.spineMm}mm</span></div>
-                                <div class="ctrl-decision-spec-row"><span class="label">제작 원가(권)</span><span class="value">₩${s.unitCost.toLocaleString()}</span></div>
-                                <div class="ctrl-decision-spec-row"><span class="label">권장 판매가</span><span class="value accent">₩${s.retailPrice.toLocaleString()}</span></div>
-                            </div>
-                            <div class="ctrl-decision-margin-box">
-                                <span class="ctrl-decision-margin-label">예상 마진율</span>
-                                <span class="ctrl-decision-margin-value">${s.marginRate}%</span>
-                            </div>
-                            <button class="ctrl-btn-approve" onclick="ctrlApproveSpec(${idx})">이 판형으로 최종 승인</button>
-                        </div>`).join('');
+                        if (isPublicDomain) {
+                            decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => `
+                            <div class="ctrl-decision-card ${s.isRecommended ? 'recommended' : ''}">
+                                ${s.isRecommended ? '<div class="ctrl-decision-badge-best">IP BEST OPTION</div>' : ''}
+                                <div class="ctrl-decision-spec-name">${s.specName.replace('형형', '형').replace('형', '')} (ePub3)</div>
+                                <div class="ctrl-decision-specs">
+                                    <div class="ctrl-decision-spec-row"><span class="label">기획 타겟</span><span class="value" style="font-size: 9px;">영어/일어/중문</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">로열티(인세)</span><span class="value" style="color: #10b981;">0.00% (Free)</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">기획 사양</span><span class="value" style="font-size: 9.5px;">AI 삽화 + 번역</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">B2B 권장가</span><span class="value accent">₩${s.retailPrice.toLocaleString()}</span></div>
+                                </div>
+                                <div class="ctrl-decision-margin-box">
+                                    <span class="ctrl-decision-margin-label">B2B 마진율</span>
+                                    <span class="ctrl-decision-margin-value">${s.marginRate}%</span>
+                                </div>
+                                <button class="ctrl-btn-approve" onclick="ctrlApproveSpec(${idx})">이 IP 기획안 승인</button>
+                            </div>`).join('');
+                        } else {
+                            decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => `
+                            <div class="ctrl-decision-card ${s.isRecommended ? 'recommended' : ''}">
+                                ${s.isRecommended ? '<div class="ctrl-decision-badge-best">BEST RECOMMEND</div>' : ''}
+                                <div class="ctrl-decision-spec-name">${s.specName}</div>
+                                <div class="ctrl-decision-specs">
+                                    <div class="ctrl-decision-spec-row"><span class="label">페이지 수</span><span class="value">${s.pages}p</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">책등(세네카)</span><span class="value">${s.spineMm}mm</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">제작 원가(권)</span><span class="value">₩${s.unitCost.toLocaleString()}</span></div>
+                                    <div class="ctrl-decision-spec-row"><span class="label">권장 판매가</span><span class="value accent">₩${s.retailPrice.toLocaleString()}</span></div>
+                                </div>
+                                <div class="ctrl-decision-margin-box">
+                                    <span class="ctrl-decision-margin-label">예상 마진율</span>
+                                    <span class="ctrl-decision-margin-value">${s.marginRate}%</span>
+                                </div>
+                                <button class="ctrl-btn-approve" onclick="ctrlApproveSpec(${idx})">이 판형으로 최종 승인</button>
+                            </div>`).join('');
+                        }
 
                         // 스크롤 유도
                         const body = document.getElementById('ctrl-sim-body');
@@ -1433,6 +1573,7 @@ async function startCtrlSimByBookData(book) {
         }
     }, 1200);
 }
+}
 
 // ───────────────────────────────────────────
 // 15. CEO 판형 승인 (STEP 6)
@@ -1443,6 +1584,8 @@ async function ctrlApproveSpec(specIndex) {
     if (!book || !spec) return;
 
     _ctrl_approvedSpec = spec;
+
+    const isPublicDomain = book._isPublicDomain || book.copyright_status === 'public_domain';
 
     const consoleEl  = document.getElementById('ctrl-sim-console');
     const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
@@ -1458,7 +1601,12 @@ async function ctrlApproveSpec(specIndex) {
         line.innerHTML = `<span style="color:#4b5563;">[${time}]</span> <span style="${style}">${message}</span>`;
         consoleEl.appendChild(line);
         consoleEl.scrollTop = consoleEl.scrollHeight;
-        if (agentId && agentName) ctrlWriteAuditLog(agentId, agentName, type, message, { bookTitle: book.title, approvedSpec: spec.specName });
+        if (agentId && agentName) {
+            const auditMetadata = isPublicDomain 
+                ? { bookTitle: book.title, approvedSpec: spec.specName, copyrightStatus: 'public_domain' }
+                : { bookTitle: book.title, approvedSpec: spec.specName };
+            ctrlWriteAuditLog(agentId, agentName, type, message, auditMetadata);
+        }
     };
 
     // 버튼 비활성화
@@ -1467,7 +1615,11 @@ async function ctrlApproveSpec(specIndex) {
         btn.textContent = btn === event?.currentTarget ? '✅ 승인됨' : '—';
     });
 
-    logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 16, '판다');
+    if (isPublicDomain) {
+        logConsole(`[CEO] 대표 승인 확인. 기획안: '${spec.specName} (ePub3 글로벌 패키지)' 최종 승인.`, 'success', 16, '판다');
+    } else {
+        logConsole(`[CEO] 대표 승인 확인. 규격: '${spec.specName}', 책등: ${spec.spineMm}mm 최종 승인.`, 'success', 16, '판다');
+    }
 
     // 승인 로그 기록 (API)
     try {
@@ -1475,7 +1627,7 @@ async function ctrlApproveSpec(specIndex) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                proposalType: 'REPRINT_SPEC',
+                proposalType: isPublicDomain ? 'IP_GLOBAL_SPEC' : 'REPRINT_SPEC',
                 decision:     'APPROVED',
                 contextData: {
                     title: book.title,
@@ -1484,7 +1636,8 @@ async function ctrlApproveSpec(specIndex) {
                     spineMm:      spec.spineMm,
                     unitCost:     spec.unitCost,
                     retailPrice:  spec.retailPrice,
-                    marginRate:   spec.marginRate
+                    marginRate:   spec.marginRate,
+                    is_public_domain: isPublicDomain
                 }
             })
         });
@@ -1492,19 +1645,32 @@ async function ctrlApproveSpec(specIndex) {
     } catch (_) { /* 시뮬레이션 계속 */ }
 
     // 승인 이력 UI 업데이트
-    _addCtrlApprovalLog(book.title, spec.specName, spec.marginRate);
+    _addCtrlApprovalLog(book.title, isPublicDomain ? `${spec.specName.replace('형형', '형').replace('형', '')} (ePub3)` : spec.specName, spec.marginRate);
 
     _ctrlSetStep(5, 'done', '승인 완료 (🟢)');
 
-    // STEP 7: 2차 최종 조판 프로그레스
-    _ctrlSetStep(6, 'active', '조판 중 (🟡)');
-    ctrlUpdateLocalAgentStatus(4, 'running', `최종 판형 '${spec.specName}' PDF/X-4 컴파일 중`);
-    logConsole(`[조판_조판이] 승인 신호 수령. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, '조판_조판이');
+    // STEP 7: 2차 최종 조판 프로그레스 (IP 트랙은 다국어 번역 컴파일)
+    _ctrlSetStep(6, 'active', isPublicDomain ? '글로벌 번역 중 (🟡)' : '조판 중 (🟡)');
+    
+    if (isPublicDomain) {
+        ctrlUpdateLocalAgentStatus(6, 'running', `다국어 번역 로컬라이징 및 ePub3 텍스트 정합 빌드 중`);
+        logConsole(`[번역_번역이] 다국어 번역 에이전트 가동. 아동용 글로벌 로컬라이징 텍스트 번역 및 싱크 매칭 빌드 개시...`, 'info', 6, '번역_번역이');
+    } else {
+        ctrlUpdateLocalAgentStatus(4, 'running', `최종 판형 '${spec.specName}' PDF/X-4 컴파일 중`);
+        logConsole(`[조판_조판이] 승인 신호 수령. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, '조판_조판이');
+    }
 
     // 컴파일 프로그레스 바 노출
     const compArea = document.getElementById('ctrl-compile-area');
     if (compArea) {
         ctrlShowEl(compArea);
+        
+        // 컴파일 타이틀 명칭 변경
+        const compTitle = compArea.querySelector('.ctrl-compile-title');
+        if (compTitle && isPublicDomain) {
+            compTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6 6-6"/><path d="m4 14 6 6 8-8"/></svg> ePub3 글로벌 다국어 번역 빌드 중`;
+        }
+
         const body = document.getElementById('ctrl-sim-body');
         if (body) setTimeout(() => body.scrollTo({ top: compArea.offsetTop - 20, behavior: 'smooth' }), 300);
 
@@ -1517,57 +1683,123 @@ async function ctrlApproveSpec(specIndex) {
             if (progFill)  progFill.style.width  = `${progress}%`;
             if (progLabel) progLabel.textContent  = `${progress}%`;
 
-            if (progress === 30) logConsole(`[조판_조판이] 사방 도련(Bleed 3mm) 기준선 레이아웃 적용 중...`, 'info', 4, '조판_조판이');
-            else if (progress === 60) logConsole(`[조판_조판이] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, '조판_조판이');
-            else if (progress === 80) logConsole(`[조판_조판이] 쪽번호 및 머리말 폰트 아웃라인 컴파일 중...`, 'info', 4, '조판_조판이');
-            else if (progress >= 100) {
-                clearInterval(iv);
-                logConsole(`[조판_조판이] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, '조판_조판이');
-                ctrlUpdateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${spec.specName})`);
+            if (isPublicDomain) {
+                if (progress === 30) logConsole(`[번역_번역이] 영어(English) 번역 스크립트 정합성 검증 완료...`, 'info', 6, '번역_번역이');
+                else if (progress === 60) logConsole(`[번역_번역이] 일본어(Japanese) 의성어/의태어 현지화 변형 정합 완료...`, 'info', 6, '번역_번역이');
+                else if (progress === 80) logConsole(`[번역_번역이] 중국어(Chinese) 간체 폰트 아웃라인 컴파일 완료...`, 'info', 6, '번역_번역이');
+                else if (progress >= 100) {
+                    clearInterval(iv);
+                    logConsole(`[번역_번역이] 다국어 번역 리소스 번들 컴파일 빌드 성공 (ePub3 규격).`, 'success', 6, '번역_번역이');
+                    ctrlUpdateLocalAgentStatus(6, 'success', `글로벌 다국어 번역 빌드 완료 (ePub3)`);
 
-                // PDF 다운로드 버튼 노출
-                const dlArea = document.getElementById('ctrl-compile-download');
-                if (dlArea) {
-                    ctrlShowEl(dlArea);
-                    dlArea.innerHTML = `
-                    <button onclick="ctrlDownloadReprintPDF()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        📄 최종 인쇄용 PDF/X-4 다운로드
-                    </button>`;
-                }
-
-                // STEP 8: 북 커버 디자인
-                setTimeout(async () => {
-                    ctrlUpdateLocalAgentStatus(8, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spec.spineMm}mm)`);
-                    logConsole(`[이지퍼비터_POD] 8번 이지퍼비터_POD 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 8, '이지퍼비터_POD');
-
-                    const coverArea = document.getElementById('ctrl-cover-area');
-                    if (coverArea) {
-                        ctrlShowEl(coverArea);
-                        const body = document.getElementById('ctrl-sim-body');
-                        if (body) setTimeout(() => body.scrollTo({ top: coverArea.offsetTop - 20, behavior: 'smooth' }), 300);
-
-                        drawCtrlBookCover(book.title, spec.specName, spec.spineMm);
-                        logConsole(`[이지퍼비터_POD] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 8, '이지퍼비터_POD');
-
-                        _ctrlSetStep(6, 'done', '완공 완료 (🟢)');
-                        ctrlUpdateLocalAgentStatus(8, 'success', '표지 디자인 완료');
-                        ctrlUpdateLocalAgentStatus(16, 'success', '파이프라인 및 DB 적재 완료');
-                        logConsole(`[판다] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 16, '판다');
-                        loadCtrlDashboard();
-
-                        // 최종 완료 푸터
-                        const footer = document.getElementById('ctrl-sim-footer');
-                        if (footer) {
-                            footer.innerHTML = `
-                            <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
-                            <div style="display:flex; gap:8px;">
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
-                            </div>`;
-                        }
+                    // PDF 다운로드 대신 ePub3 다운로드 버튼 노출
+                    const dlArea = document.getElementById('ctrl-compile-download');
+                    if (dlArea) {
+                        ctrlShowEl(dlArea);
+                        dlArea.innerHTML = `
+                        <button onclick="ctrlDownloadReprintPDF()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#a855f7,#7c3aed); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            📄 글로벌 ePub3 국제 표준 파일 다운로드
+                        </button>`;
                     }
-                }, 1000);
+
+                    // STEP 8: 북 커버 및 삽화 디자인 (화가 에이전트 연동)
+                    setTimeout(async () => {
+                        ctrlUpdateLocalAgentStatus(7, 'running', `방정환 동화 현대식 일러스트 삽화 및 커버 생성 중`);
+                        logConsole(`[삽화_화가] 7번 화가 가동. 방정환 동화 원작 테마에 맞춘 현대식 파스텔풍 가상 삽화 일러스트 시안 4종 생성 중...`, 'info', 7, '삽화_화가');
+
+                        const coverArea = document.getElementById('ctrl-cover-area');
+                        if (coverArea) {
+                            ctrlShowEl(coverArea);
+                            
+                            // 커버 영역 제목 변경
+                            const coverTitle = coverArea.querySelector('.ctrl-compile-title');
+                            if (coverTitle) {
+                                coverTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> 현대식 AI 일러스트 삽화 시안 (7번 화가)`;
+                            }
+
+                            const body = document.getElementById('ctrl-sim-body');
+                            if (body) setTimeout(() => body.scrollTo({ top: coverArea.offsetTop - 20, behavior: 'smooth' }), 300);
+
+                            // Canvas 텍스트 표지 대신 AI 현대판 명판 렌더링
+                            drawCtrlBookCover(book.title + " (AI 현대판)", spec.specName, spec.spineMm);
+                            logConsole(`[삽화_화가] 현대식 일러스트 표지 및 동화 삽화 4종 최종 렌더링 완료.`, 'success', 7, '삽화_화가');
+
+                            _ctrlSetStep(6, 'done', '완공 완료 (🟢)');
+                            ctrlUpdateLocalAgentStatus(7, 'success', '일러스트 삽화 및 커버 시안 완료');
+                            
+                            // 9번 이지퍼비터_ePub 활성화
+                            ctrlUpdateLocalAgentStatus(9, 'success', '이지퍼비터_ePub3 최종 빌드 완료');
+                            ctrlUpdateLocalAgentStatus(16, 'success', '글로벌 IP 빌더 가동 완료');
+                            logConsole(`[판다] 저작권 만료 고전 아동 문학 글로벌 IP 재해석 파이프라인 완공 성공!`, 'success', 16, '판다');
+                            loadCtrlDashboard();
+
+                            // 최종 완료 푸터
+                            const footer = document.getElementById('ctrl-sim-footer');
+                            if (footer) {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 글로벌 IP 재해석 패키지 완공! 글로벌 마스터 IP DB에 저장 완료</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 글로벌 IP 카탈로그 등록 완료 (Supabase 반영)</button>
+                                </div>`;
+                            }
+                        }
+                    }, 1000);
+                }
+            } else {
+                if (progress === 30) logConsole(`[조판_조판이] 사방 도련(Bleed 3mm) 기준선 레이아웃 적용 중...`, 'info', 4, '조판_조판이');
+                else if (progress === 60) logConsole(`[조판_조판이] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, '조판_조판이');
+                else if (progress === 80) logConsole(`[조판_조판이] 쪽번호 및 머리말 폰트 아웃라인 컴파일 중...`, 'info', 4, '조판_조판이');
+                else if (progress >= 100) {
+                    clearInterval(iv);
+                    logConsole(`[조판_조판이] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, '조판_조판이');
+                    ctrlUpdateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${spec.specName})`);
+
+                    // PDF 다운로드 버튼 노출
+                    const dlArea = document.getElementById('ctrl-compile-download');
+                    if (dlArea) {
+                        ctrlShowEl(dlArea);
+                        dlArea.innerHTML = `
+                        <button onclick="ctrlDownloadReprintPDF()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            📄 최종 인쇄용 PDF/X-4 다운로드
+                        </button>`;
+                    }
+
+                    // STEP 8: 북 커버 디자인
+                    setTimeout(async () => {
+                        ctrlUpdateLocalAgentStatus(8, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spec.spineMm}mm)`);
+                        logConsole(`[이지퍼비터_POD] 8번 이지퍼비터_POD 가동. 세네카 두께 ${spec.spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 8, '이지퍼비터_POD');
+
+                        const coverArea = document.getElementById('ctrl-cover-area');
+                        if (coverArea) {
+                            ctrlShowEl(coverArea);
+                            const body = document.getElementById('ctrl-sim-body');
+                            if (body) setTimeout(() => body.scrollTo({ top: coverArea.offsetTop - 20, behavior: 'smooth' }), 300);
+
+                            drawCtrlBookCover(book.title, spec.specName, spec.spineMm);
+                            logConsole(`[이지퍼비터_POD] 책등 폭 ${spec.spineMm}mm 북 커버 전개도 디자인 최종 렌더링 완료.`, 'success', 8, '이지퍼비터_POD');
+
+                            _ctrlSetStep(6, 'done', '완공 완료 (🟢)');
+                            ctrlUpdateLocalAgentStatus(8, 'success', '표지 디자인 완료');
+                            ctrlUpdateLocalAgentStatus(16, 'success', '파이프라인 및 DB 적재 완료');
+                            logConsole(`[판다] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 16, '판다');
+                            loadCtrlDashboard();
+
+                            // 최종 완료 푸터
+                            const footer = document.getElementById('ctrl-sim-footer');
+                            if (footer) {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
+                                </div>`;
+                            }
+                        }
+                    }, 1000);
+                }
             }
         }, 150);
     }
