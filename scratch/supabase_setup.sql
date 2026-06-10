@@ -237,6 +237,17 @@ BEGIN
     END IF;
 END $$;
 
+-- [멱등성] digital_archive_url 컬럼 추가 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'reprint_candidates' AND column_name = 'digital_archive_url'
+    ) THEN
+        ALTER TABLE reprint_candidates ADD COLUMN digital_archive_url TEXT;
+    END IF;
+END $$;
+
 -- reprint_candidates 인덱스 (복간 점수 조회 최적화)
 CREATE INDEX IF NOT EXISTS idx_reprint_score ON reprint_candidates (reprint_score DESC);
 
