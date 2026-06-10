@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[최신] 에이전트 통제실 | 출판친구 Anti-Gravity</title>
-    <meta name="description" content="출판친구 자율 출판 에이전트 통제실 — 1~13번 에이전트 실시간 모니터링 및 파이프라인 제어">
+    <meta name="description" content="출판친구 자율 출판 에이전트 통제실 — 1~16번 에이전트 실시간 모니터링 및 파이프라인 제어">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,7 +57,7 @@
                 </div>
                 <div class="ctrl-status-item">
                     <span class="ctrl-dot ctrl-dot-purple pulse"></span>
-                    <span class="ctrl-status-label">13번 지휘중</span>
+                    <span class="ctrl-status-label">16번 지휘중</span>
                 </div>
                 <div class="ctrl-status-item ctrl-clock" id="ctrl-clock">
                     00:00:00
@@ -81,13 +81,13 @@
     <!-- 메인 레이아웃 -->
     <main class="ctrl-main">
 
-        <!-- 13번 오케스트레이터 배너 -->
+        <!-- 16번 판다 배너 -->
         <div class="ctrl-orchestrator-banner" id="ctrl-orch-banner">
             <div class="ctrl-orch-icon">
                 <i data-lucide="brain-circuit"></i>
             </div>
             <div class="ctrl-orch-body">
-                <div class="ctrl-orch-label">🧠 13번 (총괄) 오케스트레이터 · 실시간 지시사항</div>
+                <div class="ctrl-orch-label">🧠 16번 (총괄) 판다(Panda) · 실시간 지시사항</div>
                 <div class="ctrl-orch-msg" id="ctrl-orch-msg">
                     딥서치_살피미의 국립중앙도서관 API 응답 완료. 데이터 신뢰도 92%. 데이터정제_다듬이에게 절판 도서 필터링 명령 전송 중...
                 </div>
@@ -107,6 +107,7 @@
                 </label>
                 <select id="ctrl-keyword-input" class="ctrl-input ctrl-select">
                     <option value="all" selected>전체보기(통합)</option>
+                    <option value="저작권 만료">저작권 만료</option>
                     <option value="소설">소설</option>
                     <option value="에세이">에세이</option>
                     <option value="인문학">인문학</option>
@@ -153,13 +154,13 @@
                         <div class="ctrl-agent-row ctrl-agent-active">
                             <span class="ctrl-dot ctrl-dot-green"></span>
                             <span class="ctrl-agent-name">1번 딥서치_살피미</span>
-                            <span class="ctrl-agent-task">API 수집 완료</span>
+                            <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">딥서치</span>
                         </div>
-                        <div class="ctrl-agent-row ctrl-agent-running">
-                            <span class="ctrl-dot ctrl-dot-amber"></span>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
                             <span class="ctrl-agent-name">2번 데이터정제_다듬이</span>
-                            <span class="ctrl-agent-task">절판 필터 처리중</span>
+                            <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">정제</span>
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
@@ -182,19 +183,37 @@
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">6번 VDP_이지퍼비터(ezpubitor)</span>
+                            <span class="ctrl-agent-name">6번 번역이</span>
                             <span class="ctrl-agent-task">대기중</span>
-                            <span class="ctrl-agent-tag">가변조판</span>
+                            <span class="ctrl-agent-tag">번역</span>
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">7번 B2B영업_영업이</span>
+                            <span class="ctrl-agent-name">7번 화가</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">삽화</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">8번 이지퍼비터_POD</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">POD인쇄</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">9번 이지퍼비터_ePub</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">디지털컴파일</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">10번 영업이</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">영업</span>
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">8번 마케팅_알리미</span>
+                            <span class="ctrl-agent-name">11번 알리미</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">마케팅</span>
                         </div>
@@ -202,32 +221,32 @@
                     <!-- 인프라 엔진 및 행정 지원 본부 -->
                     <div class="ctrl-dept">
                         <div class="ctrl-dept-title">⚙️ 인프라 엔진 및 행정 지원 본부</div>
-                        <div class="ctrl-agent-row ctrl-agent-active">
-                            <span class="ctrl-dot ctrl-dot-green"></span>
-                            <span class="ctrl-agent-name">9번 에러감지_눈치왕</span>
-                            <span class="ctrl-agent-task">에러 감시중</span>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">12번 눈치왕</span>
+                            <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">감시</span>
                         </div>
-                        <div class="ctrl-agent-row ctrl-agent-active">
-                            <span class="ctrl-dot ctrl-dot-green"></span>
-                            <span class="ctrl-agent-name">10번 코드수정_닥터</span>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">13번 닥터</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">자가치유</span>
                         </div>
-                        <div class="ctrl-agent-row ctrl-agent-active">
-                            <span class="ctrl-dot ctrl-dot-green"></span>
-                            <span class="ctrl-agent-name">11번 배포_배달이</span>
-                            <span class="ctrl-agent-task">알림 대기</span>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">14번 배달이</span>
+                            <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">배포</span>
                         </div>
                     </div>
                     <!-- AI 보안 관제실 -->
                     <div class="ctrl-dept">
                         <div class="ctrl-dept-title">🛡️ AI 실시간 보안 및 통제 관제실</div>
-                        <div class="ctrl-agent-row ctrl-agent-active">
-                            <span class="ctrl-dot ctrl-dot-green"></span>
-                            <span class="ctrl-agent-name">12번 보안통제_보안관</span>
-                            <span class="ctrl-agent-task">보안 정상</span>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">15번 보안관</span>
+                            <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">보안</span>
                         </div>
                     </div>
@@ -236,7 +255,7 @@
                         <div class="ctrl-dept-title">🧠 총지휘부</div>
                         <div class="ctrl-agent-row ctrl-agent-active">
                             <span class="ctrl-dot ctrl-dot-purple"></span>
-                            <span class="ctrl-agent-name">13번 (총괄) 오케스트레이터</span>
+                            <span class="ctrl-agent-name">16번 판다</span>
                             <span class="ctrl-agent-task">전체 지휘중</span>
                             <span class="ctrl-agent-tag ctrl-tag-purple">지휘</span>
                         </div>
