@@ -615,11 +615,11 @@ export default async function handler(req, res) {
             
             keyword = rotKeyword;
             // 지능형 로테이션 감사 로그 기록
-            await log(13, '오케스트레이터', 'info', `[지능형 로테이션] 데이터 취약성 분석 완료 ➔ 탐색 우선순위 선정 분야: "${keyword}"`, { selectedKeyword: keyword });
+            await log(16, '판다', 'info', `[지능형 로테이션] 데이터 취약성 분석 완료 ➔ 탐색 우선순위 선정 분야: "${keyword}"`, { selectedKeyword: keyword });
         }
 
         // [초기 에이전트 상태 설정]
-        await updateAgentStatus(rawUrl, supKey, 13, 'running', '파이프라인 실행 지휘 중');
+        await updateAgentStatus(rawUrl, supKey, 16, 'running', '파이프라인 실행 지휘 중');
         await updateAgentStatus(rawUrl, supKey, 1, 'running', '도서관정보나루 대출 인기작 수집 중');
         await updateAgentStatus(rawUrl, supKey, 2, 'idle', '대기중');
 
@@ -668,7 +668,7 @@ export default async function handler(req, res) {
 
         if (naruBooks.length === 0) {
             await updateAgentStatus(rawUrl, supKey, 1, 'success', '수집 결과 없음');
-            await updateAgentStatus(rawUrl, supKey, 13, 'success', '수집 결과 없어 종료');
+            await updateAgentStatus(rawUrl, supKey, 16, 'success', '수집 결과 없어 종료');
             return res.status(200).json({ success: true, message: '수집 결과 없음 — 파이프라인 종료', inserted: 0 });
         }
 
@@ -740,7 +740,7 @@ export default async function handler(req, res) {
 
         if (refined.length === 0) {
             await updateAgentStatus(rawUrl, supKey, 2, 'success', '정제 완료 (기준 미달)');
-            await updateAgentStatus(rawUrl, supKey, 13, 'success', '복간 후보 기준 미달로 종료');
+            await updateAgentStatus(rawUrl, supKey, 16, 'success', '복간 후보 기준 미달로 종료');
             return res.status(200).json({ success: true, message: '복간 후보 기준 미달 — DB 적재 없음', inserted: 0 });
         }
 
@@ -772,16 +772,16 @@ export default async function handler(req, res) {
 
         if (!upsertRes.ok) {
             const errText = await upsertRes.text();
-            await log(13, '오케스트레이터', 'error', `DB 적재 실패 (HTTP ${upsertRes.status}): ${errText.substring(0, 200)}`, {});
-            await updateAgentStatus(rawUrl, supKey, 13, 'error', 'DB 적재 실패');
+            await log(16, '판다', 'error', `DB 적재 실패 (HTTP ${upsertRes.status}): ${errText.substring(0, 200)}`, {});
+            await updateAgentStatus(rawUrl, supKey, 16, 'error', 'DB 적재 실패');
             return res.status(502).json({ error: 'Supabase 적재 실패', detail: errText.substring(0, 200) });
         }
 
-        await log(13, '오케스트레이터', 'success',
+        await log(16, '판다', 'success',
             `[역발상 파이프라인 v2 완료] 도서관정보나루(${naruBooks.length}건) → 알라딘 크로스체크 → ${uniqueRefined.length}건 DB 적재 (키워드: "${keyword}")`,
             { keyword, kdc, naruCollected: naruBooks.length, inserted: uniqueRefined.length, pipelineStartAt, isSimulated }
         );
-        await updateAgentStatus(rawUrl, supKey, 13, 'success', '역발상 파이프라인 v2 및 DB 적재 완료');
+        await updateAgentStatus(rawUrl, supKey, 16, 'success', '역발상 파이프라인 v2 및 DB 적재 완료');
 
         // 수요 온도 TOP3 요약 (응답용)
         const topByTemp = uniqueRefined
@@ -809,9 +809,9 @@ export default async function handler(req, res) {
 
     } catch (err) {
         const msg = err?.message ? String(err.message) : String(err);
-        await log(9, '눈치왕', 'error', `파이프라인 예외 발생: ${msg}`, {});
-        await updateAgentStatus(rawUrl, supKey, 13, 'error', '파이프라인 가동 에러');
-        await updateAgentStatus(rawUrl, supKey, 9, 'error', '시스템 예외 포착 및 대응 대기');
+        await log(12, '눈치왕', 'error', `파이프라인 예외 발생: ${msg}`, {});
+        await updateAgentStatus(rawUrl, supKey, 16, 'error', '파이프라인 가동 에러');
+        await updateAgentStatus(rawUrl, supKey, 12, 'error', '시스템 예외 포착 및 대응 대기');
         return res.status(500).json({ error: '파이프라인 내부 오류', detail: msg });
     }
 }
