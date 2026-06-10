@@ -33,6 +33,7 @@ function checkRateLimit(ip) {
 
 const ALADIN_API_KEY = process.env.ALADIN_API_KEY;
 const LIBRARY_NARU_API_KEY = process.env.LIBRARY_NARU_API_KEY;
+const LIBRARY_API_KEY = process.env.LIBRARY_API_KEY;
 
 // ============================================================
 // [대형 출판사 필터] 자체 증쇄 여력이 있는 대형사 제외
@@ -276,6 +277,12 @@ const FALLBACK_BY_CATEGORY = {
         { title: '노란집 초판', author: '김지수', isbn13: '9788960501242', pub_year: 2021, publisher: '시공사', loanCnt: 480, stockStatus: '절판' },
         { title: '인류에게 지는 법 초판', author: '신형철', isbn13: '9788960501243', pub_year: 2019, publisher: '난다', loanCnt: 500, stockStatus: '품절' },
     ],
+    '저작권 만료': [
+        { title: '사랑의 선물 (어린이 동화집)', author: '방정환', isbn13: '9791100000001', pub_year: 1922, publisher: '개벽사', loanCnt: 500, stockStatus: '절판', detail_link: 'https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=9022091' },
+        { title: '그림형제 동화선집', author: '그림 형제', isbn13: '9791100000002', pub_year: 1950, publisher: '한성도서', loanCnt: 450, stockStatus: '절판', detail_link: 'https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=9022092' },
+        { title: '어린이 독본', author: '방정환', isbn13: '9791100000003', pub_year: 1925, publisher: '어린이사', loanCnt: 480, stockStatus: '절판', detail_link: 'https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=9022093' },
+        { title: '바위나리와 아기별 (아동 동화)', author: '마해송', isbn13: '9791100000004', pub_year: 1923, publisher: '샛별사', loanCnt: 420, stockStatus: '절판', detail_link: 'https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=9022094' }
+    ],
     '미분류': [
         { title: '거의 모든 것의 역사 초판', author: '빌 브라이슨', isbn13: '9788999401234', pub_year: 2005, publisher: '까치글방', loanCnt: 580, stockStatus: '절판' },
         { title: '풍요로운 삶의 지혜 초판', author: '달라이 라마', isbn13: '9788999401235', pub_year: 2001, publisher: '공존', loanCnt: 460, stockStatus: '품절' },
@@ -288,9 +295,10 @@ const FALLBACK_BY_CATEGORY = {
 // 카테고리 키워드를 폴백 데이터 키로 매핑
 function resolveFallbackCategory(keyword) {
     const kw = String(keyword || '').trim();
+    if (kw.includes('저작권 만료') || kw.includes('public_domain')) return '저작권 만료';
     const candidates = [
         '소설', '인문학', '경제경영', '사회과학', '역사',
-        '과학', '예술', '자기계발', '종교', '어린이', '청소년', '에세이'
+        '과학', '예술', '자기계발', '종교', '어린이', '청소년', '에세이', '저작권 만료'
     ];
     for (const cat of candidates) {
         if (kw.includes(cat)) return cat;
@@ -387,6 +395,7 @@ function runDataRefiner_Dadumeui(rawBook) {
         author_status: authorStatus,
         estimated_royalty_rate: estimatedRoyaltyRate,
         category: category,
+        digital_archive_url: rawBook.digital_archive_url || rawBook.detail_link || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -439,6 +448,34 @@ async function updateAgentStatus(supabase_url, supabase_key, agentId, status, ro
             })
         });
     } catch (_) { /* 에이전트 상태 실패는 전체 가동 막지 않음 */ }
+}
+
+// ============================================================
+// [핵심 함수] 국립중앙도서관 오픈 API 호출 (search.do)
+// ============================================================
+async function fetchNationalLibraryBooks(apiKey, kwd, pageSize = 30) {
+    const params = new URLSearchParams({
+        key:         apiKey,
+        apiType:     'json',
+        category:    '도서',
+        kwd:         kwd,
+        pageNum:     '1',
+        pageSize:    String(pageSize),
+        displayType: 'detail'
+    });
+
+    const url = `https://www.nl.go.kr/NL/search/openApi/search.do?${params.toString()}`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Antigravity-SalPimi/2.0' } });
+
+    if (!res.ok) throw new Error(`국립중앙도서관 API HTTP ${res.status}`);
+
+    const data = await res.json();
+    const rawResults = data?.result ?? null;
+    const results = Array.isArray(rawResults)
+        ? rawResults
+        : (rawResults !== null && rawResults !== undefined ? [rawResults] : []);
+
+    return results;
 }
 
 // ============================================================
@@ -624,25 +661,113 @@ export default async function handler(req, res) {
         await updateAgentStatus(rawUrl, supKey, 2, 'idle', '대기중');
 
         // ================================================================
-        // [STEP 1] 1번 살피미 — 도서관정보나루 인기 대출 API 우선 호출
+        // [STEP 1] 1번 살피미 — 이원화 수집 채널 가동
         // ================================================================
-        const { kdc, label: kdcLabel } = resolveKdc(keyword);
-        await log(1, '살피미', 'info', `[역발상 파이프라인 v2] 도서관정보나루 인기 대출 수집 시작 — 키워드: "${keyword}" → KDC: ${kdc}(${kdcLabel})`, { keyword, kdc, kdcLabel });
-
         let naruBooks = [];
         let isSimulated = false;
+        let kdc = '8';
+        let kdcLabel = '소설';
+        const currentYear = new Date().getFullYear();
 
-        if (LIBRARY_NARU_API_KEY) {
-            try {
-                naruBooks = await fetchLibraryNaruLoanList(LIBRARY_NARU_API_KEY, kdc, 50);
-                await log(1, '살피미', 'success', `도서관정보나루 대출 인기작 ${naruBooks.length}건 수집 완료 (KDC: ${kdc})`, { count: naruBooks.length, kdc });
-            } catch (naruErr) {
+        const isCopyrightExpiredRequest = (keyword === '저작권 만료' || keyword === 'public_domain');
+
+        if (isCopyrightExpiredRequest) {
+            // [채널 2: 국립중앙도서관 API를 통한 저작권 만료 도서 발굴]
+            await log(1, '살피미', 'info', `[역발상 파이프라인 v2] 국립중앙도서관 API 기반 저작권 만료(유아/동화/어린이/그림책) 수집 시작 — 키워드: "${keyword}"`, { keyword });
+            
+            if (LIBRARY_API_KEY) {
+                try {
+                    // 유아, 동화, 어린이, 그림책 키워드 병렬 수집
+                    const searchKeywords = ['동화', '그림책', '어린이', '유아'];
+                    const fetchPromises = searchKeywords.map(async (searchKw) => {
+                        return await fetchNationalLibraryBooks(LIBRARY_API_KEY, searchKw, 30);
+                    });
+                    const resultsArrays = await Promise.all(fetchPromises);
+                    const mergedResults = [].concat(...resultsArrays);
+                    
+                    // 중복 및 정밀 필터링 적용
+                    const seenControlNos = new Set();
+                    
+                    naruBooks = mergedResults.map(item => {
+                        const title = item.titleInfo || item.title_info || item.title || '제목 미상';
+                        const author = item.author || item.authorInfo || item.author_info || '저자 미상';
+                        const publisher = item.publisher || item.pubInfo || item.pub_info || '출판사 미상';
+                        const pubYearStr = String(item.pubYear || item.pubYearInfo || item.pub_year_info || item.pub_year || '0');
+                        const isbn = item.isbn || item.isbnInfo || item.isbn_info || item.isbn13 || item.isbn_13 || '';
+                        const detailLink = item.detailLink || item.detail_link || '';
+                        const controlNo = item.controlNo || item.control_no || '';
+                        
+                        const pubYear = parseInt(pubYearStr.replace(/[^0-9]/g, ''), 10) || 0;
+                        
+                        return {
+                            isbn13: isbn.replace(/[^0-9X]/gi, ''),
+                            title,
+                            author,
+                            publisher,
+                            pub_year: String(pubYear),
+                            control_no: controlNo,
+                            detail_link: detailLink,
+                            category: '저작권 만료'
+                        };
+                    }).filter(book => {
+                        if (!book.isbn13 || book.isbn13.length < 10) return false;
+                        if (book.pub_year === '0') return false;
+                        
+                        const bookYear = parseInt(book.pub_year, 10);
+                        const age = currentYear - bookYear;
+                        
+                        // 1. 발행연도 70년 이상 경과 (1956년 이하)
+                        if (bookYear > 1956 || age < 70) return false;
+                        
+                        // 2. 유아/동화/어린이/그림책 관련 지능형/시맨틱 필터링
+                        const targetKeywords = ['동화', '그림책', '어린이', '유아', '유년', '방정환', '마해송', '아동', '동요', '소년'];
+                        const matchText = `${book.title} ${book.author} ${book.publisher}`.toLowerCase();
+                        const matchesKeyword = targetKeywords.some(kw => matchText.includes(kw));
+                        if (!matchesKeyword) return false;
+                        
+                        // 중복 제거 가드
+                        const uniqueKey = book.control_no || book.isbn13;
+                        if (seenControlNos.has(uniqueKey)) return false;
+                        seenControlNos.add(uniqueKey);
+                        
+                        return true;
+                    });
+                    
+                    // 각 도서별 역사성 가산 대출수 동적 산출
+                    naruBooks.forEach(b => {
+                        const bookYear = parseInt(b.pub_year, 10) || 1950;
+                        b.loanCnt = Math.min(700, 300 + (currentYear - bookYear) * 4);
+                    });
+                    
+                    await log(1, '살피미', 'success', `국립중앙도서관 저작권 만료 도서 ${naruBooks.length}건 필터링 수집 완료`, { count: naruBooks.length });
+                } catch (nlErr) {
+                    isSimulated = true;
+                    await log(1, '살피미', 'warn', `국립중앙도서관 API 실패 → 시뮬레이션 폴백 전환 (사유: ${nlErr.message})`, { reason: nlErr.message });
+                }
+            } else {
                 isSimulated = true;
-                await log(1, '살피미', 'warn', `도서관정보나루 API 실패 → 12개 카테고리 시뮬레이션 폴백 전환 (사유: ${naruErr.message})`, { reason: naruErr.message });
+                await log(1, '살피미', 'warn', `LIBRARY_API_KEY 미설정 → 저작권 만료 시뮬레이션 폴백 전환`, {});
             }
         } else {
-            isSimulated = true;
-            await log(1, '살피미', 'warn', `LIBRARY_NARU_API_KEY 미설정 → 시뮬레이션 폴백 전환`, {});
+            // [채널 1: B2B 인기 대출 수집]
+            const resolvedKdc = resolveKdc(keyword);
+            kdc = resolvedKdc.kdc;
+            kdcLabel = resolvedKdc.label;
+            
+            await log(1, '살피미', 'info', `[역발상 파이프라인 v2] 도서관정보나루 인기 대출 수집 시작 — 키워드: "${keyword}" → KDC: ${kdc}(${kdcLabel})`, { keyword, kdc, kdcLabel });
+            
+            if (LIBRARY_NARU_API_KEY) {
+                try {
+                    naruBooks = await fetchLibraryNaruLoanList(LIBRARY_NARU_API_KEY, kdc, 50);
+                    await log(1, '살피미', 'success', `도서관정보나루 대출 인기작 ${naruBooks.length}건 수집 완료 (KDC: ${kdc})`, { count: naruBooks.length, kdc });
+                } catch (naruErr) {
+                    isSimulated = true;
+                    await log(1, '살피미', 'warn', `도서관정보나루 API 실패 → 12개 카테고리 시뮬레이션 폴백 전환 (사유: ${naruErr.message})`, { reason: naruErr.message });
+                }
+            } else {
+                isSimulated = true;
+                await log(1, '살피미', 'warn', `LIBRARY_NARU_API_KEY 미설정 → 시뮬레이션 폴백 전환`, {});
+            }
         }
 
         // API 실패 또는 키 없음 → 시뮬레이션 폴백 데이터 사용
@@ -651,18 +776,28 @@ export default async function handler(req, res) {
             const fallbackCat = resolveFallbackCategory(keyword);
             const fallbackPool = FALLBACK_BY_CATEGORY[fallbackCat] || FALLBACK_BY_CATEGORY['미분류'];
             // 폴백 데이터를 naruBooks 형식으로 변환
-            naruBooks = fallbackPool.map(b => ({
-                isbn13:    b.isbn13,
-                title:     b.title,
-                author:    b.author,
-                publisher: b.publisher,
-                pub_year:  String(b.pub_year),
-                loanCnt:   b.loanCnt,
-                classNm:   '',
-                category:  fallbackCat, // 자율 카테고리 정보 동적 바인딩
-                // 폴백 데이터는 stockStatus가 이미 내장 → 알라딘 조회 스킵용
-                _prefetchedStockStatus: b.stockStatus
-            }));
+            naruBooks = fallbackPool.map(b => {
+                const bookYear = parseInt(b.pub_year, 10) || 1950;
+                // 저작권 만료 카테고리인 경우 역사성 가산 대출수 자동 연산 적용
+                const loanCount = (fallbackCat === '저작권 만료') 
+                    ? Math.min(700, 300 + (currentYear - bookYear) * 4) 
+                    : (b.loanCnt || 500);
+                
+                return {
+                    isbn13:    b.isbn13,
+                    title:     b.title,
+                    author:    b.author,
+                    publisher: b.publisher,
+                    pub_year:  String(b.pub_year),
+                    loanCnt:   loanCount,
+                    classNm:   '',
+                    category:  fallbackCat, // 자율 카테고리 정보 동적 바인딩
+                    detail_link: b.detail_link || '',
+                    control_no:  b.control_no || '',
+                    // 폴백 데이터는 stockStatus가 이미 내장 → 알라딘 조회 스킵용
+                    _prefetchedStockStatus: b.stockStatus
+                };
+            });
             await log(1, '살피미', 'info', `시뮬레이션 폴백: "${fallbackCat}" 카테고리 ${naruBooks.length}건 준비 완료`, { category: fallbackCat, count: naruBooks.length });
         }
 
