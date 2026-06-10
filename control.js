@@ -257,8 +257,13 @@ async function loadCtrlDashboard() {
             let latestQuery = _ctrl_supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false });
             
             if (category && category !== 'all') {
-                topQuery = topQuery.eq('category', category);
-                latestQuery = latestQuery.eq('category', category);
+                if (category === '저작권 만료' || category === 'public_domain') {
+                    topQuery = topQuery.eq('copyright_status', 'public_domain');
+                    latestQuery = latestQuery.eq('copyright_status', 'public_domain');
+                } else {
+                    topQuery = topQuery.eq('category', category);
+                    latestQuery = latestQuery.eq('category', category);
+                }
             }
             
             const [top3Res, latestRes] = await Promise.all([
@@ -291,7 +296,7 @@ async function loadCtrlDashboard() {
 // ───────────────────────────────────────────
 // 6. 에이전트 조직도 동적 렌더링
 // ───────────────────────────────────────────
-function renderCtrlAgentOrgTree(agents) {
+function renderCtrlAgentOrgTree(dbAgents) {
     const container = document.getElementById('ctrl-org-tree');
     if (!container) return;
 
@@ -302,29 +307,80 @@ function renderCtrlAgentOrgTree(agents) {
     };
 
     const nameMapping = {
-        1: '딥서치_살피미',
-        2: '데이터정제_다듬이',
-        3: '수익분석_계산이',
-        4: '조판_조판이',
-        5: '교정/교열_고치미',
-        6: 'VDP_이지퍼비터(ezpubitor)',
-        7: 'B2B영업_영업이',
-        8: '마케팅_알리미',
-        9: '에러감지_눈치왕',
-        10: '코드수정_닥터',
-        11: '배포_배달이',
-        12: '보안통제_보안관',
-        13: '(총괄) 오케스트레이터'
+        1: '살피미',
+        2: '다듬이',
+        3: '계산이',
+        4: '조판이',
+        5: '고치미',
+        6: '번역이',
+        7: '화가',
+        8: '이지퍼비터_POD',
+        9: '이지퍼비터_ePub',
+        10: '영업이',
+        11: '알리미',
+        12: '눈치왕',
+        13: '닥터',
+        14: '배달이',
+        15: '보안관',
+        16: '판다'
     };
 
     const tagMapping = {
         1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '교정',
-        6: '가변조판', 7: '영업', 8: '마케팅', 9: '감시', 10: '자가치유',
-        11: '배포', 12: '보안', 13: '지휘'
+        6: '번역', 7: '삽화', 8: 'POD인쇄', 9: '디지털컴파일',
+        10: '영업', 11: '마케팅', 12: '감시', 13: '자가치유',
+        14: '배포', 15: '보안', 16: '지휘'
     };
 
+    // 16대 표준 에이전트 목록 정의
+    const defaultAgentsList = [
+        { id: 1, name: '살피미', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 2, name: '다듬이', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 3, name: '계산이', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 4, name: '조판이', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 5, name: '고치미', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 6, name: '번역이', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 7, name: '화가', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 8, name: '이지퍼비터_POD', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 9, name: '이지퍼비터_ePub', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 10, name: '영업이', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 11, name: '알리미', department: 'Front', status: 'idle', role: '대기중' },
+        { id: 12, name: '눈치왕', department: 'Back', status: 'idle', role: '대기중' },
+        { id: 13, name: '닥터', department: 'Back', status: 'idle', role: '대기중' },
+        { id: 14, name: '배달이', department: 'Back', status: 'idle', role: '대기중' },
+        { id: 15, name: '보안관', department: 'Security', status: 'idle', role: '대기중' },
+        { id: 16, name: '판다', department: 'Security', status: 'idle', role: '대기중' }
+    ];
+
+    const mergedAgents = defaultAgentsList.map(def => {
+        let dbId = null;
+        if (def.id === 1) dbId = 1;
+        else if (def.id === 2) dbId = 2;
+        else if (def.id === 3) dbId = 3;
+        else if (def.id === 4) dbId = 4;
+        else if (def.id === 5) dbId = 5;
+        else if (def.id === 8) dbId = 6;
+        else if (def.id === 10) dbId = 7;
+        else if (def.id === 11) dbId = 8;
+        else if (def.id === 12) dbId = 9;
+        else if (def.id === 13) dbId = 10;
+        else if (def.id === 14) dbId = 11;
+        else if (def.id === 15) dbId = 12;
+        else if (def.id === 16) dbId = 13;
+
+        const dbMatch = dbId !== null ? dbAgents.find(a => a.id === dbId) : null;
+        if (dbMatch) {
+            return {
+                ...def,
+                status: dbMatch.status,
+                role: dbMatch.role
+            };
+        }
+        return def;
+    });
+
     const grouped = {};
-    agents.forEach(a => {
+    mergedAgents.forEach(a => {
         const dept = a.department || 'Etc';
         if (!grouped[dept]) grouped[dept] = [];
         grouped[dept].push(a);
@@ -337,7 +393,7 @@ function renderCtrlAgentOrgTree(agents) {
         const list = grouped[dKey];
         if (!list || list.length === 0) return;
 
-        const isOrch = list.some(a => a.id === 13);
+        const isOrch = list.some(a => a.id === 16);
         const title  = deptMapping[dKey] || `${dKey} 부서`;
 
         html += `<div class="ctrl-dept ${isOrch ? 'ctrl-dept-orch' : ''}">
@@ -349,7 +405,7 @@ function renderCtrlAgentOrgTree(agents) {
 
             if (agent.status === 'active' || agent.status === 'success') {
                 rowClass = 'ctrl-agent-active';
-                dotClass = agent.id === 13 ? 'ctrl-dot-purple' : 'ctrl-dot-green';
+                dotClass = agent.id === 16 ? 'ctrl-dot-purple' : 'ctrl-dot-green';
             } else if (agent.status === 'running' || agent.status === 'processing') {
                 rowClass = 'ctrl-agent-running';
                 dotClass = 'ctrl-dot-amber';
@@ -364,7 +420,7 @@ function renderCtrlAgentOrgTree(agents) {
             else if (agent.status === 'error' || agent.status === 'danger') taskText = '⚠️ 오류 발생';
 
             const tagText   = tagMapping[agent.id] || '에이전트';
-            const isPurple  = agent.id === 13;
+            const isPurple  = agent.id === 16;
 
             const agentName = nameMapping[agent.id] || agent.name;
             html += `
@@ -378,11 +434,6 @@ function renderCtrlAgentOrgTree(agents) {
 
         html += `</div>`;
     });
-
-    // 총지휘부가 따로 분리되는 경우 처리
-    if (!grouped['Security']?.some(a => a.id === 13) && !Object.values(grouped).flat().some(a => a.id === 13)) {
-        // 13번이 없는 경우 기본 유지
-    }
 
     container.innerHTML = html;
 }
@@ -411,6 +462,9 @@ function renderCtrlReprintCandidates(candidates) {
         const simulatedBadge = c.is_simulated
             ? `<span style="background:#f59e0b; color:#fff; font-size:9px; padding:1px 4.5px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.4);">통계 보정 중</span>`
             : '';
+        const publicDomainBadge = c.copyright_status === 'public_domain'
+            ? `<span style="background:#10b981; color:#fff; font-size:9px; padding:1px 4.5px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(16,185,129,0.4);">저작권 만료 | 인세 0%</span>`
+            : '';
 
         // 수요 온도 연산 및 라벨 매핑
         const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
@@ -435,7 +489,7 @@ function renderCtrlReprintCandidates(candidates) {
         <div class="ctrl-book-card ${rankClass}" onclick="ctrlStartSimByIndex(${i})" style="cursor:pointer;">
             <div class="ctrl-rank-badge">${rankEmojis[i]} ${i + 1}위</div>
             <div class="ctrl-book-info">
-                <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}</div>
+                <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}${publicDomainBadge}</div>
                 <div class="ctrl-book-meta" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
                     <span class="ctrl-temp-badge ${tempClass}">${tempEmoji} ${temp}℃ ${tempLabel}</span>
                     <span>${c.is_out_of_print ? '절판' : '일반'} · ${pubYear} · 대출 <strong>${loans}</strong>건</span>
@@ -471,6 +525,7 @@ function renderCtrlReprintFeed(latestCandidates) {
         '종교': 'background: rgba(20, 184, 166, 0.1); color: #0d9488; border: 1px solid rgba(20, 184, 166, 0.2);',
         '어린이': 'background: rgba(234, 179, 8, 0.1); color: #ca8a04; border: 1px solid rgba(234, 179, 8, 0.2);',
         '청소년': 'background: rgba(249, 115, 22, 0.1); color: #ea580c; border: 1px solid rgba(249, 115, 22, 0.2);',
+        '저작권 만료': 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);',
         '미분류': 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);'
     };
 
@@ -486,6 +541,9 @@ function renderCtrlReprintFeed(latestCandidates) {
         
         const simulatedBadge = c.is_simulated
             ? `<span style="background:#f59e0b; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.3); animation: pulse 1.5s infinite;">통계 보정 중</span>`
+            : '';
+        const publicDomainBadge = c.copyright_status === 'public_domain'
+            ? `<span style="background:#10b981; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(16,185,129,0.3);">저작권 만료 | 인세 0%</span>`
             : '';
 
         // 수요 온도 연산 및 라벨 매핑
@@ -511,6 +569,7 @@ function renderCtrlReprintFeed(latestCandidates) {
                     <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; ${catStyle}">${category}</span>
                     <span class="ctrl-temp-badge ${tempClass}" style="padding: 1px 6.5px; border-radius: 10px; font-size: 8px;">${tempEmoji} ${temp}℃</span>
                     ${simulatedBadge}
+                    ${publicDomainBadge}
                 </div>
                 <div style="font-size: 11px; font-weight: 700; color: var(--ctrl-text-main, #f1f5f9); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${title} (${author})</div>
                 <div style="font-size: 9px; color: var(--ctrl-text-mute, #64748b); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${pubYear} · ${publisher}</div>
@@ -550,7 +609,7 @@ function ctrlUpdateLocalAgentStatus(agentId, status, role) {
                 if (dot) { dot.className = 'ctrl-dot ctrl-dot-amber'; }
             } else if (status === 'success' || status === 'active') {
                 row.classList.add('ctrl-agent-active');
-                if (dot) { dot.className = agentId === 13 ? 'ctrl-dot ctrl-dot-purple' : 'ctrl-dot ctrl-dot-green'; }
+                if (dot) { dot.className = agentId === 16 ? 'ctrl-dot ctrl-dot-purple' : 'ctrl-dot ctrl-dot-green'; }
             } else if (status === 'error') {
                 row.classList.add('ctrl-agent-error');
                 if (dot) { dot.className = 'ctrl-dot ctrl-dot-rose'; }
