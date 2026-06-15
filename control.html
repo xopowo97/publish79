@@ -19,11 +19,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- 통제실 전용 스타일시트 (기존 style.css 절대 불러오지 않음) -->
-    <link rel="stylesheet" href="control.css">
+    <link rel="stylesheet" href="control.css?v=20260610c">
 
     <!-- 보안 체크: 최고 관리자(admin) 로그인 상태 확인 -->
     <script>
-        if (sessionStorage.getItem('isLoggedIn') !== 'true' || sessionStorage.getItem('userRole') !== 'admin') {
+        const role = sessionStorage.getItem('userRole');
+        if (sessionStorage.getItem('isLoggedIn') !== 'true' || (role !== 'admin' && role !== 'judge')) {
             alert('에이전트 통제실에 접근할 권한이 없습니다. 최고 관리자 계정으로 로그인해주세요.');
             window.location.href = 'index.html';
         }
@@ -70,7 +71,7 @@
                     <i data-lucide="external-link"></i>
                     <span>출판친구</span>
                 </a>
-                <button class="ctrl-nav-btn" onclick="triggerCtrlPipeline()">
+                <button id="ctrl-nav-btn-pipeline" class="ctrl-nav-btn">
                     <i data-lucide="play"></i>
                     <span>파이프라인</span>
                 </button>
@@ -121,7 +122,7 @@
                     <option value="어린이">어린이</option>
                     <option value="청소년">청소년</option>
                 </select>
-                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary" onclick="triggerCtrlPipeline()">
+                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary">
                     <i data-lucide="rocket"></i>
                     파이프라인 실행
                 </button>
@@ -130,7 +131,7 @@
                 <span id="ctrl-pipeline-status" class="ctrl-pipeline-status">
                     대기 중 — 버튼을 눌러 파이프라인을 가동하세요.
                 </span>
-                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash" onclick="toggleCtrlFlashlight()">
+                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash">
                     <i data-lucide="zap"></i>
                     플래시 라이트 모드 시연
                 </button>
@@ -189,19 +190,19 @@
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">7번 화가</span>
+                            <span class="ctrl-agent-name">7번 그림이</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">삽화</span>
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">8번 이지퍼비터_POD</span>
+                            <span class="ctrl-agent-name">8번 이지퍼비터POD</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">POD인쇄</span>
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">9번 이지퍼비터_ePub</span>
+                            <span class="ctrl-agent-name">9번 이지퍼비터epub3</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">디지털컴파일</span>
                         </div>
@@ -229,7 +230,7 @@
                         </div>
                         <div class="ctrl-agent-row ctrl-agent-idle">
                             <span class="ctrl-dot ctrl-dot-slate"></span>
-                            <span class="ctrl-agent-name">13번 닥터</span>
+                            <span class="ctrl-agent-name">13번 닥터k</span>
                             <span class="ctrl-agent-task">대기중</span>
                             <span class="ctrl-agent-tag">자가치유</span>
                         </div>
@@ -255,7 +256,7 @@
                         <div class="ctrl-dept-title">🧠 총지휘부</div>
                         <div class="ctrl-agent-row ctrl-agent-active">
                             <span class="ctrl-dot ctrl-dot-purple"></span>
-                            <span class="ctrl-agent-name">16번 판다</span>
+                            <span class="ctrl-agent-name">16번 팬더</span>
                             <span class="ctrl-agent-task">전체 지휘중</span>
                             <span class="ctrl-agent-tag ctrl-tag-purple">지휘</span>
                         </div>
@@ -272,7 +273,7 @@
                 </div>
 
                 <div class="ctrl-top3-list" id="ctrl-top3-list">
-                    <div class="ctrl-book-card ctrl-rank-1" onclick="ctrlStartSimByIndex(0)" style="cursor:pointer;">
+                    <div class="ctrl-book-card ctrl-rank-1" id="ctrl-book-rank-1" style="cursor:pointer;">
                         <div class="ctrl-rank-badge">🥇 1위</div>
                         <div class="ctrl-book-info">
                             <div class="ctrl-book-title">오래된 미래 (헬레나 노르베리-호지)</div>
@@ -280,7 +281,7 @@
                         </div>
                         <div class="ctrl-reprint-score">98<span>점</span></div>
                     </div>
-                    <div class="ctrl-book-card ctrl-rank-2" onclick="ctrlStartSimByIndex(1)" style="cursor:pointer;">
+                    <div class="ctrl-book-card ctrl-rank-2" id="ctrl-book-rank-2" style="cursor:pointer;">
                         <div class="ctrl-rank-badge">🥈 2위</div>
                         <div class="ctrl-book-info">
                             <div class="ctrl-book-title">탈학교의 사회 (이반 일리치)</div>
@@ -288,7 +289,7 @@
                         </div>
                         <div class="ctrl-reprint-score">95<span>점</span></div>
                     </div>
-                    <div class="ctrl-book-card ctrl-rank-3" onclick="ctrlStartSimByIndex(2)" style="cursor:pointer;">
+                    <div class="ctrl-book-card ctrl-rank-3" id="ctrl-book-rank-3" style="cursor:pointer;">
                         <div class="ctrl-rank-badge">🥉 3위</div>
                         <div class="ctrl-book-info">
                             <div class="ctrl-book-title">생각의 탄생 (루트번스타인)</div>
@@ -378,7 +379,7 @@
     <!-- JS에서 document.body.insertAdjacentHTML로 삽입 -->
 
     <!-- AI Helper (Antigravity) Agentic UI -->
-    <div id="ai-fab" class="ai-fab" onclick="toggleAIPanel()">
+    <div id="ai-fab" class="ai-fab">
         <i data-lucide="sparkles" class="w-8 h-8"></i>
     </div>
 
@@ -387,12 +388,12 @@
             <div class="ai-avatar">AG</div>
             <div class="flex-1 flex items-center gap-2">
                 <div class="text-sm font-black tracking-tight">Antigravity AI Helper</div>
-                <button onclick="triggerAIError('Manual Demo')"
+                <button id="ai-demo-btn"
                     class="text-[9px] bg-sky-800 text-sky-200 px-2 py-0.5 rounded-full hover:bg-sky-700 transition-all border border-sky-700/50">DEMO</button>
             </div>
             <div class="text-[10px] text-sky-400 font-bold uppercase tracking-widest block">Back Agent / Self-Healing
                 Mode</div>
-            <button onclick="toggleAIPanel()" class="text-slate-400 hover:text-white">
+            <button id="ai-close-btn" class="text-slate-400 hover:text-white">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -419,7 +420,7 @@
                         // Patching: Adding null-check for file input...<br>
                         // PR Created: "fix/file-upload-handler"
                     </div>
-                    <button onclick="simulateFix(event)"
+                    <button id="ai-patch-apply-btn"
                         class="w-full py-3 bg-sky-600 text-white rounded-xl text-xs font-black shadow-lg">
                         패치 자동 적용 및 서버 배포 승인
                     </button>
@@ -439,6 +440,6 @@
     </div>
 
     <!-- control.js (통제실 전용 스크립트) -->
-    <script src="control.js"></script>
+    <script src="control.js?v=20260610c"></script>
 </body>
 </html>
