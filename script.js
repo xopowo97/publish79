@@ -265,7 +265,7 @@ let MASTER = {
     orders: [],
     printers: [
         {
-            id: 'printer_master', name: '湲곕낯?몄뇙??, bizNum: '',
+            id: 'printer_master', name: '기본인쇄소', bizNum: '',
             addr: '', addrDetail: '', ceoName: '', bizType: '',
             managers: [
                 { name: '愿由ъ옄', tel: '', email: '', subPw: '1234', perms: ['prod', 'settle'] }
