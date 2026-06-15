@@ -1268,6 +1268,16 @@ function updateMenuVisibility(role) {
             if (el) el.style.display = 'none';
         });
     }
+
+    // 4. 공모전 심사위원(judge)인 경우 제어
+    if (role === 'judge') {
+        // 숨길 메뉴: 제작사양, 단가관리, 재고관리, 용지구매, 구인구직, 시스템설정
+        const toHide = ['btn-spec', 'btn-price', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
 }
 
 function showPage(p, isEdit = false) {
@@ -3142,10 +3152,42 @@ function renderRoleDashboard(count, qty, sales, filteredOrders) {
                 <div class="summary-value">${purchase.toLocaleString()}<small>원</small></div>
             </div>
         `;
+    } else if (role === 'judge') {
+        const purchase = computeTotalPurchase(ordersToCalculate);
+        const margin = sales - purchase;
+        const marginRate = sales > 0 ? ((margin / sales) * 100).toFixed(1) : 0;
+        const monthlyGoal = MASTER.monthlyGoal || 50000000;
+        const achievementRate = Math.min(((sales / monthlyGoal) * 100), 100).toFixed(1);
+
+        html = `
+            <div class="summary-card">
+                <span class="summary-label">조회 건수</span>
+                <div class="summary-value">${count.toLocaleString()}<small>건</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-blue">총 매출액 (출판사 청구액)</span>
+                <div class="summary-value text-blue">${sales.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-amber">총 매입액 (인쇄소 정산액)</span>
+                <div class="summary-value text-amber">${purchase.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card highlight">
+                <span class="summary-label">영업이익 / 수익률</span>
+                <div class="summary-value">${margin.toLocaleString()}<small>원 (${marginRate}%)</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">목표 달성률 (월 ${(monthlyGoal / 10000).toLocaleString()}만 기준)</span>
+                <div class="summary-value text-emerald">${achievementRate}<small>%</small></div>
+                <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-emerald-500 h-full" style="width: ${achievementRate}%"></div>
+                </div>
+            </div>
+        `;
     }
 
     container.innerHTML = html;
-    container.style.gridTemplateColumns = `repeat(${role === 'admin' ? 5 : 3}, 1fr)`;
+    container.style.gridTemplateColumns = `repeat(${(role === 'admin' || role === 'judge') ? 5 : 3}, 1fr)`;
 }
 
 function computeTotalPurchase(orders) {
