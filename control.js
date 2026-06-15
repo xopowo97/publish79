@@ -2244,6 +2244,30 @@ function startSecuritySheriffWatchdog() {
 // 24. AI Helper UI 이벤트 바인딩 및 초기 설정
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. 파이프라인 버튼 클릭 이벤트 연결
+    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
+    const navPipelineBtn = document.getElementById('ctrl-nav-btn-pipeline');
+    if (pipelineBtn) {
+        pipelineBtn.onclick = () => triggerCtrlPipeline(false);
+    }
+    if (navPipelineBtn) {
+        navPipelineBtn.onclick = () => triggerCtrlPipeline(false);
+    }
+
+    // 2. AI Helper 버튼 클릭 이벤트 연결
+    const fab = document.getElementById('ai-fab');
+    const closeBtn = document.getElementById('ai-close-btn');
+    const demoBtn = document.getElementById('ai-demo-btn');
+    if (fab) {
+        fab.onclick = toggleAIPanel;
+    }
+    if (closeBtn) {
+        closeBtn.onclick = toggleAIPanel;
+    }
+    if (demoBtn) {
+        demoBtn.onclick = () => triggerAIError('Manual Demo');
+    }
+
     const sendBtn = document.querySelector('.ai-send-btn');
     const aiInput = document.querySelector('.ai-input');
 
