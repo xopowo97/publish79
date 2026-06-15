@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // [1번 살피미 에이전트] 국립중앙도서관 딥서치 클라이언트 모듈
 // ============================================================
 // ⚠️ 중요: 이 함수는 절대 국립중앙도서관 API를 직접 호출하지 않습니다.
@@ -101,6 +101,33 @@ window.addEventListener('load', async () => {
 const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
     ? 'https://publish79.vercel.app/api/send-error' 
     : '/api/send-error';
+
+async function reportSystemError(errorData) {
+    try {
+        const payload = {
+            message: errorData.message,
+            filename: errorData.filename || '알 수 없음',
+            lineno: errorData.lineno || 0,
+            colno: errorData.colno || 0,
+            userId: errorData.userId || sessionStorage.getItem('userId') || 'system_agent_01',
+            userRole: errorData.userRole || sessionStorage.getItem('userRole') || 'agent',
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(ERROR_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok && typeof triggerSelfHealingPipeline === 'function') {
+            triggerSelfHealingPipeline(payload);
+        }
+    } catch (e) {
+        console.error("에러 모니터링 API 전송 실패:", e);
+    }
+}
 
 
 const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
@@ -373,30 +400,41 @@ ensureGradeData();
 async function initMaster() {
     // DB 연결 상태 표시 초기화
     const statusBadge = document.getElementById('db-status-badge');
+    const loginStatusBadge = document.getElementById('db-status-badge-login');
     const updateStatus = (status, msg, errorMsg = '') => {
-        if (!statusBadge) return;
-        if (status === 'loading') {
-            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700 text-[10px] font-black text-slate-400 mb-6';
-            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div><span class="status-text">ONLINE DB 연동 대기중</span>`;
-        } else if (status === 'success') {
-            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 shadow-sm mb-6';
-            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></div><span class="status-text">ONLINE DB 연결됨</span>`;
-        } else if (status === 'offline') {
-            statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 mb-6';
-            statusBadge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-amber-500"></div><span class="status-text">로컬 모드 (서버 데이터 없음)</span>`;
-        } else {
-            // 상세 오류 표시 디자인
-            statusBadge.className = 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 mb-6';
-            statusBadge.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <div class="status-dot w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                    <span class="status-text text-[10px] font-black text-rose-400">DB 연결 오류 (로컬 모드 전환)</span>
-                </div>
-                <div class="text-[9px] text-rose-300/70 font-medium leading-tight mt-0.5">
-                    ${errorMsg ? `Reason: ${errorMsg}` : '알 수 없는 연결 오류'}
-                </div>
-            `;
-        }
+        const badges = [statusBadge, loginStatusBadge].filter(Boolean);
+        badges.forEach(badge => {
+            const isLogin = (badge.id === 'db-status-badge-login');
+            if (status === 'loading') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-400 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700 text-[10px] font-black text-slate-400 mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div><span class="status-text">ONLINE DB 연동 대기중</span>`;
+            } else if (status === 'success') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-[10px] font-black text-emerald-700 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 shadow-sm mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></div><span class="status-text">ONLINE DB 연결됨</span>`;
+            } else if (status === 'offline') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-[10px] font-black text-amber-700 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-amber-500"></div><span class="status-text">로컬 모드 (서버 데이터 없음)</span>`;
+            } else {
+                badge.className = isLogin
+                    ? 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 mt-4 shadow-sm'
+                    : 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 mb-6';
+                badge.innerHTML = `
+                    <div class="flex items-center ${isLogin ? 'justify-center' : ''} gap-2">
+                        <div class="status-dot w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                        <span class="status-text text-[10px] font-black ${isLogin ? 'text-rose-700' : 'text-rose-400'}">DB 연결 오류 (로컬 모드 전환)</span>
+                    </div>
+                    <div class="text-[9px] ${isLogin ? 'text-rose-600/80' : 'text-rose-300/70'} font-medium leading-tight mt-0.5 ${isLogin ? 'text-center' : ''}">
+                        ${errorMsg ? `Reason: ${errorMsg}` : '알 수 없는 연결 오류'}
+                    </div>
+                `;
+            }
+        });
     };
 
     updateStatus('loading');
@@ -1562,7 +1600,7 @@ function selectOrderPublisher(name) {
 function updateManager(name) {
     const pubName = document.getElementById('order-pub-name').value;
     const partner = MASTER.partners.find(p => p.name === pubName);
-    const mgr = partner ? partner.managers.find(m => m.name === name) : null;
+    const mgr = (partner && partner.managers) ? partner.managers.find(m => m.name === name) : null;
 
     const data = mgr || { tel: "", email: "" };
     const telInput = document.getElementById('ord-mgr-tel');
@@ -4028,7 +4066,7 @@ function renderPartners() {
             <div class="name">
                 ${p.name} <span class="badge-partner">${p.grade}</span>
             </div>
-            <div class="info">ID: ${p.id} | 담당자: ${p.managers.length}명</div>
+            <div class="info">ID: ${p.id} | 담당자: ${(p.managers || []).length}명</div>
             <div class="btn-del-partner" onclick="deletePartner('${p.id}', event)">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </div>
@@ -4179,7 +4217,7 @@ function selectPartner(id) {
     const tbody = document.querySelector('#managerTable tbody');
     if (tbody) {
         tbody.innerHTML = '';
-        partner.managers.forEach(m => {
+        (partner.managers || []).forEach(m => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="text" class="input-partner" value="${m.name}"></td>
@@ -4329,7 +4367,7 @@ function renderPrintersMgmt() {
     listContainer.innerHTML = filtered.map(p => `
         <div class="partner-item relative group" data-id="${p.id}" onclick="selectPrinterMgmt('${p.id}')">
             <div class="name">${p.name}</div>
-            <div class="info">ID: ${p.id} | 담당자: ${p.managers.length}명</div>
+            <div class="info">ID: ${p.id} | 담당자: ${(p.managers || []).length}명</div>
             ${role === 'admin' ? `<div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all">
                 <button onclick="deletePrinter('${p.id}', event)" class="p-1.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -4406,7 +4444,7 @@ function selectPrinterMgmt(id) {
     // 담당자 테이블
     const tbody = document.getElementById('printerManagerTable').querySelector('tbody');
     tbody.innerHTML = '';
-    printer.managers.forEach((m, idx) => {
+    (printer.managers || []).forEach((m, idx) => {
         const tr = document.createElement('tr');
         const isSettle = m.perms && m.perms.includes('settle');
         const isProd = m.perms && m.perms.includes('prod');
@@ -5282,8 +5320,9 @@ function openProductModal(id = null) {
     const mgrSelect = document.getElementById('prod-manager');
     if (mgrSelect) {
         if (currentUserRole === 'publisher') {
-            const myPartner = MASTER.partners[0];
-            mgrSelect.innerHTML = myPartner.managers.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+            const userId = sessionStorage.getItem('userId');
+            const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+            mgrSelect.innerHTML = (myPartner && myPartner.managers || []).map(m => `<option value="${m.name}">${m.name}</option>`).join('');
         } else {
             mgrSelect.innerHTML = `<option value="관리자">관리자</option>`;
         }
@@ -7984,3 +8023,238 @@ window.closeSimulationModal = function() {
         setTimeout(() => modal.remove(), 300);
     }
 };
+
+// --- 프론트엔드 전역 예외 탐지기 (15번 보안관 & 13번 자가치유 연동) ---
+window.addEventListener('error', (event) => {
+    if (!event.filename || !event.filename.includes('script.js')) return;
+    const errorData = {
+        message: event.message || event.error?.message || 'Unknown Error',
+        filename: event.filename.split('/').pop(),
+        lineno: event.lineno,
+        colno: event.colno,
+        userId: sessionStorage.getItem('userId') || 'guest_user',
+        userRole: sessionStorage.getItem('userRole') || 'guest'
+    };
+    reportSystemError(errorData);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    try {
+        const reason = event.reason;
+        const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+        if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+            return;
+        }
+        if (reason && reason.stack && !reason.stack.includes('script.js')) {
+            return;
+        }
+        const errorData = {
+            message: 'Unhandled Rejection: ' + reasonMsg,
+            filename: 'Promise / Async Call (script.js)',
+            lineno: 0,
+            userId: sessionStorage.getItem('userId') || 'guest_user',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        };
+        reportSystemError(errorData);
+    } catch (e) {
+        console.error('[unhandledrejection handler] script.js 내부 오류:', e);
+    }
+});
+
+// --- AI 헬퍼 및 자가치유 시뮬레이터 연동 모듈 (script.js 버전) ---
+window.toggleAIPanel = function () {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    if (!panel || !fab) return;
+
+    panel.classList.toggle('active');
+    if (panel.classList.contains('active')) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    } else {
+        fab.classList.remove('active');
+        fab.style.opacity = '1';
+        fab.style.pointerEvents = 'all';
+    }
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+};
+
+function showAIPanelOnError() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+
+    if (panel) panel.classList.add('active');
+    if (fab) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    }
+    if (agentAction) agentAction.classList.remove('hidden');
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+}
+
+window.triggerAIError = function (testName = 'Manual Demo') {
+    try {
+        console.log("테스트 에러를 인위적으로 발생시킵니다.");
+        const err = new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+        reportSystemError({
+            message: err.message,
+            filename: 'script.js',
+            lineno: 105,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'guest_user',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        });
+        showAIPanelOnError();
+    } catch (e) {
+        console.error('[triggerAIError] 내부 오류:', e);
+    }
+};
+
+window.simulateFix = function (eventOrNull, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeIn 0.4s ease; align-self:flex-start; max-width:100%; width:100%;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 배포_배달이] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+    chatContent.appendChild(doneCard);
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+};
+
+async function triggerSelfHealingPipeline(payload) {
+    const agentAction = document.getElementById('ai-agent-action');
+    if (!agentAction) return;
+
+    agentAction.classList.remove('hidden');
+    agentAction.innerHTML = `
+        <div class="ai-msg ai-msg-bot">
+            🚨 **시스템 에러 감지!**<br>
+            9번 에러감지_눈치왕이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 코드수정_닥터 에이전트를 긴급 호출합니다.
+        </div>
+        <div class="ai-action-card">
+            <div class="ai-status-pulse">
+                <div class="pulse-dot"></div>
+                <span id="self-heal-status-text">10번 코드수정_닥터(자가치유) 코딩 엔진 가동 중...</span>
+            </div>
+            <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
+                // 분석 컨텍스트 격리 수행 중...<br>
+                // 오류 분석 및 치료 패치 생성 대기...
+            </div>
+            <button id="self-heal-submit-btn" disabled
+                class="w-full py-3 bg-slate-400 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed">
+                배포 승인 대기 중
+            </button>
+        </div>
+    `;
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+
+    try {
+        const res = await fetch(ERROR_API_ENDPOINT.replace('send-error', 'self-heal'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const codeBlock = document.getElementById('self-heal-code-block');
+        const statusText = document.getElementById('self-heal-status-text');
+        const btn = document.getElementById('self-heal-submit-btn');
+
+        if (res.ok) {
+            const data = await res.json();
+            statusText.innerText = "10번 코드수정_닥터 코드 보정 완료 (12번 보안통제_보안관 통과)";
+
+            let logHtml = `// 🛠️ [10번 코드수정_닥터 에이전트 수정 내역]\n`;
+            logHtml += `// 설명: ${data.explanation}\n\n`;
+            logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
+            logHtml += `// [Git CLI 로그]\n`;
+            data.gitLog.forEach(log => {
+                logHtml += `> ${log}\n`;
+            });
+            logHtml += `\n🔗 PR Link: ${data.prUrl}`;
+
+            codeBlock.innerHTML = logHtml;
+            btn.className = "w-full py-3 bg-amber-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center gap-2";
+            btn.innerText = "⏳ 대표님 모바일 승인 대기 중 (거버넌스 락)";
+            btn.disabled = true;
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(ERROR_API_ENDPOINT.replace('send-error', `deploy-status?pr=${data.prBranch}`));
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'APPROVED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.style.color = "#10b981";
+                            btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
+                            simulateFix(null, data.prUrl);
+                        } else if (statusData.status === 'REJECTED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.style.color = "#ef4444";
+                            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
+                            codeBlock.style.background = "#fff5f5";
+                            codeBlock.style.color = "#991b1b";
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 코드수정_닥터의 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("배포 상태 폴링 오류:", err);
+                }
+            }, 2000);
+
+        } else {
+            const errorData = await res.json();
+            statusText.innerText = "❌ 12번 보안통제_보안관 검증 반려 (배포 중단)";
+            statusText.style.color = "#ef4444";
+            codeBlock.style.background = "#fff5f5";
+            codeBlock.style.color = "#991b1b";
+            codeBlock.style.borderColor = "#fecaca";
+            codeBlock.innerText = `[보안 감사 로그]\n${errorData.message || '패치 생성 과정에 오류가 발생했습니다.'}`;
+            btn.innerText = "보안 규격 미달로 배포 승인 차단됨";
+            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+        }
+    } catch (e) {
+        console.error("자가치유 엔진 호출 실패:", e);
+    }
+}
