@@ -1600,7 +1600,7 @@ html, body {
 }
 
 /* DEMO Button Styling */
-.ai-header button[onclick*="triggerAIError"] {
+.ai-header button#ai-demo-btn {
     font-size: 9px !important;
     font-weight: 700 !important;
     background-color: #075985 !important; /* bg-sky-800 */
@@ -1614,12 +1614,12 @@ html, body {
     line-height: 1.2 !important;
 }
 
-.ai-header button[onclick*="triggerAIError"]:hover {
+.ai-header button#ai-demo-btn:hover {
     background-color: #0369a1 !important; /* hover:bg-sky-700 */
 }
 
 /* Sub-label Styling */
-.ai-header div[class*="text-[10px]"],
+div[class*="text-[10px]"],
 .ai-header .text-sky-400 {
     font-size: 9px !important;
     color: #38bdf8 !important; /* text-sky-400 */
@@ -1634,7 +1634,7 @@ html, body {
 }
 
 /* Close Button Styling */
-.ai-header button[onclick*="toggleAIPanel"] {
+.ai-header button#ai-close-btn {
     color: #94a3b8 !important;
     transition: color 0.2s ease !important;
     display: flex !important;
@@ -1642,7 +1642,7 @@ html, body {
     justify-content: center !important;
 }
 
-.ai-header button[onclick*="toggleAIPanel"]:hover {
+.ai-header button#ai-close-btn:hover {
     color: #ffffff !important;
 }
 
