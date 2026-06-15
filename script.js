@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // [1번 살피미 에이전트] 국립중앙도서관 딥서치 클라이언트 모듈
 // ============================================================
 // ⚠️ 중요: 이 함수는 절대 국립중앙도서관 API를 직접 호출하지 않습니다.
@@ -238,10 +238,10 @@ let MASTER = {
     orders: [],
     printers: [
         {
-            id: 'printer_master', name: '기본인쇄소', bizNum: '',
+            id: 'printer_master', name: '湲곕낯?몄뇙??, bizNum: '',
             addr: '', addrDetail: '', ceoName: '', bizType: '',
             managers: [
-                { name: '관리자', tel: '', email: '', subPw: '1234', perms: ['prod', 'settle'] }
+                { name: '愿由ъ옄', tel: '', email: '', subPw: '1234', perms: ['prod', 'settle'] }
             ]
         }
     ],
@@ -268,6 +268,7 @@ function handleLogin() {
         };
     }
 
+    if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id); return; }
     if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) { enterApp('admin', id); return; }
     if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) { enterApp('publisher', id); return; }
     if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) { enterApp('printer', id); return; }
@@ -299,6 +300,11 @@ function enterApp(role, userId) {
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     if (userId) sessionStorage.setItem('userId', userId);
+
+    if (role === 'judge') {
+        window.location.href = 'control.html';
+        return;
+    }
 
     const overlay = document.getElementById('login-overlay');
     if (overlay) overlay.style.opacity = '0';
@@ -3378,7 +3384,8 @@ function applyRoleVisibility() {
         admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'],
         publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production'],
         printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
-        printer_worker: ['btn-production'] // 작업자는 생산진행만 가능
+        printer_worker: ['btn-production'],
+        judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 작업자는 생산진행만 가능
     };
 
     const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'];
