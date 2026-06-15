@@ -300,135 +300,130 @@ function renderCtrlAgentOrgTree(dbAgents) {
     const container = document.getElementById('ctrl-org-tree');
     if (!container) return;
 
-    const deptMapping = {
-        'Front': '📡 가치 창출 및 자율 서비스 본부',
-        'Back': '⚙️ 인프라 엔진 및 행정 지원 본부',
-        'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
+    const dbMapping = {
+        1: 1,   // 살피미
+        2: 2,   // 다듬이
+        3: 3,   // 계산이
+        4: 4,   // 조판이
+        5: 5,   // 고치미
+        8: 6,   // 이지퍼비터POD
+        10: 7,  // 영업이
+        11: 8,  // 알리미
+        12: 9,  // 눈치왕
+        13: 10, // 닥터
+        14: 11, // 배달이
+        15: 12, // 보안관
+        16: 13  // 판다
     };
 
-    const nameMapping = {
-        1: '살피미',
-        2: '다듬이',
-        3: '계산이',
-        4: '조판이',
-        5: '고치미',
-        6: '번역이',
-        7: '화가',
-        8: '이지퍼비터_POD',
-        9: '이지퍼비터_ePub',
-        10: '영업이',
-        11: '알리미',
-        12: '눈치왕',
-        13: '닥터',
-        14: '배달이',
-        15: '보안관',
-        16: '판다'
+    const getAgentState = (id) => {
+        const dbId = dbMapping[id];
+        const match = dbId !== undefined ? dbAgents.find(a => a.id === dbId) : null;
+        if (match) {
+            return { status: match.status || 'idle', role: match.role || '대기중' };
+        }
+        return { status: 'idle', role: '대기중' };
     };
 
-    const tagMapping = {
-        1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '교정',
-        6: '번역', 7: '삽화', 8: 'POD인쇄', 9: '디지털컴파일',
-        10: '영업', 11: '마케팅', 12: '감시', 13: '자가치유',
-        14: '배포', 15: '보안', 16: '지휘'
-    };
-
-    // 16대 표준 에이전트 목록 정의
-    const defaultAgentsList = [
-        { id: 1, name: '살피미', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 2, name: '다듬이', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 3, name: '계산이', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 4, name: '조판이', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 5, name: '고치미', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 6, name: '번역이', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 7, name: '화가', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 8, name: '이지퍼비터_POD', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 9, name: '이지퍼비터_ePub', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 10, name: '영업이', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 11, name: '알리미', department: 'Front', status: 'idle', role: '대기중' },
-        { id: 12, name: '눈치왕', department: 'Back', status: 'idle', role: '대기중' },
-        { id: 13, name: '닥터', department: 'Back', status: 'idle', role: '대기중' },
-        { id: 14, name: '배달이', department: 'Back', status: 'idle', role: '대기중' },
-        { id: 15, name: '보안관', department: 'Security', status: 'idle', role: '대기중' },
-        { id: 16, name: '판다', department: 'Security', status: 'idle', role: '대기중' }
+    const departments = [
+        {
+            title: "🏢 [종이책 복간 POD 사업부]",
+            desc: "오프라인 종이책의 최적화 소량 생산을 전담하는 라인입니다.",
+            agents: [
+                { id: 1, name: "살피미", tag: "빅데이터 수집", cond: "" },
+                { id: 2, name: "다듬이", tag: "서지 표준 정제", cond: "" },
+                { id: 3, name: "계산이", tag: "원가/BEP 계산", cond: "" },
+                { id: 5, name: "고치미", tag: "교정교열", cond: "가동/우회" },
+                { id: 6, name: "번역이", tag: "원서 번역", cond: "가동/우회" },
+                { id: 4, name: "조판이", tag: "인쇄용 PDF 뼈대 빌드", cond: "가동/우회" },
+                { id: 7, name: "그림이", tag: "본문 삽화/표지 디자인", cond: "가동/우회" },
+                { id: 8, name: "이지퍼비터_POD", tag: "인쇄 규격 PDF 컴파일", cond: "필수 가동" },
+                { id: 10, name: "영업이", tag: "계약/B2B 제안", cond: "" },
+                { id: 11, name: "알리미", tag: "홍보 및 예약 펀딩 개설", cond: "" }
+            ]
+        },
+        {
+            title: "📱 [디지털 ePub 사업부]",
+            desc: "모바일/태블릿 환경에 맞는 인터랙티브 가변형 전자책을 생성하는 라인입니다.",
+            agents: [
+                { id: 1, name: "살피미", tag: "디지털 수요 분석", cond: "" },
+                { id: 2, name: "다듬이", tag: "포맷 전처리", cond: "" },
+                { id: 3, name: "계산이", tag: "유통 수수료 및 마진 계산", cond: "" },
+                { id: 5, name: "고치미", tag: "전자책 리더 가독성 교정", cond: "필수 가동" },
+                { id: 6, name: "번역이", tag: "다국어 번역", cond: "필수 가동" },
+                { id: 4, name: "조판이", tag: "가변 레이아웃 HTML 조판", cond: "필수 가동" },
+                { id: 7, name: "그림이", tag: "모바일 표지/인터랙티브 일러스트", cond: "필수 가동" },
+                { id: 9, name: "이지퍼비터_ePub", tag: "EPUB3 멀티미디어 컴파일", cond: "필수 가동" },
+                { id: 10, name: "영업이", tag: "대형 온라인 서점 유통 등록 대행", cond: "" },
+                { id: 11, name: "알리미", tag: "SNS 신간 마케팅 및 배포", cond: "" }
+            ]
+        },
+        {
+            title: "⚙️ [공통 인프라 및 자율 운영본부]",
+            desc: "시스템 감시, 자가 치유 및 보안을 제어합니다.",
+            agents: [
+                { id: 12, name: "눈치왕", tag: "시스템 감시", cond: "24시간 감시" },
+                { id: 13, name: "닥터", tag: "자가 치유", cond: "자동 복구 패치" },
+                { id: 14, name: "배달이", tag: "자율 배포", cond: "무중단 배포" },
+                { id: 15, name: "보안관", tag: "실시간 보안관제", cond: "보안 통제" }
+            ]
+        },
+        {
+            title: "🧠 [총지휘부]",
+            desc: "대표자의 비즈니스 결정을 모방 학습합니다.",
+            agents: [
+                { id: 16, name: "판다", tag: "최고의사결정(CEO Clone)", cond: "전체 지휘" }
+            ]
+        }
     ];
 
-    const mergedAgents = defaultAgentsList.map(def => {
-        let dbId = null;
-        if (def.id === 1) dbId = 1;
-        else if (def.id === 2) dbId = 2;
-        else if (def.id === 3) dbId = 3;
-        else if (def.id === 4) dbId = 4;
-        else if (def.id === 5) dbId = 5;
-        else if (def.id === 8) dbId = 6;
-        else if (def.id === 10) dbId = 7;
-        else if (def.id === 11) dbId = 8;
-        else if (def.id === 12) dbId = 9;
-        else if (def.id === 13) dbId = 10;
-        else if (def.id === 14) dbId = 11;
-        else if (def.id === 15) dbId = 12;
-        else if (def.id === 16) dbId = 13;
-
-        const dbMatch = dbId !== null ? dbAgents.find(a => a.id === dbId) : null;
-        if (dbMatch) {
-            return {
-                ...def,
-                status: dbMatch.status,
-                role: dbMatch.role
-            };
-        }
-        return def;
-    });
-
-    const grouped = {};
-    mergedAgents.forEach(a => {
-        const dept = a.department || 'Etc';
-        if (!grouped[dept]) grouped[dept] = [];
-        grouped[dept].push(a);
-    });
-
-    const deptOrder = ['Front', 'Back', 'Security', 'Etc'];
     let html = '';
 
-    deptOrder.forEach(dKey => {
-        const list = grouped[dKey];
-        if (!list || list.length === 0) return;
+    departments.forEach(dept => {
+        const isOrch = dept.title.includes("총지휘부");
+        html += `<div class="ctrl-dept ${isOrch ? 'ctrl-dept-orch' : ''}" style="margin-bottom: 15px;">
+            <div class="ctrl-dept-title" style="font-size: 11px; font-weight: 800; color: var(--ctrl-text); margin-bottom: 4px;">\${dept.title}</div>
+            <div class="ctrl-dept-desc" style="font-size: 11px; color: var(--ctrl-text-mute); margin-bottom: 10px; line-height: 1.4;">\${dept.desc}</div>`;
 
-        const isOrch = list.some(a => a.id === 16);
-        const title = deptMapping[dKey] || `${dKey} 부서`;
-
-        html += `<div class="ctrl-dept ${isOrch ? 'ctrl-dept-orch' : ''}">
-            <div class="ctrl-dept-title">${title}</div>`;
-
-        list.forEach(agent => {
+        dept.agents.forEach(agent => {
+            const state = getAgentState(agent.id);
             let rowClass = 'ctrl-agent-idle';
             let dotClass = 'ctrl-dot-slate';
 
-            if (agent.status === 'active' || agent.status === 'success') {
+            if (state.status === 'active' || state.status === 'success') {
                 rowClass = 'ctrl-agent-active';
                 dotClass = agent.id === 16 ? 'ctrl-dot-purple' : 'ctrl-dot-green';
-            } else if (agent.status === 'running' || agent.status === 'processing') {
+            } else if (state.status === 'running' || state.status === 'processing') {
                 rowClass = 'ctrl-agent-running';
                 dotClass = 'ctrl-dot-amber';
-            } else if (agent.status === 'error' || agent.status === 'danger') {
+            } else if (state.status === 'error' || state.status === 'danger') {
                 rowClass = 'ctrl-agent-error';
                 dotClass = 'ctrl-dot-rose';
             }
 
             let taskText = '대기중';
-            if (agent.status === 'running' || agent.status === 'processing') taskText = agent.role || '작동중';
-            else if (agent.status === 'active' || agent.status === 'success') taskText = agent.role || '조치 완료';
-            else if (agent.status === 'error' || agent.status === 'danger') taskText = '⚠️ 오류 발생';
+            if (state.status === 'running' || state.status === 'processing') {
+                taskText = state.role || '작동중';
+            } else if (state.status === 'active' || state.status === 'success') {
+                taskText = state.role || '조치 완료';
+            } else if (state.status === 'error' || state.status === 'danger') {
+                taskText = '오류 발생';
+            }
 
-            const tagText = tagMapping[agent.id] || '에이전트';
+            const condTag = agent.cond ? `<span class="ctrl-agent-cond" style="font-size: 9px; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--ctrl-text-sub); margin-right: 6px;">\${agent.cond}</span>` : '';
             const isPurple = agent.id === 16;
 
-            const agentName = nameMapping[agent.id] || agent.name;
             html += `
-            <div class="ctrl-agent-row ${rowClass}">
-                <span class="ctrl-dot ${dotClass}"></span>
-                <span class="ctrl-agent-name">${agent.id}번 ${agentName}</span>
-                <span class="ctrl-agent-task">${taskText}</span>
-                <span class="ctrl-agent-tag ${isPurple ? 'ctrl-tag-purple' : ''}">${tagText}</span>
+            <div class="ctrl-agent-row \${rowClass}" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="ctrl-dot \${dotClass}"></span>
+                    <span class="ctrl-agent-name" style="font-weight: 600;">\${agent.id}번 \${agent.name}</span>
+                    <span class="ctrl-agent-task" style="font-size: 11px; color: var(--ctrl-text-sub); margin-left: 6px;">(\${taskText})</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    \${condTag}
+                    <span class="ctrl-agent-tag \${isPurple ? 'ctrl-tag-purple' : ''}" style="font-size: 10px; font-weight: bold;">\${agent.tag}</span>
+                </div>
             </div>`;
         });
 
@@ -437,6 +432,7 @@ function renderCtrlAgentOrgTree(dbAgents) {
 
     container.innerHTML = html;
 }
+
 
 // ───────────────────────────────────────────
 // 7. 복간 후보 TOP3 동적 렌더링
