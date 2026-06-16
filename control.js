@@ -887,6 +887,7 @@ async function triggerCtrlPipeline(isRetry = false) {
 
     if (!isRetry) {
         _ctrl_pipeline_retry_count = 0; // 최초 수동 가동 시 카운터 초기화
+        resetEpubViewer();             // 신규 파이프라인 가동 시 ePub 뷰어 및 낭독 모드 강제 리셋 (헬퍼창 가드 해제)
     }
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg> 실행 중...'; }
@@ -2437,6 +2438,35 @@ window.ctrlStartSimByIndex = function ctrlStartSimByIndex(index) {
         startCtrlSimByBookData(book);
     }
 };
+
+// ═══════════════════════════════════════════════════
+// [NEW] ePub3 가상 뷰어 리셋 및 낭독 중지 헬퍼
+// ═══════════════════════════════════════════════════
+function resetEpubViewer() {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    _epubSpeechPlaying = false;
+    _epubWordSpans = [];
+    _epubCurrentWordIdx = -1;
+    _epubAudioProgress = 0;
+    if (_epubAudioTimer) { clearInterval(_epubAudioTimer); _epubAudioTimer = null; }
+
+    viewer.innerHTML = `
+        <div class="ctrl-epub-idle">
+            <i data-lucide="book-open" style="width:32px;height:32px;opacity:0.3;"></i>
+            <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러가 이 곳에서 실행됩니다.</p>
+        </div>`;
+
+    _ctrl_epubViewerActive = false;
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+}
 
 // ═══════════════════════════════════════════════════
 // [UPDATED] ePub3 가상 뷰어 렌더링 — Web Speech API 오디오 리더기
