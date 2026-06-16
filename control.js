@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // control.js — 에이전트 통제실 전용 스크립트
 // ⚠️  이 파일은 index.html / script.js / style.css를
 //     절대 수정하거나 의존하지 않습니다.
@@ -382,8 +382,8 @@ function renderCtrlAgentOrgTree(dbAgents) {
     departments.forEach(dept => {
         const isOrch = dept.title.includes("총지휘부");
         html += `<div class="ctrl-dept ${isOrch ? 'ctrl-dept-orch' : ''}" style="margin-bottom: 15px;">
-            <div class="ctrl-dept-title" style="font-size: 11px; font-weight: 800; color: var(--ctrl-text); margin-bottom: 4px;">\${dept.title}</div>
-            <div class="ctrl-dept-desc" style="font-size: 11px; color: var(--ctrl-text-mute); margin-bottom: 10px; line-height: 1.4;">\${dept.desc}</div>`;
+            <div class="ctrl-dept-title" style="font-size: 11px; font-weight: 800; color: var(--ctrl-text); margin-bottom: 4px;">${dept.title}</div>
+            <div class="ctrl-dept-desc" style="font-size: 11px; color: var(--ctrl-text-mute); margin-bottom: 10px; line-height: 1.4;">${dept.desc}</div>`;
 
         dept.agents.forEach(agent => {
             const state = getAgentState(agent.id);
@@ -410,19 +410,19 @@ function renderCtrlAgentOrgTree(dbAgents) {
                 taskText = '오류 발생';
             }
 
-            const condTag = agent.cond ? `<span class="ctrl-agent-cond" style="font-size: 9px; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--ctrl-text-sub); margin-right: 6px;">\${agent.cond}</span>` : '';
+            const condTag = agent.cond ? `<span class="ctrl-agent-cond" style="font-size: 9px; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--ctrl-text-sub); margin-right: 6px;">${agent.cond}</span>` : '';
             const isPurple = agent.id === 16;
 
             html += `
-            <div class="ctrl-agent-row \${rowClass}" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <div class="ctrl-agent-row ${rowClass}" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="ctrl-dot \${dotClass}"></span>
-                    <span class="ctrl-agent-name" style="font-weight: 600;">\${agent.id}번 \${agent.name}</span>
-                    <span class="ctrl-agent-task" style="font-size: 11px; color: var(--ctrl-text-sub); margin-left: 6px;">(\${taskText})</span>
+                    <span class="ctrl-dot ${dotClass}"></span>
+                    <span class="ctrl-agent-name" style="font-weight: 600;">${agent.id}번 ${agent.name}</span>
+                    <span class="ctrl-agent-task" style="font-size: 11px; color: var(--ctrl-text-sub); margin-left: 6px;">(${taskText})</span>
                 </div>
                 <div style="display: flex; align-items: center;">
-                    \${condTag}
-                    <span class="ctrl-agent-tag \${isPurple ? 'ctrl-tag-purple' : ''}" style="font-size: 10px; font-weight: bold;">\${agent.tag}</span>
+                    ${condTag}
+                    <span class="ctrl-agent-tag ${isPurple ? 'ctrl-tag-purple' : ''}" style="font-size: 10px; font-weight: bold;">${agent.tag}</span>
                 </div>
             </div>`;
         });
@@ -2244,6 +2244,30 @@ function startSecuritySheriffWatchdog() {
 // 24. AI Helper UI 이벤트 바인딩 및 초기 설정
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. 파이프라인 버튼 클릭 이벤트 연결
+    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
+    const navPipelineBtn = document.getElementById('ctrl-nav-btn-pipeline');
+    if (pipelineBtn) {
+        pipelineBtn.onclick = () => triggerCtrlPipeline(false);
+    }
+    if (navPipelineBtn) {
+        navPipelineBtn.onclick = () => triggerCtrlPipeline(false);
+    }
+
+    // 2. AI Helper 버튼 클릭 이벤트 연결
+    const fab = document.getElementById('ai-fab');
+    const closeBtn = document.getElementById('ai-close-btn');
+    const demoBtn = document.getElementById('ai-demo-btn');
+    if (fab) {
+        fab.onclick = toggleAIPanel;
+    }
+    if (closeBtn) {
+        closeBtn.onclick = toggleAIPanel;
+    }
+    if (demoBtn) {
+        demoBtn.onclick = () => triggerAIError('Manual Demo');
+    }
+
     const sendBtn = document.querySelector('.ai-send-btn');
     const aiInput = document.querySelector('.ai-input');
 
