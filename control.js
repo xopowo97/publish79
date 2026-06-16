@@ -58,16 +58,33 @@ let _ctrl_simBook = null;
 let _ctrl_simSpecs = null;
 let _ctrl_approvedSpec = null;
 
+// ePub 뷰어 모드 플래그 — true 동안 종이책 헬퍼 알림 차단
+let _ctrl_epubViewerActive = false;
+
 // ───────────────────────────────────────────
 // 2. 초기화 진입점
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
-    try {
-        initCtrlTrendChart();
-    } catch (e) {
-        console.warn('[통제실] 차트 초기화 실패:', e);
-    }
+    initOrgAccordion();           // 조직도 수직 아코디언 초기화
+
+    // ── 헬퍼창 닫기버튼 — 이벤트 위임 방식으로 확실하게 연결 ──
+    document.addEventListener('click', (e) => {
+        const closeBtn = e.target.closest('#ai-close-btn');
+        if (closeBtn) {
+            e.stopPropagation();
+            const panel = document.getElementById('ai-panel');
+            if (panel) panel.classList.remove('active');
+            const fab = document.getElementById('ai-fab');
+            if (fab) {
+                // 대표님이 승인하기 전까지는 헬퍼창을 그냥 닫아도 노란색 골드 펄스(pulse-gold)가 꺼지지 않고 유지되도록 처리
+                fab.classList.remove('active');
+                fab.style.opacity = '1';
+                fab.style.pointerEvents = 'all';
+            }
+        }
+    }, true); // useCapture=true で最優先
+
     loadCtrlDashboard();
     startCtrlLogStream();
     try {
@@ -78,6 +95,58 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[통제실] Lucide 아이콘 초기화 실패:', e);
     }
 
+    // 파이프라인 버튼 이벤트 연결
+    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
+    if (pipelineBtn) {
+        pipelineBtn.addEventListener('click', () => triggerCtrlPipeline(false));
+    }
+    const flashBtn = document.getElementById('ctrl-btn-flashlight');
+    if (flashBtn) {
+        flashBtn.addEventListener('click', () => toggleCtrlFlashlight());
+    }
+    const pipelineNavBtn = document.getElementById('ctrl-nav-btn-pipeline');
+    if (pipelineNavBtn) {
+        pipelineNavBtn.addEventListener('click', () => triggerCtrlPipeline(false));
+    }
+
+    // AI Helper FAB 이벤트 (단 한번만 등록)
+    const aiFab = document.getElementById('ai-fab');
+    if (aiFab) {
+        aiFab.addEventListener('click', () => toggleAIPanel());
+    }
+
+    const demoBtn = document.getElementById('ai-demo-btn');
+    if (demoBtn) {
+        demoBtn.addEventListener('click', () => triggerAIError('Manual Demo'));
+    }
+
+    const sendBtn = document.querySelector('.ai-send-btn');
+    const aiInput = document.querySelector('.ai-input');
+
+    if (sendBtn) {
+        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        sendBtn.onclick = function () {
+            if (!aiInput || !aiInput.value.trim()) return;
+            const chatContent = document.getElementById('ai-chat-content');
+            if (!chatContent) return;
+
+            const userMsg = document.createElement('div');
+            userMsg.className = 'ai-msg ai-msg-user';
+            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
+            userMsg.textContent = aiInput.value.trim();
+            chatContent.appendChild(userMsg);
+
+            aiInput.value = '';
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+        };
+
+        if (aiInput) {
+            aiInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendBtn.click();
+            });
+        }
+    }
+
     // 분야 드롭다운 변경 시 실시간 필터 갱신 연동
     const kwInput = document.getElementById('ctrl-keyword-input');
     if (kwInput) {
@@ -85,6 +154,49 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCtrlDashboard();
         });
     }
+
+    // 에러 리스너 등록
+    window.addEventListener('error', (event) => {
+        if (!event.filename || !event.filename.includes('control.js')) return;
+        const errorData = {
+            message: event.message || event.error?.message || 'Unknown Error',
+            filename: event.filename.split('/').pop(),
+            lineno: event.lineno,
+            colno: event.colno,
+            userId: sessionStorage.getItem('userId') || 'admin_control',
+            userRole: sessionStorage.getItem('userRole') || 'admin'
+        };
+        reportSystemError(errorData);
+        showAIPanelOnError();
+    });
+
+    // 비동기 에러 리스너
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            const reason = event.reason;
+            const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+            if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+                return;
+            }
+            if (reason && reason.stack && !reason.stack.includes('control.js')) {
+                return;
+            }
+            const errorData = {
+                message: 'Unhandled Rejection: ' + reasonMsg,
+                filename: 'Promise / Async Call',
+                lineno: 0,
+                userId: sessionStorage.getItem('userId') || 'admin_control',
+                userRole: sessionStorage.getItem('userRole') || 'admin'
+            };
+            reportSystemError(errorData);
+            showAIPanelOnError();
+        } catch (e) {
+            console.error('[unhandledrejection handler] 내부 오류:', e);
+        }
+    });
+
+    // 보안관 스캔 백그라운드 구동 시작
+    startSecuritySheriffWatchdog();
 });
 
 // ───────────────────────────────────────────
@@ -381,9 +493,16 @@ function renderCtrlAgentOrgTree(dbAgents) {
 
     departments.forEach(dept => {
         const isOrch = dept.title.includes("총지휘부");
-        html += `<div class="ctrl-dept ${isOrch ? 'ctrl-dept-orch' : ''}" style="margin-bottom: 15px;">
-            <div class="ctrl-dept-title" style="font-size: 11px; font-weight: 800; color: var(--ctrl-text); margin-bottom: 4px;">${dept.title}</div>
-            <div class="ctrl-dept-desc" style="font-size: 11px; color: var(--ctrl-text-mute); margin-bottom: 10px; line-height: 1.4;">${dept.desc}</div>`;
+        const sectionClass = isOrch ? 'org-accordion-section org-dept-orch' : 'org-accordion-section';
+
+        html += `<div class="${sectionClass}">
+            <div class="org-accordion-header" aria-expanded="false">
+                <span class="org-accordion-title">${dept.title}</span>
+                <svg class="org-accordion-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="org-accordion-body">
+                <div class="org-accordion-desc">${dept.desc}</div>
+                <div class="org-accordion-content">`;
 
         dept.agents.forEach(agent => {
             const state = getAgentState(agent.id);
@@ -410,27 +529,28 @@ function renderCtrlAgentOrgTree(dbAgents) {
                 taskText = '오류 발생';
             }
 
-            const condTag = agent.cond ? `<span class="ctrl-agent-cond" style="font-size: 9px; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--ctrl-text-sub); margin-right: 6px;">${agent.cond}</span>` : '';
+            const condTag = agent.cond
+                ? `<span class="ctrl-agent-cond" style="font-size:9px;padding:2px 5px;background:rgba(255,255,255,0.05);border-radius:4px;color:var(--ctrl-text-sub);margin-right:4px;">${agent.cond}</span>`
+                : '';
             const isPurple = agent.id === 16;
 
             html += `
-            <div class="ctrl-agent-row ${rowClass}" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="ctrl-dot ${dotClass}"></span>
-                    <span class="ctrl-agent-name" style="font-weight: 600;">${agent.id}번 ${agent.name}</span>
-                    <span class="ctrl-agent-task" style="font-size: 11px; color: var(--ctrl-text-sub); margin-left: 6px;">(${taskText})</span>
-                </div>
-                <div style="display: flex; align-items: center;">
-                    ${condTag}
-                    <span class="ctrl-agent-tag ${isPurple ? 'ctrl-tag-purple' : ''}" style="font-size: 10px; font-weight: bold;">${agent.tag}</span>
-                </div>
+            <div class="ctrl-agent-row ${rowClass}">
+                <span class="ctrl-dot ${dotClass}"></span>
+                <span class="ctrl-agent-name">${agent.id}번 ${agent.name}</span>
+                <span class="ctrl-agent-task">(${taskText})</span>
+                ${condTag}
+                <span class="ctrl-agent-tag ${isPurple ? 'ctrl-tag-purple' : ''}" style="font-size:9px;">${agent.tag}</span>
             </div>`;
         });
 
-        html += `</div>`;
+        html += `</div></div></div>`;
     });
 
     container.innerHTML = html;
+
+    // 아코디언 이벤트 바인딩 (DOM 재생성 후 재연결)
+    setupAccordionEvents();
 }
 
 
@@ -767,6 +887,7 @@ async function triggerCtrlPipeline(isRetry = false) {
 
     if (!isRetry) {
         _ctrl_pipeline_retry_count = 0; // 최초 수동 가동 시 카운터 초기화
+        resetEpubViewer();             // 신규 파이프라인 가동 시 ePub 뷰어 및 낭독 모드 강제 리셋 (헬퍼창 가드 해제)
     }
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg> 실행 중...'; }
@@ -875,9 +996,14 @@ async function triggerCtrlPipeline(isRetry = false) {
 // ───────────────────────────────────────────
 function triggerOrchestratorRecommendation() {
     if (!_ctrl_candidates || _ctrl_candidates.length === 0) return;
+    // ePub 뷰어 모드 중에는 종이책 복간 제안 카드 표시 차단
+    if (_ctrl_epubViewerActive) return;
 
     // Supabase에서 reprint_score desc 정렬되어 오므로 첫 번째 도서가 항상 최고 점수
     const topBook = _ctrl_candidates[0];
+
+    // 저작권 만료 도서(public_domain)인 경우 종이책 복간 제안 카드 표시 차단
+    if (topBook.copyright_status === 'public_domain') return;
 
     const cleanTitle = (topBook.title || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (topBook.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
@@ -962,6 +1088,12 @@ function triggerOrchestratorRecommendation() {
  *   · 따라서 신국판 + qty < 50 조합에서는 A5 전환 시 면당 33.3% 절감
  */
 function checkPrintCostOptimization(bookData, printQty) {
+    // ePub 뷰어 모드 중에는 종이책 원가 최적화 제안 차단
+    if (_ctrl_epubViewerActive) return;
+
+    // 저작권 만료 도서인 경우 종이책 인쇄 원가 최적화 제안 차단
+    if (bookData && bookData.copyright_status === 'public_domain') return;
+
     // 기본 부수 미입력 시 소량 대표값 30부 적용
     const qty = (typeof printQty === 'number' && printQty > 0) ? printQty : 30;
 
@@ -2241,102 +2373,386 @@ function startSecuritySheriffWatchdog() {
 }
 
 // ───────────────────────────────────────────
-// 24. AI Helper UI 이벤트 바인딩 및 초기 설정
+// 24. AI Helper UI 이벤트 바인딩 및 초기 설정 (중복 제거 완료 - 상단 통합됨)
 // ───────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. 파이프라인 버튼 클릭 이벤트 연결
-    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
-    const navPipelineBtn = document.getElementById('ctrl-nav-btn-pipeline');
-    if (pipelineBtn) {
-        pipelineBtn.onclick = () => triggerCtrlPipeline(false);
+
+// ═══════════════════════════════════════════════════
+// [NEW] 조직도 사업부별 수직 아코디언
+// ═══════════════════════════════════════════════════
+function initOrgAccordion() {
+    // JS에서 renderCtrlAgentOrgTree()가 아코디언 HTML을 동적 생성하므로
+    // 여기서는 정적 HTML org-tree 내에 기존 .ctrl-dept 형식으로 있는 경우도 커버.
+    // 실제 아코디언 이벤트는 renderCtrlAgentOrgTree() 혹은 아래 setupAccordionEvents()에서 처리.
+    setupAccordionEvents();
+}
+
+/**
+ * .ctrl-org-tree 내부의 .org-accordion-section 헤더에
+ * 클릭 이벤트를 바인딩한다.
+ * renderCtrlAgentOrgTree() 가 DOM을 새로 그린 뒤에도 호출되어야 함.
+ */
+function setupAccordionEvents() {
+    const tree = document.getElementById('ctrl-org-tree');
+    if (!tree) return;
+
+    const isMobile = () => window.innerWidth <= 768;
+
+    // 기존 리스너 중복 방지를 위해 새 헤더만 바인딩
+    tree.querySelectorAll('.org-accordion-header').forEach(header => {
+        if (header._accordionBound) return;
+        header._accordionBound = true;
+
+        header.addEventListener('click', () => {
+            const section = header.closest('.org-accordion-section');
+            if (!section) return;
+
+            const isOrch = section.classList.contains('org-dept-orch');
+            // 총지휘부는 항상 열린 상태 유지
+            if (isOrch && section.classList.contains('is-open')) return;
+
+            const isNowOpen = section.classList.toggle('is-open');
+            header.setAttribute('aria-expanded', String(isNowOpen));
+        });
+    });
+
+    // 초기 상태: PC는 모든 섹션 펼침 / 모바일은 총지휘부만 펼침
+    tree.querySelectorAll('.org-accordion-section').forEach(section => {
+        if (!section._accordionInitialized) {
+            section._accordionInitialized = true;
+            const isOrch = section.classList.contains('org-dept-orch');
+            if (!isMobile() || isOrch) {
+                section.classList.add('is-open');
+                const header = section.querySelector('.org-accordion-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════
+// [NEW] TOP3 클릭 시 저작권 만료 도서 → ePub 뷰어 분기
+//       일반 도서 → 기존 시뮬레이션 모달
+// ═══════════════════════════════════════════════════
+window.ctrlStartSimByIndex = function ctrlStartSimByIndex(index) {
+    const book = _ctrl_candidates[index];
+    if (!book) return;
+
+    // 저작권 만료 도서(public_domain)인 경우 ePub 뷰어 실행
+    if (book.copyright_status === 'public_domain') {
+        renderEpubViewer(book);
+    } else {
+        startCtrlSimByBookData(book);
     }
-    if (navPipelineBtn) {
-        navPipelineBtn.onclick = () => triggerCtrlPipeline(false);
+};
+
+// ═══════════════════════════════════════════════════
+// [NEW] ePub3 가상 뷰어 리셋 및 낭독 중지 헬퍼
+// ═══════════════════════════════════════════════════
+function resetEpubViewer() {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    _epubSpeechPlaying = false;
+    _epubWordSpans = [];
+    _epubCurrentWordIdx = -1;
+    _epubAudioProgress = 0;
+    if (_epubAudioTimer) { clearInterval(_epubAudioTimer); _epubAudioTimer = null; }
+
+    viewer.innerHTML = `
+        <div class="ctrl-epub-idle">
+            <i data-lucide="book-open" style="width:32px;height:32px;opacity:0.3;"></i>
+            <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러가 이 곳에서 실행됩니다.</p>
+        </div>`;
+
+    _ctrl_epubViewerActive = false;
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+}
+
+// ═══════════════════════════════════════════════════
+// [UPDATED] ePub3 가상 뷰어 렌더링 — Web Speech API 오디오 리더기
+// ═══════════════════════════════════════════════════
+let _epubSpeechUtterance = null;
+let _epubSpeechPlaying = false;
+let _epubWordSpans = [];
+let _epubCurrentWordIdx = -1;
+let _epubAudioProgress = 0;
+let _epubAudioTimer = null;
+
+function renderEpubViewer(book) {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    // ePub 모드 플래그 ON — 종이책 헬퍼 알림 차단
+    _ctrl_epubViewerActive = true;
+
+    // 기존 음성 즉시 중지
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    _epubSpeechPlaying = false;
+    _epubWordSpans = [];
+    _epubCurrentWordIdx = -1;
+    _epubAudioProgress = 0;
+    if (_epubAudioTimer) { clearInterval(_epubAudioTimer); _epubAudioTimer = null; }
+
+    const title = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '');
+    const author = (book.author || '저자 미상').replace(/<\/?[^>]+(>|$)/g, '');
+
+    // ── ePub3 상품 카드 데이터 ──
+    const products = [
+        {
+            name: 'Interactive ePub3',
+            desc: '서두 번역 + AI 삽화 + 오디오북 탑재',
+            price: '8,000',
+            royalty: '0.0%',
+            cost: '500원',
+            costDetail: 'DeepL 번역 150원 + TTS 합성 250원 + AI 삽화 70원 + CDN 30원',
+            margin: '92%',
+            badge: 'BEST RECOMMEND',
+            badgeColor: 'linear-gradient(135deg,#a855f7,#0ea5e9)',
+            marginColor: '#a855f7'
+        },
+        {
+            name: '텍스트 전용 ePub',
+            desc: 'AI 교정 + 기본 조판',
+            price: '4,000',
+            royalty: '0.0%',
+            cost: '150원',
+            costDetail: '기본 번역 API 100원 + ePub3 컴파일 30원 + CDN 20원',
+            margin: '88%',
+            badge: null,
+            badgeColor: null,
+            marginColor: '#10b981'
+        },
+        {
+            name: 'B2G 도서관 멀티라이선스',
+            desc: '멀티라이선스 패키지 (공공도서관)',
+            price: '25,000',
+            royalty: '0.0%',
+            cost: '500원',
+            costDetail: 'DRM 암호화 200원 + KORMARC 변환 150원 + PDF 컴파일 100원 + 행정 50원',
+            margin: '95%',
+            badge: null,
+            badgeColor: null,
+            marginColor: '#f59e0b'
+        }
+    ];
+
+    // 샘플 본문: 어절 단위 <span class="epub-word">으로 분리
+    const sampleRaw = `제1장 살아있는 미래의 가능성 오늘날 우리는 발전이라는 이름 아래 무엇을 잃어가고 있는지 진지하게 물어야 한다. 라다크의 작은 마을에서 헬레나가 목격한 것은, 근대화 이전 공동체가 가졌던 풍요로운 시간이었다. 그것은 결핍이 아닌, 자족의 아름다움이었다. 우리는 그 공동체로부터 잃어버린 지혜를 다시 배워야 한다.`;
+
+    const words = sampleRaw.split(/\s+/);
+    const bodyHTML = words.map((w, i) =>
+        `<span class="epub-word" data-idx="${i}">${w}</span>`
+    ).join(' ');
+
+    viewer.innerHTML = `
+        <div class="ctrl-epub-cover">
+            <div class="ctrl-epub-cover-bg">
+                <div>
+                    <div class="ctrl-epub-cover-title">📖 ${title}</div>
+                    <div class="ctrl-epub-cover-author">${author}</div>
+                </div>
+            </div>
+        </div>
+        <div class="ctrl-epub-badges">
+            <span class="ctrl-epub-badge ctrl-epub-badge-epub">ePub3</span>
+            <span class="ctrl-epub-badge ctrl-epub-badge-audio">🎧 오디오북</span>
+            <span class="ctrl-epub-badge ctrl-epub-badge-ai">🎨 AI 삽화</span>
+            <span style="font-size:8px;font-weight:800;padding:2px 7px;border-radius:999px;background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);">인세 0%</span>
+            <span style="font-size:8px;font-weight:800;padding:2px 7px;border-radius:999px;background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.25);">SAMPLE PREVIEW</span>
+        </div>
+        <div class="ctrl-epub-body-panel" id="epub-body-panel" style="line-height:2.0;">${bodyHTML}</div>
+        <div class="ctrl-epub-audio-bar">
+            <button class="ctrl-epub-audio-play" id="epub-audio-play-btn" title="오디오북 재생/정지">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <div class="ctrl-epub-audio-track">
+                <div class="ctrl-epub-audio-label" id="epub-audio-label">🎧 AI 나레이션 — 제1장 · 살아있는 미래의 가능성</div>
+                <div class="ctrl-epub-audio-progress">
+                    <div class="ctrl-epub-audio-fill" id="epub-audio-fill"></div>
+                </div>
+            </div>
+            <span style="font-size:9px;font-weight:700;color:var(--ctrl-text-mute);flex-shrink:0;" id="epub-audio-time">0:00</span>
+        </div>
+        <div style="padding:12px 14px 14px;">
+            <div style="font-size:9px;font-weight:900;color:var(--ctrl-text-mute);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">📦 ePub3 상품 선택 — 저작권 만료 인세 0%</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+                ${products.map((p, idx) => `
+                <div style="background:var(--ctrl-bg-card);border:1px solid ${idx===0?'rgba(168,85,247,0.4)':'var(--ctrl-border)'};border-radius:10px;padding:10px 12px;position:relative;${idx===0?'box-shadow:0 0 0 1px rgba(168,85,247,0.2),0 4px 12px rgba(168,85,247,0.1);':''}">
+                    ${p.badge ? `<div style="position:absolute;top:-9px;left:12px;background:${p.badgeColor};color:#fff;font-size:8px;font-weight:900;padding:2px 8px;border-radius:999px;white-space:nowrap;letter-spacing:0.04em;">${p.badge}</div>` : ''}
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                        <div>
+                            <div style="font-size:11px;font-weight:900;color:var(--ctrl-text);">${p.name}</div>
+                            <div style="font-size:9px;color:var(--ctrl-text-mute);margin-top:2px;">${p.desc}</div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <div style="font-size:14px;font-weight:900;color:#f59e0b;">₩${p.price}</div>
+                            <div style="font-size:8px;font-weight:700;color:var(--ctrl-text-mute);">판매가</div>
+                        </div>
+                    </div>
+                    <div style="font-size:9px;color:var(--ctrl-text-mute);margin-bottom:3px;">💰 가공원가: <strong style="color:#fbbf24;">${p.cost}</strong></div>
+                    <div style="font-size:8px;color:var(--ctrl-text-mute);margin-bottom:6px;line-height:1.5;opacity:0.75;">${p.costDetail}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:6px;padding:5px 8px;">
+                        <span style="font-size:9px;color:#10b981;font-weight:800;">인세 ${p.royalty}</span>
+                        <span style="font-size:9px;color:var(--ctrl-text-mute);font-weight:700;">예상 마진율</span>
+                        <span style="font-family:var(--font-mono);font-size:14px;font-weight:900;color:${p.marginColor};">${p.margin}</span>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+    `;
+
+    // ── Web Speech API 연동 ──
+    const playBtn = document.getElementById('epub-audio-play-btn');
+    const fillEl = document.getElementById('epub-audio-fill');
+    const timeEl = document.getElementById('epub-audio-time');
+    const labelEl = document.getElementById('epub-audio-label');
+    const bodyPanel = document.getElementById('epub-body-panel');
+
+    // 어절 span 캐싱
+    _epubWordSpans = bodyPanel ? Array.from(bodyPanel.querySelectorAll('.epub-word')) : [];
+    const totalWords = _epubWordSpans.length;
+
+    const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    const PAUSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+
+    function clearHighlights() {
+        _epubWordSpans.forEach(s => s.classList.remove('highlight'));
     }
 
-    // 2. AI Helper 버튼 클릭 이벤트 연결
-    const fab = document.getElementById('ai-fab');
-    const closeBtn = document.getElementById('ai-close-btn');
-    const demoBtn = document.getElementById('ai-demo-btn');
-    if (fab) {
-        fab.onclick = toggleAIPanel;
-    }
-    if (closeBtn) {
-        closeBtn.onclick = toggleAIPanel;
-    }
-    if (demoBtn) {
-        demoBtn.onclick = () => triggerAIError('Manual Demo');
-    }
-
-    const sendBtn = document.querySelector('.ai-send-btn');
-    const aiInput = document.querySelector('.ai-input');
-
-    if (sendBtn) {
-        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        sendBtn.onclick = function () {
-            if (!aiInput || !aiInput.value.trim()) return;
-            const chatContent = document.getElementById('ai-chat-content');
-            if (!chatContent) return;
-
-            const userMsg = document.createElement('div');
-            userMsg.className = 'ai-msg ai-msg-user';
-            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
-            userMsg.textContent = aiInput.value.trim();
-            chatContent.appendChild(userMsg);
-
-            aiInput.value = '';
-            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
-        };
-
-        if (aiInput) {
-            aiInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendBtn.click();
-            });
+    function highlightWord(idx) {
+        clearHighlights();
+        if (idx >= 0 && idx < _epubWordSpans.length) {
+            _epubWordSpans[idx].classList.add('highlight');
+            _epubWordSpans[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
     }
 
-    // 에러 리스너 등록
-    window.addEventListener('error', (event) => {
-        // control.js에서 발생한 에러만 포착 (CORS/외부 CDN/확장프로그램/빈 파일명 에러 무시)
-        if (!event.filename || !event.filename.includes('control.js')) return;
-        const errorData = {
-            message: event.message || event.error?.message || 'Unknown Error',
-            filename: event.filename.split('/').pop(),
-            lineno: event.lineno,
-            colno: event.colno,
-            userId: sessionStorage.getItem('userId') || 'admin_control',
-            userRole: sessionStorage.getItem('userRole') || 'admin'
-        };
-        reportSystemError(errorData);
-        showAIPanelOnError();
-    });
+    function stopSpeech() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        _epubSpeechPlaying = false;
+        clearHighlights();
+        _epubCurrentWordIdx = -1;
+        if (playBtn) playBtn.innerHTML = PLAY_ICON;
+        if (labelEl) labelEl.textContent = '🎧 AI 나레이션 — 제1장 · 살아있는 미래의 가능성';
+        if (_epubAudioTimer) { clearInterval(_epubAudioTimer); _epubAudioTimer = null; }
+    }
 
-    // 비동기 에러 리스너
-    window.addEventListener('unhandledrejection', (event) => {
-        try {
-            const reason = event.reason;
-            const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
-            if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
-                return;
+    function startSpeech() {
+        if (!window.speechSynthesis) {
+            if (labelEl) labelEl.textContent = '⚠️ 이 브라우저는 Web Speech API를 지원하지 않습니다.';
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+
+        const utter = new SpeechSynthesisUtterance(sampleRaw);
+        utter.lang = 'ko-KR';
+        utter.rate = 0.92;
+        utter.pitch = 1.0;
+
+        // 한국어 음성 선택
+        const voices = window.speechSynthesis.getVoices();
+        const koVoice = voices.find(v => v.lang.startsWith('ko'));
+        if (koVoice) utter.voice = koVoice;
+
+        _epubSpeechUtterance = utter;
+        _epubCurrentWordIdx = -1;
+
+        // 단어 경계 이벤트로 하이라이트 싱크
+        utter.onboundary = (event) => {
+            if (event.name === 'word') {
+                const charIdx = event.charIndex;
+                // charIndex 기준으로 몇 번째 어절인지 계산
+                let runningLen = 0;
+                for (let i = 0; i < words.length; i++) {
+                    if (charIdx <= runningLen + words[i].length) {
+                        if (_epubCurrentWordIdx !== i) {
+                            _epubCurrentWordIdx = i;
+                            highlightWord(i);
+                            // 프로그레스 바 연동
+                            const pct = Math.round((i / Math.max(totalWords - 1, 1)) * 100);
+                            _epubAudioProgress = pct;
+                            if (fillEl) fillEl.style.width = pct + '%';
+                            // 타임 표시 (총 약 60초 기준 가상)
+                            const elapsed = Math.round((pct / 100) * 60);
+                            const m = Math.floor(elapsed / 60);
+                            const s = elapsed % 60;
+                            if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+                        }
+                        break;
+                    }
+                    runningLen += words[i].length + 1;
+                }
             }
-            // 외부 promise rejection 무시 (control.js 스택을 포함한 경우만 에러 포착)
-            if (reason && reason.stack && !reason.stack.includes('control.js')) {
-                return;
+        };
+
+        utter.onend = () => {
+            _epubSpeechPlaying = false;
+            clearHighlights();
+            if (fillEl) fillEl.style.width = '100%';
+            if (timeEl) timeEl.textContent = '1:00';
+            if (playBtn) playBtn.innerHTML = PLAY_ICON;
+            if (labelEl) labelEl.textContent = '✅ 낭독 완료 — 재생 버튼으로 다시 들을 수 있습니다.';
+        };
+
+        utter.onerror = (e) => {
+            if (e.error === 'interrupted' || e.error === 'canceled') return;
+            console.warn('[ePub TTS] 오류:', e.error);
+        };
+
+        window.speechSynthesis.speak(utter);
+        _epubSpeechPlaying = true;
+
+        if (playBtn) playBtn.innerHTML = PAUSE_ICON;
+        if (labelEl) labelEl.textContent = '🔊 낭독 중 — 제1장 · 살아있는 미래의 가능성';
+    }
+
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            if (_epubSpeechPlaying) {
+                stopSpeech();
+            } else {
+                // 음성 목록 로드 대기 후 실행
+                if (window.speechSynthesis && window.speechSynthesis.getVoices().length === 0) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        window.speechSynthesis.onvoiceschanged = null;
+                        startSpeech();
+                    };
+                } else {
+                    startSpeech();
+                }
             }
-            const errorData = {
-                message: 'Unhandled Rejection: ' + reasonMsg,
-                filename: 'Promise / Async Call',
-                lineno: 0,
-                userId: sessionStorage.getItem('userId') || 'admin_control',
-                userRole: sessionStorage.getItem('userRole') || 'admin'
-            };
-            reportSystemError(errorData);
-            showAIPanelOnError();
-        } catch (e) {
-            console.error('[unhandledrejection handler] 내부 오류:', e);
+        });
+    }
+
+    // 뷰어가 제거될 때(다른 도서 클릭 등) 음성 자동 중지
+    const observer = new MutationObserver((mutations) => {
+        if (!document.getElementById('epub-audio-play-btn')) {
+            stopSpeech();
+            _ctrl_epubViewerActive = false;
+            observer.disconnect();
         }
     });
+    observer.observe(viewer, { childList: true });
 
-    // 보안관 스캔 백그라운드 구동 시작
-    startSecuritySheriffWatchdog();
-});
+    // 로그 추가
+    const logEl = document.getElementById('ctrl-log-stream');
+    if (logEl) {
+        _appendCtrlLogEntry(logEl, 'success', '이지퍼비터_ePub', `📖 '${title}' ePub3 샘플러 로드 완료 — Web Speech TTS 준비 완료`, new Date());
+    }
+
+    if (typeof lucide !== 'undefined') {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+}
+
+
+

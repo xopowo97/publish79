@@ -39,8 +39,14 @@
 ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body {
+html {
     height: 100%;
+    background-color: var(--ctrl-bg);
+}
+
+body {
+    height: 100%;
+    overflow: hidden;  /* 전체 페이지 스크롤 없애 - 각 컨텀이 독립 스크롤 */
     background-color: var(--ctrl-bg);
     color: var(--ctrl-text);
     font-family: var(--font-body);
@@ -191,12 +197,17 @@ html, body {
    4. 메인 레이아웃
 ─────────────────────────────────────────── */
 .ctrl-main {
+    height: calc(100vh - var(--ctrl-header-h));
+    margin-top: var(--ctrl-header-h);
     max-width: 1600px;
-    margin: 0 auto;
-    padding: calc(var(--ctrl-header-h) + 24px) 24px 40px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 20px 24px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+    overflow: hidden; /* 전체 main 도 스크롤 없애: 각 패널이 독립 스크롤 */
+    box-sizing: border-box;
 }
 
 /* ───────────────────────────────────────────
@@ -460,13 +471,16 @@ html, body {
 }
 
 /* ───────────────────────────────────────────
-   7. 메인 3컬럼 그리드
+   7. 메인 3콜럼 그리드
 ─────────────────────────────────────────── */
 .ctrl-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    flex: 1;          /* ctrl-main의 남은 높이를 모두 차지 */
+    overflow: hidden; /* 그리드 자체도 넣치지 않도록 */
+    min-height: 0;    /* flex child를 오버플로 방지 */
+    align-items: stretch;
 }
 
 /* ───────────────────────────────────────────
@@ -479,6 +493,9 @@ html, body {
     padding: 20px;
     transition: all 0.3s ease;
     min-width: 0;
+    overflow-y: auto; /* 원래 align-items: start에서 자동 늘어나던 것을 판님 내부 스크론으로 교체 */
+    height: 100%;     /* ctrl-grid가 align-items:stretch이므로 100% 높이 맞춤 */
+    box-sizing: border-box;
 }
 
 .ctrl-panel:hover {
@@ -497,6 +514,98 @@ html, body {
     margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--ctrl-border);
+    position: sticky; /* 팡널 헤더를 내부 스크론 시에도 항상 상단에 고정 */
+    top: 0;
+    background: var(--ctrl-bg-panel);
+    z-index: 2;
+}
+
+/* ═══════════════════════════════════════════════════
+   조직도 수직 아코디언
+   ═══════════════════════════════════════════════════ */
+
+/* 사업부 아코디언 섹션 */
+.org-accordion-section {
+    border: 1px solid var(--ctrl-border);
+    border-radius: var(--ctrl-radius-sm);
+    overflow: hidden;
+    margin-bottom: 6px;
+    transition: border-color 0.2s ease;
+}
+
+.org-accordion-section:last-child { margin-bottom: 0; }
+
+.org-accordion-section.org-dept-orch {
+    border-color: rgba(168, 85, 247, 0.25);
+    background: rgba(168, 85, 247, 0.04);
+}
+
+/* 아코디언 헤더 (클릭 가능) */
+.org-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+    user-select: none;
+    transition: background 0.2s ease;
+    gap: 6px;
+}
+
+.org-accordion-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.org-accordion-section.org-dept-orch .org-accordion-header:hover {
+    background: rgba(168, 85, 247, 0.08);
+}
+
+.org-accordion-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--ctrl-text-sub);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.org-accordion-section.org-dept-orch .org-accordion-title {
+    color: var(--ctrl-purple);
+}
+
+.org-accordion-chevron {
+    width: 12px; height: 12px;
+    color: var(--ctrl-text-mute);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.org-accordion-section.is-open .org-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+/* 아코디언 바디 (슬라이딩 펼침/접힘) */
+.org-accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.org-accordion-section.is-open .org-accordion-body {
+    max-height: 1200px; /* 충분히 큰 값 */
+}
+
+.org-accordion-content {
+    padding: 6px 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .ctrl-panel-header svg { width: 14px; height: 14px; flex-shrink: 0; }
@@ -1226,17 +1335,195 @@ html, body {
 }
 
 /* ───────────────────────────────────────────
+   14-A. ePub3 가상 븷 샘플러
+─────────────────────────────────────────── */
+.ctrl-epub-viewer {
+    background: linear-gradient(160deg, rgba(15,23,42,0.9), rgba(30,41,59,0.7));
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    min-height: 200px;
+    position: relative;
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(168,85,247,0.15), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.ctrl-epub-idle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--ctrl-text-mute);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+/* ePub 랜딩 페이지 */
+.ctrl-epub-cover {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.ctrl-epub-cover-bg {
+    width: 100%;
+    min-height: 130px;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #0c4a6e 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    position: relative;
+}
+
+.ctrl-epub-cover-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(168,85,247,0.3) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(14,165,233,0.2) 0%, transparent 50%);
+}
+
+.ctrl-epub-cover-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #f8fafc;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    line-height: 1.4;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.ctrl-epub-cover-author {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(248,250,252,0.7);
+    text-align: center;
+    margin-top: 6px;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.04em;
+}
+
+/* ePub 본문 패널 */
+.ctrl-epub-body-panel {
+    padding: 14px;
+    font-size: 11.5px;
+    line-height: 1.8;
+    color: #cbd5e1;
+    font-weight: 400;
+    max-height: 100px;
+    overflow: hidden;
+    position: relative;
+}
+
+.ctrl-epub-body-panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, rgba(15,23,42,0.95));
+}
+
+/* ePub 오디오 플레이어 바 */
+.ctrl-epub-audio-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(168, 85, 247, 0.1);
+    border-top: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+.ctrl-epub-audio-play {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border: none;
+    color: white;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 8px rgba(168,85,247,0.4);
+}
+
+.ctrl-epub-audio-play:hover { transform: scale(1.1); }
+.ctrl-epub-audio-play svg { width: 11px; height: 11px; }
+
+.ctrl-epub-audio-track {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.ctrl-epub-audio-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--ctrl-purple);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ctrl-epub-audio-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ctrl-epub-audio-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #a855f7, #0ea5e9);
+    border-radius: 999px;
+    width: 0%;
+    transition: width 0.5s linear;
+}
+
+/* ePub3 태그 및 AI 삽화 배지 */
+.ctrl-epub-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 8px 14px 10px;
+}
+
+.ctrl-epub-badge {
+    font-size: 8px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+}
+
+.ctrl-epub-badge-epub  { background: rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3); }
+.ctrl-epub-badge-audio { background: rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+.ctrl-epub-badge-ai    { background: rgba(14,165,233,0.12); color:#0ea5e9; border:1px solid rgba(14,165,233,0.25); }
+
+/* ───────────────────────────────────────────
    14. 반응형 (모바일 우선)
 ─────────────────────────────────────────── */
 
-/* 태블릿: 768px ~ 1199px */
+/* 태블릿: 960px ~ 1199px - 조직도 자동 접기 */
 @media (max-width: 1199px) {
     .ctrl-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 240px minmax(0, 1fr);
+        grid-template-rows: 1fr 1fr;
     }
 
-    .ctrl-grid > .ctrl-panel:first-child {
-        grid-column: 1 / -1;
+    .ctrl-grid .ctrl-panel-org {
+        grid-row: 1 / 3;
     }
 
     .ctrl-decision-grid {
@@ -1253,8 +1540,10 @@ html, body {
     :root { --ctrl-header-h: 56px; }
 
     .ctrl-main {
-        padding: calc(var(--ctrl-header-h) + 16px) 12px 32px;
-        gap: 14px;
+        height: calc(100vh - var(--ctrl-header-h));
+        padding: 12px;
+        gap: 10px;
+        overflow-y: auto; /* 모바일에서는 수직 스크론 허용 */
     }
 
     .ctrl-header-inner {
@@ -1268,9 +1557,34 @@ html, body {
     .ctrl-nav span { display: none; }
     .ctrl-nav-link, .ctrl-nav-btn { padding: 7px 10px; }
 
+    /* 모바일: 조직도 자동 접힌 + 일렬 나열 */
     .ctrl-grid {
         grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+        overflow: visible;
     }
+
+    .ctrl-panel {
+        height: auto;
+        overflow-y: visible;
+    }
+
+    /* 모바일 조직도 접힌 상태 해제: 전체 항상 폄시 */
+    .ctrl-panel-org.org-panel-collapsed .ctrl-org-tree,
+    .ctrl-panel-org.org-panel-collapsed .ctrl-org-toggle-label {
+        display: block;
+    }
+    .ctrl-panel-org.org-panel-collapsed .ctrl-panel-header {
+        flex-direction: row;
+        writing-mode: horizontal-tb;
+        border-bottom: 1px solid var(--ctrl-border);
+        border-right: none;
+        height: auto;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+    .ctrl-panel-org.org-panel-collapsed { overflow-y: auto; padding: 20px; }
 
     .ctrl-pipeline-panel {
         flex-direction: column;
@@ -1633,13 +1947,36 @@ div[class*="text-[10px]"],
     line-height: 1.2 !important;
 }
 
-/* Close Button Styling */
+/* Close Button Styling — 클릭 영역 완전 보정 */
 .ai-header button#ai-close-btn {
     color: #94a3b8 !important;
     transition: color 0.2s ease !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 10 !important;
+    padding: 6px !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    flex-shrink: 0 !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+}
+
+.ai-header button#ai-close-btn:hover {
+    color: #ffffff !important;
+    background: rgba(255,255,255,0.1) !important;
+}
+
+/* 닫기 버튼 내부 SVG/path 가 마우스 이벤트 가로채지 않도록 */
+.ai-header button#ai-close-btn svg,
+.ai-header button#ai-close-btn svg * {
+    pointer-events: none !important;
 }
 
 .ai-header button#ai-close-btn:hover {
@@ -1743,3 +2080,51 @@ div[class*="text-[10px]"],
     }
 }
 
+
+/* =============================================
+   ePub3 낭독 단어 하이라이트 (Web Speech API 싱크)
+   ============================================= */
+.epub-word {
+    display: inline;
+    border-radius: 3px;
+    transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.epub-word.highlight {
+    background: rgba(251, 191, 36, 0.30);
+    color: #fbbf24;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+    border-radius: 4px;
+    padding: 1px 2px;
+}
+
+/* =============================================
+   조직도 아코디언 설명문 스타일
+   ============================================= */
+.org-accordion-desc {
+    font-size: 9px;
+    color: var(--ctrl-text-mute);
+    line-height: 1.4;
+    padding: 4px 10px 6px;
+    border-bottom: 1px solid var(--ctrl-border);
+}
+
+/* =============================================
+   모바일 반응형 — 조직도 패널 (768px 이하)
+   ============================================= */
+@media (max-width: 768px) {
+    .ctrl-grid {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+    .ctrl-panel {
+        height: auto;
+        min-height: 200px;
+    }
+    .org-accordion-section .org-accordion-body {
+        max-height: 0 !important;
+    }
+    .org-accordion-section.is-open .org-accordion-body {
+        max-height: 800px !important;
+    }
+}

@@ -19,7 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- 통제실 전용 스타일시트 (기존 style.css 절대 불러오지 않음) -->
-    <link rel="stylesheet" href="control.css?v=20260610c">
+    <link rel="stylesheet" href="control.css?v=20260616a">
 
     <!-- 보안 체크: 최고 관리자(admin) 로그인 상태 확인 -->
     <script>
@@ -142,7 +142,7 @@
         <div class="ctrl-grid">
 
             <!-- 왼쪽: 에이전트 조직도 -->
-            <div class="ctrl-panel">
+            <div class="ctrl-panel ctrl-panel-org" id="ctrl-panel-org">
                 <div class="ctrl-panel-header">
                     <i data-lucide="git-branch"></i>
                     <span>에이전트 조직도</span>
@@ -299,13 +299,18 @@
                     </div>
                 </div>
 
-                <!-- 7일 수요 트렌드 차트 -->
+                <!-- ePub3 가상 뷰어 -->
                 <div class="ctrl-panel-header" style="margin-top: 24px;">
-                    <i data-lucide="trending-up"></i>
-                    <span>7일 수요 트렌드</span>
+                    <i data-lucide="book-open"></i>
+                    <span>ePub3 인터랙티브 샘플러</span>
+                    <span class="ctrl-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;border:1px solid rgba(168,85,247,0.3);">PREVIEW</span>
                 </div>
-                <div style="position: relative; height: 160px; margin-top: 8px; margin-bottom: 24px;">
-                    <canvas id="ctrl-trend-chart"></canvas>
+                <div id="ctrl-epub-viewer" class="ctrl-epub-viewer">
+                    <!-- JS에서 동적으로 채워집니다 -->
+                    <div class="ctrl-epub-idle">
+                        <i data-lucide="book-open" style="width:32px;height:32px;opacity:0.3;"></i>
+                        <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러가 이 곳에서 실행됩니다.</p>
+                    </div>
                 </div>
 
                 <!-- 실시간 수집·분석 도서 피드 -->
@@ -440,6 +445,6 @@
     </div>
 
     <!-- control.js (통제실 전용 스크립트) -->
-    <script src="control.js?v=20260610c"></script>
+    <script src="control.js?v=20260616a"></script>
 </body>
 </html>
