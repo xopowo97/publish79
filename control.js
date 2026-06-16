@@ -1002,6 +1002,9 @@ function triggerOrchestratorRecommendation() {
     // Supabase에서 reprint_score desc 정렬되어 오므로 첫 번째 도서가 항상 최고 점수
     const topBook = _ctrl_candidates[0];
 
+    // 저작권 만료 도서(public_domain)인 경우 종이책 복간 제안 카드 표시 차단
+    if (topBook.copyright_status === 'public_domain') return;
+
     const cleanTitle = (topBook.title || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (topBook.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
     const score = topBook.reprint_score || 0;
@@ -1087,6 +1090,9 @@ function triggerOrchestratorRecommendation() {
 function checkPrintCostOptimization(bookData, printQty) {
     // ePub 뷰어 모드 중에는 종이책 원가 최적화 제안 차단
     if (_ctrl_epubViewerActive) return;
+
+    // 저작권 만료 도서인 경우 종이책 인쇄 원가 최적화 제안 차단
+    if (bookData && bookData.copyright_status === 'public_domain') return;
 
     // 기본 부수 미입력 시 소량 대표값 30부 적용
     const qty = (typeof printQty === 'number' && printQty > 0) ? printQty : 30;
