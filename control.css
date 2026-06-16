@@ -2113,13 +2113,22 @@ div[class*="text-[10px]"],
    모바일 반응형 — 조직도 패널 (768px 이하)
    ============================================= */
 @media (max-width: 768px) {
+    html, body {
+        height: auto !important;
+        overflow: auto !important;
+    }
+    .ctrl-main {
+        height: auto !important;
+        overflow: visible !important;
+    }
     .ctrl-grid {
         grid-template-columns: 1fr;
-        overflow-y: auto;
+        overflow-y: visible !important;
     }
     .ctrl-panel {
         height: auto;
         min-height: 200px;
+        overflow-y: visible !important;
     }
     .org-accordion-section .org-accordion-body {
         max-height: 0 !important;
