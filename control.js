@@ -76,9 +76,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const panel = document.getElementById('ai-panel');
             if (panel) panel.classList.remove('active');
             const fab = document.getElementById('ai-fab');
-            if (fab) fab.classList.remove('pulse-gold');
+            if (fab) {
+                fab.classList.remove('pulse-gold');
+                fab.classList.remove('active');
+                fab.style.opacity = '1';
+                fab.style.pointerEvents = 'all';
+            }
         }
     }, true); // useCapture=true で最優先
+
     loadCtrlDashboard();
     startCtrlLogStream();
     try {
@@ -92,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 파이프라인 버튼 이벤트 연결
     const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
     if (pipelineBtn) {
-        pipelineBtn.addEventListener('click', () => triggerCtrlPipeline());
+        pipelineBtn.addEventListener('click', () => triggerCtrlPipeline(false));
     }
     const flashBtn = document.getElementById('ctrl-btn-flashlight');
     if (flashBtn) {
@@ -100,14 +106,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const pipelineNavBtn = document.getElementById('ctrl-nav-btn-pipeline');
     if (pipelineNavBtn) {
-        pipelineNavBtn.addEventListener('click', () => triggerCtrlPipeline());
+        pipelineNavBtn.addEventListener('click', () => triggerCtrlPipeline(false));
     }
 
-    // AI Helper FAB 이벤트
+    // AI Helper FAB 이벤트 (단 한번만 등록)
     const aiFab = document.getElementById('ai-fab');
-    const aiCloseBtn = document.getElementById('ai-close-btn');
-    if (aiFab) aiFab.addEventListener('click', () => toggleAIPanel());
-    if (aiCloseBtn) aiCloseBtn.addEventListener('click', () => toggleAIPanel());
+    if (aiFab) {
+        aiFab.addEventListener('click', () => toggleAIPanel());
+    }
+
+    const demoBtn = document.getElementById('ai-demo-btn');
+    if (demoBtn) {
+        demoBtn.addEventListener('click', () => triggerAIError('Manual Demo'));
+    }
+
+    const sendBtn = document.querySelector('.ai-send-btn');
+    const aiInput = document.querySelector('.ai-input');
+
+    if (sendBtn) {
+        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        sendBtn.onclick = function () {
+            if (!aiInput || !aiInput.value.trim()) return;
+            const chatContent = document.getElementById('ai-chat-content');
+            if (!chatContent) return;
+
+            const userMsg = document.createElement('div');
+            userMsg.className = 'ai-msg ai-msg-user';
+            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
+            userMsg.textContent = aiInput.value.trim();
+            chatContent.appendChild(userMsg);
+
+            aiInput.value = '';
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+        };
+
+        if (aiInput) {
+            aiInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendBtn.click();
+            });
+        }
+    }
 
     // 분야 드롭다운 변경 시 실시간 필터 갱신 연동
     const kwInput = document.getElementById('ctrl-keyword-input');
@@ -116,6 +154,49 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCtrlDashboard();
         });
     }
+
+    // 에러 리스너 등록
+    window.addEventListener('error', (event) => {
+        if (!event.filename || !event.filename.includes('control.js')) return;
+        const errorData = {
+            message: event.message || event.error?.message || 'Unknown Error',
+            filename: event.filename.split('/').pop(),
+            lineno: event.lineno,
+            colno: event.colno,
+            userId: sessionStorage.getItem('userId') || 'admin_control',
+            userRole: sessionStorage.getItem('userRole') || 'admin'
+        };
+        reportSystemError(errorData);
+        showAIPanelOnError();
+    });
+
+    // 비동기 에러 리스너
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            const reason = event.reason;
+            const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+            if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+                return;
+            }
+            if (reason && reason.stack && !reason.stack.includes('control.js')) {
+                return;
+            }
+            const errorData = {
+                message: 'Unhandled Rejection: ' + reasonMsg,
+                filename: 'Promise / Async Call',
+                lineno: 0,
+                userId: sessionStorage.getItem('userId') || 'admin_control',
+                userRole: sessionStorage.getItem('userRole') || 'admin'
+            };
+            reportSystemError(errorData);
+            showAIPanelOnError();
+        } catch (e) {
+            console.error('[unhandledrejection handler] 내부 오류:', e);
+        }
+    });
+
+    // 보안관 스캔 백그라운드 구동 시작
+    startSecuritySheriffWatchdog();
 });
 
 // ───────────────────────────────────────────
@@ -2285,105 +2366,8 @@ function startSecuritySheriffWatchdog() {
 }
 
 // ───────────────────────────────────────────
-// 24. AI Helper UI 이벤트 바인딩 및 초기 설정
+// 24. AI Helper UI 이벤트 바인딩 및 초기 설정 (중복 제거 완료 - 상단 통합됨)
 // ───────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. 파이프라인 버튼 클릭 이벤트 연결
-    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
-    const navPipelineBtn = document.getElementById('ctrl-nav-btn-pipeline');
-    if (pipelineBtn) {
-        pipelineBtn.onclick = () => triggerCtrlPipeline(false);
-    }
-    if (navPipelineBtn) {
-        navPipelineBtn.onclick = () => triggerCtrlPipeline(false);
-    }
-
-    // 2. AI Helper 버튼 클릭 이벤트 연결
-    const fab = document.getElementById('ai-fab');
-    const closeBtn = document.getElementById('ai-close-btn');
-    const demoBtn = document.getElementById('ai-demo-btn');
-    if (fab) {
-        fab.onclick = toggleAIPanel;
-    }
-    if (closeBtn) {
-        closeBtn.onclick = toggleAIPanel;
-    }
-    if (demoBtn) {
-        demoBtn.onclick = () => triggerAIError('Manual Demo');
-    }
-
-    const sendBtn = document.querySelector('.ai-send-btn');
-    const aiInput = document.querySelector('.ai-input');
-
-    if (sendBtn) {
-        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        sendBtn.onclick = function () {
-            if (!aiInput || !aiInput.value.trim()) return;
-            const chatContent = document.getElementById('ai-chat-content');
-            if (!chatContent) return;
-
-            const userMsg = document.createElement('div');
-            userMsg.className = 'ai-msg ai-msg-user';
-            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
-            userMsg.textContent = aiInput.value.trim();
-            chatContent.appendChild(userMsg);
-
-            aiInput.value = '';
-            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
-        };
-
-        if (aiInput) {
-            aiInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendBtn.click();
-            });
-        }
-    }
-
-    // 에러 리스너 등록
-    window.addEventListener('error', (event) => {
-        // control.js에서 발생한 에러만 포착 (CORS/외부 CDN/확장프로그램/빈 파일명 에러 무시)
-        if (!event.filename || !event.filename.includes('control.js')) return;
-        const errorData = {
-            message: event.message || event.error?.message || 'Unknown Error',
-            filename: event.filename.split('/').pop(),
-            lineno: event.lineno,
-            colno: event.colno,
-            userId: sessionStorage.getItem('userId') || 'admin_control',
-            userRole: sessionStorage.getItem('userRole') || 'admin'
-        };
-        reportSystemError(errorData);
-        showAIPanelOnError();
-    });
-
-    // 비동기 에러 리스너
-    window.addEventListener('unhandledrejection', (event) => {
-        try {
-            const reason = event.reason;
-            const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
-            if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
-                return;
-            }
-            // 외부 promise rejection 무시 (control.js 스택을 포함한 경우만 에러 포착)
-            if (reason && reason.stack && !reason.stack.includes('control.js')) {
-                return;
-            }
-            const errorData = {
-                message: 'Unhandled Rejection: ' + reasonMsg,
-                filename: 'Promise / Async Call',
-                lineno: 0,
-                userId: sessionStorage.getItem('userId') || 'admin_control',
-                userRole: sessionStorage.getItem('userRole') || 'admin'
-            };
-            reportSystemError(errorData);
-            showAIPanelOnError();
-        } catch (e) {
-            console.error('[unhandledrejection handler] 내부 오류:', e);
-        }
-    });
-
-    // 보안관 스캔 백그라운드 구동 시작
-    startSecuritySheriffWatchdog();
-});
 
 // ═══════════════════════════════════════════════════
 // [NEW] 조직도 사업부별 수직 아코디언
