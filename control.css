@@ -475,7 +475,7 @@ body {
 ─────────────────────────────────────────── */
 .ctrl-grid {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
     flex: 1;          /* ctrl-main의 남은 높이를 모두 차지 */
     overflow: hidden; /* 그리드 자체도 넣치지 않도록 */
