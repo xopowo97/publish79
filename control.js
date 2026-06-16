@@ -63,11 +63,7 @@ let _ctrl_approvedSpec = null;
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
-    try {
-        initCtrlTrendChart();
-    } catch (e) {
-        console.warn('[통제실] 차트 초기화 실패:', e);
-    }
+    initOrgToggle();           // 조직도 접기/펴기 초기화
     loadCtrlDashboard();
     startCtrlLogStream();
     try {
@@ -77,6 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
         console.warn('[통제실] Lucide 아이콘 초기화 실패:', e);
     }
+
+    // 파이프라인 버튼 이벤트 연결
+    const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
+    if (pipelineBtn) {
+        pipelineBtn.addEventListener('click', () => triggerCtrlPipeline());
+    }
+    const flashBtn = document.getElementById('ctrl-btn-flashlight');
+    if (flashBtn) {
+        flashBtn.addEventListener('click', () => toggleCtrlFlashlight());
+    }
+    const pipelineNavBtn = document.getElementById('ctrl-nav-btn-pipeline');
+    if (pipelineNavBtn) {
+        pipelineNavBtn.addEventListener('click', () => triggerCtrlPipeline());
+    }
+
+    // AI Helper FAB 이벤트
+    const aiFab = document.getElementById('ai-fab');
+    const aiCloseBtn = document.getElementById('ai-close-btn');
+    if (aiFab) aiFab.addEventListener('click', () => toggleAIPanel());
+    if (aiCloseBtn) aiCloseBtn.addEventListener('click', () => toggleAIPanel());
 
     // 분야 드롭다운 변경 시 실시간 필터 갱신 연동
     const kwInput = document.getElementById('ctrl-keyword-input');
@@ -2340,3 +2356,217 @@ document.addEventListener('DOMContentLoaded', () => {
     // 보안관 스캔 백그라운드 구동 시작
     startSecuritySheriffWatchdog();
 });
+
+// ═══════════════════════════════════════════════════
+// [NEW] 조직도 접기/펴기 토글
+// ═══════════════════════════════════════════════════
+function initOrgToggle() {
+    const btn = document.getElementById('ctrl-org-toggle-btn');
+    const orgPanel = document.getElementById('ctrl-panel-org');
+    const grid = document.querySelector('.ctrl-grid');
+    if (!btn || !orgPanel || !grid) return;
+
+    // 모바일에서는 토글 비활성화 (CSS에서 강제 펼침)
+    const isMobile = () => window.innerWidth <= 767;
+
+    btn.addEventListener('click', () => {
+        if (isMobile()) return;
+
+        const isCollapsed = orgPanel.classList.toggle('org-panel-collapsed');
+        grid.classList.toggle('org-collapsed', isCollapsed);
+        btn.setAttribute('aria-expanded', String(!isCollapsed));
+
+        const label = btn.querySelector('.ctrl-org-toggle-label');
+        if (label) label.textContent = isCollapsed ? '펴기' : '접기';
+
+        // 상태 localStorage에 저장
+        localStorage.setItem('ctrl_org_collapsed', isCollapsed ? '1' : '0');
+    });
+
+    // 저장된 상태 복원 (단, 모바일 제외)
+    if (!isMobile()) {
+        const saved = localStorage.getItem('ctrl_org_collapsed');
+        if (saved === '1') {
+            orgPanel.classList.add('org-panel-collapsed');
+            grid.classList.add('org-collapsed');
+            btn.setAttribute('aria-expanded', 'false');
+            const label = btn.querySelector('.ctrl-org-toggle-label');
+            if (label) label.textContent = '펴기';
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════
+// [NEW] TOP3 클릭 시 저작권 만료 도서 → ePub 뷰어 분기
+//       일반 도서 → 기존 시뮬레이션 모달
+// ═══════════════════════════════════════════════════
+window.ctrlStartSimByIndex = function ctrlStartSimByIndex(index) {
+    const book = _ctrl_candidates[index];
+    if (!book) return;
+
+    // 저작권 만료 도서(public_domain)인 경우 ePub 뷰어 실행
+    if (book.copyright_status === 'public_domain') {
+        renderEpubViewer(book);
+    } else {
+        startCtrlSimByBookData(book);
+    }
+};
+
+// ═══════════════════════════════════════════════════
+// [NEW] ePub3 가상 뷰어 렌더링
+// ═══════════════════════════════════════════════════
+let _epubAudioTimer = null;
+let _epubAudioProgress = 0;
+let _epubAudioPlaying = false;
+
+function renderEpubViewer(book) {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    const title = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '');
+    const author = (book.author || '저자 미상').replace(/<\/?[^>]+(>|$)/g, '');
+
+    // ── ePub3 상품 카드 데이터 (실행계획서 반영) ──
+    const products = [
+        {
+            name: 'Interactive ePub3',
+            desc: '서두 번역 + AI 삽화 + 오디오북 탑재',
+            price: '8,000',
+            royalty: '0.0%',
+            cost: '약 ₩320,000 (AI 번역 + 삽화 일괄처리)',
+            margin: '92%',
+            badge: 'BEST RECOMMEND',
+            badgeColor: 'linear-gradient(135deg,#a855f7,#0ea5e9)',
+            marginColor: '#a855f7'
+        },
+        {
+            name: '텍스트 전용 ePub3',
+            desc: 'AI 교정 + 기본 조판',
+            price: '3,000',
+            royalty: '0.0%',
+            cost: '약 ₩80,000 (교정교열 일괄처리)',
+            margin: '87%',
+            badge: null,
+            badgeColor: null,
+            marginColor: '#10b981'
+        },
+        {
+            name: 'Luxury ePub3',
+            desc: '전문 번역 + 고화질 삽화 + 오디오북',
+            price: '18,000',
+            royalty: '0.0%',
+            cost: '약 ₩1,200,000 (전문 번역 + 수작업 삽화)',
+            margin: '78%',
+            badge: null,
+            badgeColor: null,
+            marginColor: '#f59e0b'
+        }
+    ];
+
+    // 샘플 본문 텍스트
+    const sampleText = `제1장 — 살아있는 미래의 가능성\n\n오늘날 우리는 발전이라는 이름 아래 무엇을 잃어가고 있는지 진지하게 물어야 한다. 라다크의 작은 마을에서 헬레나가 목격한 것은, 근대화 이전 공동체가 가졌던 풍요로운 시간이었다. 그것은 결핍이 아닌, 자족의 아름다움이었다...`;
+
+    viewer.innerHTML = `
+        <div class="ctrl-epub-cover">
+            <div class="ctrl-epub-cover-bg">
+                <div>
+                    <div class="ctrl-epub-cover-title">📖 ${title}</div>
+                    <div class="ctrl-epub-cover-author">${author}</div>
+                </div>
+            </div>
+        </div>
+        <div class="ctrl-epub-badges">
+            <span class="ctrl-epub-badge ctrl-epub-badge-epub">ePub3</span>
+            <span class="ctrl-epub-badge ctrl-epub-badge-audio">🎧 오디오북</span>
+            <span class="ctrl-epub-badge ctrl-epub-badge-ai">🎨 AI 삽화</span>
+            <span style="font-size:8px;font-weight:800;padding:2px 7px;border-radius:999px;background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);">인세 0%</span>
+        </div>
+        <div class="ctrl-epub-body-panel">${sampleText}</div>
+        <div class="ctrl-epub-audio-bar">
+            <button class="ctrl-epub-audio-play" id="epub-audio-play-btn" title="오디오북 재생/정지">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <div class="ctrl-epub-audio-track">
+                <div class="ctrl-epub-audio-label">🎧 AI 나레이션 — 제1장 · 살아있는 미래의 가능성</div>
+                <div class="ctrl-epub-audio-progress">
+                    <div class="ctrl-epub-audio-fill" id="epub-audio-fill"></div>
+                </div>
+            </div>
+            <span style="font-size:9px;font-weight:700;color:var(--ctrl-text-mute);flex-shrink:0;" id="epub-audio-time">0:00</span>
+        </div>
+        <div style="padding:12px 14px 14px;">
+            <div style="font-size:9px;font-weight:900;color:var(--ctrl-text-mute);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">📦 ePub3 상품 선택 — 저작권 만료 인세 0%</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+                ${products.map((p, idx) => `
+                <div style="background:var(--ctrl-bg-card);border:1px solid ${idx===0?'rgba(168,85,247,0.4)':'var(--ctrl-border)'};border-radius:10px;padding:10px 12px;position:relative;${idx===0?'box-shadow:0 0 0 1px rgba(168,85,247,0.2),0 4px 12px rgba(168,85,247,0.1);':''}">
+                    ${p.badge ? `<div style="position:absolute;top:-9px;left:12px;background:${p.badgeColor};color:#fff;font-size:8px;font-weight:900;padding:2px 8px;border-radius:999px;white-space:nowrap;letter-spacing:0.04em;">${p.badge}</div>` : ''}
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                        <div>
+                            <div style="font-size:11px;font-weight:900;color:var(--ctrl-text);">${p.name}</div>
+                            <div style="font-size:9px;color:var(--ctrl-text-mute);margin-top:2px;">${p.desc}</div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <div style="font-size:14px;font-weight:900;color:#f59e0b;">₩${p.price}</div>
+                            <div style="font-size:8px;font-weight:700;color:var(--ctrl-text-mute);">판매가</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:4px;">
+                        <span style="color:var(--ctrl-text-mute);">💰 가공원가</span>
+                        <span style="font-weight:700;color:var(--ctrl-text-sub);">${p.cost}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:6px;padding:5px 8px;">
+                        <span style="font-size:9px;color:var(--ctrl-text-mute);font-weight:700;">인세</span>
+                        <span style="font-size:12px;font-weight:900;color:#10b981;">${p.royalty}</span>
+                        <span style="font-size:9px;color:var(--ctrl-text-mute);font-weight:700;">예상 마진율</span>
+                        <span style="font-family:var(--font-mono);font-size:14px;font-weight:900;color:${p.marginColor};">${p.margin}</span>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+    `;
+
+    // 오디오 바 인터랙션 등록
+    const playBtn = document.getElementById('epub-audio-play-btn');
+    const fillEl = document.getElementById('epub-audio-fill');
+    const timeEl = document.getElementById('epub-audio-time');
+
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            _epubAudioPlaying = !_epubAudioPlaying;
+
+            if (_epubAudioPlaying) {
+                // 재생 아이콘 → 정지 아이콘
+                playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+                _epubAudioTimer = setInterval(() => {
+                    _epubAudioProgress = Math.min(100, _epubAudioProgress + 0.5);
+                    if (fillEl) fillEl.style.width = _epubAudioProgress + '%';
+                    const totalSec = Math.round((_epubAudioProgress / 100) * 183); // 3분 3초 가상
+                    const m = Math.floor(totalSec / 60);
+                    const s = totalSec % 60;
+                    if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+                    if (_epubAudioProgress >= 100) {
+                        clearInterval(_epubAudioTimer);
+                        _epubAudioPlaying = false;
+                        _epubAudioProgress = 0;
+                        playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+                    }
+                }, 300);
+            } else {
+                // 정지
+                clearInterval(_epubAudioTimer);
+                playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            }
+        });
+    }
+
+    // 로그 추가
+    const logEl = document.getElementById('ctrl-log-stream');
+    if (logEl) {
+        _appendCtrlLogEntry(logEl, 'success', '이지퍼비터_ePub', `📖 '${title}' ePub3 샘플러 로드 완료 — 저작권 만료 · 인세 0% 적용`, new Date());
+    }
+
+    // Lucide 아이콘 재생성
+    if (typeof lucide !== 'undefined') {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+}
