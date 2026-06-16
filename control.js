@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (panel) panel.classList.remove('active');
             const fab = document.getElementById('ai-fab');
             if (fab) {
-                fab.classList.remove('pulse-gold');
+                // 대표님이 승인하기 전까지는 헬퍼창을 그냥 닫아도 노란색 골드 펄스(pulse-gold)가 꺼지지 않고 유지되도록 처리
                 fab.classList.remove('active');
                 fab.style.opacity = '1';
                 fab.style.pointerEvents = 'all';
