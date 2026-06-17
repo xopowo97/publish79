@@ -34,6 +34,13 @@ function ctrlApiUrl(path) {
 // ───────────────────────────────────────────
 // 1. 글로벌 상태
 // ───────────────────────────────────────────
+// [데모용 Mock 데이터] B2B/B2C 영업이 관련 임시 로그 모음 (DB 연동 시 삭제 가능)
+const MOCK_SALES_LOGS = [
+    { type: 'info', agent: '[B2B영업_영업이]', msg: '출판사 대상 BEP 복간 제안서 {n}건 자동 발송 완료', isMock: true },
+    { type: 'success', agent: '[B2B영업_영업이]', msg: '절판 도서 {n}종에 대한 B2B 복간 계약 협의 개시', isMock: true },
+    { type: 'info', agent: '[B2B영업_영업이]', msg: '공공도서관 희망도서 B2G 납품 제안서 생성 완료', isMock: true }
+];
+
 let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
@@ -836,22 +843,35 @@ async function _fetchAndRenderCtrlLogs() {
     _appendCtrlSimulatedLog(el);
 }
 
-function _appendCtrlLogEntry(el, type, agent, message, dateObj) {
+function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) {
     const d = dateObj || new Date();
     const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
     const div = document.createElement('div');
-    div.className = `ctrl-log-entry ctrl-log-${type}`;
+    const mockClass = (isMock || agent.includes('영업') || agent.includes('mock')) ? 'mock-log' : '';
+    div.className = `ctrl-log-entry ctrl-log-${type} ${mockClass}`;
     div.innerHTML = `<span class="ctrl-log-time">${time}</span><span class="ctrl-log-agent">[${agent}]</span><span>${message}</span>`;
+    
+    if (mockClass) {
+        div.setAttribute('style', 'border-left: 3px solid #f97316 !important; background: rgba(249, 115, 22, 0.05);');
+    }
+    
     el.prepend(div);
 
     while (el.children.length > 20) el.removeChild(el.lastChild);
 }
 
 function _appendCtrlSimulatedLog(el) {
-    const pool = CTRL_LOG_POOL[Math.floor(Math.random() * CTRL_LOG_POOL.length)];
+    // 25% 확률로 영업이 mock 로그를 섞어서 출력합니다.
+    const useMock = Math.random() < 0.25;
+    let pool;
+    if (useMock) {
+        pool = MOCK_SALES_LOGS[Math.floor(Math.random() * MOCK_SALES_LOGS.length)];
+    } else {
+        pool = CTRL_LOG_POOL[Math.floor(Math.random() * CTRL_LOG_POOL.length)];
+    }
     const n = Math.floor(Math.random() * 50) + 50;
-    _appendCtrlLogEntry(el, pool.type, pool.agent.replace(/\[|\]/g, ''), pool.msg.replace('{n}', n), new Date());
+    _appendCtrlLogEntry(el, pool.type, pool.agent.replace(/\[|\]/g, ''), pool.msg.replace('{n}', n), new Date(), pool.isMock || false);
 }
 
 // ───────────────────────────────────────────
@@ -2761,7 +2781,7 @@ window.addEventListener('storage', (e) => {
     if (e.key === 'latestStoreLog' && e.newValue) {
         const logEl = document.getElementById('ctrl-log-stream');
         if (logEl) {
-            _appendCtrlLogEntry(logEl, 'success', '영업_영업이', e.newValue, new Date());
+            _appendCtrlLogEntry(logEl, 'success', '영업_영업이', e.newValue, new Date(), true);
             
             const firstEntry = logEl.firstElementChild;
             if (firstEntry) {
