@@ -2754,5 +2754,25 @@ function renderEpubViewer(book) {
     }
 }
 
+// ───────────────────────────────────────────
+// 스토어 예약 결제 실시간 연동 로그 수신기 (localStorage Event Listener)
+// ───────────────────────────────────────────
+window.addEventListener('storage', (e) => {
+    if (e.key === 'latestStoreLog' && e.newValue) {
+        const logEl = document.getElementById('ctrl-log-stream');
+        if (logEl) {
+            _appendCtrlLogEntry(logEl, 'success', '영업_영업이', e.newValue, new Date());
+            
+            const firstEntry = logEl.firstElementChild;
+            if (firstEntry) {
+                firstEntry.style.borderLeft = '3px solid #ff6b00';
+                firstEntry.style.background = 'rgba(255, 107, 0, 0.1)';
+                firstEntry.classList.add('animate-pulse');
+            }
+        }
+        localStorage.removeItem('latestStoreLog');
+    }
+});
+
 
 
