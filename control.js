@@ -204,6 +204,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 보안관 스캔 백그라운드 구동 시작
     startSecuritySheriffWatchdog();
+
+    // 스토어에서 결제 완료 후 통제실로 복귀(새로고침)했을 때 로그를 즉시 복원하여 출력
+    const savedLog = localStorage.getItem('latestStoreLog');
+    if (savedLog) {
+        const logEl = document.getElementById('ctrl-log-stream');
+        if (logEl) {
+            _appendCtrlLogEntry(logEl, 'success', '영업_영업이', savedLog, new Date(), true);
+        }
+        localStorage.removeItem('latestStoreLog'); // 검증 완료 후 삭제
+    }
 });
 
 // ───────────────────────────────────────────
