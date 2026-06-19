@@ -68,6 +68,36 @@ let _ctrl_approvedSpec = null;
 // ePub 뷰어 모드 플래그 — true 동안 종이책 헬퍼 알림 차단
 let _ctrl_epubViewerActive = false;
 
+// 통제실용 지휘_판다 챗봇 글로벌 상태 및 마크다운 파서
+let _controlChatHistory = [
+    { role: 'model', parts: [{ text: "안녕하세요, 대표님! **16번 지휘_판다**입니다.\n에이전트 파이프라인의 예외 상황 의사결정이나 비즈니스 규칙 지시사항이 있으시면 언제든 말씀해주세요. 경청하고 수렴하겠습니다." }] }
+];
+let _controlChatLogId = null;
+
+function parseChatMarkdown(text) {
+    if (!text) return '';
+    let html = text;
+    html = html
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.1); color:#38bdf8; padding:2px 4px; border-radius:4px; font-family:monospace; font-size:11px;">$1</code>');
+    html = html.replace(/```(?:json|javascript|js)?\s*([\s\S]*?)\s*```/g, '<pre style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; font-family:monospace; font-size:11px; overflow-x:auto; margin:8px 0; color:#38bdf8; white-space:pre-wrap; word-break:break-all;">$1</pre>');
+    html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            return `<li style="margin-left: 12px; list-style-type: disc; font-size:12px; line-height:1.5; margin-bottom:4px;">${trimmed.substring(2)}</li>`;
+        }
+        return line;
+    }).join('\n');
+    html = html.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+    return html;
+}
+
 // ───────────────────────────────────────────
 // 2. 초기화 진입점
 // ───────────────────────────────────────────
@@ -94,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadCtrlDashboard();
     startCtrlLogStream();
+    startCtrlTicketListener();
     try {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
@@ -127,29 +158,128 @@ document.addEventListener('DOMContentLoaded', () => {
         demoBtn.addEventListener('click', () => triggerAIError('Manual Demo'));
     }
 
-    const sendBtn = document.querySelector('.ai-send-btn');
-    const aiInput = document.querySelector('.ai-input');
+    const sendBtn = document.getElementById('ai-send-btn') || document.querySelector('.ai-send-btn');
+    const aiInput = document.getElementById('ai-input') || document.querySelector('.ai-input');
 
     if (sendBtn) {
         sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        sendBtn.onclick = function () {
+        
+        const handleSend = async () => {
             if (!aiInput || !aiInput.value.trim()) return;
+            const message = aiInput.value.trim();
             const chatContent = document.getElementById('ai-chat-content');
             if (!chatContent) return;
 
+            // 1. 사용자 말풍선 추가 및 입력창 비우기/비활성화
             const userMsg = document.createElement('div');
             userMsg.className = 'ai-msg ai-msg-user';
             userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
-            userMsg.textContent = aiInput.value.trim();
+            userMsg.textContent = message;
             chatContent.appendChild(userMsg);
 
             aiInput.value = '';
+            aiInput.disabled = true;
+            sendBtn.disabled = true;
             setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            // 2. 히스토리에 사용자 메시지 추가
+            _controlChatHistory.push({ role: 'user', parts: [{ text: message }] });
+
+            // 3. 로딩 애니메이션 말풍선 추가
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'ai-msg ai-msg-bot loading-bubble';
+            loadingMsg.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctrl-dot ctrl-dot-green pulse" style="display:inline-block; margin-right:4px;"></span>
+                    <span>16번 지휘_판다가 생각하는 중...</span>
+                </div>
+            `;
+            chatContent.appendChild(loadingMsg);
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            try {
+                // 4. API 송신
+                const response = await fetch(ctrlApiUrl('/api/chat'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_type: 'CONTROL_PANEL',
+                        contents: _controlChatHistory,
+                        userId: sessionStorage.getItem('userId') || 'admin_control',
+                        userRole: sessionStorage.getItem('userRole') || 'admin',
+                        logId: _controlChatLogId
+                    })
+                });
+
+                // 5. 로딩 말풍선 제거
+                loadingMsg.remove();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const replyText = data.responseText;
+                    
+                    // 세션 유지를 위해 logId 보존
+                    if (data.logId) {
+                        _controlChatLogId = data.logId;
+                    }
+
+                    // 히스토리에 모델 응답 추가
+                    _controlChatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+
+                    // 봇 말풍선 추가
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.innerHTML = parseChatMarkdown(replyText);
+                    chatContent.appendChild(botMsg);
+
+                    // 실시간 로그 스트림에 기록
+                    const logEl = document.getElementById('ctrl-log-stream');
+                    if (logEl) {
+                        _appendCtrlLogEntry(logEl, 'success', '지휘_판다', `대표님 의사결정 모방학습 로그 저장 완료 (ID: ${data.logId || 'N/A'})`, new Date());
+                    }
+
+                    // 의사결정 규칙이 도출된 경우, 콘솔 또는 UI에 피드백 표시
+                    if (data.extractedRules && data.extractedRules.rules && data.extractedRules.rules.length > 0) {
+                        console.log('추출된 비즈니스 규칙:', data.extractedRules.rules);
+                        if (logEl) {
+                            data.extractedRules.rules.forEach(rule => {
+                                _appendCtrlLogEntry(logEl, 'info', '지휘_판다', `새로운 규칙 발견: "${rule}"`, new Date());
+                            });
+                        }
+                    }
+
+                } else {
+                    const errText = await response.text();
+                    const errObj = JSON.parse(errText || '{}');
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.style.color = '#ef4444';
+                    botMsg.textContent = `❌ 오류가 발생했습니다: ${errObj.message || errObj.error || 'Gemini API 호출에 실패했습니다.'}`;
+                    chatContent.appendChild(botMsg);
+                }
+            } catch (err) {
+                loadingMsg.remove();
+                const botMsg = document.createElement('div');
+                botMsg.className = 'ai-msg ai-msg-bot';
+                botMsg.style.color = '#ef4444';
+                botMsg.textContent = `❌ 네트워크 오류: ${err.message}`;
+                chatContent.appendChild(botMsg);
+            } finally {
+                aiInput.disabled = false;
+                sendBtn.disabled = false;
+                aiInput.focus();
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+            }
         };
+
+        sendBtn.onclick = handleSend;
 
         if (aiInput) {
             aiInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendBtn.click();
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendBtn.click();
+                }
             });
         }
     }
@@ -446,6 +576,9 @@ function renderCtrlAgentOrgTree(dbAgents) {
     };
 
     const getAgentState = (id) => {
+        if (id === 17) {
+            return { status: 'active', role: 'CS 상담 운영중' };
+        }
         const dbId = dbMapping[id];
         const match = dbId !== undefined ? dbAgents.find(a => a.id === dbId) : null;
         if (match) {
@@ -495,6 +628,13 @@ function renderCtrlAgentOrgTree(dbAgents) {
                 { id: 13, name: "닥터", tag: "자가 치유", cond: "자동 복구 패치" },
                 { id: 14, name: "배달이", tag: "자율 배포", cond: "무중단 배포" },
                 { id: 15, name: "보안관", tag: "실시간 보안관제", cond: "보안 통제" }
+            ]
+        },
+        {
+            title: "📞 [고객 상담본부]",
+            desc: "ERP 사용법 안내 및 실시간 장애 대응을 전담하는 라인입니다.",
+            agents: [
+                { id: 17, name: "CS_상담이", tag: "ERP CS 가이드", cond: "실시간 운영" }
             ]
         },
         {
@@ -2783,6 +2923,210 @@ function renderEpubViewer(book) {
         try { lucide.createIcons(); } catch(e) {}
     }
 }
+
+// ───────────────────────────────────────────
+// 16번 지휘_판다 [긴급 보고서 큐] 티켓 수신기 & 보안 서명 검증
+// ───────────────────────────────────────────
+async function verifyTicketSignature(userId, ticketSubject, userIp, signature) {
+    const secret = 'fallback-security-stamp-secret-123'; // 공유 검증 키
+    const signData = `${userId || 'Anonymous'}:${ticketSubject}:${userIp}`;
+    
+    if (!signature) return false;
+    
+    try {
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(secret);
+        const messageData = encoder.encode(signData);
+        
+        const cryptoKey = await window.crypto.subtle.importKey(
+            'raw',
+            keyData,
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['verify', 'sign']
+        );
+        
+        // Hex string to Uint8Array
+        const signatureBytes = new Uint8Array(
+            signature.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+        );
+        
+        return await window.crypto.subtle.verify(
+            'HMAC',
+            cryptoKey,
+            signatureBytes,
+            messageData
+        );
+    } catch (e) {
+        console.error('Signature verification error:', e);
+        return false;
+    }
+}
+
+function startCtrlTicketListener() {
+    if (!_ctrl_supabase) return;
+    
+    setInterval(async () => {
+        try {
+            const { data: tickets, error } = await _ctrl_supabase
+                .from('chat_dialogue_logs')
+                .select('*')
+                .eq('ticket_status', 'PENDING')
+                .order('created_at', { ascending: false });
+                
+            if (error) {
+                console.error('[통제실] 티켓 조회 오류:', error.message);
+                return;
+            }
+            
+            const queueContainer = document.getElementById('ctrl-ticket-queue');
+            if (!queueContainer) return;
+            
+            if (!tickets || tickets.length === 0) {
+                queueContainer.innerHTML = `
+                    <div class="ctrl-ticket-empty" style="padding: 24px; text-align: center; color: var(--ctrl-text-mute); font-size: 11px; font-weight: 600; border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                        <i data-lucide="check-circle" style="width: 24px; height: 24px; color: #10b981; margin: 0 auto 8px; display: block;"></i>
+                        접수된 긴급 CS 티켓 보고서가 없습니다. 시스템이 안전합니다.
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    try { lucide.createIcons(); } catch(e) {}
+                }
+                return;
+            }
+            
+            let html = '';
+            for (const ticket of tickets) {
+                let subject = '긴급 시스템 장애';
+                try {
+                    const lastModelMsg = ticket.message_history
+                        .filter(m => m.role === 'model')
+                        .pop();
+                    if (lastModelMsg && lastModelMsg.parts && lastModelMsg.parts[0] && lastModelMsg.parts[0].text) {
+                        const ticketJsonRegex = /```json\s*([\s\S]*?)\s*```/;
+                        const match = lastModelMsg.parts[0].text.match(ticketJsonRegex);
+                        if (match) {
+                            const parsed = JSON.parse(match[1].trim());
+                            if (parsed && parsed.subject) {
+                                subject = parsed.subject;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse ticket subject from history:', e);
+                }
+                
+                const isValid = await verifyTicketSignature(
+                    ticket.user_id,
+                    subject,
+                    ticket.user_ip,
+                    ticket.security_signature || ''
+                );
+                
+                const timeStr = new Date(ticket.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                if (!isValid) {
+                    html += `
+                        <div class="ctrl-ticket-card" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444; border-radius: 8px; position: relative;">
+                            <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 800; font-size: 11px;">
+                                <i data-lucide="shield-alert" style="width: 14px; height: 14px;"></i>
+                                [위조/변조 경보] 가짜 티켓 감지됨
+                            </div>
+                            <div style="font-size: 11px; color: var(--ctrl-text); margin-top: 6px; font-family: monospace; line-height: 1.4;">
+                                <strong>요청 사용자:</strong> ${ticket.user_id || 'Unknown'}<br>
+                                <strong>위조 의심 IP 해시:</strong> ${ticket.user_ip ? ticket.user_ip.slice(0, 16) + '...' : 'None'}<br>
+                                <strong>시간:</strong> ${timeStr}
+                            </div>
+                            <div style="margin-top: 8px; font-size: 10px; background: rgba(239, 68, 68, 0.2); padding: 4px 8px; border-radius: 4px; color: #ef4444; font-weight: bold;">
+                                15번 보안관: 서명 검증 실패! 침입 시도로 차단됨.
+                            </div>
+                        </div>
+                    `;
+                    
+                    const logStream = document.getElementById('ctrl-log-stream');
+                    if (logStream) {
+                        const logIdKey = `intrusion_${ticket.id}`;
+                        if (!document.getElementById(logIdKey)) {
+                            const newLog = document.createElement('div');
+                            newLog.id = logIdKey;
+                            newLog.className = 'ctrl-log-entry ctrl-log-error';
+                            newLog.style.borderLeft = '3px solid #ef4444 !important';
+                            newLog.style.background = 'rgba(239, 68, 68, 0.05)';
+                            newLog.innerHTML = `
+                                <span class="ctrl-log-time">${timeStr}</span>
+                                <span class="ctrl-log-agent" style="color: #ef4444; font-weight: bold;">[15번 보안관]</span>
+                                <span style="color: #ef4444;">🚨 [침입 경고] 위조된 CS 티켓 유입 차단 완료 (ID: ${ticket.id})</span>
+                            `;
+                            logStream.insertBefore(newLog, logStream.firstChild);
+                        }
+                    }
+                } else {
+                    html += `
+                        <div class="ctrl-ticket-card" style="padding: 12px; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; position: relative;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 6px; color: #f43f5e; font-weight: 800; font-size: 11px;">
+                                    <span class="ctrl-dot ctrl-dot-rose pulse"></span>
+                                    긴급 CS 보고서
+                                </div>
+                                <span style="font-size: 9px; color: var(--ctrl-text-mute);">${timeStr}</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--ctrl-text); margin-top: 6px; font-weight: bold;">
+                                ${subject}
+                            </div>
+                            <div style="font-size: 10px; color: var(--ctrl-text-sub); margin-top: 4px; font-family: monospace;">
+                                ID: ${ticket.user_id || 'Anonymous'} | IP: ${ticket.user_ip ? ticket.user_ip.slice(0, 10) : 'Anonymous'}
+                            </div>
+                            <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 4px; color: #10b981; font-size: 9px; font-weight: bold;">
+                                    <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i>
+                                    보안인증 완료 (15번 보안관 서명)
+                                </div>
+                                <button onclick="resolveTicket(${ticket.id})" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer; hover: opacity: 0.9;">
+                                    해결 완료
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            queueContainer.innerHTML = html;
+            if (typeof lucide !== 'undefined') {
+                try { lucide.createIcons(); } catch(e) {}
+            }
+        } catch (e) {
+            console.error('[통제실] 티켓 리스너 폴링 에러:', e);
+        }
+    }, 5000);
+}
+
+window.resolveTicket = async function(id) {
+    if (!_ctrl_supabase) return;
+    try {
+        const { error } = await _ctrl_supabase
+            .from('chat_dialogue_logs')
+            .update({ ticket_status: 'RESOLVED' })
+            .eq('id', id);
+            
+        if (error) {
+            alert('티켓 상태 변경 실패: ' + error.message);
+        } else {
+            const logStream = document.getElementById('ctrl-log-stream');
+            if (logStream) {
+                const newLog = document.createElement('div');
+                newLog.className = 'ctrl-log-entry ctrl-log-success';
+                newLog.innerHTML = `
+                    <span class="ctrl-log-time">${new Date().toLocaleTimeString()}</span>
+                    <span class="ctrl-log-agent">[16번 지휘_판다]</span>
+                    <span>✅ [티켓 처리완료] 대표님이 긴급 티켓 (ID: ${id})을 처리했습니다.</span>
+                `;
+                logStream.insertBefore(newLog, logStream.firstChild);
+            }
+        }
+    } catch (e) {
+        console.error('Failed to resolve ticket:', e);
+    }
+};
 
 // ───────────────────────────────────────────
 // 스토어 예약 결제 실시간 연동 로그 수신기 (localStorage Event Listener)
