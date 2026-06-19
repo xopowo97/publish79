@@ -412,8 +412,10 @@
 
     <div id="ai-panel" class="ai-panel">
         <div class="ai-header" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="ai-avatar" style="background: #ffffff; color: #a855f7; font-weight: 900;">판</div>
-            <div class="flex-1">
+            <div class="ai-avatar" style="background: #ffffff; color: #a855f7; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);">
+                <i data-lucide="brain-circuit" style="width: 20px; height: 20px;"></i>
+            </div>
+            <div class="flex-1" style="margin-left: 10px;">
                 <div class="text-sm font-black tracking-tight text-white">16번 지휘_판다</div>
                 <div class="text-[10px] text-purple-200 font-bold">Panda Orchestrator</div>
             </div>
@@ -445,7 +447,9 @@
                         // PR Created: "fix/file-upload-handler"
                     </div>
                     <button id="ai-patch-apply-btn"
-                        class="w-full py-3 bg-sky-600 text-white rounded-xl text-xs font-black shadow-lg">
+                        style="width: 100%; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: background 0.2s;"
+                        onmouseover="this.style.background='#0369a1'"
+                        onmouseout="this.style.background='#0284c7'">
                         패치 자동 적용 및 서버 배포 승인
                     </button>
                 </div>
