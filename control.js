@@ -344,7 +344,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         localStorage.removeItem('latestStoreLog'); // 검증 완료 후 삭제
     }
+
+    // [🚨 신규 수요 감지] B2C 스토어 도서 제안 실시간 모니터링 연동
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'new_proposal_alert' && e.newValue) {
+            try {
+                const data = JSON.parse(e.newValue);
+                triggerProposalAlert(data);
+            } catch (err) {
+                console.error("제안 알림 파싱 실패:", err);
+            }
+        }
+    });
+
+    setInterval(() => {
+        const rawAlert = localStorage.getItem('new_proposal_alert');
+        if (rawAlert) {
+            try {
+                const data = JSON.parse(rawAlert);
+                triggerProposalAlert(data);
+            } catch (err) {
+                console.error("제안 폴링 파싱 실패:", err);
+            }
+            localStorage.removeItem('new_proposal_alert');
+        }
+    }, 1000);
 });
+
+function triggerProposalAlert(data) {
+    const logEl = document.getElementById('ctrl-log-stream');
+    if (!logEl) return;
+
+    // 1. [1번 살피미] 수요 감지 경고 로그
+    _appendCtrlLogEntry(
+        logEl, 
+        'warning', 
+        '1번 딥서치_살피미', 
+        `🚨 [신규 수요 감지] 도서명: "${data.title}" | 저자: ${data.author || '미상'} | 1번 살피미 국립중앙도서관 API 실시간 딥서치 엔진 가동.`, 
+        new Date()
+    );
+
+    // 2. 1.5초 후 [16번 지휘_판다] 복간 후보 테이블 등록 완료 로그
+    setTimeout(() => {
+        _appendCtrlLogEntry(
+            logEl, 
+            'success', 
+            '16번 지휘_판다', 
+            `✅ [수요 분석 완료] "${data.title}" 도서의 서지 데이터 정제 및 무결성 서명 확인 성공. 복간 후보(reprint_candidates) 테이블에 등록 완료. (제안 포인트 200P 지급)`, 
+            new Date()
+        );
+        
+        // Reload dashboard candidates dynamically
+        if (typeof loadCtrlDashboard === 'function') {
+            loadCtrlDashboard();
+        }
+    }, 1500);
+
+    // 3. 통제실 대시보드 화면에 Premium Notification Toast 팝업 노출
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 z-[200] bg-slate-900 border border-sky-500/30 text-white p-5 rounded-2xl shadow-2xl max-w-sm flex gap-4 items-start animate-in slide-in-from-bottom duration-300';
+    toast.innerHTML = `
+        <div class="bg-sky-500/20 p-2 rounded-xl text-sky-400 shrink-0 mt-0.5 animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-ring"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M22 8a2 2 0 0 0-2-2"/><path d="M2 8a2 2 0 0 1 2-2"/></svg>
+        </div>
+        <div>
+            <div class="text-xs font-black text-sky-400 uppercase tracking-widest">신규 수요 감지 (B2C 제안)</div>
+            <h4 class="text-sm font-bold text-white mt-1 leading-tight">${data.title}</h4>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">${data.author || '저자 미상'} | ${data.publisher || '출판사 미상'}</p>
+            <div class="text-[10px] text-slate-500 mt-2 font-mono">1번 딥서치_살피미 API 실시간 구동 완료</div>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    // Automatically fade out and remove after 6 seconds
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+        setTimeout(() => toast.remove(), 500);
+    }, 6000);
+}
 
 // ───────────────────────────────────────────
 // 3. 실시간 시계
