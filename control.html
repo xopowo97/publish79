@@ -411,15 +411,23 @@
     </div>
 
     <div id="ai-panel" class="ai-panel">
-        <div class="ai-header" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="ai-avatar" style="background: #ffffff; color: #a855f7; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);">
+        <div class="ai-header" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center;">
+            <div class="ai-avatar" style="background: #ffffff; color: #a855f7; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3); flex-shrink: 0;">
                 <i data-lucide="brain-circuit" style="width: 20px; height: 20px;"></i>
             </div>
-            <div class="flex-1" style="margin-left: 10px;">
-                <div class="text-sm font-black tracking-tight text-white">16번 지휘_판다</div>
-                <div class="text-[10px] text-purple-200 font-bold">Panda Orchestrator</div>
+            <div class="flex-1" style="margin-left: 10px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding-right: 8px;">
+                <div style="min-width: 0; flex-shrink: 1;">
+                    <div class="text-sm font-black tracking-tight text-white" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">16번 지휘_판다</div>
+                    <div class="text-[10px] text-purple-200 font-bold" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Panda Orchestrator</div>
+                </div>
+                <button id="ai-demo-btn"
+                    style="flex-shrink: 0; font-size: 9px; background: rgba(255, 255, 255, 0.15); color: #ffffff; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3); cursor: pointer; font-weight: bold; margin-left: 8px; transition: background 0.2s;"
+                    onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
+                    onmouseout="this.style.background='rgba(255, 255, 255, 0.15)'">
+                    DEMO
+                </button>
             </div>
-            <button id="ai-close-btn" class="text-slate-200 hover:text-white">
+            <button id="ai-close-btn" class="text-slate-200 hover:text-white" style="flex-shrink: 0;">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
