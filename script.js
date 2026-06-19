@@ -165,33 +165,134 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /*
-    // AI 헬퍼 send 버튼 클릭 이벤트 + 파란색 비행기(fa-paper-plane) 아이콘 복구
-    const sendBtn = document.querySelector('.ai-send-btn');
-    const aiInput = document.querySelector('.ai-input');
-    if (sendBtn && !sendBtn.dataset.bound) {
-        sendBtn.dataset.bound = 'true';
-        // 아이콘 강제 복구 (lucide send = 파란색 비행기)
-        sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        sendBtn.onclick = function() {
-            if (!aiInput || !aiInput.value.trim()) return;
-            const chatContent = document.getElementById('ai-chat-content');
+    // AI 헬퍼 (영업이) send 버튼 클릭 이벤트 및 Enter 키 연동
+    const sendBtnErp = document.getElementById('ai-send-btn-erp');
+    const aiInputErp = document.getElementById('ai-input-erp');
+    
+    if (sendBtnErp) {
+        sendBtnErp.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        
+        const clientMaskPII = (text) => {
+            if (!text || typeof text !== 'string') return text;
+            let masked = text;
+            masked = masked.replace(/([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})/g, '[개인정보 보호 마스킹]');
+            masked = masked.replace(/(01[016789])[-. ]?(\d{3,4})[-. ]?(\d{4})/g, '[개인정보 보호 마스킹]');
+            masked = masked.replace(/\b(\d{3,6})[- ]?(\d{2,4})[- ]?(\d{5,8})\b/g, '[개인정보 보호 마스킹]');
+            return masked;
+        };
+
+        const handleSendErp = async () => {
+            if (!aiInputErp || !aiInputErp.value.trim()) return;
+            const rawMessage = aiInputErp.value.trim();
+            const message = clientMaskPII(rawMessage);
+            const chatContent = document.getElementById('ai-chat-content-erp');
             if (!chatContent) return;
+
+            // 1. 사용자 말풍선 추가 및 입력창 비우기/비활성화
             const userMsg = document.createElement('div');
             userMsg.className = 'ai-msg ai-msg-user';
             userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
-            userMsg.textContent = aiInput.value.trim();
+            userMsg.textContent = message;
             chatContent.appendChild(userMsg);
-            aiInput.value = '';
+
+            aiInputErp.value = '';
+            aiInputErp.disabled = true;
+            sendBtnErp.disabled = true;
             setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            // 2. 히스토리에 사용자 메시지 추가
+            _erpChatHistory.push({ role: 'user', parts: [{ text: message }] });
+
+            // 3. 로딩 애니메이션 말풍선 추가
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'ai-msg ai-msg-bot loading-bubble';
+            loadingMsg.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctrl-dot ctrl-dot-green pulse" style="display:inline-block; margin-right:4px;"></span>
+                    <span>17번 CS_상담이가 생각하는 중...</span>
+                </div>
+            `;
+            chatContent.appendChild(loadingMsg);
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            try {
+                // 4. API 송신
+                const getApiUrl = (path) => {
+                    const isLocal = window.location.hostname === 'localhost' ||
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.hostname === '' ||
+                        window.location.protocol === 'file:';
+                    return isLocal ? `https://publish79.vercel.app${path}` : path;
+                };
+
+                const response = await fetch(getApiUrl('/api/chat'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_type: 'ERP_STORE',
+                        contents: _erpChatHistory,
+                        userId: sessionStorage.getItem('userId') || 'guest_user',
+                        userRole: sessionStorage.getItem('userRole') || 'guest',
+                        logId: _erpChatLogId
+                    })
+                });
+
+                // 5. 로딩 말풍선 제거
+                loadingMsg.remove();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const replyText = data.responseText;
+                    
+                    // 세션 유지를 위해 logId 보존
+                    if (data.logId) {
+                        _erpChatLogId = data.logId;
+                    }
+
+                    // 히스토리에 모델 응답 추가
+                    _erpChatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+
+                    // 봇 말풍선 추가
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.innerHTML = parseErpChatMarkdown(replyText);
+                    chatContent.appendChild(botMsg);
+
+                } else {
+                    const errText = await response.text();
+                    const errObj = JSON.parse(errText || '{}');
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.style.color = '#ef4444';
+                    botMsg.textContent = `❌ 오류가 발생했습니다: ${errObj.message || errObj.error || 'Gemini API 호출에 실패했습니다.'}`;
+                    chatContent.appendChild(botMsg);
+                }
+            } catch (err) {
+                loadingMsg.remove();
+                const botMsg = document.createElement('div');
+                botMsg.className = 'ai-msg ai-msg-bot';
+                botMsg.style.color = '#ef4444';
+                botMsg.textContent = `❌ 네트워크 오류: ${err.message}`;
+                chatContent.appendChild(botMsg);
+            } finally {
+                aiInputErp.disabled = false;
+                sendBtnErp.disabled = false;
+                aiInputErp.focus();
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+            }
         };
-        if (aiInput) {
-            aiInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendBtn.click();
+
+        sendBtnErp.onclick = handleSendErp;
+
+        if (aiInputErp) {
+            aiInputErp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendBtnErp.click();
+                }
             });
         }
     }
-    */
 });
 // -----------------------
 
@@ -8104,17 +8205,50 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // --- AI 헬퍼 및 자가치유 시뮬레이터 연동 모듈 (script.js 버전) ---
-window.toggleAIPanel = function () {
-    const panel = document.getElementById('ai-panel');
-    const fab = document.getElementById('ai-fab');
+// ERP용 17번 CS_상담이 AI 헬퍼 글로벌 상태 및 마크다운 파서
+let _erpChatHistory = [
+    { role: 'model', parts: [{ text: "안녕하세요! 출판친구의 시스템 안내를 전담하는 **17번 CS_상담이**입니다. 메뉴 위치나 파일 업로드 등에 대해 편하게 물어보세요!" }] }
+];
+let _erpChatLogId = null;
+
+function parseErpChatMarkdown(text) {
+    if (!text) return '';
+    let html = text;
+    html = html
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.05); color:#0284c7; padding:2px 4px; border-radius:4px; font-family:monospace; font-size:11px;">$1</code>');
+    html = html.replace(/```(?:json|javascript|js)?\s*([\s\S]*?)\s*```/g, '<pre style="background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:10px; font-family:monospace; font-size:11px; overflow-x:auto; margin:8px 0; color:#0284c7; white-space:pre-wrap; word-break:break-all;">$1</pre>');
+    html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            return `<li style="margin-left: 12px; list-style-type: disc; font-size:12px; line-height:1.5; margin-bottom:4px;">${trimmed.substring(2)}</li>`;
+        }
+        return line;
+    }).join('\n');
+    html = html.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+    return html;
+}
+
+window.toggleAIPanelErp = function () {
+    const panel = document.getElementById('ai-panel-erp');
+    const fab = document.getElementById('ai-fab-erp');
     if (!panel || !fab) return;
 
-    panel.classList.toggle('active');
-    if (panel.classList.contains('active')) {
+    if (panel.style.display === 'none' || !panel.classList.contains('active')) {
+        panel.style.display = 'flex';
+        panel.classList.add('active');
         fab.classList.add('active');
         fab.style.opacity = '0';
         fab.style.pointerEvents = 'none';
     } else {
+        panel.style.display = 'none';
+        panel.classList.remove('active');
         fab.classList.remove('active');
         fab.style.opacity = '1';
         fab.style.pointerEvents = 'all';
@@ -8124,6 +8258,8 @@ window.toggleAIPanel = function () {
         try { lucide.createIcons(); } catch (e) { }
     }
 };
+
+window.toggleAIPanel = window.toggleAIPanelErp;
 
 function showAIPanelOnError() {
     const panel = document.getElementById('ai-panel');
