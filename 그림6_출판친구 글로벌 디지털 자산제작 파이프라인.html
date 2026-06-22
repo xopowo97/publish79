@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판친구 멀티미디어 인터랙티브 전자책 뷰어</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.4);
+            
+            /* 테마 컬러 */
+            --cyan-border: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.2);
+            --purple-border: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.2);
+            --emerald-border: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.2);
+            --rose-border: #f43f5e;
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            
+            /* 전자책 지면 테마 */
+            --book-bg: #fcfbf7;
+            --book-text: #1e293b;
+            --book-highlight: rgba(6, 182, 212, 0.2);
+            --book-highlight-border: #06b6d4;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1350px;
+            background: rgba(10, 15, 30, 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #38bdf8, #a855f7, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 메인 콘텐츠 분할 레이아웃 */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 30px;
+            align-items: stretch;
+        }
+
+        /* 왼쪽: 태블릿 뷰어 시뮬레이터 */
+        .tablet-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tablet-mockup {
+            width: 100%;
+            max-width: 620px;
+            background: #1e293b;
+            border: 12px solid #0f172a;
+            border-radius: 36px;
+            box-shadow: 
+                0 0 0 1px rgba(255,255,255,0.05),
+                0 25px 60px -15px rgba(0,0,0,0.8),
+                0 0 30px rgba(6, 182, 212, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 태블릿 전면 카메라 데코레이션 */
+        .tablet-mockup::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: #475569;
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        /* 전자책 뷰어 탑바 */
+        .viewer-topbar {
+            background: #0f172a;
+            height: 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 11px;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .lang-switch {
+            display: flex;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 2px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .lang-btn {
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .lang-btn.active {
+            background: var(--cyan-border);
+            color: #020617;
+        }
+
+        /* 실제 책 지면 영역 */
+        .book-page {
+            background: var(--book-bg);
+            padding: 30px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 400px;
+            color: var(--book-text);
+            font-family: 'Noto Serif KR', serif;
+            box-shadow: inset 10px 0 20px rgba(0,0,0,0.02);
+            position: relative;
+        }
+
+        /* 도서 제목/장 분류 */
+        .book-chapter {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 본문 텍스트 단락 */
+        .book-content {
+            font-size: 14px;
+            line-height: 1.8;
+            text-align: justify;
+        }
+
+        /* 6번 번역이 한영 병기 연출 */
+        .para-en {
+            font-size: 12px;
+            color: #64748b;
+            font-style: italic;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .para-ko {
+            display: block;
+            margin-bottom: 16px;
+        }
+
+        /* 동기화 하이라이트 문장 */
+        .highlighted-text {
+            background: var(--book-highlight);
+            border-bottom: 2px solid var(--book-highlight-border);
+            padding: 2px 0;
+            font-weight: 600;
+        }
+
+        /* 7번 삽화 에이전트 이미지 연출 */
+        .illustration-card {
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin: 10px auto;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .illustration-image {
+            height: 140px;
+            background: linear-gradient(135deg, #1e1b4b 0%, #311042 100%);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 일러스트 내용 데코레이션 */
+        .illustration-image::before {
+            content: '';
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%);
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .illustration-icon {
+            font-size: 36px;
+            color: rgba(255, 255, 255, 0.85);
+            z-index: 2;
+            filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.5));
+            animation: pulseGlow 3s infinite alternate;
+        }
+
+        .illustration-tag {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--purple-border);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 8px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .illustration-caption {
+            font-size: 10px;
+            color: #64748b;
+            text-align: center;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+        }
+
+        /* 미디어 오버레이 오디오 컨트롤러 */
+        .media-controller {
+            background: #0f172a;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .media-main-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .media-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .media-info i {
+            color: var(--cyan-border);
+            font-size: 14px;
+            filter: drop-shadow(0 0 5px var(--cyan-glow));
+        }
+
+        .media-title-sub {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+
+        .media-title-main {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 12px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .control-btn:hover {
+            color: #fff;
+        }
+
+        .control-btn.play-btn {
+            width: 32px;
+            height: 32px;
+            background: var(--cyan-border);
+            color: #020617;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        /* 동적 사운드 웨이브 (오디오 작동 연출) */
+        .sound-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 20px;
+        }
+
+        .sound-bar {
+            width: 3px;
+            height: 4px;
+            background: var(--cyan-border);
+            border-radius: 1px;
+            animation: waveAnimation 1.2s ease-in-out infinite alternate;
+        }
+
+        .sound-bar:nth-child(2) { height: 12px; animation-delay: 0.1s; }
+        .sound-bar:nth-child(3) { height: 18px; animation-delay: 0.25s; }
+        .sound-bar:nth-child(4) { height: 8px; animation-delay: 0.4s; }
+        .sound-bar:nth-child(5) { height: 15px; animation-delay: 0.15s; }
+        .sound-bar:nth-child(6) { height: 5px; animation-delay: 0.3s; }
+
+        .timeline-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 9px;
+            color: #64748b;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .progress-bar-bg {
+            flex-grow: 1;
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 42%;
+            background: var(--cyan-border);
+            border-radius: 2px;
+            box-shadow: 0 0 6px var(--cyan-glow);
+        }
+
+        /* 오른쪽 영역: AI 컴파일 제어판 */
+        .compiler-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .info-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 10px;
+        }
+
+        .info-card h3 i {
+            color: var(--purple-border);
+        }
+
+        /* 파일 명세 리스트 */
+        .meta-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .meta-label {
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .meta-value {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* 컴파일러 로드맵 비용 비교 박스 */
+        .cost-comparison-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .cost-card {
+            background: rgba(9, 12, 24, 0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .cost-card.red {
+            border-color: rgba(244, 63, 94, 0.3);
+        }
+
+        .cost-card.green {
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+
+        .cost-title {
+            font-size: 10px;
+            color: var(--text-sub);
+            font-weight: 600;
+        }
+
+        .cost-price {
+            font-size: 18px;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .cost-card.red .cost-price { color: var(--rose-border); }
+        .cost-card.green .cost-price { color: var(--emerald-border); }
+
+        .cost-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .cost-card.red .cost-badge { background: rgba(244, 63, 94, 0.1); color: #ffe4e6; }
+        .cost-card.green .cost-badge { background: rgba(16, 185, 129, 0.1); color: #d1fae5; }
+
+        /* 터미널 로그 박스 */
+        .terminal-box {
+            background: #020617;
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10px;
+            line-height: 1.5;
+            color: #94a3b8;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .term-title {
+            font-size: 9px;
+            color: #c084fc;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .term-line {
+            white-space: nowrap;
+        }
+
+        .term-line.info { color: #a855f7; }
+        .term-line.success { color: #10b981; }
+        .term-line.warn { color: #f59e0b; }
+
+        @keyframes waveAnimation {
+            0% { transform: scaleY(0.3); }
+            100% { transform: scaleY(1.1); }
+        }
+
+        @keyframes pulseGlow {
+            0% { filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.3)); }
+            100% { filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.8)); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>출판친구 글로벌 디지털 자산(OSMU) 제작 파이프라인</h1>
+            <p>다국어 번역, 도서별 맞춤형 AI 삽화 생성, 그리고 EPUB3 인터랙티브 전자책 자율 컴파일 실증</p>
+        </div>
+
+        <!-- 메인 분할 레이아웃 -->
+        <div class="main-layout">
+            
+            <!-- 왼쪽: 태블릿 뷰어 시뮬레이터 -->
+            <div class="tablet-container">
+                <div class="tablet-mockup">
+                    <!-- 탑바 정보 -->
+                    <div class="viewer-topbar">
+                        <span><i class="fa-solid fa-book-open"></i> ePUB3 Reader</span>
+                        <div class="topbar-right">
+                            <!-- 한영 토글 연출 -->
+                            <div class="lang-switch">
+                                <span class="lang-btn">EN</span>
+                                <span class="lang-btn active">KO</span>
+                            </div>
+                            <span style="font-family: 'Outfit'; font-weight: 600;">98% <i class="fa-solid fa-battery-three-quarters"></i></span>
+                        </div>
+                    </div>
+                    
+                    <!-- 책 페이지 지면 -->
+                    <div class="book-page">
+                        <div class="book-chapter">Chapter 1. A Scandal in Bohemia</div>
+                        
+                        <div class="book-content">
+                            <!-- 영문 원작 텍스트 -->
+                            <span class="para-en">"To Sherlock Holmes she is always the woman. I have seldom heard him mention her under any other name."</span>
+                            <!-- 국문 번역 텍스트 + 동기화 하이라이팅 -->
+                            <span class="para-ko">
+                                <span class="highlighted-text">셜록 홈즈에게 그녀는 언제나 '그 여성'이었다.</span> 그가 그녀를 다른 이름으로 부르는 것을 들은 적이 거의 없다.
+                            </span>
+                            
+                            <!-- 7번 삽화 에이전트 자율 생성 이미지 카드 -->
+                            <div class="illustration-card">
+                                <div class="illustration-image" style="background: url('sherlock_illustration.png') no-repeat center center; background-size: cover; height: 140px; border-radius: 6px;">
+                                    <span class="illustration-tag">7번 그림이 (AI)</span>
+                                </div>
+                                <div class="illustration-caption">
+                                    [삽화 1-1] 보헤미아 스캔들의 히로인, 아이린 애들러의 실루엣 (자율 생성)
+                                </div>
+                            </div>
+                            
+                            <span class="para-en" style="font-size: 11px; opacity: 0.6;">"In his eyes she eclipses and predominates the whole of her sex."</span>
+                            <span class="para-ko" style="font-size: 13px; opacity: 0.6;">그녀는 홈즈의 눈에 비친 여성이라는 성별 전체를 압도하고 우뚝 서 있었다.</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 재생 컨트롤바 및 사운드웨이브 -->
+                    <div class="media-controller">
+                        <div class="media-main-row">
+                            <div class="media-info">
+                                <i class="fa-solid fa-circle-waveform-lines"></i>
+                                <div>
+                                    <div class="media-title-sub">가변 미디어 싱크 오디오 (TTS)</div>
+                                    <div class="media-title-main">셜록 홈즈의 모험_01장.mp3</div>
+                                </div>
+                            </div>
+                            <!-- 사운드웨이브 -->
+                            <div class="sound-wave">
+                                <div class="sound-bar"></div>
+                                <div class="sound-bar"></div>
+                                <div class="sound-bar"></div>
+                                <div class="sound-bar"></div>
+                                <div class="sound-bar"></div>
+                                <div class="sound-bar"></div>
+                            </div>
+                            <div class="player-controls">
+                                <button class="control-btn"><i class="fa-solid fa-backward-step"></i></button>
+                                <button class="control-btn play-btn"><i class="fa-solid fa-pause"></i></button>
+                                <button class="control-btn"><i class="fa-solid fa-forward-step"></i></button>
+                            </div>
+                        </div>
+                        <!-- 프로그레스 타임라인 -->
+                        <div class="timeline-row">
+                            <span>01:14</span>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill"></div>
+                            </div>
+                            <span>03:45</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: AI 컴파일 제어판 -->
+            <div class="compiler-dashboard">
+                
+                <!-- 1. 컴파일러 기본 명세 -->
+                <div class="info-card" style="box-shadow: 0 0 15px var(--purple-glow); border-color: rgba(168, 85, 247, 0.3);">
+                    <h3><i class="fa-solid fa-laptop-code"></i> 09. 이지퍼비터_ePub 빌드 엔진</h3>
+                    
+                    <div class="meta-list">
+                        <div class="meta-item">
+                            <span class="meta-label">출력 파일명</span>
+                            <span class="meta-value" style="color: #c084fc;">sherlock_holmes_interactive.epub</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">포맷 규격</span>
+                            <span class="meta-value">IDPF EPUB 3.2 (Standard)</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">다국어 번역엔진</span>
+                            <span class="meta-value">6번 번역이 (KO-EN 정밀 맵핑)</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">삽화 화소 수</span>
+                            <span class="meta-value">7번 그림이 (1024x1024px PNG)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 비용 혁신 비교 박스 -->
+                <div class="info-card" style="box-shadow: 0 0 15px var(--emerald-glow); border-color: rgba(16, 185, 129, 0.3);">
+                    <h3><i class="fa-solid fa-coins" style="color: #10b981;"></i> 1권 컴파일 제작 비용 비교</h3>
+                    
+                    <div class="cost-comparison-box">
+                        <div class="cost-card red">
+                            <span class="cost-title">전문 대행사 수수료</span>
+                            <span class="cost-price">₩ 1,500K</span>
+                            <span class="cost-badge">평균 외주 비용</span>
+                        </div>
+                        <div class="cost-card green">
+                            <span class="cost-title">출판친구 AI API 비용</span>
+                            <span class="cost-price">₩ 28.4K</span>
+                            <span class="cost-badge">무려 98.1% 절감</span>
+                        </div>
+                    </div>
+                    
+                    <!-- API 비용 상세 산출 근거 추가 -->
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08); font-size: 10px; color: var(--text-sub); line-height: 1.5; text-align: left;">
+                        <span style="font-weight: 700; color: #10b981; display: block; margin-bottom: 4px;"><i class="fa-solid fa-calculator"></i> AI API 비용 상세 산출 근거 (300p 도서 기준)</span>
+                        • 다국어 번역 API (GPT-4o) : <b>약 10,000원</b><br>
+                        • AI 삽화 생성 API (DALL-E 3, 12컷) : <b>약 2,400원</b><br>
+                        • TTS 낭독 음성 합성 API (OpenAI TTS) : <b>약 13,000원</b><br>
+                        • 서버 빌드 및 ePub 패키징 처리 : <b>약 3,000원</b>
+                    </div>
+                </div>
+
+                <!-- 3. 실시간 컴파일러 로그 터미널 -->
+                <div class="terminal-box">
+                    <div class="term-title">
+                        <i class="fa-solid fa-terminal"></i> epub-compiler-daemon-v3.0.log
+                    </div>
+                    <div class="term-line info">[INFO] Initializing ePub3 Compiler Engine...</div>
+                    <div class="term-line info">[INFO] Mapping translation data from '6번 번역이' database.</div>
+                    <div class="term-line success">[SUCCESS] Bilingual side-by-side mapping complete. (KO-EN matching)</div>
+                    <div class="term-line info">[INFO] Embedding high-res vector graphics from '7번 그림이'.</div>
+                    <div class="term-line success">[SUCCESS] Illustration metadata injected (12 assets embedded).</div>
+                    <div class="term-line success">[SUCCESS] Media-Overlay SMIL synchronized audio mapping file generated.</div>
+                    <div class="term-line success">[SUCCESS] Output validation success. EPUB 3.2 zip container compiled (14.8MB).</div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

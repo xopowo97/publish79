@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종이책 복간 공정 생산성 대비표</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.5);
+            
+            /* 테마별 글로우 및 액센트 색상 */
+            --orange-glow: rgba(249, 115, 22, 0.25);
+            --orange-border: #f97316;
+            --cyan-glow: rgba(56, 189, 248, 0.2);
+            --cyan-border: #38bdf8;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --emerald-border: #10b981;
+            --red-border: #ef4444;
+            --red-glow: rgba(239, 68, 68, 0.15);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1280px;
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+            position: relative;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fd974f, #f97316, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 테이블 래퍼 */
+        .table-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            font-weight: 700;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            color: #cbd5e1;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+            line-height: 1.5;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(30, 41, 59, 0.3);
+            color: #f8fafc;
+        }
+
+        /* 테이블 구분 및 강조용 스타일 */
+        .row-category {
+            font-weight: 700;
+            color: #f8fafc;
+            font-size: 14px;
+        }
+
+        .row-category i {
+            margin-right: 8px;
+            color: var(--cyan-border);
+            width: 16px;
+            text-align: center;
+        }
+
+        .val-original {
+            color: #f87171;
+            font-weight: 400;
+        }
+
+        .val-new {
+            color: #a7f3d0;
+            font-weight: 500;
+        }
+
+        /* 뱃지 스타일 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .badge-positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald-border);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+
+        .badge-negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-glow {
+            background: rgba(249, 115, 22, 0.1);
+            color: #fdba74;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            box-shadow: 0 0 12px var(--orange-glow);
+        }
+
+        /* 시뮬레이션 섹션 */
+        .sim-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sim-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--cyan-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .sim-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .sim-card:hover {
+            border-color: rgba(249, 115, 22, 0.4);
+            box-shadow: 0 0 15px rgba(249, 115, 22, 0.05);
+        }
+
+        .sim-info h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .sim-info p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .sim-result {
+            text-align: right;
+        }
+
+        .sim-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--orange-border);
+            text-shadow: 0 0 10px var(--orange-glow);
+        }
+
+        .sim-label {
+            font-size: 11px;
+            color: var(--emerald-border);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>종이책 복간 공정 생산성 대비표</h1>
+            <p>[표 2] 기존 전통적 수동 출판 공정 vs 출판친구 에이전트 기반 자율 공정 비교</p>
+        </div>
+
+        <!-- 표 영역 -->
+        <div class="table-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%">구분 단계</th>
+                        <th style="width: 32%">기존 수작업 공정</th>
+                        <th style="width: 28%">출판친구 자율 공정</th>
+                        <th style="width: 15%">생산성 혁신 효과</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 1단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-file-arrow-up"></i>1. 접수 및 견적</td>
+                        <td class="val-original">
+                            출판사 원고 웹하드 업로드 ➡️ 견적 수동 요청 ➡️ 견적 수동 산출 및 카톡 확인 대기
+                        </td>
+                        <td class="val-new">
+                            출판사 ERP 주문 및 파일 업로드 ➡️ <strong>수십 초 내 자율 견적서/발주서 자동 생성</strong>
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-bolt"></i> 수십 초 완성
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 2단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-gears"></i>2. 발주 및 생산</td>
+                        <td class="val-original">
+                            인쇄소 메신저/카톡 수동 발주 ➡️ 파일 수동 다운로드 ➡️ 규격 검토 및 생산 (담당자 지연 빈번)
+                        </td>
+                        <td class="val-new">
+                            생산 대시보드 및 칸반보드 즉시 노출 ➡️ 인쇄 표준 규격 자율 검토 및 생산/배송 관제
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-eye"></i> 실시간 관제
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 3단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-calculator"></i>3. 정산 및 세금</td>
+                        <td class="val-original">
+                            월말 거래명세 수동 작성 ➡️ 카톡 확인 ➡️ 홈택스 로그인 세금계산서 수동 발행
+                        </td>
+                        <td class="val-new">
+                            대시보드 월말 정산 명세 자율 집계 ➡️ 엑셀 자동 생성 ➡️ 클릭 한 번으로 세금계산서 발행
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-arrow-down-long"></i> 공수 95%↓
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 종합 평가 -->
+                    <tr>
+                        <td class="row-category" style="color: #fdba74;"><i class="fa-solid fa-hourglass-half" style="color: #fdba74;"></i>종합 평가 (병목)</td>
+                        <td class="val-original" style="font-weight: 700; color: #f87171;">
+                            최소 1주일 이상 소요 (대표자 수동 개입 100% / 무한 대기)
+                        </td>
+                        <td class="val-new" style="font-weight: 700; color: #a7f3d0;">
+                            실제 작업/배송 시간만 소요 (대표자 대기 20% 이하 / 승인 중심)
+                        </td>
+                        <td>
+                            <span class="badge badge-glow">
+                                <i class="fa-solid fa-chart-line"></i> 무한 확장성
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 하단 행정 효율성 요약 카드 -->
+        <div class="sim-section">
+            <div class="sim-title">
+                <i class="fa-solid fa-business-time"></i> 연간 100종 복간 기준 행정 비용 시뮬레이션
+            </div>
+            
+            <div class="sim-grid">
+                <!-- 기존 방식 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>기존 전통적 출판 업무</h4>
+                        <p>수동 견적, 카톡 발주, 거래명세 대조, 계산서 발행 등 소요 시간</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value" style="color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.2);">약 240 시간</div>
+                        <div class="sim-label" style="color: #f87171;"><i class="fa-solid fa-circle-xmark"></i> 대표자 리소스 소진</div>
+                    </div>
+                </div>
+
+                <!-- 에이전트 도입 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>출판친구 에이전트 도입 후</h4>
+                        <p>동작 시간 외 대표자 대기 및 최종 컨펌에만 개입하는 시간</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value" style="color: #10b981; text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);">48 시간 이하</div>
+                        <div class="sim-label"><i class="fa-solid fa-circle-check"></i> 80% 시간 절감 달성</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

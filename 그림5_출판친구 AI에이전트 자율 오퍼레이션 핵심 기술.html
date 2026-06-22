@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판친구 독보적 기술 우수성 대시보드</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.4);
+            
+            /* 테마별 네온 컬러 */
+            --orange-border: #f97316;
+            --orange-glow: rgba(249, 115, 22, 0.2);
+            --purple-border: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.2);
+            --cyan-border: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.2);
+            --yellow-border: #eab308;
+            --yellow-glow: rgba(234, 179, 8, 0.2);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1350px;
+            background: rgba(10, 15, 30, 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #38bdf8, #a855f7, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 2x2 그리드 레이아웃 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 테마별 카드 외곽선 지정 */
+        .card-orange { border-color: rgba(249, 115, 22, 0.3); box-shadow: 0 0 15px var(--orange-glow); }
+        .card-orange:hover { border-color: var(--orange-border); box-shadow: 0 0 22px var(--orange-glow); }
+        
+        .card-purple { border-color: rgba(168, 85, 247, 0.3); box-shadow: 0 0 15px var(--purple-glow); }
+        .card-purple:hover { border-color: var(--purple-border); box-shadow: 0 0 22px var(--purple-glow); }
+        
+        .card-cyan { border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 0 15px var(--cyan-glow); }
+        .card-cyan:hover { border-color: var(--cyan-border); box-shadow: 0 0 22px var(--cyan-glow); }
+        
+        .card-yellow { border-color: rgba(234, 179, 8, 0.3); box-shadow: 0 0 15px var(--yellow-glow); }
+        .card-yellow:hover { border-color: var(--yellow-border); box-shadow: 0 0 22px var(--yellow-glow); }
+
+        /* 카드 헤더 */
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card-orange .card-icon { background: rgba(249, 115, 22, 0.1); color: var(--orange-border); border-color: rgba(249, 115, 22, 0.3); }
+        .card-purple .card-icon { background: rgba(168, 85, 247, 0.1); color: var(--purple-border); border-color: rgba(168, 85, 247, 0.3); }
+        .card-cyan .card-icon { background: rgba(6, 182, 212, 0.1); color: var(--cyan-border); border-color: rgba(6, 182, 212, 0.3); }
+        .card-yellow .card-icon { background: rgba(234, 179, 8, 0.1); color: var(--yellow-border); border-color: rgba(234, 179, 8, 0.3); }
+
+        .card-title-group h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        /* 배지 */
+        .badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .card-orange .badge { background: rgba(249, 115, 22, 0.1); color: #ffedd5; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .card-purple .badge { background: rgba(168, 85, 247, 0.1); color: #f3e8ff; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .card-cyan .badge { background: rgba(6, 182, 212, 0.1); color: #ecfeff; border: 1px solid rgba(6, 182, 212, 0.3); }
+        .card-yellow .badge { background: rgba(234, 179, 8, 0.1); color: #fef9c3; border: 1px solid rgba(234, 179, 8, 0.3); }
+
+        /* 카드 설명 텍스트 */
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-sub);
+            line-height: 1.5;
+        }
+
+        /* 시각 자료 영역 */
+        .card-visual {
+            background: rgba(9, 12, 24, 0.6);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 130px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 1번 카드 비주얼: 임포지션 판걸이 배열 */
+        .imposition-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            width: 100%;
+            gap: 15px;
+        }
+
+        .imp-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .imp-layout span {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .paper-sheet {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 8px;
+            display: grid;
+            gap: 4px;
+        }
+
+        .sheet-2up {
+            grid-template-columns: repeat(2, 1fr);
+            width: 100px;
+            height: 70px;
+        }
+
+        .sheet-4up {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            width: 100px;
+            height: 70px;
+            border-color: var(--orange-border);
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+        }
+
+        .page-block {
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 2px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 9px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .sheet-4up .page-block {
+            background: rgba(249, 115, 22, 0.2);
+            border-color: rgba(249, 115, 22, 0.4);
+            color: #ffedd5;
+        }
+
+        .imp-vs {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--orange-border);
+        }
+
+        /* 2번 카드 비주얼: 마케팅 에셋 구성 */
+        .marketing-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            width: 100%;
+        }
+
+        .mkt-asset {
+            background: rgba(168, 85, 247, 0.05);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .mkt-asset h5 {
+            font-size: 11px;
+            color: #f3e8ff;
+            font-weight: 700;
+        }
+
+        .mkt-preview-bar {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mkt-preview-bar span {
+            width: 6px;
+            height: 18px;
+            background: rgba(168, 85, 247, 0.4);
+            border-radius: 2px;
+        }
+
+        .mkt-preview-bar span:nth-child(even) {
+            height: 28px;
+            background: var(--purple-border);
+            margin-top: -5px;
+        }
+
+        .mkt-preview-card {
+            width: 60px;
+            height: 40px;
+            border: 1px dashed rgba(168, 85, 247, 0.4);
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-sub);
+        }
+
+        .mkt-preview-card::after {
+            content: '\f03e';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 16px;
+            color: rgba(168, 85, 247, 0.6);
+        }
+
+        /* 3번 카드 비주얼: 자가치유 루프 */
+        .loop-box {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .loop-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .loop-icon-circle {
+            width: 38px;
+            height: 38px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--cyan-border);
+            font-size: 14px;
+        }
+
+        .loop-node span {
+            font-size: 10px;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .loop-arrow {
+            color: rgba(6, 182, 212, 0.4);
+            font-size: 14px;
+            animation: bounceArrow 2s infinite;
+        }
+
+        /* 4번 카드 비주얼: 개발자 콘솔 에디터 스키마 */
+        .console-editor {
+            width: 100%;
+            background: #020617;
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-tab {
+            background: #0f172a;
+            padding: 4px 12px;
+            font-size: 9px;
+            color: #fef9c3;
+            border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+        }
+
+        .console-tab i {
+            color: var(--yellow-border);
+        }
+
+        .console-body {
+            padding: 10px;
+            font-size: 10px;
+            line-height: 1.4;
+            color: #94a3b8;
+            overflow-y: auto;
+            max-height: 105px;
+        }
+
+        .console-line {
+            display: flex;
+            gap: 10px;
+        }
+
+        .line-num {
+            color: rgba(234, 179, 8, 0.3);
+            text-align: right;
+            width: 12px;
+            user-select: none;
+        }
+
+        .line-text {
+            white-space: pre;
+        }
+
+        .key { color: #38bdf8; }
+        .val-str { color: #a7f3d0; }
+        .val-num { color: #fca5a5; }
+
+        @keyframes bounceArrow {
+            0% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            100% { transform: translateX(-2px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>출판친구 AI 에이전트 자율 오퍼레이션 핵심 기술</h1>
+            <p>1인 기업의 자본 리스크와 유지보수 한계를 혁신적으로 극복하는 독보적인 4대 기술적 우수성</p>
+        </div>
+
+        <!-- 2x2 그리드 레이아웃 -->
+        <div class="features-grid">
+            
+            <!-- 1. 판형 최적화 및 자동 조판 -->
+            <div class="feature-card card-orange">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="card-icon"><i class="fa-solid fa-print"></i></div>
+                        <h3>01. 설비 인지형 판형 최적화</h3>
+                    </div>
+                    <span class="badge">내지 인쇄비 33.3% 절감</span>
+                </div>
+                <div class="card-desc">
+                    인쇄 전지 규격(315×467mm)의 기하학적 한계를 계산하여 A5 변환을 제안하고, 93% 축소 자동 정밀 조판을 처리해 인쇄 공정 클릭 요금을 즉시 절감합니다.
+                </div>
+                <div class="card-visual">
+                    <div class="imposition-box">
+                        <div class="imp-layout">
+                            <div class="paper-sheet sheet-2up">
+                                <div class="page-block">p.1</div>
+                                <div class="page-block">p.2</div>
+                            </div>
+                            <span>기존 신국판 (2판 배열)</span>
+                        </div>
+                        <div class="imp-vs">➔</div>
+                        <div class="imp-layout">
+                            <div class="paper-sheet sheet-4up">
+                                <div class="page-block">p.1</div>
+                                <div class="page-block">p.2</div>
+                                <div class="page-block">p.3</div>
+                                <div class="page-block">p.4</div>
+                            </div>
+                            <span style="color: var(--orange-border); font-weight: 700;">A5 국판 (4판 배열)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. AI 자율 마케팅 팩 -->
+            <div class="feature-card card-purple">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="card-icon"><i class="fa-solid fa-bullhorn"></i></div>
+                        <h3>02. AI 사전 마케팅 팩 지원</h3>
+                    </div>
+                    <span class="badge">사전 마케팅비 0원</span>
+                </div>
+                <div class="card-desc">
+                    홍보 인력과 예산이 없는 1인 출판사를 위해 책 원고를 정밀 분석하고, 배포용 카드뉴스(SVG 자동 합성) 및 숏폼 제작용 TTS 음성 나레이션을 무상 생성합니다.
+                </div>
+                <div class="card-visual">
+                    <div class="marketing-box">
+                        <div class="mkt-asset">
+                            <h5>홍보 카드뉴스</h5>
+                            <div class="mkt-preview-card"></div>
+                        </div>
+                        <div class="mkt-asset">
+                            <h5>TTS 숏폼 오디오</h5>
+                            <div class="mkt-preview-bar">
+                                <span></span><span></span><span></span><span></span><span></span><span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 무인 자가 치유 및 보안 -->
+            <div class="feature-card card-cyan">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="card-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+                        <h3>03. 무인 자가치유 & 보안관제</h3>
+                    </div>
+                    <span class="badge">유지보수비 0원</span>
+                </div>
+                <div class="card-desc">
+                    에러 감시(눈치왕)-코드 수정 및 PR(닥터)-서버 배포(배달이)로 이어지는 자가치유 루프와, API Key 노출 방지를 위한 30초 주기 전수 스캔 및 강제 환경변수 치환을 가동합니다.
+                </div>
+                <div class="card-visual">
+                    <div class="loop-box">
+                        <div class="loop-node">
+                            <div class="loop-icon-circle"><i class="fa-solid fa-eye"></i></div>
+                            <span>⑫ 눈치왕 (감시)</span>
+                        </div>
+                        <div class="loop-arrow"><i class="fa-solid fa-angles-right"></i></div>
+                        <div class="loop-node">
+                            <div class="loop-icon-circle"><i class="fa-solid fa-kit-medical"></i></div>
+                            <span>⑬ 닥터 (치유)</span>
+                        </div>
+                        <div class="loop-arrow"><i class="fa-solid fa-angles-right"></i></div>
+                        <div class="loop-node">
+                            <div class="loop-icon-circle"><i class="fa-solid fa-truck-fast"></i></div>
+                            <span>⑭ 배달이 (배포)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 최고의사결정 모방학습 -->
+            <div class="feature-card card-yellow">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="card-icon"><i class="fa-solid fa-user-astronaut"></i></div>
+                        <h3>04. 의사결정 모방학습 (CEO Clone)</h3>
+                    </div>
+                    <span class="badge">자율경영 아카이브</span>
+                </div>
+                <div class="card-desc">
+                    의사결정 추천안에 대한 운영자의 [승인/반려] 결과와 도서 지표, 마진율 등의 비즈니스 컨텍스트를 구조화된 JSON 데이터 로그로 축적하여 가치관을 학습합니다.
+                </div>
+                <div class="card-visual" style="padding: 10px;">
+                    <div class="console-editor">
+                        <div class="console-tab">
+                            <i class="fa-solid fa-file-code"></i> ceo_decision_log.json
+                        </div>
+                        <div class="console-body">
+                            <div class="console-line"><span class="line-num">1</span><span class="line-text">{</span></div>
+                            <div class="console-line"><span class="line-num">2</span><span class="line-text">  <span class="key">"log_id"</span>: <span class="val-str">"LOG-2026-0042"</span>,</span></div>
+                            <div class="console-line"><span class="line-num">3</span><span class="line-text">  <span class="key">"ai_recommendation"</span>: {</span></div>
+                            <div class="console-line"><span class="line-num">4</span><span class="line-text">    <span class="key">"reprint_score"</span>: <span class="val-num">88.5</span>,</span></div>
+                            <div class="console-line"><span class="line-num">5</span><span class="line-text">    <span class="key">"bep_target"</span>: <span class="val-num">100</span></span></div>
+                            <div class="console-line"><span class="line-num">6</span><span class="line-text">  },</span></div>
+                            <div class="console-line"><span class="line-num">7</span><span class="line-text">  <span class="key">"ceo_actual_decision"</span>: {</span></div>
+                            <div class="console-line"><span class="line-num">8</span><span class="line-text">    <span class="key">"action"</span>: <span class="val-str">"APPROVE_REPRINT"</span>,</span></div>
+                            <div class="console-line"><span class="line-num">9</span><span class="line-text">    <span class="key">"applied_format"</span>: <span class="val-str">"A5_OPTIMIZED"</span></span></div>
+                            <div class="console-line"><span class="line-num">10</span><span class="line-text">  }</span></div>
+                            <div class="console-line"><span class="line-num">11</span><span class="line-text">}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>
