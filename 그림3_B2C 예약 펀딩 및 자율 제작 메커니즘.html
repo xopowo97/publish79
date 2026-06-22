@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>출판친구 B2C 예약 펀딩 메커니즘 흐름도</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.5);
+            
+            /* 테마별 글로우 및 액센트 색상 */
+            --orange-glow: rgba(249, 115, 22, 0.25);
+            --orange-border: #f97316;
+            --cyan-glow: rgba(56, 189, 248, 0.25);
+            --cyan-border: #38bdf8;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --emerald-border: #10b981;
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1280px;
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            position: relative;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #f97316, #ec4899, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 3단계 가로 정렬 흐름 컨테이너 */
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        /* 개별 단계 카드 */
+        .flow-card {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            border-radius: 16px;
+            padding: 28px 24px;
+            box-shadow: 0 0 15px var(--orange-glow), inset 0 0 10px rgba(249, 115, 22, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .flow-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--orange-border);
+            box-shadow: 0 0 22px var(--orange-glow);
+        }
+
+        /* 카드 상단 배지 */
+        .card-step-badge {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #0f172a;
+            padding: 2px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--orange-border);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            border-radius: 20px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* 카드 헤더 (아이콘 + 단계명) */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(249, 115, 22, 0.1);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--orange-border);
+            font-size: 22px;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .card-title h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 2px;
+        }
+
+        .card-title p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        /* 카드 콘텐츠 영역 */
+        .card-body {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.5;
+            min-height: 50px;
+        }
+
+        /* 시각화 그래픽 영역 */
+        .visual-display {
+            background: rgba(10, 15, 30, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100px;
+        }
+
+        /* 1단계 비주얼: 책 목업 + 빌링키 등록 */
+        .book-billing-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 10px;
+        }
+
+        .mini-book {
+            width: 50px;
+            height: 70px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--cyan-border);
+            font-size: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .key-link {
+            font-size: 16px;
+            color: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        .billing-key-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--emerald-border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 2단계 비주얼: 예약 게이지 바 */
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .gauge-header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .gauge-percent {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--orange-border);
+            line-height: 1;
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+        }
+
+        .gauge-numbers {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .gauge-bar-bg {
+            height: 10px;
+            background: #1e293b;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .gauge-bar-fill {
+            height: 100%;
+            width: 78%;
+            background: linear-gradient(90deg, #f97316, #ec4899);
+            border-radius: 5px;
+            box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+        }
+
+        .gauge-footer {
+            font-size: 10px;
+            color: #fdba74;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 3단계 비주얼: 결제 승인 및 인쇄 발주 */
+        .trigger-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .trigger-status {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--emerald-border);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 6px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .factory-order {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .factory-order i {
+            color: var(--orange-border);
+        }
+
+        /* 단계 사이 연결 화살표 */
+        .flow-arrow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--border-color);
+            font-size: 20px;
+            padding: 0 5px;
+        }
+
+        .flow-arrow i {
+            animation: moveRight 2s infinite linear;
+        }
+
+        /* 하단 경고/안심 뱃지 */
+        .footer-note {
+            display: flex;
+            justify-content: center;
+        }
+
+        .info-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px dashed rgba(56, 189, 248, 0.4);
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 12px;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.02);
+        }
+
+        .info-card i {
+            color: var(--cyan-border);
+            font-size: 16px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        @keyframes moveRight {
+            0% { transform: translateX(-4px); opacity: 0.5; }
+            50% { transform: translateX(4px); opacity: 1; }
+            100% { transform: translateX(-4px); opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>B2C 예약 펀딩 및 자율 제작 메커니즘</h1>
+            <p>목표 수량 달성 시에만 일괄 결제와 자율 제작이 실행되어 자본 및 행정 리스크가 0%로 통제됩니다.</p>
+        </div>
+
+        <!-- 3단계 가로 흐름도 -->
+        <div class="flow-container">
+            
+            <!-- 1단계 카드 -->
+            <div class="flow-card">
+                <div class="card-step-badge">STEP 01</div>
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-user-pen"></i></div>
+                    <div class="card-title">
+                        <h3>B2C 독자 예약 신청</h3>
+                        <p>선결제 금액 0원 / 리스크 없음</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    독자가 복간 희망 도서를 확인하고, 빌링키(결제 정보)를 등록하여 결제 권한을 사전 부여합니다.
+                </div>
+                <div class="visual-display">
+                    <div class="book-billing-box">
+                        <div class="mini-book"><i class="fa-solid fa-book"></i></div>
+                        <div class="key-link"><i class="fa-solid fa-circle-arrow-right"></i></div>
+                        <div class="billing-key-badge">
+                            <i class="fa-solid fa-key"></i> 빌링키 등록 완료
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 화살표 -->
+            <div class="flow-arrow">
+                <i class="fa-solid fa-angles-right"></i>
+            </div>
+
+            <!-- 2단계 카드 -->
+            <div class="flow-card">
+                <div class="card-step-badge">STEP 02</div>
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <div class="card-title">
+                        <h3>실시간 수요 집계</h3>
+                        <p>에이전트 실시간 모니터링</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    복간 목표 수량(BEP 100부) 도달 여부를 에이전트가 모니터링하며 실시간 게이지를 스토어에 표기합니다.
+                </div>
+                <div class="visual-display">
+                    <div class="gauge-container">
+                        <div class="gauge-header-info">
+                            <div class="gauge-percent">78%</div>
+                            <div class="gauge-numbers">78 / 100 부 달성</div>
+                        </div>
+                        <div class="gauge-bar-bg">
+                            <div class="gauge-bar-fill"></div>
+                        </div>
+                        <div class="gauge-footer">
+                            <i class="fa-solid fa-bolt"></i> 목표 달성까지 22부 남음
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 화살표 -->
+            <div class="flow-arrow">
+                <i class="fa-solid fa-angles-right"></i>
+            </div>
+
+            <!-- 3단계 카드 -->
+            <div class="flow-card">
+                <div class="card-step-badge">STEP 03</div>
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-gears"></i></div>
+                    <div class="card-title">
+                        <h3>일괄 결제 및 자율 제작</h3>
+                        <p>100% 무재고 제작 및 배송</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    펀딩 마감일 내 목표치 달성 시 일괄 예약 결제를 자동 격발하고, 인쇄소에 자율 발주하여 제작을 시작합니다.
+                </div>
+                <div class="visual-display">
+                    <div class="trigger-box">
+                        <div class="trigger-status">
+                            <i class="fa-solid fa-circle-check"></i> 100부 달성 및 결제 승인
+                        </div>
+                        <div class="factory-order">
+                            <span>출판친구 API</span> <i class="fa-solid fa-arrow-right"></i> <span>제휴 POD 인쇄소 발주</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 하단 안심 뱃지 노출 -->
+        <div class="footer-note">
+            <div class="info-card">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span><b>안심 취소 정책:</b> 목표 수량 미달성 시 펀딩은 자동 무료 취소되며, 등록된 결제 정보는 안전하게 만료되어 취소/환불 행정 비용이 0%로 수렴합니다.</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

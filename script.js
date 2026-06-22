@@ -3560,16 +3560,16 @@ function switchRole(newRole) {
 function applyRoleVisibility() {
     const role = currentUserRole;
 
-    // 1. 사이드바 메뉴 노출 매핑 (에이전트 통제실 btn-agent-control 은 admin 전용)
+    // 1. 사이드바 메뉴 노출 매핑 (재고관리, 용지구매, 구인구직 추가하여 권한 제어)
     const menuVisibility = {
-        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'],
-        publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production'],
+        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
+        publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job'],
         printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
         printer_worker: ['btn-production'],
-        judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 작업자는 생산진행만 가능
+        judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 심사위원은 재고/용지/구인구직/사양/단가/설정 노출 제외
     };
 
-    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-system-settings'];
+    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
     const allowed = menuVisibility[role] || allMenus;
 
     // 2. 사이드바 엘리먼트 노출 제어 및 명칭 치환

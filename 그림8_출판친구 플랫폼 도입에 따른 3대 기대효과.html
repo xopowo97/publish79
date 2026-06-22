@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>출판친구 비즈니스 기대효과 및 ESG 대시보드</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.4);
+            
+            /* 테마별 네온 컬러 */
+            --cyan-border: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.2);
+            --orange-border: #f97316;
+            --orange-glow: rgba(249, 115, 22, 0.2);
+            --emerald-border: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.2);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.06) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1350px;
+            background: rgba(10, 15, 30, 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #38bdf8, #f97316, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 3열 카드 레이아웃 */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .benefit-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 테마별 카드 외곽선 및 글로우 */
+        .card-cyan { border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 0 15px var(--cyan-glow); }
+        .card-cyan:hover { border-color: var(--cyan-border); box-shadow: 0 0 22px var(--cyan-glow); }
+        
+        .card-orange { border-color: rgba(249, 115, 22, 0.3); box-shadow: 0 0 15px var(--orange-glow); }
+        .card-orange:hover { border-color: var(--orange-border); box-shadow: 0 0 22px var(--orange-glow); }
+        
+        .card-emerald { border-color: rgba(16, 185, 129, 0.3); box-shadow: 0 0 15px var(--emerald-glow); }
+        .card-emerald:hover { border-color: var(--emerald-border); box-shadow: 0 0 22px var(--emerald-glow); }
+
+        /* 카드 헤더 */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card-cyan .card-icon { background: rgba(6, 182, 212, 0.1); color: var(--cyan-border); border-color: rgba(6, 182, 212, 0.3); }
+        .card-orange .card-icon { background: rgba(249, 115, 22, 0.1); color: var(--orange-border); border-color: rgba(249, 115, 22, 0.3); }
+        .card-emerald .card-icon { background: rgba(16, 185, 129, 0.1); color: var(--emerald-border); border-color: rgba(16, 185, 129, 0.3); }
+
+        .card-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        /* 성과 명세 내역 */
+        .stat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-sub);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-label i {
+            font-size: 10px;
+        }
+
+        .card-cyan .stat-label i { color: var(--cyan-border); }
+        .card-orange .stat-label i { color: var(--orange-border); }
+        .card-emerald .stat-label i { color: var(--emerald-border); }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+        }
+
+        .stat-highlight {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .card-cyan .stat-highlight { background: rgba(6, 182, 212, 0.1); color: #ecfeff; border: 1px solid rgba(6, 182, 212, 0.3); }
+        .card-orange .stat-highlight { background: rgba(249, 115, 22, 0.1); color: #ffedd5; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .card-emerald .stat-highlight { background: rgba(16, 185, 129, 0.1); color: #ecfeff; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* 하단 인포그래픽 데코 영역 */
+        .card-visual {
+            background: rgba(9, 12, 24, 0.6);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 1번 카드 데코: 마진 그래프 */
+        .margin-graph {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 70px;
+            padding-top: 10px;
+        }
+
+        .graph-bar {
+            width: 35px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 9px;
+            font-weight: 700;
+            padding-bottom: 4px;
+            transition: all 0.5s ease;
+        }
+
+        .graph-bar.old {
+            height: 40px;
+            color: var(--text-sub);
+        }
+
+        .graph-bar.new {
+            height: 65px;
+            background: linear-gradient(to top, rgba(6, 182, 212, 0.2), var(--cyan-border));
+            border-color: var(--cyan-border);
+            color: #020617;
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .graph-label {
+            font-size: 9px;
+            color: var(--text-sub);
+            margin-top: 4px;
+            text-align: center;
+        }
+
+        /* 2번 카드 데코: 가동률 게이지 미터 (50% ➔ 70%) */
+        .gauge-container {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            gap: 20px;
+        }
+
+        .gauge-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .gauge-svg {
+            width: 60px;
+            height: 60px;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: #1e293b;
+            stroke-width: 6;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 6;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease;
+        }
+
+        .gauge-box.old .gauge-fill {
+            stroke: #475569;
+            stroke-dasharray: 94.2 188.4; /* 50% of circle perimeter 2*pi*r = 2*3.14*30 = 188.4 */
+        }
+
+        .gauge-box.new .gauge-fill {
+            stroke: var(--orange-border);
+            stroke-dasharray: 131.8 188.4; /* 70% of circle perimeter */
+            filter: drop-shadow(0 0 4px var(--orange-glow));
+        }
+
+        .gauge-text {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: #fff;
+        }
+
+        .gauge-label {
+            font-size: 9px;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        /* 3번 카드 데코: ESG 탄소 배출 인포그래픽 수식 */
+        .esg-formula {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            font-size: 9px;
+            color: #e2e8f0;
+        }
+
+        .formula-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .formula-value {
+            font-weight: 700;
+            color: var(--emerald-border);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>출판친구 플랫폼 도입에 따른 3대 기대효과</h1>
+            <p>출판사 마진 회생, 인쇄 제조 효율성 제고, 그리고 100% 온디맨드를 통한 친환경 ESG 가치 창출</p>
+        </div>
+
+        <!-- 3열 기대효과 카드 그리드 -->
+        <div class="benefits-grid">
+            
+            <!-- 1. B2B 출판사 관점 -->
+            <div class="benefit-card card-cyan">
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-building-user"></i></div>
+                    <h3>01. B2B 출판사 관점</h3>
+                </div>
+                
+                <div class="stat-list">
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-shield-halved"></i> 초기 자본 리스크</span>
+                        <span class="stat-value">0% <span class="stat-highlight">선주문 펀딩 연계</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-chart-pie"></i> 출판사 도서 공급률</span>
+                        <span class="stat-value">90% <span class="stat-highlight">기존 60% 대비 1.5배</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-money-bill-trend-up"></i> 연간 추가 순이익 (10종)</span>
+                        <span class="stat-value">₩ 36,900K <span class="stat-highlight">무재고 연간 누적</span></span>
+                    </div>
+                </div>
+
+                <div class="card-visual">
+                    <div class="margin-graph">
+                        <div>
+                            <div class="graph-bar old">60%</div>
+                            <div class="graph-label">기존 전통 유통</div>
+                        </div>
+                        <div style="font-size: 14px; font-weight:800; color:var(--cyan-border); padding-bottom:15px;">➔</div>
+                        <div>
+                            <div class="graph-bar new">90%</div>
+                            <div class="graph-label">출판친구 D2C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 인쇄 제조사 관점 -->
+            <div class="benefit-card card-orange">
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-industry"></i></div>
+                    <h3>02. 인쇄 제조사(POD) 관점</h3>
+                </div>
+                
+                <div class="stat-list">
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-coins"></i> 영업 및 마케팅비</span>
+                        <span class="stat-value">0원 <span class="stat-highlight">플랫폼 자동 발주</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-arrows-spin"></i> 공정 전환 비용 최소화</span>
+                        <span class="stat-value">상생 환원 <span class="stat-highlight">단가 인하 협의</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-gauge-high"></i> 제조 설비 가동률</span>
+                        <span class="stat-value">70% <span class="stat-highlight">유휴 장비 일감 통합</span></span>
+                    </div>
+                </div>
+
+                <div class="card-visual">
+                    <div class="gauge-container">
+                        <!-- 기존 가동률 50% -->
+                        <div class="gauge-box old" style="position: relative;">
+                            <svg class="gauge-svg">
+                                <circle class="gauge-bg" cx="30" cy="30" r="25"/>
+                                <circle class="gauge-fill" cx="30" cy="30" r="25"/>
+                            </svg>
+                            <div class="gauge-text" style="top: 22px;">50%</div>
+                            <div class="gauge-label">기존 가동률</div>
+                        </div>
+                        <div style="font-size: 14px; font-weight:800; color:var(--orange-border); display:flex; align-items:center; height:60px;">➔</div>
+                        <!-- 플랫폼 연계 가동률 70% -->
+                        <div class="gauge-box new" style="position: relative;">
+                            <svg class="gauge-svg">
+                                <circle class="gauge-bg" cx="30" cy="30" r="25"/>
+                                <circle class="gauge-fill" cx="30" cy="30" r="25"/>
+                            </svg>
+                            <div class="gauge-text" style="top: 22px; color: var(--orange-border);">70%</div>
+                            <div class="gauge-label" style="color: var(--orange-border); font-weight:700;">출판친구 연계</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 독자 및 ESG 관점 -->
+            <div class="benefit-card card-emerald">
+                <div class="card-header">
+                    <div class="card-icon"><i class="fa-solid fa-seedling"></i></div>
+                    <h3>03. 사회·문화 및 ESG 관점</h3>
+                </div>
+                
+                <div class="stat-list">
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-monuments"></i> 절판 문화 자산 보존</span>
+                        <span class="stat-value">100% <span class="stat-highlight">영구 아카이빙 복간</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-trash-can-slash"></i> 연간 반품 파쇄 방지량</span>
+                        <span class="stat-value">45,000권 <span class="stat-highlight">재고 폐기율 0%</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label"><i class="fa-solid fa-cloud-arrow-down"></i> 연간 탄소 배출 감축량</span>
+                        <span class="stat-value" style="color: #34d399;">49.5톤 <span class="stat-highlight">49,500kg CO2e</span></span>
+                    </div>
+                </div>
+
+                <div class="card-visual">
+                    <div class="esg-formula">
+                        <div class="formula-row">
+                            <span>연간 총 복간 생산량</span>
+                            <span class="formula-value">300,000부</span>
+                        </div>
+                        <div class="formula-row">
+                            <span>전통 파쇄 수량 (15% 대입)</span>
+                            <span class="formula-value">45,000권 방지</span>
+                        </div>
+                        <div class="formula-row" style="border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.03);">
+                            <span>탄소 감축량 (권당 1.1kg)</span>
+                            <span class="formula-value" style="color:#34d399; font-weight:800;">49,500kg CO2e</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 한국출판문화산업진흥원 근거 문구 추가 -->
+                <div style="font-size: 8px; color: var(--text-sub); line-height: 1.4; margin-top: 4px; text-align: left; border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 8px;">
+                    - 한국출판문화산업진흥원의 자료에 따르면 국내 단행본 출판물의 높은 반품률(평균 30%)과 반품 중 파쇄율(15%)로 인해 매년 수많은 서적이 폐기 처리
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

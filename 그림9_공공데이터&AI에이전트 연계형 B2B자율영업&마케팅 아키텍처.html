@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>공공데이터 및 AI 에이전트 연계형 B2B 자율 영업/마케팅 아키텍처</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #05070f;
+            --card-bg: rgba(13, 20, 38, 0.65);
+            --border-color: rgba(51, 65, 85, 0.4);
+            
+            /* 핵심 단계별 포인트 색상 */
+            --input-color: #38bdf8;
+            --input-glow: rgba(56, 189, 248, 0.2);
+            --process-color: #a855f7;
+            --process-glow: rgba(168, 85, 247, 0.2);
+            --output-color: #10b981;
+            --output-glow: rgba(16, 185, 129, 0.2);
+            
+            /* 분류별 뱃지 컬러 시스템 */
+            --badge-public-color: #38bdf8;
+            --badge-public-bg: rgba(56, 189, 248, 0.06);
+            --badge-public-border: rgba(56, 189, 248, 0.25);
+            
+            --badge-private-color: #f97316;
+            --badge-private-bg: rgba(249, 115, 22, 0.06);
+            --badge-private-border: rgba(249, 115, 22, 0.25);
+            
+            --badge-ai-color: #c084fc;
+            --badge-ai-bg: rgba(192, 132, 252, 0.06);
+            --badge-ai-border: rgba(192, 132, 252, 0.25);
+            
+            --badge-backend-color: #34d399;
+            --badge-backend-bg: rgba(52, 211, 153, 0.06);
+            --badge-backend-border: rgba(52, 211, 153, 0.25);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(168, 85, 247, 0.06) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.005) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.005) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1280px;
+            background: rgba(8, 12, 24, 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 데코레이션 그리드 백그라운드 효과 */
+        .viewport-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.02) 0%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, var(--input-color), var(--process-color), var(--output-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 3단 칼럼 컨테이너 */
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 세로 단계별 열 */
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: rgba(13, 20, 38, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 24px 20px;
+            position: relative;
+        }
+
+        /* 단계 타이틀 */
+        .column-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+            margin-bottom: 8px;
+        }
+
+        .column-header h2 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .column-header .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* 칼럼별 고유 테두리 글로우 효과 */
+        .column.col-input {
+            border-top: 3px solid var(--input-color);
+            box-shadow: inset 0 10px 20px -10px var(--input-glow);
+        }
+        .column.col-input .column-header h2 { color: var(--input-color); }
+        .column.col-input .column-header .badge { background: var(--input-glow); color: var(--input-color); border: 1px solid rgba(56, 189, 248, 0.3); }
+
+        .column.col-process {
+            border-top: 3px solid var(--process-color);
+            box-shadow: inset 0 10px 20px -10px var(--process-glow);
+        }
+        .column.col-process .column-header h2 { color: var(--process-color); }
+        .column.col-process .column-header .badge { background: var(--process-glow); color: var(--process-color); border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        .column.col-output {
+            border-top: 3px solid var(--output-color);
+            box-shadow: inset 0 10px 20px -10px var(--output-glow);
+        }
+        .column.col-output .column-header h2 { color: var(--output-color); }
+        .column.col-output .column-header .badge { background: var(--output-glow); color: var(--output-color); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* 개별 카드 */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            background: rgba(20, 30, 55, 0.8);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* 카드 헤더 */
+        .card-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .col-input .card-icon { background: rgba(56, 189, 248, 0.12); color: var(--input-color); border: 1px solid rgba(56, 189, 248, 0.2); }
+        .col-process .card-icon { background: rgba(168, 85, 247, 0.12); color: var(--process-color); border: 1px solid rgba(168, 85, 247, 0.2); }
+        .col-output .card-icon { background: rgba(16, 185, 129, 0.12); color: var(--output-color); border: 1px solid rgba(16, 185, 129, 0.2); }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        /* 카드 설명 텍스트 */
+        .card-content {
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.45;
+        }
+
+        /* API 뱃지 다중 래퍼 */
+        .badges-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        /* 쪼개진 낱개 API 뱃지 스타일 */
+        .api-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .api-badge i {
+            font-size: 9px;
+        }
+
+        /* 뱃지 타입별 색상 매핑 */
+        .badge-pub {
+            background: var(--badge-public-bg);
+            border: 1px solid var(--badge-public-border);
+            color: var(--badge-public-color);
+        }
+        .badge-pub:hover {
+            background: rgba(56, 189, 248, 0.12);
+        }
+
+        .badge-pri {
+            background: var(--badge-private-bg);
+            border: 1px solid var(--badge-private-border);
+            color: var(--badge-private-color);
+        }
+        .badge-pri:hover {
+            background: rgba(249, 115, 22, 0.12);
+        }
+
+        .badge-ai {
+            background: var(--badge-ai-bg);
+            border: 1px solid var(--badge-ai-border);
+            color: var(--badge-ai-color);
+        }
+        .badge-ai:hover {
+            background: rgba(192, 132, 252, 0.12);
+        }
+
+        .badge-back {
+            background: var(--badge-backend-bg);
+            border: 1px solid var(--badge-backend-border);
+            color: var(--badge-backend-color);
+        }
+        .badge-back:hover {
+            background: rgba(52, 211, 153, 0.12);
+        }
+
+        /* 하단 종합 연동 성과 요약 풋터 */
+        .footer-summary {
+            background: rgba(13, 20, 38, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-info i {
+            font-size: 20px;
+            color: var(--process-color);
+            text-shadow: 0 0 10px var(--process-glow);
+        }
+
+        .footer-info-text h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 2px;
+        }
+
+        .footer-info-text p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .footer-stats {
+            display: flex;
+            gap: 25px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .stat-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--output-color);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-sub);
+            font-weight: 500;
+            margin-top: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>공공데이터 & AI 에이전트 연계형 B2B 자율 영업/마케팅 아키텍처</h1>
+            <p>[그림 8] API 데이터 수집 ➡️ 에이전트 자율 기획 ➡️ 펀딩 및 숏폼 마케팅 자동화 프로세스</p>
+        </div>
+
+        <!-- 3단 칼럼 구성도 -->
+        <div class="architecture-grid">
+            
+            <!-- 1단계: INPUT -->
+            <div class="column col-input">
+                <div class="column-header">
+                    <h2>01. 실시간 데이터 수집</h2>
+                    <span class="badge">Input</span>
+                </div>
+
+                <!-- 카드 1 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                        <h3 class="card-title">전국 대출 빅데이터 분석</h3>
+                    </div>
+                    <p class="card-content">
+                        전국 공공도서관 인기대출 도서 및 소장도서 데이터를 수집하여 숨겨진 복간 수요 및 독자 관심 키워드 분석
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-pub"><i class="fa-solid fa-building-columns"></i> 정보나루 API [공공]</div>
+                    </div>
+                </div>
+
+                <!-- 카드 2 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-store-slash"></i></div>
+                        <h3 class="card-title">도서 유통 상태 판별</h3>
+                    </div>
+                    <p class="card-content">
+                        대출 수요는 높으나 시중 온/오프라인 서점에서 절판되거나 품절되어 구매가 불가능한 타겟 도서 실시간 필터링
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-pri"><i class="fa-solid fa-store"></i> 알라딘 API [민간]</div>
+                    </div>
+                </div>
+
+                <!-- 카드 3 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-address-book"></i></div>
+                        <h3 class="card-title">출판사 정보 및 연락망 수집</h3>
+                    </div>
+                    <p class="card-content">
+                        절판 도서의 원래 저작권을 소유한 출판사 상호, 대표자명, 신고번호, 대표자 전화번호 등 B2B 영업 기본 정보 획득
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-pub"><i class="fa-solid fa-file-invoice"></i> 문체부 출판사 API [공공]</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2단계: PROCESS -->
+            <div class="column col-process">
+                <div class="column-header">
+                    <h2>02. 에이전트 자율 기획/영업</h2>
+                    <span class="badge">Process</span>
+                </div>
+
+                <!-- 카드 4 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-award"></i></div>
+                        <h3 class="card-title">복간 가치 지수(Reprint Score) 산정</h3>
+                    </div>
+                    <p class="card-content">
+                        <strong>02번 다듬이 에이전트</strong>가 대출 통계 가중치, 인쇄 사양 데이터를 조합하여 최적의 복간 후보 도서 자율 판정 및 추천
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-back"><i class="fa-solid fa-server"></i> Supabase DB [백엔드]</div>
+                        <div class="api-badge badge-pub"><i class="fa-solid fa-book"></i> 국가서지 API [공공]</div>
+                    </div>
+                </div>
+
+                <!-- 카드 5 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-file-contract"></i></div>
+                        <h3 class="card-title">B2B 복간 제안서 자율 작성</h3>
+                    </div>
+                    <p class="card-content">
+                        <strong>10번 영업이 에이전트</strong>가 해당 도서의 예상 독자 프로파일, 추정 제작비, 기대 수익이 포함된 사업 제안서 자율 생성
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-ai"><i class="fa-solid fa-microchip"></i> Gemini API [AI]</div>
+                        <div class="api-badge badge-ai"><i class="fa-solid fa-brain"></i> GPT-4o API [AI]</div>
+                    </div>
+                </div>
+
+                <!-- 카드 6 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-paper-plane"></i></div>
+                        <h3 class="card-title">제안서 자율 발송 및 영업 개시</h3>
+                    </div>
+                    <p class="card-content">
+                        수집된 연락망으로 <strong>10번 영업이</strong>가 제안서 메일을 자율 발송하고, 출판친구 ERP 대시보드 상에 B2B 제안 상태 등록
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-pri"><i class="fa-solid fa-paper-plane"></i> SendGrid API [민간]</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3단계: OUTPUT -->
+            <div class="column col-output">
+                <div class="column-header">
+                    <h2>03. 펀딩 개시 및 마케팅 배포</h2>
+                    <span class="badge">Output</span>
+                </div>
+
+                <!-- 카드 7 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                        <h3 class="card-title">스토어 펀딩 개설 및 관제 연동</h3>
+                    </div>
+                    <p class="card-content">
+                        출판사 동의 시 스토어 펀딩 페이지 자동 개설. 펀딩 결제 금액이 통제실 관제 대시보드에 실시간 바인딩 노출
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-back"><i class="fa-solid fa-bolt"></i> Supabase Realtime [백엔드]</div>
+                        <div class="api-badge badge-pri"><i class="fa-solid fa-credit-card"></i> Portone PG [민간]</div>
+                    </div>
+                </div>
+
+                <!-- card 8 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-video"></i></div>
+                        <h3 class="card-title">홍보용 숏폼 비디오 자율 제작</h3>
+                    </div>
+                    <p class="card-content">
+                        <strong>11번 알리미 에이전트</strong>가 원고 내용 분석 및 하이라이트 문장 추출 ➡️ 감성 TTS 목소리 및 자막을 합성한 15초 숏폼(MP4) 자율 렌더링
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-ai"><i class="fa-solid fa-volume-high"></i> OpenAI TTS [AI]</div>
+                        <div class="api-badge badge-ai"><i class="fa-solid fa-image"></i> DALL-E 3 [AI]</div>
+                    </div>
+                </div>
+
+                <!-- card 9 -->
+                <div class="card">
+                    <div class="card-title-row">
+                        <div class="card-icon"><i class="fa-solid fa-bullhorn"></i></div>
+                        <h3 class="card-title">정밀 타겟 SNS 광고 배포</h3>
+                    </div>
+                    <p class="card-content">
+                        도서 대출 인구통계(대구 30대 여성 등)를 분석하여 해당 타겟이 모여 있는 SNS 광고 캠페인을 자동 개설하고 숏폼 영상 송출
+                    </p>
+                    <div class="badges-container">
+                        <div class="api-badge badge-pri"><i class="fa-solid fa-hashtag"></i> Meta Graph [민간]</div>
+                        <div class="api-badge badge-pri"><i class="fa-solid fa-play"></i> YouTube API [민간]</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 하단 종합 연동 성과 요약 풋터 -->
+        <div class="footer-summary">
+            <div class="footer-info">
+                <i class="fa-solid fa-circle-check"></i>
+                <div class="footer-info-text">
+                    <h3>연계 완료된 하이브리드 API 생태계</h3>
+                    <p>4개의 대한민국 공공데이터 오픈 API와 8개의 글로벌 민간/상용 & 백엔드 API의 유기적 연계를 실현하였습니다.</p>
+                </div>
+            </div>
+            
+            <div class="footer-stats">
+                <div class="stat-item">
+                    <div class="stat-val" style="color: var(--input-color);">04개</div>
+                    <div class="stat-label">공공데이터 API</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val" style="color: var(--process-color);">08개</div>
+                    <div class="stat-label">민간/상용 & 백엔드 API</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val">100% 자율화</div>
+                    <div class="stat-label">B2B 영업/마케팅 루프</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
