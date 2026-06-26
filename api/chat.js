@@ -366,9 +366,12 @@ export default async function handler(req, res) {
             console.warn('Supabase 환경변수가 설정되지 않아 DB 적재를 생략합니다.');
         }
 
+        // 사용자 화면에 출력되는 답변 텍스트에서 ```json ... ``` 블록을 제거하여 말풍선을 깔끔하게 유지합니다.
+        const cleanResponseText = responseText.replace(/```json\s*[\s\S]*?```/g, '').trim();
+
         return res.status(200).json({
             success: true,
-            responseText: responseText,
+            responseText: cleanResponseText,
             extractedRules: extractedRules,
             logId: savedRow ? savedRow.id : (logId || null)
         });
