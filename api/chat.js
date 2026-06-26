@@ -20,6 +20,61 @@ function maskPII(text) {
     return masked;
 }
 
+async function getQueryEmbedding(query, apiKey) {
+    if (!query || typeof query !== 'string') return null;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${apiKey}`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'models/gemini-embedding-2',
+                content: {
+                    parts: [{ text: query }]
+                },
+                outputDimensionality: 768
+            })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data.embedding?.values || null;
+        }
+        console.warn('임베딩 추출 실패:', await response.text());
+    } catch (e) {
+        console.error('임베딩 API 오류:', e.message);
+    }
+    return null;
+}
+
+async function fetchRAGKnowledge(embedding, chatType, rawUrl, supKey) {
+    if (!embedding || !rawUrl || !supKey) return [];
+    const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
+    const url = `${base}/rpc/match_rag_knowledge`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey': supKey,
+                'Authorization': `Bearer ${supKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query_embedding: embedding,
+                match_threshold: 0.3,
+                match_count: 3,
+                filter_agent: chatType
+            })
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+        console.warn('RAG 유사도 조회 실패:', await response.text());
+    } catch (e) {
+        console.error('RAG RPC 오류:', e.message);
+    }
+    return [];
+}
+
 export default async function handler(req, res) {
     // CORS 헤더 설정
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -109,6 +164,29 @@ export default async function handler(req, res) {
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
         if (!GEMINI_API_KEY) {
             throw new Error('GEMINI_API_KEY 환경변수가 설정되지 않았습니다.');
+        }
+
+        const rawUrl = process.env.SUPABASE_URL;
+        const supKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        // RAG 지식 기지 조회 및 시스템 프롬프트 동적 주입
+        try {
+            const lastUserMessage = [...maskedContents].reverse().find(item => item.role === 'user');
+            const userQuery = lastUserMessage?.parts?.[0]?.text || '';
+            if (userQuery && rawUrl && supKey) {
+                const embedding = await getQueryEmbedding(userQuery, GEMINI_API_KEY);
+                if (embedding) {
+                    const ragChunks = await fetchRAGKnowledge(embedding, chat_type, rawUrl, supKey);
+                    if (ragChunks && ragChunks.length > 0) {
+                        const knowledgeContext = ragChunks
+                            .map((chunk, idx) => `[관련 지식 ${idx + 1}] (${chunk.file_name})\n${chunk.content}`)
+                            .join('\n\n');
+                        systemPrompt += `\n\n[출판친구 지식 기지 참조 내용]\n아래는 당신의 내부 지식 기지에서 검색된 최신 및 과거 관련 정보입니다. 답변 시 이 내용을 적극 참고하십시오:\n${knowledgeContext}`;
+                    }
+                }
+            }
+        } catch (ragErr) {
+            console.error('RAG 조회 및 결합 오류:', ragErr.message);
         }
 
         let responseText = '';
