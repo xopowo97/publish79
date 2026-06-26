@@ -274,8 +274,6 @@ export default async function handler(req, res) {
 
         const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
         const hashedIp = crypto.createHash('sha256').update(rawIp).digest('hex');
-        const rawUrl = process.env.SUPABASE_URL;
-        const supKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
         if (ticketTriggered && rawUrl && supKey) {
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
