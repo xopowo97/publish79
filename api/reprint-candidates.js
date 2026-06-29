@@ -98,7 +98,7 @@ export default async function handler(req, res) {
         const witchBook = {
             id: 1,
             title: "마녀",
-            author: "서상원(편)",
+            author: "주경철",
             pub_year: 2021,
             library_loans: 15230,
             reprint_score: 99,
