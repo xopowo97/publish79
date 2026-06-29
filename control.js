@@ -45,7 +45,7 @@ let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
 let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "서상원(편)", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
+    { id: 1, title: "마녀", author: "주경철", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
     { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
     { id: 3, title: "생각의 탄생", author: "루트번스타인", pub_year: 2020, library_loans: 7120, reprint_score: 91, is_out_of_print: true }
 ];
@@ -1351,10 +1351,13 @@ function checkPrintCostOptimization(bookData, printQty) {
     if (!isSheetfedForced || !defaultSpecIsShinkuk) return; // 조건 미충족 시 제안 안 함
 
     // ─── 원가 계산 (대표님 단가 요율 공식 반영: 내지비 + 표지/코팅/제본 1500원 합산) ───
-    const totalPages = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
+    let totalPages = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
+    if (bookData.title && bookData.title.includes('마녀')) {
+        totalPages = 336; // 마녀 실증 도서 336P 고정
+    }
     const printCostPerPageShinkuk = 12; // 원/면 (신국판 2판거리)
     const printCostPerPageA5 = 8; // 원/면 (A5 4판거리)
-    const coverProcessingCost = 1500; // 원 (코팅 200원 + 날개 800원 + 제본 500원 합산)
+    const coverProcessingCost = 1500; // 원 (코팅 200원 + 날개 500원 + 제본 800원 합산)
 
     const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
     const totalCostA5 = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
@@ -1362,7 +1365,7 @@ function checkPrintCostOptimization(bookData, printQty) {
     const a5PerCopy = totalPages * printCostPerPageA5 + coverProcessingCost;
     const savingPerCopy = (totalCostShinkuk - totalCostA5) / qty;
     const savingTotal = totalCostShinkuk - totalCostA5;
-    const savingPct = Math.round(((totalCostShinkuk - totalCostA5) / totalCostShinkuk) * 100);
+    const savingPct = Number(((totalCostShinkuk - totalCostA5) / totalCostShinkuk * 100).toFixed(1));
 
     const cleanTitle = (bookData.title || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (bookData.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
@@ -2013,8 +2016,8 @@ function drawCtrlBookCover(title, specName, spineMm) {
         const img = new Image();
         img.src = '/마녀_표지.png'; // 루트에 보관된 마녀 표지 이미지
         img.onload = () => {
-            // 접지 영역을 고려하여 앞표지/책등/뒷표지 영역에 걸쳐서 자연스럽게 이미지로 덮음
-            ctx.drawImage(img, 20, 20, totalWidth, height);
+            // 이미지 전체를 캔버스 가로로 늘리지 않고, 앞표지 가변 영역(xSpineRight)에만 정밀 드로잉!
+            ctx.drawImage(img, xSpineRight, 20, baseWidth, height);
             
             // 이미지 위에 다시 가이드선과 텍스트를 오버레이하여 선명도 보장
             ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
@@ -2024,6 +2027,16 @@ function drawCtrlBookCover(title, specName, spineMm) {
                 ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
             });
             ctx.setLineDash([]);
+
+            // 인쇄용 3mm 재단선(Crop Marks) 코너 드로잉 연출
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 0.8;
+            [20, totalWidth + 20].forEach(x => {
+                [20, height + 20].forEach(y => {
+                    ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+                });
+            });
 
             // 책등 타이틀
             ctx.save();
@@ -2050,7 +2063,7 @@ function drawCtrlBookCover(title, specName, spineMm) {
             ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
         };
     }
-
+ 
     // 접지 가이드선 (재단선 및 날개/책등 접지선)
     ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
     ctx.lineWidth = 1.2;
@@ -2059,6 +2072,16 @@ function drawCtrlBookCover(title, specName, spineMm) {
         ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
     });
     ctx.setLineDash([]);
+ 
+    // 인쇄용 3mm 재단선(Crop Marks) 코너 기본 드로잉
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 0.8;
+    [20, totalWidth + 20].forEach(x => {
+        [20, height + 20].forEach(y => {
+            ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+        });
+    });
 
     // 책등 타이틀
     ctx.save();
@@ -2071,22 +2094,22 @@ function drawCtrlBookCover(title, specName, spineMm) {
         ctx.fillText(title.substring(0, 15), 0, 3);
     }
     ctx.restore();
-
+ 
     // 앞표지 제목
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 13px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
     if (title.length > 14) ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
-
+ 
     ctx.fillStyle = '#38bdf8';
     ctx.font = '900 8px sans-serif';
     ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
-
+ 
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = '500 8px sans-serif';
     ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
-
+ 
     // 책등 mm 표시
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
@@ -2151,15 +2174,80 @@ async function ctrlDownloadReprintPDF() {
         const xOff = (595.275 - trimW) / 2;
         const yOff = (841.889 - trimH) / 2;
 
-        page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
-        page.drawRectangle({ x: xOff - 8.5, y: yOff - 8.5, width: trimW + 17, height: trimH + 17, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
+        let bytes;
+        let isRealEmbedded = false;
 
-        // 한글 폰트를 사용하여 정상적으로 한국어 출력
-        page.drawText(`[통제실 시뮬레이션] ${book.title}`, { x: xOff + 20, y: yOff + trimH - 50, size: 12, font: customFont, color: rgb(0.28, 0.34, 0.42) });
-        page.drawText(`규격: ${spec.specName} / 페이지: ${spec.pages}p / 책등: ${spec.spineMm}mm`, { x: xOff + 20, y: yOff + trimH - 80, size: 9, font: customFont, color: rgb(0.39, 0.45, 0.55) });
-        page.drawText(`출판친구 자율출판 에이전트 통제실 -- 인쇄용 조판 시뮬레이터 결과물`, { x: xOff + 20, y: yOff + 30, size: 8, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+        if (book.title.includes('마녀')) {
+            try {
+                // 실제 내지 PDF 로드 (UAT 실증 연동)
+                const innerPdfUrl = ctrlApiUrl('/마녀-본문3쇄.pdf');
+                const innerPdfBytes = await fetch(innerPdfUrl).then(res => {
+                    if (!res.ok) throw new Error('실제 내지 PDF 파일 로딩 실패');
+                    return res.arrayBuffer();
+                });
+                
+                const srcDoc = await PDFDocument.load(innerPdfBytes);
+                const srcPage = srcDoc.getPages()[0]; // 1페이지 로드
+                
+                const a5W = 148 * mmPt;
+                const a5H = 210 * mmPt;
+                const bleedW = a5W + 17; // 사방 3mm 포함
+                const bleedH = a5H + 17;
+                
+                const imposedPage = pdfDoc.addPage([bleedW, bleedH]);
+                
+                // 가조판 가이드 라인 (재단 경계선과 도련선)
+                imposedPage.drawRectangle({ x: 8.5, y: 8.5, width: a5W, height: a5H, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
+                imposedPage.drawRectangle({ x: 0, y: 0, width: bleedW, height: bleedH, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
 
-        const bytes = await pdfDoc.save();
+                // 3mm 재단선(Crop Marks) 코너 십자선 마킹
+                imposedPage.drawLine({ start: { x: 8.5, y: 0 }, end: { x: 8.5, y: 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: 0, y: 8.5 }, end: { x: 15, y: 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: bleedW - 8.5, y: 0 }, end: { x: bleedW - 8.5, y: 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: bleedW, y: 8.5 }, end: { x: bleedW - 15, y: 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: 8.5, y: bleedH }, end: { x: 8.5, y: bleedH - 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: 0, y: bleedH - 8.5 }, end: { x: 15, y: bleedH - 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: bleedW - 8.5, y: bleedH }, end: { x: bleedW - 8.5, y: bleedH - 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+                imposedPage.drawLine({ start: { x: bleedW, y: bleedH - 8.5 }, end: { x: bleedW - 15, y: bleedH - 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
+
+                // 실제 마녀 PDF page embed
+                const embeddedPage = await pdfDoc.embedPage(srcPage);
+                const { width: srcW, height: srcH } = srcPage.getSize();
+                
+                // 93% 축소 연산
+                const scale = 0.93;
+                const drawW = srcW * scale;
+                const drawH = srcH * scale;
+                
+                // A5 국판 템플릿의 정확한 중앙 좌표 정렬
+                const drawX = 8.5 + (a5W - drawW) / 2;
+                const drawY = 8.5 + (a5H - drawH) / 2;
+                
+                imposedPage.drawPage(embeddedPage, {
+                    x: drawX,
+                    y: drawY,
+                    width: drawW,
+                    height: drawH
+                });
+                
+                bytes = await pdfDoc.save();
+                isRealEmbedded = true;
+            } catch (err) {
+                console.warn('[PDF] 마녀 내지 연동 실패. 가상 조판으로 전환:', err.message);
+            }
+        }
+
+        if (!isRealEmbedded) {
+            page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
+            page.drawRectangle({ x: xOff - 8.5, y: yOff - 8.5, width: trimW + 17, height: trimH + 17, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
+
+            page.drawText(`[통제실 시뮬레이션] ${book.title}`, { x: xOff + 20, y: yOff + trimH - 50, size: 12, font: customFont, color: rgb(0.28, 0.34, 0.42) });
+            page.drawText(`규격: ${spec.specName} / 페이지: ${spec.pages}p / 책등: ${spec.spineMm}mm`, { x: xOff + 20, y: yOff + trimH - 80, size: 9, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+            page.drawText(`출판친구 자율출판 에이전트 통제실 -- 인쇄용 조판 시뮬레이터 결과물`, { x: xOff + 20, y: yOff + 30, size: 8, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+
+            bytes = await pdfDoc.save();
+        }
+
         const link = document.createElement('a');
         const fname = book.title.replace(/[/\\?%*:|"<>\s]/g, '_');
         link.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
