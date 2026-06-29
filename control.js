@@ -2223,24 +2223,28 @@ async function ctrlDownloadReprintPDF() {
                 });
                 
                 const srcDoc = await PDFDocument.load(innerPdfBytes);
-                const srcPage = srcDoc.getPages()[0]; // 1페이지 추출
+                const srcPages = srcDoc.getPages(); // 전체 페이지 목록 로드
                 
                 // 93% 정비율 축소 연산
                 const scale = 0.93;
-                const { width: srcW, height: srcH } = srcPage.getSize();
-                const drawW = srcW * scale;
-                const drawH = srcH * scale;
-
-                // 축소된 내지가 정확히 들어갈 크기로 페이지를 생성하여 여백 깨짐 원천 차단
-                const page = pdfDoc.addPage([drawW, drawH]);
-                const embeddedPage = await pdfDoc.embedPage(srcPage);
                 
-                page.drawPage(embeddedPage, {
-                    x: 0,
-                    y: 0,
-                    width: drawW,
-                    height: drawH
-                });
+                // [336페이지 본문 전체 93% 정비율 복사 및 벡터 조판 루프]
+                for (let i = 0; i < srcPages.length; i++) {
+                    const srcPage = srcPages[i];
+                    const { width: srcW, height: srcH } = srcPage.getSize();
+                    const drawW = srcW * scale;
+                    const drawH = srcH * scale;
+
+                    const page = pdfDoc.addPage([drawW, drawH]);
+                    const embeddedPage = await pdfDoc.embedPage(srcPage);
+                    
+                    page.drawPage(embeddedPage, {
+                        x: 0,
+                        y: 0,
+                        width: drawW,
+                        height: drawH
+                    });
+                }
                 
                 bytes = await pdfDoc.save();
                 isRealEmbedded = true;
@@ -2289,9 +2293,8 @@ async function ctrlDownloadCoverPDF() {
         const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.create();
 
-        // [초정밀 벡터 93% 축소]
-        // 사장님 피드백 반영: 쪼개서 이미지로 구우면 글자가 무조건 깨지며, 13mm 여백을 날리면 재단 마진이 무너집니다.
-        // 표지 PDF 원본 자체를 1:1로 로드하여, 93% 정비율로 축소한 뒤 새 PDF로 출력하여 화질과 13mm 도련 여백을 100% 원본 그대로 보존합니다!
+        // [초정밀 벡터 3분할 임포지션 결합]
+        // 디자이너의 원래 13mm 재단마크를 품은 채, 뒷표지/날개는 93% 축소하고 책등만 21.8mm 100% 두께를 보존하여 좌우 결합!
         const coverPdfUrl = window.location.origin + '/마녀_표지.pdf';
         const coverPdfBytes = await fetch(coverPdfUrl).then(res => {
             if (!res.ok) throw new Error('표지 PDF 파일 로드 실패');
@@ -2300,20 +2303,52 @@ async function ctrlDownloadCoverPDF() {
 
         const srcDoc = await PDFDocument.load(coverPdfBytes);
         const srcPage = srcDoc.getPages()[0]; // 표지 1페이지
+        const { width: srcW, height: srcH } = srcPage.getSize();
+
+        // 3분할 영역 비례 계산 (W: 553.8mm 기준)
+        const leftPartW = srcW * 0.480;   // 1. 좌측 영역 (뒷날개 + 뒷표지 + 좌측 도련)
+        const spinePartW = srcW * 0.040;  // 2. 중앙 책등 영역
+        const rightPartW = srcW * 0.480;  // 3. 우측 영역 (앞표지 + 앞날개 + 우측 도련)
 
         const scale = 0.93; // 93% 축소
-        const { width: srcW, height: srcH } = srcPage.getSize();
-        const drawW = srcW * scale;
+        const drawLeftW = leftPartW * scale;
+        const drawRightW = rightPartW * scale;
         const drawH = srcH * scale;
 
-        const page = pdfDoc.addPage([drawW, drawH]);
+        // 책등 두께는 축소하지 않고 100% 보존! (A5 336P 21.8mm 실제 두께 보증)
+        const drawSpineW = spinePartW;
+
+        // 최종 가로 크기: 좌측축소너비 + 100%책등너비 + 우측축소너비
+        const finalW = drawLeftW + drawSpineW + drawRightW;
+        
+        const page = pdfDoc.addPage([finalW, drawH]);
         const embeddedPage = await pdfDoc.embedPage(srcPage);
 
+        // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백) ➔ x=0 에 배치
         page.drawPage(embeddedPage, {
             x: 0,
             y: 0,
-            width: drawW,
-            height: drawH
+            width: drawLeftW,
+            height: drawH,
+            crop: { x: 0, y: 0, width: leftPartW, height: srcH }
+        });
+
+        // 2. 중앙 책등 블록 (가로축 100% 두께 유지) ➔ x=drawLeftW 에 배치
+        page.drawPage(embeddedPage, {
+            x: drawLeftW,
+            y: 0,
+            width: drawSpineW,
+            height: drawH,
+            crop: { x: leftPartW, y: 0, width: spinePartW, height: srcH }
+        });
+
+        // 3. 우측 블록 (앞표지 + 앞날개 + 여백) ➔ x=drawLeftW + drawSpineW 에 배치
+        page.drawPage(embeddedPage, {
+            x: drawLeftW + drawSpineW,
+            y: 0,
+            width: drawRightW,
+            height: drawH,
+            crop: { x: leftPartW + spinePartW, y: 0, width: rightPartW, height: srcH }
         });
 
         const bytes = await pdfDoc.save();
