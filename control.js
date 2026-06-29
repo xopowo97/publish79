@@ -2290,7 +2290,7 @@ async function ctrlDownloadCoverPDF() {
             });
         }
 
-                const { PDFDocument, rgb, pushGraphicsState, popGraphicsState, clip, endPath, rectangle } = PDFLib;
+                        const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.create();
 
         // [초정밀 벡터 3분할 임포지션 결합]
@@ -2301,8 +2301,9 @@ async function ctrlDownloadCoverPDF() {
             return res.arrayBuffer();
         });
 
-        const srcDoc = await PDFDocument.load(coverPdfBytes);
-        const srcPage = srcDoc.getPages()[0]; // 표지 1페이지
+        // 1. 비례 계산을 위해 원본 도큐먼트 로드
+        const tempDoc = await PDFDocument.load(coverPdfBytes);
+        const srcPage = tempDoc.getPages()[0];
         const { width: srcW, height: srcH } = srcPage.getSize();
 
         // 3분할 영역 비례 계산 (W: 553.8mm 기준)
@@ -2318,31 +2319,50 @@ async function ctrlDownloadCoverPDF() {
         // 책등 두께는 축소하지 않고 100% 보존! (A5 336P 21.8mm 실제 두께 보증)
         const drawSpineW = spinePartW;
 
+        // [PDF-Lib 임베딩 캐시 버그 무력화: 임시 저장 후 재로딩 격리 기법]
+        // 임시 도큐먼트에서 크롭박스를 입힌 뒤 파일 바이너리로 한 번 저장(save)했다가 다시 불러오면(load),
+        // 캐시 공유가 완전히 파괴되어 이중 겹침이나 재단선이 두 줄로 인쇄되는 버그가 100% 소멸합니다!
+
+        // 1) 좌측 조각 생성 및 저장/로드
+        const leftSubDoc = await PDFDocument.load(coverPdfBytes);
+        const leftSubPage = leftSubDoc.getPages()[0];
+        leftSubPage.setCropBox(0, 0, leftPartW, srcH);
+        const leftSavedBytes = await leftSubDoc.save();
+        const cleanLeftDoc = await PDFDocument.load(leftSavedBytes);
+        const embeddedLeft = await pdfDoc.embedPage(cleanLeftDoc.getPages()[0]);
+
+        // 2) 책등 조각 생성 및 저장/로드
+        const spineSubDoc = await PDFDocument.load(coverPdfBytes);
+        const spineSubPage = spineSubDoc.getPages()[0];
+        spineSubPage.setCropBox(leftPartW, 0, leftPartW + spinePartW, srcH);
+        const spineSavedBytes = await spineSubDoc.save();
+        const cleanSpineDoc = await PDFDocument.load(spineSavedBytes);
+        const embeddedSpine = await pdfDoc.embedPage(cleanSpineDoc.getPages()[0]);
+
+        // 3) 우측 조각 생성 및 저장/로드
+        const rightSubDoc = await PDFDocument.load(coverPdfBytes);
+        const rightSubPage = rightSubDoc.getPages()[0];
+        rightSubPage.setCropBox(leftPartW + spinePartW, 0, srcW, srcH);
+        const rightSavedBytes = await rightSubDoc.save();
+        const cleanRightDoc = await PDFDocument.load(rightSavedBytes);
+        const embeddedRight = await pdfDoc.embedPage(cleanRightDoc.getPages()[0]);
+
         // 최종 가로 크기: 좌측축소너비 + 100%책등너비 + 우측축소너비
         const finalW = drawLeftW + drawSpineW + drawRightW;
         
         const page = pdfDoc.addPage([finalW, drawH]);
-        const embeddedPage = await pdfDoc.embedPage(srcPage);
 
-        const drawW = srcW * scale; // 93% 정비율 축소된 전체 가로 너비
-
-        // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백) ➔ [x: 0, y: 0, 너비: drawLeftW, 높이: drawH] 영역으로 클리핑 제한
-        page.pushOperators(
-            pushGraphicsState(),
-            rectangle({ x: 0, y: 0, width: drawLeftW, height: drawH }),
-            clip(),
-            endPath()
-        );
-        page.drawPage(embeddedPage, {
+        // [최종 3분할 벡터 조립]
+        // 1. 좌측 영역 그리기 (뒷날개 + 뒷표지)
+        page.drawPage(embeddedLeft, {
             x: 0,
             y: 0,
-            width: drawW,
+            width: drawLeftW,
             height: drawH
         });
-        page.pushOperators(popGraphicsState());
 
-        // 2. 중앙 책등 블록 (배경 단색 패딩 + 93% 정비율 축소 책등 얹기)
-        // 2-1. 책등 배경에 표지와 조화로운 단색 다크 네이비 사각형 깔기 (두께 21.8mm 완벽 보장)
+        // 2. 중앙 책등 영역 그리기
+        // 2-1. 단색 배경 사각형 칠하기 (인쇄소 사양 안전 세네카)
         page.drawRectangle({
             x: drawLeftW,
             y: 0,
@@ -2350,39 +2370,23 @@ async function ctrlDownloadCoverPDF() {
             height: drawH,
             color: rgb(0.06, 0.09, 0.16)
         });
-
-        // 2-2. 93% 정비율 축소한 책등 이미지 조각을 중앙에 얹기 (글씨 찌그러짐 0%) ➔ [x: drawLeftW, y: 0, 너비: drawSpineW, 높이: drawH] 영역으로 클리핑 제한
-        const scaleSpineW = spinePartW * scale; // 93% 축소된 책등 비주얼 너비
-        const spineOffset = (drawSpineW - scaleSpineW) / 2; // 좌우 보정 여백
-        
-        page.pushOperators(
-            pushGraphicsState(),
-            rectangle({ x: drawLeftW, y: 0, width: drawSpineW, height: drawH }),
-            clip(),
-            endPath()
-        );
-        page.drawPage(embeddedPage, {
-            x: drawLeftW - (leftPartW * scale) + spineOffset,
+        // 2-2. 정비율 축소한 책등 그래픽을 중앙 정렬하여 얹기 (책등 글자 왜곡 0%)
+        const scaleSpineW = spinePartW * scale;
+        const spineOffset = (drawSpineW - scaleSpineW) / 2;
+        page.drawPage(embeddedSpine, {
+            x: drawLeftW + spineOffset,
             y: 0,
-            width: drawW,
+            width: scaleSpineW,
             height: drawH
         });
-        page.pushOperators(popGraphicsState());
 
-        // 3. 우측 블록 (앞표지 + 앞날개 + 여백) ➔ [x: drawLeftW + drawSpineW, y: 0, 너비: drawRightW, 높이: drawH] 영역으로 클리핑 제한
-        page.pushOperators(
-            pushGraphicsState(),
-            rectangle({ x: drawLeftW + drawSpineW, y: 0, width: drawRightW, height: drawH }),
-            clip(),
-            endPath()
-        );
-        page.drawPage(embeddedPage, {
-            x: (drawLeftW + drawSpineW) - ((leftPartW + spinePartW) * scale),
+        // 3. 우측 영역 그리기 (앞표지 + 앞날개)
+        page.drawPage(embeddedRight, {
+            x: drawLeftW + drawSpineW,
             y: 0,
-            width: drawW,
+            width: drawRightW,
             height: drawH
         });
-        page.pushOperators(popGraphicsState());
 
         const bytes = await pdfDoc.save();
         const link = document.createElement('a');
