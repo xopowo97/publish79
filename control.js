@@ -2301,9 +2301,13 @@ async function ctrlDownloadCoverPDF() {
             return res.arrayBuffer();
         });
 
-        const srcDoc = await PDFDocument.load(coverPdfBytes);
-        const srcPage = srcDoc.getPages()[0]; // 표지 1페이지
-        const { width: srcW, height: srcH } = srcPage.getSize();
+        // PDF-Lib 캐싱 무력화를 위해 3개의 격리된 문서 인스턴스를 각각 메모리에 띄웁니다.
+        const srcDocLeft = await PDFDocument.load(coverPdfBytes);
+        const srcDocSpine = await PDFDocument.load(coverPdfBytes);
+        const srcDocRight = await PDFDocument.load(coverPdfBytes);
+
+        const srcPageForDim = srcDocLeft.getPages()[0];
+        const { width: srcW, height: srcH } = srcPageForDim.getSize();
 
         // 3분할 영역 비례 계산 (W: 553.8mm 기준)
         const leftPartW = srcW * 0.480;   // 1. 좌측 영역 (뒷날개 + 뒷표지 + 좌측 도련)
@@ -2330,7 +2334,7 @@ async function ctrlDownloadCoverPDF() {
         // 양옆에 단색 배경 사각형을 덧대어 최종 책등 두께는 21.8mm를 칼같이 보존합니다!
         
         // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백)
-        const leftPage = srcDoc.getPages()[0];
+        const leftPage = srcDocLeft.getPages()[0];
         leftPage.setCropBox(0, 0, leftPartW, srcH);
         const embeddedLeft = await pdfDoc.embedPage(leftPage);
         page.drawPage(embeddedLeft, {
@@ -2351,7 +2355,7 @@ async function ctrlDownloadCoverPDF() {
         });
 
         // 2-2. 93% 정비율 축소한 책등 이미지 조각을 중앙에 얹기 (글씨 찌그러짐 0%)
-        const spinePage = srcDoc.getPages()[0];
+        const spinePage = srcDocSpine.getPages()[0];
         spinePage.setCropBox(leftPartW, 0, leftPartW + spinePartW, srcH);
         const embeddedSpine = await pdfDoc.embedPage(spinePage);
         
@@ -2366,7 +2370,7 @@ async function ctrlDownloadCoverPDF() {
         });
 
         // 3. 우측 블록 (앞표지 + 앞날개 + 여백)
-        const rightPage = srcDoc.getPages()[0];
+        const rightPage = srcDocRight.getPages()[0];
         rightPage.setCropBox(leftPartW + spinePartW, 0, srcW, srcH);
         const embeddedRight = await pdfDoc.embedPage(rightPage);
         page.drawPage(embeddedRight, {
