@@ -2011,15 +2011,82 @@ function drawCtrlBookCover(title, specName, spineMm) {
     ctx.fillStyle = gradient;
     ctx.fillRect(20, 20, totalWidth, height);
 
-    // 실증 도서 '마녀'용 커버 이미지 비동기 렌더링 (UAT 가속화 연출)
+    // 실증 도서 '마녀'용 실제 표지 PDF 동적 슬라이싱 및 5분할 합체 렌더링
     if (title && title.includes('마녀')) {
-        const img = new Image();
-        img.src = '/마녀_표지.png'; // 루트에 보관된 마녀 표지 이미지
-        img.onload = () => {
-            // 이미지 전체를 캔버스 가로로 늘리지 않고, 앞표지 가변 영역(xSpineRight)에만 정밀 드로잉!
-            ctx.drawImage(img, xSpineRight, 20, baseWidth, height);
+        // 이미 렌더링된 캔버스가 캐시되어 있으면 그걸 사용하고, 없으면 PDF.js를 연동해 동적 슬라이싱 실행
+        if (window._ctrl_witchCoverRenderedCanvas) {
+            drawWitchSlices(window._ctrl_witchCoverRenderedCanvas);
+        } else {
+            // pdf.js 동적 호출
+            if (window.pdfjsLib) {
+                renderWitchPdfCover();
+            } else {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+                s.onload = () => {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                    renderWitchPdfCover();
+                };
+                document.head.appendChild(s);
+            }
+        }
+
+        async function renderWitchPdfCover() {
+            try {
+                const pdfUrl = ctrlApiUrl('/마녀_표지.pdf');
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+
+                const viewport = page.getViewport({ scale: 2.0 });
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = viewport.width;
+                tempCanvas.height = viewport.height;
+
+                await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+                window._ctrl_witchCoverRenderedCanvas = tempCanvas; // 전역 캐싱하여 중복 리렌더링 방지
+                drawWitchSlices(tempCanvas);
+            } catch (err) {
+                console.warn('[PDF.js] 마녀 표지 PDF 슬라이싱 실패, 폴백 단면 로드 실행:', err.message);
+                // 폴백: 마녀_표지.png 단면 로드
+                const img = new Image();
+                img.src = '/마녀_표지.png';
+                img.onload = () => {
+                    ctx.drawImage(img, xSpineRight, 20, baseWidth, height);
+                    drawOverlayElements();
+                };
+            }
+        }
+
+        function drawWitchSlices(tempCanvas) {
+            const w = tempCanvas.width;
+            const h = tempCanvas.height;
+
+            const startY = Math.floor(h * 0.0518);
+            const cropH = Math.floor(h * 0.8964);
+
+            // [초정밀 5분할 이미지 슬라이싱 & A5/21.8mm 캔버스 동적 재조합]
+            // 1. 뒷날개 (0% ~ 20.4% 영역) ➔ x=20px 에서 wingWidth(100px) 너비로 배치
+            ctx.drawImage(tempCanvas, 0, startY, Math.floor(w * 0.204), cropH, 20, 20, wingWidth, height);
             
-            // 이미지 위에 다시 가이드선과 텍스트를 오버레이하여 선명도 보장
+            // 2. 뒷표지 (20.4% ~ 48.0% 영역) ➔ xLeftWing 위치에 baseWidth(200px) 너비로 배치
+            ctx.drawImage(tempCanvas, Math.floor(w * 0.204), startY, Math.floor(w * 0.276), cropH, xLeftWing, 20, baseWidth, height);
+            
+            // 3. 책등 (48.0% ~ 52.0% 영역) ➔ xSpineLeft 위치에 spineWidth(21.8mm 계산치) 너비로 배치
+            ctx.drawImage(tempCanvas, Math.floor(w * 0.480), startY, Math.floor(w * 0.040), cropH, xSpineLeft, 20, spineWidth, height);
+            
+            // 4. 앞표지 (52.0% ~ 79.6% 영역) ➔ xSpineRight 위치에 baseWidth(200px) 너비로 배치
+            ctx.drawImage(tempCanvas, Math.floor(w * 0.520), startY, Math.floor(w * 0.276), cropH, xSpineRight, 20, baseWidth, height);
+            
+            // 5. 앞날개 (79.6% ~ 100% 영역) ➔ xRightWing 위치에 wingWidth(100px) 너비로 배치
+            ctx.drawImage(tempCanvas, Math.floor(w * 0.796), startY, Math.floor(w * 0.204), cropH, xRightWing, 20, wingWidth, height);
+
+            drawOverlayElements();
+        }
+
+        function drawOverlayElements() {
+            // 접지 가이드선 (재단선 및 날개/책등 접지선)
             ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
             ctx.lineWidth = 1.2;
             ctx.setLineDash([4, 4]);
@@ -2028,8 +2095,8 @@ function drawCtrlBookCover(title, specName, spineMm) {
             });
             ctx.setLineDash([]);
 
-            // 인쇄용 3mm 재단선(Crop Marks) 코너 드로잉 연출
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            // 인쇄용 3mm 재단선(Crop Marks) 코너 십자선 드로잉 연출
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 0.8;
             [20, totalWidth + 20].forEach(x => {
                 [20, height + 20].forEach(y => {
@@ -2038,21 +2105,7 @@ function drawCtrlBookCover(title, specName, spineMm) {
                 });
             });
 
-            // 책등 타이틀
-            ctx.save();
-            ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
-            ctx.rotate(Math.PI / 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
-            ctx.textAlign = 'center';
-            if (spineMm >= 10) {
-                ctx.font = '700 9px sans-serif';
-                ctx.fillText(title.substring(0, 15), 0, 3);
-            }
-            ctx.restore();
-
-            // 책등 mm 표시선 다시 그리기
+            // 책등 두께 mm 표시선 다시 그리기
             ctx.strokeStyle = '#38bdf8';
             ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
@@ -2061,7 +2114,7 @@ function drawCtrlBookCover(title, specName, spineMm) {
             ctx.font = '800 8px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
-        };
+        }
     }
  
     // 접지 가이드선 (재단선 및 날개/책등 접지선)
