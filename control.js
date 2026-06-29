@@ -2337,7 +2337,17 @@ async function ctrlDownloadCoverPDF() {
             height: drawH
         });
 
-        // 2. 중앙 책등 배경 다크 네이비 덮어쓰기 (물리 세네카 21.8mm 확보)
+        // 2. 우측 기준 2차 시프트 렌더링 (보정값 diffSpine 만큼 오른쪽으로 밀어 그리기)
+        // 이로써 우측의 앞표지와 앞날개는 정확히 책등 우측 경계선에 단정히 접합됩니다.
+        page.drawPage(embeddedPage, {
+            x: diffSpine,
+            y: 0,
+            width: drawW,
+            height: drawH
+        });
+
+        // 3. 중앙 책등 배경 다크 네이비 덮어쓰기 (물리 세네카 21.8mm 확보)
+        // 1차와 2차의 이음새 경계선을 배경 사각형으로 덮어 씌워 가려줍니다.
         page.drawRectangle({
             x: drawLeftW,
             y: 0,
@@ -2346,12 +2356,13 @@ async function ctrlDownloadCoverPDF() {
             color: rgb(0.06, 0.09, 0.16)
         });
 
-        // 3. [재단 마크 단일화 마법] 1차 렌더링으로 인해 겹쳐 발생한 책등 상하단 십자선 마크 가리기(Masking Out)
-        // 15mm 폭으로 상/하단 끝자락 도련 바깥의 십자선 마크가 겹쳐 그려진 부위를 표지 배경색으로 깔끔하게 지웁니다.
+        // 4. [재단 마크 단일화 마법 - 최종 Top 레이어 덮어쓰기]
+        // 중복되어 발생한 책등 상하단 십자선 마크 가리기(Masking Out)
+        // 20pt 폭, 25pt 높이로 상/하단 끝자락 도련 바깥의 중복 십자선 마크 부위를 표지 배경색으로 완전히 지워버립니다.
         const maskW = 20; // 20pt 너비의 덮개
         const maskH = 25; // 25pt 높이의 덮개
         
-        // 3-1. 하단 책등 십자선 가리기 (y: 0 지점)
+        // 4-1. 하단 책등 십자선 가리기 (y: 0 지점)
         page.drawRectangle({
             x: drawLeftW - maskW / 2 + drawSpineW / 2,
             y: 0,
@@ -2360,22 +2371,13 @@ async function ctrlDownloadCoverPDF() {
             color: rgb(0.06, 0.09, 0.16)
         });
         
-        // 3-2. 상단 책등 십자선 가리기 (y: drawH - maskH 지점)
+        // 4-2. 상단 책등 십자선 가리기 (y: drawH - maskH 지점)
         page.drawRectangle({
             x: drawLeftW - maskW / 2 + drawSpineW / 2,
             y: drawH - maskH,
             width: maskW,
             height: maskH,
             color: rgb(0.06, 0.09, 0.16)
-        });
-
-        // 4. 우측 기준 2차 시프트 렌더링 (보정값 diffSpine 만큼 오른쪽으로 밀어 그리기)
-        // 이로써 우측의 앞표지와 앞날개는 정확히 책등 우측 경계선에 단정히 접합되고, 오직 단 1세트의 책등 십자 재단 마크만 인쇄됩니다!
-        page.drawPage(embeddedPage, {
-            x: diffSpine,
-            y: 0,
-            width: drawW,
-            height: drawH
         });
 
         const bytes = await pdfDoc.save();
