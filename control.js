@@ -2313,41 +2313,55 @@ async function ctrlDownloadCoverPDF() {
 
         const scale = 0.93; // 93% 축소
         const drawLeftW = leftPartW * scale;
+        const drawRightW = rightPartW * scale;
         const drawH = srcH * scale;
 
         // 책등 두께는 축소하지 않고 100% 보존! (A5 336P 21.8mm 실제 두께 보증)
         const drawSpineW = spinePartW;
 
-        // 93% 축소된 책등 너비와 원래 책등 너비의 미세 차이 보정값 (약 1.53mm)
-        const diffSpine = drawSpineW - (spinePartW * scale);
+        // [PDF-Lib 임베딩 캐시 버그 무력화: 임시 저장 후 재로딩 격리 기법 + setMediaBox 가위질]
+        // 1) 좌측 조각 생성 및 저장/로드 (x: 0 에서 leftPartW 만큼 테두리 깎기)
+        const leftSubDoc = await PDFDocument.load(coverPdfBytes);
+        const leftSubPage = leftSubDoc.getPages()[0];
+        leftSubPage.setMediaBox(0, 0, leftPartW, srcH);
+        const leftSavedBytes = await leftSubDoc.save();
+        const cleanLeftDoc = await PDFDocument.load(leftSavedBytes);
+        const embeddedLeft = await pdfDoc.embedPage(cleanLeftDoc.getPages()[0]);
 
-        // 최종 가로 크기: 93% 축소된 전체 가로 너비에 부족한 책등 보정폭 1.53mm 더하기
-        const drawW = srcW * scale;
-        const finalW = drawW + diffSpine;
+        // 2) 책등 조각 생성 및 저장/로드 (leftPartW 에서 spinePartW 만큼 테두리 깎기)
+        const spineSubDoc = await PDFDocument.load(coverPdfBytes);
+        const spineSubPage = spineSubDoc.getPages()[0];
+        spineSubPage.setMediaBox(leftPartW, 0, spinePartW, srcH);
+        const spineSavedBytes = await spineSubDoc.save();
+        const cleanSpineDoc = await PDFDocument.load(spineSavedBytes);
+        const embeddedSpine = await pdfDoc.embedPage(cleanSpineDoc.getPages()[0]);
+
+        // 3) 우측 조각 생성 및 저장/로드 (leftPartW + spinePartW 에서 rightPartW 만큼 테두리 깎기)
+        const rightSubDoc = await PDFDocument.load(coverPdfBytes);
+        const rightSubPage = rightSubDoc.getPages()[0];
+        rightSubPage.setMediaBox(leftPartW + spinePartW, 0, rightPartW, srcH);
+        const rightSavedBytes = await rightSubDoc.save();
+        const cleanRightDoc = await PDFDocument.load(rightSavedBytes);
+        const embeddedRight = await pdfDoc.embedPage(cleanRightDoc.getPages()[0]);
+
+        // 최종 가로 크기: 좌측축소너비 + 100%책등너비 + 우측축소너비
+        const finalW = drawLeftW + drawSpineW + drawRightW;
         
         const page = pdfDoc.addPage([finalW, drawH]);
-        const embeddedPage = await pdfDoc.embedPage(srcPage);
 
-        // [초정밀 벡터 오프셋 중첩 슬라이딩(Shift) 결합]
-        // 1. 좌측 기준 1차 렌더링 (좌측 날개 + 뒷표지 안착)
-        page.drawPage(embeddedPage, {
+        // [최종 3분할 벡터 1:1 정밀 정합 조립]
+        // 어떠한 꼼수 스티커 없이, 물리적으로 깎여진 각 3분할 조각들을 정확히 제자리에 똑 얹어서 결합합니다!
+        
+        // 1. 좌측 영역 그리기 (뒷날개 + 뒷표지)
+        page.drawPage(embeddedLeft, {
             x: 0,
             y: 0,
-            width: drawW,
+            width: drawLeftW,
             height: drawH
         });
 
-        // 2. 우측 기준 2차 시프트 렌더링 (보정값 diffSpine 만큼 오른쪽으로 밀어 그리기)
-        // 이로써 우측의 앞표지와 앞날개는 정확히 책등 우측 경계선에 단정히 접합됩니다.
-        page.drawPage(embeddedPage, {
-            x: diffSpine,
-            y: 0,
-            width: drawW,
-            height: drawH
-        });
-
-        // 3. 중앙 책등 배경 다크 네이비 덮어쓰기 (물리 세네카 21.8mm 확보)
-        // 1차와 2차의 이음새 경계선을 배경 사각형으로 덮어 씌워 가려줍니다.
+        // 2. 중앙 책등 영역 그리기
+        // 2-1. 단색 배경 사각형 칠하기 (인쇄소 사양 안전 세네카)
         page.drawRectangle({
             x: drawLeftW,
             y: 0,
@@ -2355,29 +2369,22 @@ async function ctrlDownloadCoverPDF() {
             height: drawH,
             color: rgb(0.06, 0.09, 0.16)
         });
-
-        // 4. [재단 마크 단일화 마법 - 최종 Top 레이어 덮어쓰기]
-        // 중복되어 발생한 책등 상하단 십자선 마크 가리기(Masking Out)
-        // 20pt 폭, 25pt 높이로 상/하단 끝자락 도련 바깥의 중복 십자선 마크 부위를 표지 배경색으로 완전히 지워버립니다.
-        const maskW = 20; // 20pt 너비의 덮개
-        const maskH = 25; // 25pt 높이의 덮개
-        
-        // 4-1. 하단 책등 십자선 가리기 (y: 0 지점)
-        page.drawRectangle({
-            x: drawLeftW - maskW / 2 + drawSpineW / 2,
+        // 2-2. 정비율 축소한 책등 그래픽을 중앙 정렬하여 얹기 (글씨 찌그러짐 0%)
+        const scaleSpineW = spinePartW * scale;
+        const spineOffset = (drawSpineW - scaleSpineW) / 2;
+        page.drawPage(embeddedSpine, {
+            x: drawLeftW + spineOffset,
             y: 0,
-            width: maskW,
-            height: maskH,
-            color: rgb(0.06, 0.09, 0.16)
+            width: scaleSpineW,
+            height: drawH
         });
-        
-        // 4-2. 상단 책등 십자선 가리기 (y: drawH - maskH 지점)
-        page.drawRectangle({
-            x: drawLeftW - maskW / 2 + drawSpineW / 2,
-            y: drawH - maskH,
-            width: maskW,
-            height: maskH,
-            color: rgb(0.06, 0.09, 0.16)
+
+        // 3. 우측 영역 그리기 (앞표지 + 앞날개)
+        page.drawPage(embeddedRight, {
+            x: drawLeftW + drawSpineW,
+            y: 0,
+            width: drawRightW,
+            height: drawH
         });
 
         const bytes = await pdfDoc.save();
