@@ -2290,7 +2290,7 @@ async function ctrlDownloadCoverPDF() {
             });
         }
 
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.create();
 
         // [초정밀 벡터 3분할 임포지션 결합]
