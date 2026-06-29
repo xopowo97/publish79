@@ -2301,9 +2301,13 @@ async function ctrlDownloadCoverPDF() {
             return res.arrayBuffer();
         });
 
-        const srcDoc = await PDFDocument.load(coverPdfBytes);
-        const srcPage = srcDoc.getPages()[0];
-        const { width: srcW, height: srcH } = srcPage.getSize();
+        // PDF-Lib 캐싱 무력화를 위해 3개의 격리된 문서 인스턴스를 각각 메모리에 띄웁니다.
+        const srcDocLeft = await PDFDocument.load(coverPdfBytes);
+        const srcDocSpine = await PDFDocument.load(coverPdfBytes);
+        const srcDocRight = await PDFDocument.load(coverPdfBytes);
+
+        const srcPageForDim = srcDocLeft.getPages()[0];
+        const { width: srcW, height: srcH } = srcPageForDim.getSize();
 
         // 3분할 영역 비례 계산 (W: 553.8mm 기준)
         const leftPartW = srcW * 0.480;   // 1. 좌측 영역 (뒷날개 + 뒷표지 + 좌측 도련)
@@ -2312,32 +2316,36 @@ async function ctrlDownloadCoverPDF() {
 
         const scale = 0.93; // 93% 축소
         const drawLeftW = leftPartW * scale;
+        const drawRightW = rightPartW * scale;
         const drawH = srcH * scale;
 
         // 책등 두께는 축소하지 않고 100% 보존! (A5 336P 21.8mm 실제 두께 보증)
         const drawSpineW = spinePartW;
 
-        // 93% 축소된 책등 너비와 원래 책등 너비의 미세 차이 보정값 (약 1.53mm)
-        const diffSpine = drawSpineW - (spinePartW * scale);
-
-        // 최종 가로 크기: 93% 축소된 전체 가로 너비에 부족한 책등 보정폭 1.53mm 더하기
-        const drawW = srcW * scale;
-        const finalW = drawW + diffSpine;
+        // 최종 가로 크기: 좌측축소너비 + 100%책등너비 + 우측축소너비
+        const finalW = drawLeftW + drawSpineW + drawRightW;
         
         const page = pdfDoc.addPage([finalW, drawH]);
-        const embeddedPage = await pdfDoc.embedPage(srcPage);
 
-        // [초정밀 벡터 오프셋 중첩 슬라이딩(Shift) 결합]
-        // 라이브러리의 Crop Box 캐싱 오류를 원천 차단하기 위해, 쪼개지 않고 전체 이미지를 2번 중첩 렌더링합니다!
-        // 1. 좌측 기준 1차 렌더링 (좌측 날개 + 뒷표지 안착)
-        page.drawPage(embeddedPage, {
+        // [초정밀 벡터 3분할 setCropBox 슬라이싱 결합]
+        // 사장님 피드백 반영: 쪼개서 이미지로 구우면 글자가 무조건 깨집니다. 
+        // 또한 책등 가로 배율만 축소하지 않으면 책등 제목 글씨가 세로로 납작하게 찌그러집니다!
+        // 따라서, 책등 비주얼(제목 글씨)도 93% 정비율로 축소하여 왜곡을 0%로 만들고,
+        // 양옆에 단색 배경 사각형을 덧대어 최종 책등 두께는 21.8mm를 칼같이 보존합니다!
+        
+        // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백)
+        const leftPage = srcDocLeft.getPages()[0];
+        leftPage.setCropBox(0, 0, leftPartW, srcH);
+        const embeddedLeft = await pdfDoc.embedPage(leftPage);
+        page.drawPage(embeddedLeft, {
             x: 0,
             y: 0,
-            width: drawW,
+            width: drawLeftW,
             height: drawH
         });
 
-        // 2. 중앙 책등 배경 다크 네이비 덮어쓰기 (물리 세네카 21.8mm 확보)
+        // 2. 중앙 책등 블록 (배경 단색 패딩 + 93% 정비율 축소 책등 얹기)
+        // 2-1. 책등 배경에 표지와 조화로운 단색 다크 네이비 사각형 깔기 (두께 21.8mm 완벽 보장)
         page.drawRectangle({
             x: drawLeftW,
             y: 0,
@@ -2346,12 +2354,29 @@ async function ctrlDownloadCoverPDF() {
             color: rgb(0.06, 0.09, 0.16)
         });
 
-        // 3. 우측 기준 2차 시프트 렌더링 (보정값 diffSpine 만큼 오른쪽으로 밀어 그리기)
-        // 이로써 우측의 앞표지와 앞날개는 정확히 책등 우측 경계선에 단정히 접합되고, 글자 찌그러짐은 0%가 됩니다!
-        page.drawPage(embeddedPage, {
-            x: diffSpine,
+        // 2-2. 93% 정비율 축소한 책등 이미지 조각을 중앙에 얹기 (글씨 찌그러짐 0%)
+        const spinePage = srcDocSpine.getPages()[0];
+        spinePage.setCropBox(leftPartW, 0, leftPartW + spinePartW, srcH);
+        const embeddedSpine = await pdfDoc.embedPage(spinePage);
+        
+        const scaleSpineW = spinePartW * scale; // 93% 축소된 책등 비주얼 너비
+        const spineOffset = (drawSpineW - scaleSpineW) / 2; // 좌우 보정 여백
+        
+        page.drawPage(embeddedSpine, {
+            x: drawLeftW + spineOffset,
             y: 0,
-            width: drawW,
+            width: scaleSpineW,
+            height: drawH
+        });
+
+        // 3. 우측 블록 (앞표지 + 앞날개 + 여백)
+        const rightPage = srcDocRight.getPages()[0];
+        rightPage.setCropBox(leftPartW + spinePartW, 0, srcW, srcH);
+        const embeddedRight = await pdfDoc.embedPage(rightPage);
+        page.drawPage(embeddedRight, {
+            x: drawLeftW + drawSpineW,
+            y: 0,
+            width: drawRightW,
             height: drawH
         });
 
