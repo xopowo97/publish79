@@ -45,8 +45,8 @@ let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
 let _ctrl_candidates = [
-    { id: 1, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
-    { id: 2, title: "탈학교의 사회", author: "이반 일리치", pub_year: 2017, library_loans: 8940, reprint_score: 95, is_out_of_print: true },
+    { id: 1, title: "마녀", author: "주경철", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
+    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
     { id: 3, title: "생각의 탄생", author: "루트번스타인", pub_year: 2020, library_loans: 7120, reprint_score: 91, is_out_of_print: true }
 ];
 let _ctrl_flashActive = false;
@@ -1351,10 +1351,13 @@ function checkPrintCostOptimization(bookData, printQty) {
     if (!isSheetfedForced || !defaultSpecIsShinkuk) return; // 조건 미충족 시 제안 안 함
 
     // ─── 원가 계산 (대표님 단가 요율 공식 반영: 내지비 + 표지/코팅/제본 1500원 합산) ───
-    const totalPages = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
+    let totalPages = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
+    if (bookData.title && bookData.title.includes('마녀')) {
+        totalPages = 336; // 마녀 실증 도서 336P 고정
+    }
     const printCostPerPageShinkuk = 12; // 원/면 (신국판 2판거리)
     const printCostPerPageA5 = 8; // 원/면 (A5 4판거리)
-    const coverProcessingCost = 1500; // 원 (코팅 200원 + 날개 800원 + 제본 500원 합산)
+    const coverProcessingCost = 1500; // 원 (코팅 200원 + 날개 500원 + 제본 800원 합산)
 
     const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
     const totalCostA5 = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
@@ -1362,7 +1365,7 @@ function checkPrintCostOptimization(bookData, printQty) {
     const a5PerCopy = totalPages * printCostPerPageA5 + coverProcessingCost;
     const savingPerCopy = (totalCostShinkuk - totalCostA5) / qty;
     const savingTotal = totalCostShinkuk - totalCostA5;
-    const savingPct = Math.round(((totalCostShinkuk - totalCostA5) / totalCostShinkuk) * 100);
+    const savingPct = Number(((totalCostShinkuk - totalCostA5) / totalCostShinkuk * 100).toFixed(1));
 
     const cleanTitle = (bookData.title || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (bookData.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
@@ -1901,12 +1904,15 @@ async function ctrlApproveSpec(specIndex) {
 
                 // PDF 다운로드 버튼 노출
                 const dlArea = document.getElementById('ctrl-compile-download');
-                if (dlArea) {
+                        if (dlArea) {
                     ctrlShowEl(dlArea);
                     dlArea.innerHTML = `
                     <button onclick="ctrlDownloadReprintPDF()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         📄 최종 인쇄용 PDF/X-4 다운로드
+                    </button>
+                    <button onclick="ctrlDownloadCoverPDF()" class="ctrl-btn ctrl-btn-secondary" style="font-size:11px; margin-top:5px;">
+                        🎨 표지 인쇄용 PDF 다운로드
                     </button>`;
                 }
 
@@ -1979,11 +1985,11 @@ function drawCtrlBookCover(title, specName, spineMm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const wingWidth = 100;
-    const baseWidth = 200;
-    const spineWidth = Math.max(spineMm * 3.5, 12);
+    const wingWidth = 120;
+    const baseWidth = 240;
+    const spineWidth = Math.max(spineMm * 4.2, 16);
     const totalWidth = wingWidth * 2 + baseWidth * 2 + spineWidth;
-    const height = 240;
+    const height = 300;
 
     canvas.width = totalWidth + 40;
     canvas.height = height + 40;
@@ -2008,50 +2014,151 @@ function drawCtrlBookCover(title, specName, spineMm) {
     ctx.fillStyle = gradient;
     ctx.fillRect(20, 20, totalWidth, height);
 
-    // 접지 가이드선 (재단선 및 날개/책등 접지선 - 어두운 배경에서도 선명하게 보이도록 밝은 노란색 점선으로 보강)
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.setLineDash([4, 4]);
-    [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
-        ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
-    });
-    ctx.setLineDash([]);
+    // 실증 도서 '마녀'용 실제 표지 PDF 동적 슬라이싱 및 5분할 합체 렌더링
+    if (title && title.includes('마녀')) {
+        // 이미 렌더링된 캔버스가 캐시되어 있으면 그걸 사용하고, 없으면 PDF.js를 연동해 동적 슬라이싱 실행
+        if (window._ctrl_witchCoverRenderedCanvas) {
+            drawWitchSlices(window._ctrl_witchCoverRenderedCanvas);
+        } else {
+            // pdf.js 동적 호출
+            if (window.pdfjsLib) {
+                renderWitchPdfCover();
+            } else {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+                s.onload = () => {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                    renderWitchPdfCover();
+                };
+                document.head.appendChild(s);
+            }
+        }
 
-    // 책등 타이틀
-    ctx.save();
-    ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    if (spineMm >= 10) {
-        ctx.font = '700 9px sans-serif';
-        ctx.fillText(title.substring(0, 15), 0, 3);
+        async function renderWitchPdfCover() {
+            try {
+                const pdfUrl = ctrlApiUrl('/마녀_표지.pdf');
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+
+                const viewport = page.getViewport({ scale: 2.0 });
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = viewport.width;
+                tempCanvas.height = viewport.height;
+
+                await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+                window._ctrl_witchCoverRenderedCanvas = tempCanvas; // 전역 캐싱하여 중복 리렌더링 방지
+                drawWitchSlices(tempCanvas);
+            } catch (err) {
+                console.warn('[PDF.js] 마녀 표지 PDF 슬라이싱 실패, 폴백 단면 로드 실행:', err.message);
+                // 폴백: 마녀_표지.png 단면 로드
+                const img = new Image();
+                img.src = '/마녀_표지.png';
+                img.onload = () => {
+                    ctx.drawImage(img, xSpineRight, 20, baseWidth, height);
+                    drawOverlayElements();
+                };
+            }
+        }
+
+        function drawWitchSlices(tempCanvas) {
+            const w = tempCanvas.width;
+            const h = tempCanvas.height;
+
+            // [사용자 피드백 반영: 쪼개지 않고 전체 표지를 축소하여 100% 선명하게 드로잉]
+            // 상하좌우 13mm 재단선이 살아있는 원본 펼침면 그래픽을 찌그러짐 없이 전체 영역에 투사합니다.
+            ctx.drawImage(tempCanvas, 0, 0, w, h, 20, 20, totalWidth, height);
+
+            drawOverlayElements();
+        }
+
+        function drawOverlayElements() {
+            // 접지 가이드선 (재단선 및 날개/책등 접지선)
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([4, 4]);
+            [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
+                ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
+            });
+            ctx.setLineDash([]);
+
+            // 인쇄용 3mm 재단선(Crop Marks) 코너 십자선 드로잉 연출
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 0.8;
+            [20, totalWidth + 20].forEach(x => {
+                [20, height + 20].forEach(y => {
+                    ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+                });
+            });
+
+            // 책등 두께 mm 표시선 다시 그리기
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
+            ctx.fillStyle = '#0ea5e9';
+            ctx.shadowBlur = 0;
+            ctx.font = '800 8px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
+        }
+    } else {
+        // 접지 가이드선 (재단선 및 날개/책등 접지선)
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]);
+        [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
+            ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+     
+        // 인쇄용 3mm 재단선(Crop Marks) 코너 기본 드로잉
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 0.8;
+        [20, totalWidth + 20].forEach(x => {
+            [20, height + 20].forEach(y => {
+                ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+            });
+        });
+
+        // 책등 타이틀
+        ctx.save();
+        ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        if (spineMm >= 10) {
+            ctx.font = '700 9px sans-serif';
+            ctx.fillText(title.substring(0, 15), 0, 3);
+        }
+        ctx.restore();
+     
+        // 앞표지 제목
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
+        if (title.length > 14) ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
+     
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '900 8px sans-serif';
+        ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
+     
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '500 8px sans-serif';
+        ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
+     
+        // 책등 mm 표시
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
+        ctx.fillStyle = '#0ea5e9';
+        ctx.font = '800 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
     }
-    ctx.restore();
-
-    // 앞표지 제목
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
-    if (title.length > 14) ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '900 8px sans-serif';
-    ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '500 8px sans-serif';
-    ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
-
-    // 책등 mm 표시
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
-    ctx.fillStyle = '#0ea5e9';
-    ctx.font = '800 8px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
 }
 
 // ───────────────────────────────────────────
@@ -2073,7 +2180,7 @@ async function ctrlDownloadReprintPDF() {
             });
         }
 
-        // fontkit 동적 로드 (한글 폰트 임베딩 지원 모듈)
+        // fontkit 동적 로드
         if (!window.fontkit) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
@@ -2085,16 +2192,11 @@ async function ctrlDownloadReprintPDF() {
 
         const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.create();
-
-        // fontkit 등록
         pdfDoc.registerFontkit(fontkit);
 
-        // 준비된 나눔명조 폰트 바이너리 로드
         const fontUrl = ctrlApiUrl('/NanumMyeongjo.ttf');
         const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
         const customFont = await pdfDoc.embedFont(fontBytes);
-
-        const page = pdfDoc.addPage([595.275, 841.889]);
 
         const specDim = { 'A5국판': [148, 210], '신국판': [152, 225], '46배판형': [188, 257], '국배판': [210, 297] };
         let [tw, th] = [152, 225];
@@ -2108,15 +2210,61 @@ async function ctrlDownloadReprintPDF() {
         const xOff = (595.275 - trimW) / 2;
         const yOff = (841.889 - trimH) / 2;
 
-        page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
-        page.drawRectangle({ x: xOff - 8.5, y: yOff - 8.5, width: trimW + 17, height: trimH + 17, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
+        let bytes;
+        let isRealEmbedded = false;
 
-        // 한글 폰트를 사용하여 정상적으로 한국어 출력
-        page.drawText(`[통제실 시뮬레이션] ${book.title}`, { x: xOff + 20, y: yOff + trimH - 50, size: 12, font: customFont, color: rgb(0.28, 0.34, 0.42) });
-        page.drawText(`규격: ${spec.specName} / 페이지: ${spec.pages}p / 책등: ${spec.spineMm}mm`, { x: xOff + 20, y: yOff + trimH - 80, size: 9, font: customFont, color: rgb(0.39, 0.45, 0.55) });
-        page.drawText(`출판친구 자율출판 에이전트 통제실 -- 인쇄용 조판 시뮬레이터 결과물`, { x: xOff + 20, y: yOff + 30, size: 8, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+        if (book.title.includes('마녀')) {
+            try {
+                // 대표님이 업로드해주신 '/마녀-본문3쇄.pdf' 로딩 (브라우저 주소 자동 정렬)
+                const innerPdfUrl = window.location.origin + '/마녀-본문3쇄.pdf';
+                const innerPdfBytes = await fetch(innerPdfUrl).then(res => {
+                    if (!res.ok) throw new Error('마녀 내지 PDF fetch 실패');
+                    return res.arrayBuffer();
+                });
+                
+                const srcDoc = await PDFDocument.load(innerPdfBytes);
+                const srcPages = srcDoc.getPages(); // 전체 페이지 목록 로드
+                
+                // 93% 정비율 축소 연산
+                const scale = 0.93;
+                
+                // [336페이지 본문 전체 93% 정비율 복사 및 벡터 조판 루프]
+                for (let i = 0; i < srcPages.length; i++) {
+                    const srcPage = srcPages[i];
+                    const { width: srcW, height: srcH } = srcPage.getSize();
+                    const drawW = srcW * scale;
+                    const drawH = srcH * scale;
 
-        const bytes = await pdfDoc.save();
+                    const page = pdfDoc.addPage([drawW, drawH]);
+                    const embeddedPage = await pdfDoc.embedPage(srcPage);
+                    
+                    page.drawPage(embeddedPage, {
+                        x: 0,
+                        y: 0,
+                        width: drawW,
+                        height: drawH
+                    });
+                }
+                
+                bytes = await pdfDoc.save();
+                isRealEmbedded = true;
+            } catch (err) {
+                console.warn('[PDF] 마녀 내지 로드 실패, 가상 조판 폴백 실행:', err.message);
+            }
+        }
+
+        if (!isRealEmbedded) {
+            const page = pdfDoc.addPage([595.275, 841.889]);
+            page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
+            page.drawRectangle({ x: xOff - 8.5, y: yOff - 8.5, width: trimW + 17, height: trimH + 17, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
+
+            page.drawText(`[통제실 시뮬레이션] ${book.title}`, { x: xOff + 20, y: yOff + trimH - 50, size: 12, font: customFont, color: rgb(0.28, 0.34, 0.42) });
+            page.drawText(`규격: ${spec.specName} / 페이지: ${spec.pages}p / 책등: ${spec.spineMm}mm`, { x: xOff + 20, y: yOff + trimH - 80, size: 9, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+            page.drawText(`출판친구 자율출판 에이전트 통제실 -- 인쇄용 조판 시뮬레이터 결과물`, { x: xOff + 20, y: yOff + 30, size: 8, font: customFont, color: rgb(0.39, 0.45, 0.55) });
+
+            bytes = await pdfDoc.save();
+        }
+
         const link = document.createElement('a');
         const fname = book.title.replace(/[/\\?%*:|"<>\s]/g, '_');
         link.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
@@ -2128,8 +2276,9 @@ async function ctrlDownloadReprintPDF() {
 }
 
 async function ctrlDownloadCoverPDF() {
-    const canvas = document.getElementById('ctrl-cover-canvas');
-    if (!canvas) return;
+    const book = _ctrl_simBook;
+    const spec = _ctrl_approvedSpec;
+    if (!book || !spec) return;
 
     try {
         if (!window.PDFLib) {
@@ -2141,18 +2290,119 @@ async function ctrlDownloadCoverPDF() {
             });
         }
 
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument, rgb, PDFOperator, PDFNumber } = PDFLib;
         const pdfDoc = await PDFDocument.create();
-        const imgData = canvas.toDataURL('image/png');
-        const pngImg = await pdfDoc.embedPng(imgData);
-        const page = pdfDoc.addPage([canvas.width, canvas.height]);
-        page.drawImage(pngImg, { x: 0, y: 0, width: canvas.width, height: canvas.height });
+
+        // [초정밀 벡터 3분할 임포지션 결합]
+        // 디자이너의 원래 13mm 재단마크를 품은 채, 뒷표지/날개는 93% 축소하고 책등만 21.8mm 100% 두께를 보존하여 좌우 결합!
+        const coverPdfUrl = window.location.origin + '/마녀_표지.pdf';
+        const coverPdfBytes = await fetch(coverPdfUrl).then(res => {
+            if (!res.ok) throw new Error('표지 PDF 파일 로드 실패');
+            return res.arrayBuffer();
+        });
+
+        // 1. 비례 계산을 위해 원본 도큐먼트 로드
+        const tempDoc = await PDFDocument.load(coverPdfBytes);
+        const srcPage = tempDoc.getPages()[0];
+        const { width: srcW, height: srcH } = srcPage.getSize();
+
+        // 3분할 영역 비례 계산 (W: 553.8mm 기준)
+        const leftPartW = srcW * 0.480;   // 1. 좌측 영역 (뒷날개 + 뒷표지 + 좌측 도련)
+        const spinePartW = srcW * 0.040;  // 2. 중앙 책등 영역
+        const rightPartW = srcW * 0.480;  // 3. 우측 영역 (앞표지 + 앞날개 + 우측 도련)
+
+        const scale = 0.93; // 93% 축소
+        const drawLeftW = leftPartW * scale;
+        const drawRightW = rightPartW * scale;
+        const drawH = srcH * scale;
+
+        // 책등 두께는 축소하지 않고 100% 보존! (A5 336P 21.8mm 실제 두께 보증)
+        const drawSpineW = spinePartW;
+
+        // 최종 가로 크기: 좌측축소너비 + 100%책등너비 + 우측축소너비
+        const finalW = drawLeftW + drawSpineW + drawRightW;
+        
+        const page = pdfDoc.addPage([finalW, drawH]);
+        const embeddedPage = await pdfDoc.embedPage(srcPage);
+
+        const drawW = srcW * scale; // 93% 정비율 축소된 전체 가로 너비
+
+        // 1. 좌측 블록 그리기 (뒷날개 + 뒷표지) ➔ [x: 0, y: 0, 너비: drawLeftW, 높이: drawH] 영역으로 벡터 클리핑 격리
+        page.pushOperators(
+            PDFOperator.of('q'), // pushGraphicsState
+            PDFOperator.of('re', [
+                PDFNumber.of(0),
+                PDFNumber.of(0),
+                PDFNumber.of(drawLeftW),
+                PDFNumber.of(drawH)
+            ]), // rectangle
+            PDFOperator.of('W'), // clip
+            PDFOperator.of('n')  // endPath
+        );
+        page.drawPage(embeddedPage, {
+            x: 0,
+            y: 0,
+            width: drawW,
+            height: drawH
+        });
+        page.pushOperators(PDFOperator.of('Q')); // popGraphicsState
+
+        // 2. 중앙 책등 영역 그리기
+        // 2-1. 단색 배경 사각형 칠하기 (인쇄소 사양 안전 세네카)
+        page.drawRectangle({
+            x: drawLeftW,
+            y: 0,
+            width: drawSpineW,
+            height: drawH,
+            color: rgb(0.06, 0.09, 0.16)
+        });
+        // 2-2. 정비율 축소한 책등 그래픽을 중앙 정렬하여 얹기 (글씨 찌그러짐 0%) ➔ [x: drawLeftW, y: 0, 너비: drawSpineW, 높이: drawH] 영역으로 벡터 클리핑 격리
+        const scaleSpineW = spinePartW * scale;
+        const spineOffset = (drawSpineW - scaleSpineW) / 2;
+        page.pushOperators(
+            PDFOperator.of('q'), // pushGraphicsState
+            PDFOperator.of('re', [
+                PDFNumber.of(drawLeftW),
+                PDFNumber.of(0),
+                PDFNumber.of(drawSpineW),
+                PDFNumber.of(drawH)
+            ]), // rectangle
+            PDFOperator.of('W'), // clip
+            PDFOperator.of('n')  // endPath
+        );
+        page.drawPage(embeddedPage, {
+            x: drawLeftW - (leftPartW * scale) + spineOffset,
+            y: 0,
+            width: drawW,
+            height: drawH
+        });
+        page.pushOperators(PDFOperator.of('Q')); // popGraphicsState
+
+        // 3. 우측 영역 그리기 (앞표지 + 앞날개) ➔ [x: drawLeftW + drawSpineW, y: 0, 너비: drawRightW, 높이: drawH] 영역으로 벡터 클리핑 격리
+        page.pushOperators(
+            PDFOperator.of('q'), // pushGraphicsState
+            PDFOperator.of('re', [
+                PDFNumber.of(drawLeftW + drawSpineW),
+                PDFNumber.of(0),
+                PDFNumber.of(drawRightW),
+                PDFNumber.of(drawH)
+            ]), // rectangle
+            PDFOperator.of('W'), // clip
+            PDFOperator.of('n')  // endPath
+        );
+        page.drawPage(embeddedPage, {
+            x: (drawLeftW + drawSpineW) - ((leftPartW + spinePartW) * scale),
+            y: 0,
+            width: drawW,
+            height: drawH
+        });
+        page.pushOperators(PDFOperator.of('Q')); // popGraphicsState
 
         const bytes = await pdfDoc.save();
         const link = document.createElement('a');
-        const fname = (_ctrl_simBook?.title || '북커버').replace(/[/\\?%*:|"<>\s]/g, '_');
+        const fname = book.title.replace(/[/\\?%*:|"<>\s]/g, '_');
         link.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-        link.download = `[인쇄용_표지]_${fname}_펼침면.pdf`;
+        link.download = `[인쇄용_표지]_${fname}_A5국판_표지전개도.pdf`;
         link.click();
     } catch (err) {
         alert('표지 PDF 생성 오류: ' + err.message);
@@ -2287,11 +2537,7 @@ function buildSimModalHTML(book) {
                         <span style="width:8px;height:8px;border-radius:50%;background:#f472b6;display:inline-block;"></span>
                         6번 VDP_이지퍼비터(ezpubitor): 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료
                     </div>
-                    <canvas id="ctrl-cover-canvas" width="650" height="280" style="border:1px solid var(--ctrl-border); border-radius:12px; max-width:100%;"></canvas>
-                    <button onclick="ctrlDownloadCoverPDF()" class="ctrl-btn-cover-pdf">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        북 커버 펼침면 PDF 다운로드
-                    </button>
+                    <canvas id="ctrl-cover-canvas" width="650" height="280" style="border:1px solid var(--ctrl-border); border-radius:12px; max-width:100%; margin-bottom: 10px;"></canvas>
                 </div>
             </div>
 
@@ -2680,14 +2926,22 @@ function setupAccordionEvents() {
 // [NEW] TOP3 클릭 시 저작권 만료 도서 → ePub 뷰어 분기
 //       일반 도서 → 기존 시뮬레이션 모달
 // ═══════════════════════════════════════════════════
+window._ctrl_selectedBook = null;
+window._ctrl_activeTab = 'epub';
+
 window.ctrlStartSimByIndex = function ctrlStartSimByIndex(index) {
     const book = _ctrl_candidates[index];
     if (!book) return;
 
-    // 저작권 만료 도서(public_domain)인 경우 ePub 뷰어 실행
+    window._ctrl_selectedBook = book;
+    
+    // 저작권 만료 도서(public_domain)인 경우 ePub 뷰어/마케팅 팩 자동 실행
     if (book.copyright_status === 'public_domain') {
-        renderEpubViewer(book);
+        window.switchAssetTab('epub');
     } else {
+        // 일반 도서인 경우 마케팅 팩 카드뉴스 탭으로 자동 연결하여 생성 연출
+        window.switchAssetTab('news');
+        // 동시에 기존 실물 종이책 시뮬레이션 모달도 병행 오픈
         startCtrlSimByBookData(book);
     }
 };
@@ -2711,10 +2965,27 @@ function resetEpubViewer() {
     viewer.innerHTML = `
         <div class="ctrl-epub-idle">
             <i data-lucide="book-open" style="width:32px;height:32px;opacity:0.3;"></i>
-            <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러가 이 곳에서 실행됩니다.</p>
+            <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러와 마케팅 팩이 이 곳에서 활성화됩니다.</p>
         </div>`;
 
     _ctrl_epubViewerActive = false;
+    window._ctrl_selectedBook = null;
+    window._ctrl_activeTab = 'epub';
+
+    // 탭 헤더 활성화 상태 리셋
+    document.querySelectorAll('.ctrl-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--ctrl-text-mute)';
+        btn.style.boxShadow = 'none';
+    });
+    const epubBtn = document.getElementById('tab-btn-epub');
+    if (epubBtn) {
+        epubBtn.classList.add('active');
+        epubBtn.style.background = 'rgba(255,255,255,0.08)';
+        epubBtn.style.color = 'var(--ctrl-text)';
+        epubBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    }
 
     if (window.lucide) {
         try { lucide.createIcons(); } catch (e) { }
@@ -3000,6 +3271,410 @@ function renderEpubViewer(book) {
         try { lucide.createIcons(); } catch(e) {}
     }
 }
+
+// ═══════════════════════════════════════════════════
+// [11번 마케팅_알리미 연동] 3단 에셋 탭 전환 및 렌더링 로직
+// ═══════════════════════════════════════════════════
+window.switchAssetTab = function switchAssetTab(tabType) {
+    if (!window._ctrl_selectedBook) {
+        alert("먼저 복간 후보 도서를 클릭하여 선택해 주세요!");
+        return;
+    }
+    
+    window._ctrl_activeTab = tabType;
+    
+    // 탭 버튼 UI 활성화 상태 전환
+    document.querySelectorAll('.ctrl-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--ctrl-text-mute)';
+        btn.style.boxShadow = 'none';
+    });
+    
+    const activeBtn = document.getElementById(`tab-btn-${tabType}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'rgba(255,255,255,0.08)';
+        activeBtn.style.color = 'var(--ctrl-text)';
+        activeBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    }
+    
+    // ePub Speech 낭독 중이면 취소
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (_epubAudioTimer) { clearInterval(_epubAudioTimer); _epubAudioTimer = null; }
+    _epubSpeechPlaying = false;
+    const playBtn = document.getElementById('epub-audio-play-btn');
+    if (playBtn) playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+
+    // 숏폼 비디오 인터벌 중이면 취소
+    if (window._shortformTimer) { clearInterval(window._shortformTimer); window._shortformTimer = null; }
+    window._shortformPlaying = false;
+
+    // 탭 전환에 따른 실제 렌더링 분기
+    if (tabType === 'epub') {
+        if (window._ctrl_selectedBook.copyright_status === 'public_domain') {
+            renderEpubViewer(window._ctrl_selectedBook);
+        } else {
+            const viewer = document.getElementById('ctrl-epub-viewer');
+            if (viewer) {
+                viewer.innerHTML = `
+                    <div style="padding: 40px 20px; text-align: center; color: var(--ctrl-text-mute); font-size: 12px; font-weight: bold; line-height: 1.6;">
+                        <i data-lucide="lock" style="width: 32px; height: 32px; color: #f59e0b; margin: 0 auto 12px; display: block; opacity: 0.8;"></i>
+                        이 도서는 현재 저작권 보호 대상입니다.<br>
+                        가상 ePub3 프리뷰 대신 실물 종이책 복간 프로세스<br>
+                        ([종이책 복간 시뮬레이션] 창)로 자동 연결됩니다.<br><br>
+                        <button onclick="startCtrlSimByBookData(window._ctrl_selectedBook)" style="padding: 8px 16px; background: #f59e0b; border: none; border-radius: 8px; color: #fff; font-weight: 800; cursor: pointer; font-size: 11px;">
+                            종이책 시뮬레이션 열기
+                        </button>
+                    </div>
+                `;
+                if (window.lucide) {
+                    try { lucide.createIcons(); } catch (e) { }
+                }
+            }
+        }
+    } else if (tabType === 'news') {
+        renderNewsCardTab(window._ctrl_selectedBook);
+    } else if (tabType === 'video') {
+        renderVideoTab(window._ctrl_selectedBook);
+    }
+};
+
+// ── [11번 알리미] AI 카드뉴스 렌더링 ──
+window._newsCardIdx = 0;
+function renderNewsCardTab(book) {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    const title = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '');
+    const author = (book.author || '저자 미상').replace(/<\/?[^>]+(>|$)/g, '');
+    window._newsCardIdx = 0;
+
+    // 도서별 템플릿 카피 데이터
+    let copyTemplates = [];
+    if (title.includes('홈즈') || title.includes('Holmes')) {
+        copyTemplates = [
+            "그가 돌아왔다. 추리 역사상 가장 위대한 탐정, 셜록 홈즈!",
+            "100년의 세월을 넘어, 오직 당신만을 위한 한정판 실물 복간 완료.",
+            "디지털 연속지 인쇄와 프리미엄 조판으로 되살아난 전설의 원작.",
+            "소장 가치를 극대화할 독자 성명 임베디드 실물 보증서 동봉.",
+            "B2C 몰에서 펀딩 100% 달성 임박! 지금 한정판 소장 기회를 확보하세요."
+        ];
+    } else if (title.includes('인간') || title.includes('카네기')) {
+        copyTemplates = [
+            "사람의 마음을 움직이는 가장 위대한 고전, 인간관계론.",
+            "현대 비즈니스맨의 필수 지침서, 오리지널 무삭제판 복간 결정.",
+            "가변 데이터 인쇄 기술로 당신의 이름이 박힌 수제 책갈피 포함.",
+            "출판친구 자율 배포 시스템이 인쇄소와 출판사를 직접 매칭해 단가 대폭 인하.",
+            "지금 B2C 스토어 펀딩에 참여해 나만의 맞춤형 도서를 소장해 보세요."
+        ];
+    } else {
+        copyTemplates = [
+            "시간에 묻혀있던 명작, 독자의 목소리로 다시 태어납니다.",
+            "절판 도서 복간 프로젝트 ➔ 독자 참여형 B2C 크라우드 펀딩 가동.",
+            "디지털 초소량 인쇄를 통해 재고 걱정 없이 실물 책으로 즉각 제작.",
+            "오직 당신만을 위한 맞춤형 가변 조판 VDP 책갈피 증정.",
+            "지금 펀딩에 투표하여 소중한 문화를 보존하는 데 동참하세요."
+        ];
+    }
+
+    window._newsCardCopies = copyTemplates;
+
+    function buildCardHTML() {
+        const idx = window._newsCardIdx;
+        const text = window._newsCardCopies[idx];
+        return `
+            <div style="padding: 14px; display: flex; flex-direction: column; height: 100%;">
+                <div style="font-size: 8px; font-weight: 900; color: #10b981; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span>🤖 11번 알리미 AI 마케팅 에셋 팩</span>
+                    <span style="background: rgba(16,185,129,0.15); padding: 2px 6px; border-radius: 999px;">${idx + 1} / 5</span>
+                </div>
+                
+                <!-- 카드뉴스 본판 (글래스모피즘 + 광원 필터 추가) -->
+                <div class="news-card-glow" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #020617 0%, #1e1b4b 100%); border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 22px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+                    <div style="font-size: 8px; color: #10b981; font-weight: 900; letter-spacing: 0.15em; opacity: 0.85;">PUBLISHING FRIEND ADVANCED MARKETING</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #fff; line-height: 1.7; padding: 10px 0; min-height: 80px; display: flex; align-items: center; justify-content: center; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+                        "${text}"
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
+                        <i data-lucide="book-open" style="width: 13px; height: 13px; color: #10b981;"></i>
+                        <span style="font-size: 10px; font-weight: 900; color: #f1f5f9;">${title}</span>
+                    </div>
+                </div>
+                
+                <!-- 캐러셀 제어 버튼 -->
+                <div style="display: flex; gap: 6px; margin-top: 12px;">
+                    <button onclick="window.changeNewsCard(-1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <i data-lucide="chevron-left" style="width: 12px; height: 12px;"></i>이전
+                    </button>
+                    <button onclick="window.changeNewsCard(1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        다음<i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+                
+                <button onclick="window.downloadNewsCardSim()" style="width: 100%; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    <i data-lucide="download" style="width: 12px; height: 12px;"></i>카드뉴스 세트 전체 다운로드 (Local ZIP)
+                </button>
+            </div>
+        `;
+    }
+
+    viewer.innerHTML = buildCardHTML();
+
+    window.changeNewsCard = function(offset) {
+        window._newsCardIdx = (window._newsCardIdx + offset + 5) % 5;
+        viewer.innerHTML = buildCardHTML();
+        if (window.lucide) {
+            try { lucide.createIcons(); } catch (e) {}
+        }
+    };
+
+    window.downloadNewsCardSim = function() {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#10b981; color:white; padding:12px 24px; border-radius:12px; font-size:12px; font-weight:800; z-index:9999; box-shadow:0 10px 25px rgba(16,185,129,0.3); animation: slideUp 0.3s ease;';
+        toast.textContent = `📢 [11번 알리미] '${title}' SNS 최적화 카드뉴스 5장 다운로드 완료!`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    };
+
+    const logEl = document.getElementById('ctrl-log-stream');
+    if (logEl) {
+        _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📰 '${title}' 맞춤형 AI 카드뉴스 에셋 5장 자동 빌드 완료`, new Date());
+    }
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+}
+
+// ── [11번 알리미] AI 숏폼 비디오 렌더링 ──
+window._shortformPlaying = false;
+window._shortformTimer = null;
+function renderVideoTab(book) {
+    const viewer = document.getElementById('ctrl-epub-viewer');
+    if (!viewer) return;
+
+    const title = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '');
+    window._shortformPlaying = false;
+
+    // 숏폼 비디오 자막 데이터
+    let subtitles = [];
+    if (title.includes('홈즈') || title.includes('Holmes')) {
+        subtitles = [
+            "추리 소설의 영원한 전설, 셜록 홈즈가 마침내 돌아왔습니다!",
+            "소장용 맞춤형 고해상도 디자인과 VDP 조판 기술 탑재!",
+            "지금 B2C 몰에서 펀딩 100% 달성을 확인하고 예약을 진행하세요!"
+        ];
+    } else if (title.includes('인간') || title.includes('카네기')) {
+        subtitles = [
+            "사람의 마음을 움직이는 명저, 데일 카네기의 인간관계론 복간!",
+            "당신의 이름이 영구 인쇄된 가변 보증서와 함께 소장하세요.",
+            "B2C 스토어에서 단 1초 만에 펀딩 참여가 가능합니다!"
+        ];
+    } else {
+        subtitles = [
+            "시간에 묻혀있던 명작이 독자의 참여로 다시 태어납니다!",
+            "무재고 B2B 인쇄 플랫폼으로 완벽 복간 및 매칭 지원.",
+            "지금 바로 예약 판매 펀딩에 참여해 보존에 동참하세요!"
+        ];
+    }
+
+    window._shortformSubtitles = subtitles;
+    window._shortformIdx = 0;
+
+    viewer.innerHTML = `
+        <div style="padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+            <div style="font-size: 8px; font-weight: 900; color: #a855f7; letter-spacing: 0.1em; width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span>🎬 11번 알리미 AI 숏폼 비디오 렌더러</span>
+                <span style="background: rgba(168,85,247,0.15); padding: 2px 6px; border-radius: 999px;">9:16 vertical</span>
+            </div>
+
+            <!-- 스마트폰 프레임 -->
+            <div id="shortform-phone" style="width: 170px; height: 280px; background: #000; border: 4px solid #334155; border-radius: 20px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 8px 20px rgba(0,0,0,0.5);">
+                <!-- 내부 카메라 홀 -->
+                <div style="width: 40px; height: 10px; background: #334155; border-radius: 0 0 6px 6px; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 10;"></div>
+                
+                <!-- 동영상 백그라운드 (줌인/아웃 모션그래픽 애니메이션 탑재) -->
+                <div id="shortform-bg" class="shortform-bg-zooming" style="position: absolute; inset: 0; background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%); display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 110px; height: 150px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.15); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.55); backdrop-filter: blur(5px);">
+                        <i data-lucide="book-open" style="width: 24px; height: 24px; color: #a855f7; margin-bottom: 8px;"></i>
+                        <span style="font-size: 9px; font-weight: 900; line-height: 1.3; color: #f1f5f9;">${title}</span>
+                        <span style="font-size: 7px; font-weight: 700; color: #a855f7; margin-top: 4px;">복간 펀딩 가동 중</span>
+                    </div>
+                </div>
+
+                <!-- 상단 채널 정보 overlay -->
+                <div style="position: absolute; top: 12px; left: 10px; z-index: 5; display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 14px; height: 14px; background: #a855f7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 6px; font-weight: bold; color: white;">P</div>
+                    <span style="font-size: 7px; font-weight: 800; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">출판친구_알리미</span>
+                </div>
+
+                <!-- 춤추는 오디오 이퀄라이저 파동 그래픽 overlay (신규 추가) -->
+                <div class="eq-container" style="position: absolute; bottom: 12px; right: 12px; z-index: 5;">
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                </div>
+
+                <!-- 자막 오버레이 (펄스 애니메이션) -->
+                <div id="shortform-subtitle-container" style="position: absolute; bottom: 45px; left: 0; right: 0; z-index: 5; text-align: center; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 10px;">
+                    <span id="shortform-subtitle-text" style="font-size: 9px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); background: rgba(0,0,0,0.75); padding: 6px 10px; border-radius: 8px; display: inline-block; line-height: 1.4; border: 1px solid rgba(255,255,255,0.15); width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.45);">
+                        ▶ 재생 버튼을 눌러 AI 숏폼 영상/나레이션 가동
+                    </span>
+                </div>
+
+                <!-- 하단 프로그레스 바 -->
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.2); z-index: 5;">
+                    <div id="shortform-progress-fill" style="width: 0%; height: 100%; background: #a855f7; transition: width 0.1s linear;"></div>
+                </div>
+            </div>
+
+            <!-- 플레이 제어 툴 바 -->
+            <div style="display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px;">
+                <button id="shortform-play-btn" style="padding: 8px 10px; background: #a855f7; border: none; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(168,85,247,0.3); transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                    <i id="shortform-play-icon" data-lucide="play" style="width: 12px; height: 12px;"></i>
+                </button>
+                <div style="flex: 1; font-size: 9px; font-weight: 800; color: var(--ctrl-text-mute);" id="shortform-status-label">
+                    AI 성우 나레이션 대기 중
+                </div>
+                <button onclick="window.downloadShortformVideoSim()" style="padding: 7px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--ctrl-border); border-radius: 8px; color: var(--ctrl-text); font-size: 9px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="share-2" style="width: 11px; height: 11px;"></i>SNS 배포
+                </button>
+            </div>
+        </div>
+    `;
+
+    const playBtn = document.getElementById('shortform-play-btn');
+    const playIcon = document.getElementById('shortform-play-icon');
+    const statusLabel = document.getElementById('shortform-status-label');
+    const subtitleText = document.getElementById('shortform-subtitle-text');
+    const progressFill = document.getElementById('shortform-progress-fill');
+
+    function stopShortform() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        window._shortformPlaying = false;
+        if (window._shortformTimer) { clearInterval(window._shortformTimer); window._shortformTimer = null; }
+        
+        if (playIcon) playIcon.setAttribute('data-lucide', 'play');
+        if (statusLabel) statusLabel.textContent = 'AI 숏폼 나레이션 대기 중';
+        if (subtitleText) subtitleText.textContent = '▶ 재생 버튼을 눌러 AI 숏폼 영상/나레이션 가동';
+        if (progressFill) progressFill.style.width = '0%';
+        
+        // 이퀄라이저 바 중지
+        document.querySelectorAll('.eq-bar').forEach(bar => bar.classList.remove('active'));
+        
+        if (window.lucide) {
+            try { lucide.createIcons(); } catch (e) {}
+        }
+    }
+
+    function startShortform() {
+        window.speechSynthesis.cancel();
+        window._shortformPlaying = true;
+        
+        if (playIcon) playIcon.setAttribute('data-lucide', 'pause');
+        if (statusLabel) statusLabel.textContent = '🔊 나레이션 및 오디오 합성 출력 중';
+        
+        // 이퀄라이저 바 가동
+        document.querySelectorAll('.eq-bar').forEach(bar => bar.classList.add('active'));
+
+        if (window.lucide) {
+            try { lucide.createIcons(); } catch (e) {}
+        }
+
+        // 전체 낭독 텍스트 합성
+        const fullScript = window._shortformSubtitles.join(" ");
+        const utter = new SpeechSynthesisUtterance(fullScript);
+        utter.lang = 'ko-KR';
+        utter.rate = 0.95;
+        utter.pitch = 1.05;
+
+        const voices = window.speechSynthesis.getVoices();
+        const koVoice = voices.find(v => v.lang.startsWith('ko'));
+        if (koVoice) utter.voice = koVoice;
+
+        let elapsedMs = 0;
+        const totalDurationMs = 11000;
+        
+        window._shortformIdx = 0;
+        subtitleText.textContent = window._shortformSubtitles[0];
+
+        window._shortformTimer = setInterval(() => {
+            elapsedMs += 100;
+            const pct = Math.min((elapsedMs / totalDurationMs) * 100, 100);
+            if (progressFill) progressFill.style.width = pct + '%';
+
+            // 문장 전환 타이밍 (3.6초, 7.2초 시점 분기)
+            if (elapsedMs >= 3600 && window._shortformIdx === 0) {
+                window._shortformIdx = 1;
+                subtitleText.textContent = window._shortformSubtitles[1];
+            } else if (elapsedMs >= 7200 && window._shortformIdx === 1) {
+                window._shortformIdx = 2;
+                subtitleText.textContent = window._shortformSubtitles[2];
+            }
+
+            if (elapsedMs >= totalDurationMs) {
+                stopShortform();
+            }
+        }, 100);
+
+        utter.onend = () => {
+            stopShortform();
+        };
+
+        window.speechSynthesis.speak(utter);
+    }
+
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            if (window._shortformPlaying) {
+                stopShortform();
+            } else {
+                startShortform();
+            }
+        });
+    }
+
+    window.downloadShortformVideoSim = function() {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#a855f7; color:white; padding:12px 24px; border-radius:12px; font-size:12px; font-weight:800; z-index:9999; box-shadow:0 10px 25px rgba(168,85,247,0.3); animation: slideUp 0.3s ease;';
+        toast.textContent = `📢 [11번 알리미] '${title}' AI 마케팅 숏폼 비디오(MP4) SNS 배포 대기 완료!`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    };
+
+    const observer = new MutationObserver((mutations) => {
+        if (!document.getElementById('shortform-phone')) {
+            stopShortform();
+            observer.disconnect();
+        }
+    });
+    observer.observe(viewer, { childList: true });
+
+    const logEl = document.getElementById('ctrl-log-stream');
+    if (logEl) {
+        _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `🎬 '${title}' AI 숏폼 홍보 비디오(MP4) 모션 그래픽 합성 완료`, new Date());
+    }
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+    }
+}
+
+window.downloadNewsCardSim = function() {
+    alert("도서가 선택되지 않았습니다.");
+};
+window.downloadShortformVideoSim = function() {
+    alert("도서가 선택되지 않았습니다.");
+};
 
 // ───────────────────────────────────────────
 // 16번 지휘_판다 [긴급 보고서 큐] 티켓 수신기 & 보안 서명 검증

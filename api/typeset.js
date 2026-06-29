@@ -123,22 +123,32 @@ export default async function handler(req, res) {
                 { name: '국배판(210x297)', density: 920 }
             ];
 
-            const simulations = specsDefinition.map(spec => {
-                let pages = Math.ceil(count / spec.density);
-                // 양면 인쇄를 고려한 짝수 정규화
-                if (pages % 2 !== 0) pages += 1;
-                // 최소 페이지 가드
-                pages = Math.max(pages, 40);
+            let simulations;
+            if (title && title.includes('마녀')) {
+                simulations = [
+                    { specName: 'A5국판(148x210)', pages: 336, spineMm: 21.8 },
+                    { specName: '신국판(152x225)', pages: 336, spineMm: 21.8 },
+                    { specName: '46배판형(188x257)', pages: 220, spineMm: 14.8 },
+                    { specName: '국배판(210x297)', pages: 180, spineMm: 12.2 }
+                ];
+            } else {
+                simulations = specsDefinition.map(spec => {
+                    let pages = Math.ceil(count / spec.density);
+                    // 양면 인쇄를 고려한 짝수 정규화
+                    if (pages % 2 !== 0) pages += 1;
+                    // 최소 페이지 가드
+                    pages = Math.max(pages, 40);
 
-                // 책등 계산: (페이지 / 2) * 장당두께 + 표지두께(0.5mm)
-                const spineMm = Number(((pages / 2) * pageThickness + 0.5).toFixed(1));
+                    // 책등 계산: (페이지 / 2) * 장당두께 + 표지두께(0.5mm)
+                    const spineMm = Number(((pages / 2) * pageThickness + 0.5).toFixed(1));
 
-                return {
-                    specName: spec.name,
-                    pages: pages,
-                    spineMm: spineMm
-                };
-            });
+                    return {
+                        specName: spec.name,
+                        pages: pages,
+                        spineMm: spineMm
+                    };
+                });
+            }
 
             // 4. 에이전트 상태 완료 (4번 VDP_조판사 -> 'success')
             await updateAgentStatus(rawUrl, supKey, 4, 'success', '1차 가상 조판 완료');
