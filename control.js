@@ -1904,12 +1904,15 @@ async function ctrlApproveSpec(specIndex) {
 
                 // PDF 다운로드 버튼 노출
                 const dlArea = document.getElementById('ctrl-compile-download');
-                if (dlArea) {
+                        if (dlArea) {
                     ctrlShowEl(dlArea);
                     dlArea.innerHTML = `
                     <button onclick="ctrlDownloadReprintPDF()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         📄 최종 인쇄용 PDF/X-4 다운로드
+                    </button>
+                    <button onclick="ctrlDownloadCoverPDF()" class="ctrl-btn ctrl-btn-secondary" style="font-size:11px; margin-top:5px;">
+                        🎨 표지 인쇄용 PDF 다운로드
                     </button>`;
                 }
 
@@ -2063,24 +2066,9 @@ function drawCtrlBookCover(title, specName, spineMm) {
             const w = tempCanvas.width;
             const h = tempCanvas.height;
 
-            const startY = Math.floor(h * 0.0518);
-            const cropH = Math.floor(h * 0.8964);
-
-            // [초정밀 5분할 이미지 슬라이싱 & A5/21.8mm 캔버스 동적 재조합]
-            // 1. 뒷날개 (0% ~ 20.4% 영역) ➔ x=20px 에서 wingWidth(100px) 너비로 배치
-            ctx.drawImage(tempCanvas, 0, startY, Math.floor(w * 0.204), cropH, 20, 20, wingWidth, height);
-            
-            // 2. 뒷표지 (20.4% ~ 48.0% 영역) ➔ xLeftWing 위치에 baseWidth(200px) 너비로 배치
-            ctx.drawImage(tempCanvas, Math.floor(w * 0.204), startY, Math.floor(w * 0.276), cropH, xLeftWing, 20, baseWidth, height);
-            
-            // 3. 책등 (48.0% ~ 52.0% 영역) ➔ xSpineLeft 위치에 spineWidth(21.8mm 계산치) 너비로 배치
-            ctx.drawImage(tempCanvas, Math.floor(w * 0.480), startY, Math.floor(w * 0.040), cropH, xSpineLeft, 20, spineWidth, height);
-            
-            // 4. 앞표지 (52.0% ~ 79.6% 영역) ➔ xSpineRight 위치에 baseWidth(200px) 너비로 배치
-            ctx.drawImage(tempCanvas, Math.floor(w * 0.520), startY, Math.floor(w * 0.276), cropH, xSpineRight, 20, baseWidth, height);
-            
-            // 5. 앞날개 (79.6% ~ 100% 영역) ➔ xRightWing 위치에 wingWidth(100px) 너비로 배치
-            ctx.drawImage(tempCanvas, Math.floor(w * 0.796), startY, Math.floor(w * 0.204), cropH, xRightWing, 20, wingWidth, height);
+            // [사용자 피드백 반영: 쪼개지 않고 전체 표지를 축소하여 100% 선명하게 드로잉]
+            // 상하좌우 13mm 재단선이 살아있는 원본 펼침면 그래픽을 찌그러짐 없이 전체 영역에 투사합니다.
+            ctx.drawImage(tempCanvas, 0, 0, w, h, 20, 20, totalWidth, height);
 
             drawOverlayElements();
         }
@@ -2192,7 +2180,7 @@ async function ctrlDownloadReprintPDF() {
             });
         }
 
-        // fontkit 동적 로드 (한글 폰트 임베딩 지원 모듈)
+        // fontkit 동적 로드
         if (!window.fontkit) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
@@ -2204,16 +2192,11 @@ async function ctrlDownloadReprintPDF() {
 
         const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.create();
-
-        // fontkit 등록
         pdfDoc.registerFontkit(fontkit);
 
-        // 준비된 나눔명조 폰트 바이너리 로드
         const fontUrl = ctrlApiUrl('/NanumMyeongjo.ttf');
         const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
         const customFont = await pdfDoc.embedFont(fontBytes);
-
-        const page = pdfDoc.addPage([595.275, 841.889]);
 
         const specDim = { 'A5국판': [148, 210], '신국판': [152, 225], '46배판형': [188, 257], '국배판': [210, 297] };
         let [tw, th] = [152, 225];
@@ -2232,53 +2215,29 @@ async function ctrlDownloadReprintPDF() {
 
         if (book.title.includes('마녀')) {
             try {
-                // 실제 내지 PDF 로드 (UAT 실증 연동)
-                const innerPdfUrl = ctrlApiUrl('/마녀-본문3쇄.pdf');
+                // 대표님이 업로드해주신 '/마녀-본문3쇄.pdf' 로딩 (브라우저 주소 자동 정렬)
+                const innerPdfUrl = window.location.origin + '/마녀-본문3쇄.pdf';
                 const innerPdfBytes = await fetch(innerPdfUrl).then(res => {
-                    if (!res.ok) throw new Error('실제 내지 PDF 파일 로딩 실패');
+                    if (!res.ok) throw new Error('마녀 내지 PDF fetch 실패');
                     return res.arrayBuffer();
                 });
                 
                 const srcDoc = await PDFDocument.load(innerPdfBytes);
-                const srcPage = srcDoc.getPages()[0]; // 1페이지 로드
+                const srcPage = srcDoc.getPages()[0]; // 1페이지 추출
                 
-                const a5W = 148 * mmPt;
-                const a5H = 210 * mmPt;
-                const bleedW = a5W + 17; // 사방 3mm 포함
-                const bleedH = a5H + 17;
-                
-                const imposedPage = pdfDoc.addPage([bleedW, bleedH]);
-                
-                // 가조판 가이드 라인 (재단 경계선과 도련선)
-                imposedPage.drawRectangle({ x: 8.5, y: 8.5, width: a5W, height: a5H, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
-                imposedPage.drawRectangle({ x: 0, y: 0, width: bleedW, height: bleedH, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
-
-                // 3mm 재단선(Crop Marks) 코너 십자선 마킹
-                imposedPage.drawLine({ start: { x: 8.5, y: 0 }, end: { x: 8.5, y: 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: 0, y: 8.5 }, end: { x: 15, y: 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: bleedW - 8.5, y: 0 }, end: { x: bleedW - 8.5, y: 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: bleedW, y: 8.5 }, end: { x: bleedW - 15, y: 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: 8.5, y: bleedH }, end: { x: 8.5, y: bleedH - 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: 0, y: bleedH - 8.5 }, end: { x: 15, y: bleedH - 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: bleedW - 8.5, y: bleedH }, end: { x: bleedW - 8.5, y: bleedH - 15 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-                imposedPage.drawLine({ start: { x: bleedW, y: bleedH - 8.5 }, end: { x: bleedW - 15, y: bleedH - 8.5 }, color: rgb(0.5, 0.5, 0.5), thickness: 0.5 });
-
-                // 실제 마녀 PDF page embed
-                const embeddedPage = await pdfDoc.embedPage(srcPage);
-                const { width: srcW, height: srcH } = srcPage.getSize();
-                
-                // 93% 축소 연산
+                // 93% 정비율 축소 연산
                 const scale = 0.93;
+                const { width: srcW, height: srcH } = srcPage.getSize();
                 const drawW = srcW * scale;
                 const drawH = srcH * scale;
+
+                // 축소된 내지가 정확히 들어갈 크기로 페이지를 생성하여 여백 깨짐 원천 차단
+                const page = pdfDoc.addPage([drawW, drawH]);
+                const embeddedPage = await pdfDoc.embedPage(srcPage);
                 
-                // A5 국판 템플릿의 정확한 중앙 좌표 정렬
-                const drawX = 8.5 + (a5W - drawW) / 2;
-                const drawY = 8.5 + (a5H - drawH) / 2;
-                
-                imposedPage.drawPage(embeddedPage, {
-                    x: drawX,
-                    y: drawY,
+                page.drawPage(embeddedPage, {
+                    x: 0,
+                    y: 0,
                     width: drawW,
                     height: drawH
                 });
@@ -2286,11 +2245,12 @@ async function ctrlDownloadReprintPDF() {
                 bytes = await pdfDoc.save();
                 isRealEmbedded = true;
             } catch (err) {
-                console.warn('[PDF] 마녀 내지 연동 실패. 가상 조판으로 전환:', err.message);
+                console.warn('[PDF] 마녀 내지 로드 실패, 가상 조판 폴백 실행:', err.message);
             }
         }
 
         if (!isRealEmbedded) {
+            const page = pdfDoc.addPage([595.275, 841.889]);
             page.drawRectangle({ x: xOff, y: yOff, width: trimW, height: trimH, borderWidth: 0.5, borderColor: rgb(0.5, 0.5, 0.5), borderDashArray: [2, 2] });
             page.drawRectangle({ x: xOff - 8.5, y: yOff - 8.5, width: trimW + 17, height: trimH + 17, borderWidth: 0.75, borderColor: rgb(0.9, 0.2, 0.2) });
 
@@ -2312,8 +2272,9 @@ async function ctrlDownloadReprintPDF() {
 }
 
 async function ctrlDownloadCoverPDF() {
-    const canvas = document.getElementById('ctrl-cover-canvas');
-    if (!canvas) return;
+    const book = _ctrl_simBook;
+    const spec = _ctrl_approvedSpec;
+    if (!book || !spec) return;
 
     try {
         if (!window.PDFLib) {
@@ -2327,16 +2288,39 @@ async function ctrlDownloadCoverPDF() {
 
         const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.create();
-        const imgData = canvas.toDataURL('image/png');
-        const pngImg = await pdfDoc.embedPng(imgData);
-        const page = pdfDoc.addPage([canvas.width, canvas.height]);
-        page.drawImage(pngImg, { x: 0, y: 0, width: canvas.width, height: canvas.height });
+
+        // [초정밀 벡터 93% 축소]
+        // 사장님 피드백 반영: 쪼개서 이미지로 구우면 글자가 무조건 깨지며, 13mm 여백을 날리면 재단 마진이 무너집니다.
+        // 표지 PDF 원본 자체를 1:1로 로드하여, 93% 정비율로 축소한 뒤 새 PDF로 출력하여 화질과 13mm 도련 여백을 100% 원본 그대로 보존합니다!
+        const coverPdfUrl = window.location.origin + '/마녀_표지.pdf';
+        const coverPdfBytes = await fetch(coverPdfUrl).then(res => {
+            if (!res.ok) throw new Error('표지 PDF 파일 로드 실패');
+            return res.arrayBuffer();
+        });
+
+        const srcDoc = await PDFDocument.load(coverPdfBytes);
+        const srcPage = srcDoc.getPages()[0]; // 표지 1페이지
+
+        const scale = 0.93; // 93% 축소
+        const { width: srcW, height: srcH } = srcPage.getSize();
+        const drawW = srcW * scale;
+        const drawH = srcH * scale;
+
+        const page = pdfDoc.addPage([drawW, drawH]);
+        const embeddedPage = await pdfDoc.embedPage(srcPage);
+
+        page.drawPage(embeddedPage, {
+            x: 0,
+            y: 0,
+            width: drawW,
+            height: drawH
+        });
 
         const bytes = await pdfDoc.save();
         const link = document.createElement('a');
-        const fname = (_ctrl_simBook?.title || '북커버').replace(/[/\\?%*:|"<>\s]/g, '_');
+        const fname = book.title.replace(/[/\\?%*:|"<>\s]/g, '_');
         link.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-        link.download = `[인쇄용_표지]_${fname}_펼침면.pdf`;
+        link.download = `[인쇄용_표지]_${fname}_A5국판_표지전개도.pdf`;
         link.click();
     } catch (err) {
         alert('표지 PDF 생성 오류: ' + err.message);
