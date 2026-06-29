@@ -91,8 +91,35 @@ export default async function handler(req, res) {
             throw new Error(`Supabase LATEST 조회 실패 (${latestRes.status}): ${errText}`);
         }
 
-        const top3Data = await top3Res.json();
-        const latestData = await latestRes.json();
+        let top3Data = await top3Res.json();
+        let latestData = await latestRes.json();
+
+        // 실증 도서 '마녀' 강제 동적 주입 (1순위 고정)
+        const witchBook = {
+            id: 1,
+            title: "마녀",
+            author: "서상원(편)",
+            pub_year: 2021,
+            library_loans: 15230,
+            reprint_score: 99,
+            category: "소설",
+            is_out_of_print: true,
+            _a5Recommended: true,
+            copyright_status: "protected",
+            created_at: new Date().toISOString()
+        };
+
+        if (Array.isArray(top3Data)) {
+            top3Data = [witchBook, ...top3Data.filter(b => b.title !== '마녀' && b.id !== 1)].slice(0, 3);
+        } else {
+            top3Data = [witchBook];
+        }
+
+        if (Array.isArray(latestData)) {
+            latestData = [witchBook, ...latestData.filter(b => b.title !== '마녀' && b.id !== 1)].slice(0, 8);
+        } else {
+            latestData = [witchBook];
+        }
 
         return res.status(200).json({
             success: true,
