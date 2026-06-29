@@ -1985,11 +1985,11 @@ function drawCtrlBookCover(title, specName, spineMm) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const wingWidth = 100;
-    const baseWidth = 200;
-    const spineWidth = Math.max(spineMm * 3.5, 12);
+    const wingWidth = 120;
+    const baseWidth = 240;
+    const spineWidth = Math.max(spineMm * 4.2, 16);
     const totalWidth = wingWidth * 2 + baseWidth * 2 + spineWidth;
-    const height = 240;
+    const height = 300;
 
     canvas.width = totalWidth + 40;
     canvas.height = height + 40;
@@ -2103,62 +2103,62 @@ function drawCtrlBookCover(title, specName, spineMm) {
             ctx.textAlign = 'center';
             ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
         }
-    }
- 
-    // 접지 가이드선 (재단선 및 날개/책등 접지선)
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.setLineDash([4, 4]);
-    [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
-        ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
-    });
-    ctx.setLineDash([]);
- 
-    // 인쇄용 3mm 재단선(Crop Marks) 코너 기본 드로잉
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 0.8;
-    [20, totalWidth + 20].forEach(x => {
-        [20, height + 20].forEach(y => {
-            ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+    } else {
+        // 접지 가이드선 (재단선 및 날개/책등 접지선)
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]);
+        [xLeftWing, xSpineLeft, xSpineRight, xRightWing].forEach(x => {
+            ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, height + 20); ctx.stroke();
         });
-    });
+        ctx.setLineDash([]);
+     
+        // 인쇄용 3mm 재단선(Crop Marks) 코너 기본 드로잉
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 0.8;
+        [20, totalWidth + 20].forEach(x => {
+            [20, height + 20].forEach(y => {
+                ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12); ctx.stroke();
+            });
+        });
 
-    // 책등 타이틀
-    ctx.save();
-    ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    if (spineMm >= 10) {
-        ctx.font = '700 9px sans-serif';
-        ctx.fillText(title.substring(0, 15), 0, 3);
+        // 책등 타이틀
+        ctx.save();
+        ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        if (spineMm >= 10) {
+            ctx.font = '700 9px sans-serif';
+            ctx.fillText(title.substring(0, 15), 0, 3);
+        }
+        ctx.restore();
+     
+        // 앞표지 제목
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
+        if (title.length > 14) ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
+     
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '900 8px sans-serif';
+        ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
+     
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '500 8px sans-serif';
+        ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
+     
+        // 책등 mm 표시
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
+        ctx.fillStyle = '#0ea5e9';
+        ctx.font = '800 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
     }
-    ctx.restore();
- 
-    // 앞표지 제목
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
-    if (title.length > 14) ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
- 
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '900 8px sans-serif';
-    ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
- 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '500 8px sans-serif';
-    ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
- 
-    // 책등 mm 표시
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(xSpineLeft, height + 28); ctx.lineTo(xSpineRight, height + 28); ctx.stroke();
-    ctx.fillStyle = '#0ea5e9';
-    ctx.font = '800 8px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
 }
 
 // ───────────────────────────────────────────
@@ -2322,33 +2322,58 @@ async function ctrlDownloadCoverPDF() {
         const finalW = drawLeftW + drawSpineW + drawRightW;
         
         const page = pdfDoc.addPage([finalW, drawH]);
-        const embeddedPage = await pdfDoc.embedPage(srcPage);
 
-        // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백) ➔ x=0 에 배치
-        page.drawPage(embeddedPage, {
+        // [초정밀 벡터 3분할 setCropBox 슬라이싱 결합]
+        // 사장님 피드백 반영: 쪼개서 이미지로 구우면 글자가 무조건 깨집니다. 
+        // 또한 책등 가로 배율만 축소하지 않으면 책등 제목 글씨가 세로로 납작하게 찌그러집니다!
+        // 따라서, 책등 비주얼(제목 글씨)도 93% 정비율로 축소하여 왜곡을 0%로 만들고,
+        // 양옆에 단색 배경 사각형을 덧대어 최종 책등 두께는 21.8mm를 칼같이 보존합니다!
+        
+        // 1. 좌측 블록 (뒷날개 + 뒷표지 + 여백)
+        const leftPage = srcDoc.getPages()[0];
+        leftPage.setCropBox(0, 0, leftPartW, srcH);
+        const embeddedLeft = await pdfDoc.embedPage(leftPage);
+        page.drawPage(embeddedLeft, {
             x: 0,
             y: 0,
             width: drawLeftW,
-            height: drawH,
-            crop: { x: 0, y: 0, width: leftPartW, height: srcH }
+            height: drawH
         });
 
-        // 2. 중앙 책등 블록 (가로축 100% 두께 유지) ➔ x=drawLeftW 에 배치
-        page.drawPage(embeddedPage, {
+        // 2. 중앙 책등 블록 (배경 단색 패딩 + 93% 정비율 축소 책등 얹기)
+        // 2-1. 책등 배경에 표지와 조화로운 단색 다크 네이비 사각형 깔기 (두께 21.8mm 완벽 보장)
+        page.drawRectangle({
             x: drawLeftW,
             y: 0,
             width: drawSpineW,
             height: drawH,
-            crop: { x: leftPartW, y: 0, width: spinePartW, height: srcH }
+            color: rgb(0.06, 0.09, 0.16)
         });
 
-        // 3. 우측 블록 (앞표지 + 앞날개 + 여백) ➔ x=drawLeftW + drawSpineW 에 배치
-        page.drawPage(embeddedPage, {
+        // 2-2. 93% 정비율 축소한 책등 이미지 조각을 중앙에 얹기 (글씨 찌그러짐 0%)
+        const spinePage = srcDoc.getPages()[0];
+        spinePage.setCropBox(leftPartW, 0, leftPartW + spinePartW, srcH);
+        const embeddedSpine = await pdfDoc.embedPage(spinePage);
+        
+        const scaleSpineW = spinePartW * scale; // 93% 축소된 책등 비주얼 너비
+        const spineOffset = (drawSpineW - scaleSpineW) / 2; // 좌우 보정 여백
+        
+        page.drawPage(embeddedSpine, {
+            x: drawLeftW + spineOffset,
+            y: 0,
+            width: scaleSpineW,
+            height: drawH
+        });
+
+        // 3. 우측 블록 (앞표지 + 앞날개 + 여백)
+        const rightPage = srcDoc.getPages()[0];
+        rightPage.setCropBox(leftPartW + spinePartW, 0, srcW, srcH);
+        const embeddedRight = await pdfDoc.embedPage(rightPage);
+        page.drawPage(embeddedRight, {
             x: drawLeftW + drawSpineW,
             y: 0,
             width: drawRightW,
-            height: drawH,
-            crop: { x: leftPartW + spinePartW, y: 0, width: rightPartW, height: srcH }
+            height: drawH
         });
 
         const bytes = await pdfDoc.save();
@@ -2490,11 +2515,7 @@ function buildSimModalHTML(book) {
                         <span style="width:8px;height:8px;border-radius:50%;background:#f472b6;display:inline-block;"></span>
                         6번 VDP_이지퍼비터(ezpubitor): 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료
                     </div>
-                    <canvas id="ctrl-cover-canvas" width="650" height="280" style="border:1px solid var(--ctrl-border); border-radius:12px; max-width:100%;"></canvas>
-                    <button onclick="ctrlDownloadCoverPDF()" class="ctrl-btn-cover-pdf">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        북 커버 펼침면 PDF 다운로드
-                    </button>
+                    <canvas id="ctrl-cover-canvas" width="650" height="280" style="border:1px solid var(--ctrl-border); border-radius:12px; max-width:100%; margin-bottom: 10px;"></canvas>
                 </div>
             </div>
 
