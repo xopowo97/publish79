@@ -2326,7 +2326,7 @@ async function ctrlDownloadCoverPDF() {
         // 1) 좌측 조각 생성 및 저장/로드
         const leftSubDoc = await PDFDocument.load(coverPdfBytes);
         const leftSubPage = leftSubDoc.getPages()[0];
-        leftSubPage.setCropBox(0, 0, leftPartW, srcH);
+        leftSubPage.setMediaBox(0, 0, leftPartW, srcH);
         const leftSavedBytes = await leftSubDoc.save();
         const cleanLeftDoc = await PDFDocument.load(leftSavedBytes);
         const embeddedLeft = await pdfDoc.embedPage(cleanLeftDoc.getPages()[0]);
@@ -2334,7 +2334,7 @@ async function ctrlDownloadCoverPDF() {
         // 2) 책등 조각 생성 및 저장/로드
         const spineSubDoc = await PDFDocument.load(coverPdfBytes);
         const spineSubPage = spineSubDoc.getPages()[0];
-        spineSubPage.setCropBox(leftPartW, 0, leftPartW + spinePartW, srcH);
+        spineSubPage.setMediaBox(leftPartW, 0, spinePartW, srcH);
         const spineSavedBytes = await spineSubDoc.save();
         const cleanSpineDoc = await PDFDocument.load(spineSavedBytes);
         const embeddedSpine = await pdfDoc.embedPage(cleanSpineDoc.getPages()[0]);
@@ -2342,7 +2342,7 @@ async function ctrlDownloadCoverPDF() {
         // 3) 우측 조각 생성 및 저장/로드
         const rightSubDoc = await PDFDocument.load(coverPdfBytes);
         const rightSubPage = rightSubDoc.getPages()[0];
-        rightSubPage.setCropBox(leftPartW + spinePartW, 0, srcW, srcH);
+        rightSubPage.setMediaBox(leftPartW + spinePartW, 0, rightPartW, srcH);
         const rightSavedBytes = await rightSubDoc.save();
         const cleanRightDoc = await PDFDocument.load(rightSavedBytes);
         const embeddedRight = await pdfDoc.embedPage(cleanRightDoc.getPages()[0]);
