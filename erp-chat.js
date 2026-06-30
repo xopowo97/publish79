@@ -10,15 +10,18 @@
     const STATE = {
         IDLE: 'IDLE',
         AWAITING_PROPOSAL_CONFIRM: 'AWAITING_PROPOSAL_CONFIRM',
-        AWAITING_UPLOAD: 'AWAITING_UPLOAD',
+        AWAITING_FORMAT_CHOICE: 'AWAITING_FORMAT_CHOICE',
+        AWAITING_COVER_UPLOAD: 'AWAITING_COVER_UPLOAD',
+        AWAITING_INTERIOR_UPLOAD: 'AWAITING_INTERIOR_UPLOAD',
         TYPESETTING: 'TYPESETTING',
         RESULT_READY: 'RESULT_READY',
+        AWAITING_FUNDING_REQUEST: 'AWAITING_FUNDING_REQUEST',
         FUNDING_TRIGGERED: 'FUNDING_TRIGGERED',
     };
 
     // ── 샘플 출판 데이터 (UAT 시연용 Mock) ────────────────────
     const BOOK_MOCK = {
-        title: '마녀의 뜨개질',
+        title: '마녀',
         author: '김지은',
         pages: 340,
         genre: '에세이',
@@ -33,7 +36,8 @@
     let panel, messages, inputEl, fab, progressOverlay, progressBar, progressLabel;
 
     let currentState = STATE.IDLE;
-    let uploadedFile = null;
+    let uploadedCoverFile = null;
+    let uploadedInteriorFile = null;
 
     // ── 초기화 ────────────────────────────────────────────────
     function init() {
@@ -165,12 +169,15 @@
         const t = text.toLowerCase();
 
         if (currentState === STATE.AWAITING_PROPOSAL_CONFIRM ||
+            currentState === STATE.AWAITING_FORMAT_CHOICE ||
             t.includes('제안서') || t.includes('확인') || t.includes('proposal')) {
+            if (currentState === STATE.AWAITING_FORMAT_CHOICE) return; // 버튼으로만 처리
             handleProposalView();
             return;
         }
-        if (currentState === STATE.AWAITING_UPLOAD) {
-            addBotMessage('원고 파일을 위 업로드 카드에서 선택해 주세요 📎');
+        if (currentState === STATE.AWAITING_COVER_UPLOAD ||
+            currentState === STATE.AWAITING_INTERIOR_UPLOAD) {
+            addBotMessage('업로드 카드에서 파일을 선택해 주세요 📎');
             return;
         }
         if (t.includes('자주') || t.includes('faq') || t.includes('질문')) {
@@ -198,82 +205,142 @@
                 <div class="cs-card-row"><span>도서명</span><strong>${BOOK_MOCK.title}</strong></div>
                 <div class="cs-card-row"><span>저자</span><strong>${BOOK_MOCK.author}</strong></div>
                 <div class="cs-card-row"><span>분량</span><strong>${BOOK_MOCK.pages}페이지 / ${BOOK_MOCK.genre}</strong></div>
-                <div class="cs-card-row"><span>판형</span><strong>${BOOK_MOCK.format}</strong></div>
+                <div class="cs-card-row"><span>현재 판형</span><strong>${BOOK_MOCK.format}</strong></div>
                 <div class="cs-card-row"><span>용지</span><strong>${BOOK_MOCK.paperType}</strong></div>
                 <div class="cs-card-row"><span>책등 두께</span><strong>${BOOK_MOCK.spineMm}mm</strong></div>
                 <div class="cs-card-row"><span>예상 제작비</span><strong>${BOOK_MOCK.estimatedCost}</strong></div>
                 <div class="cs-card-row"><span>펀딩 목표</span><strong>${BOOK_MOCK.fundingTarget} (B2C 연동)</strong></div>
-                <button class="cs-btn cs-btn--primary" id="cs-approve-btn">✅ 판형 최적화 승인 및 원고 업로드</button>
-                <button class="cs-btn cs-btn--ghost" id="cs-reject-btn">↩ 수정 요청</button>
+                <div style="margin-top:10px; font-size:12px; color:#94a3b8; font-family:'Noto Sans KR',sans-serif; line-height:1.6;">
+                    💡 A5국판(148×210mm) 최적 판형으로 조판 시 제작비 절감 및 인쇄 최적화가 가능합니다.
+                </div>
+                <button class="cs-btn cs-btn--primary" id="cs-approve-btn">✅ A5국판 최적 판형으로 진행</button>
+                <button class="cs-btn cs-btn--ghost" id="cs-keep-format-btn">📐 기존 판형 유지로 진행</button>
+                <button class="cs-btn cs-btn--ghost" id="cs-reject-btn" style="margin-top:2px;">↩ 수정 요청</button>
             `;
             messages.appendChild(card);
             scrollBottom();
 
-            document.getElementById('cs-approve-btn').addEventListener('click', handleProposalApprove);
+            document.getElementById('cs-approve-btn').addEventListener('click', () => handleFormatChoice('optimal'));
+            document.getElementById('cs-keep-format-btn').addEventListener('click', () => handleFormatChoice('keep'));
             document.getElementById('cs-reject-btn').addEventListener('click', () => {
                 addBotMessage('수정 사항을 입력해 주시면 담당 MD에게 전달드릴게요 ✏️');
             });
 
-            currentState = STATE.AWAITING_PROPOSAL_CONFIRM;
+            currentState = STATE.AWAITING_FORMAT_CHOICE;
         });
     }
 
-    // ── 제안서 승인 → 업로드 카드 ────────────────────────────
-    function handleProposalApprove() {
+    // ── 판형 선택 → 표지 업로드 카드 ──────────────────────────
+    function handleFormatChoice(choice) {
         document.getElementById('cs-approve-btn').disabled = true;
-        addUserBubble('✅ 판형 최적화 승인');
-        showTyping(800, () => {
-            addBotMessage('감사합니다! 이제 <strong>원고 파일(PDF)</strong>을 업로드해 주세요. 4번 조판이 AI가 자동으로 3분할 표지 조판을 시작합니다 🚀');
-            renderUploadCard();
-            currentState = STATE.AWAITING_UPLOAD;
-        });
+        document.getElementById('cs-keep-format-btn').disabled = true;
+        document.getElementById('cs-reject-btn').disabled = true;
+
+        if (choice === 'optimal') {
+            addUserBubble('✅ A5국판 최적 판형으로 진행');
+            showTyping(800, () => {
+                addBotMessage('A5국판으로 최적화하여 진행하겠습니다! 🎉<br>먼저 <strong>표지 PDF 파일</strong>을 업로드해 주세요.');
+                renderCoverUploadCard();
+                currentState = STATE.AWAITING_COVER_UPLOAD;
+            });
+        } else {
+            addUserBubble('📐 기존 판형 유지로 진행');
+            showTyping(800, () => {
+                addBotMessage('기존 판형을 유지하여 진행하겠습니다.<br>먼저 <strong>표지 PDF 파일</strong>을 업로드해 주세요.');
+                renderCoverUploadCard();
+                currentState = STATE.AWAITING_COVER_UPLOAD;
+            });
+        }
     }
 
-    // ── 업로드 카드 ───────────────────────────────────────────
-    function renderUploadCard() {
+    // ── 표지 업로드 카드 (1단계) ──────────────────────────────
+    function renderCoverUploadCard() {
         const card = document.createElement('div');
         card.className = 'cs-card';
-        card.id = 'cs-upload-card';
+        card.id = 'cs-cover-upload-card';
         card.innerHTML = `
-            <div class="cs-card-title">📤 원고 업로드</div>
-            <div class="cs-upload-zone" id="cs-upload-zone">
-                <div class="cs-upload-icon">📎</div>
-                <div>PDF 파일을 클릭하거나 여기에 드롭하세요</div>
-                <div style="font-size:11px; margin-top:4px; color:#475569;">최대 500MB · PDF 형식</div>
-                <input type="file" id="cs-file-input" accept=".pdf">
+            <div class="cs-card-title">📤 [1/2] 표지 PDF 업로드</div>
+            <div class="cs-upload-zone" id="cs-cover-zone">
+                <div class="cs-upload-icon">🖼️</div>
+                <div>표지 PDF를 클릭하거나 여기에 드롭하세요</div>
+                <div style="font-size:11px; margin-top:4px; color:#475569;">최대 500MB · PDF 형식 (앞표지+책등+뒤표지 포함)</div>
+                <input type="file" id="cs-cover-input" accept=".pdf">
             </div>
-            <div id="cs-upload-info" style="display:none; font-size:12px; color:#10b981; margin-top:8px; font-family:'Noto Sans KR',sans-serif;"></div>
-            <button class="cs-btn cs-btn--success" id="cs-typeset-btn" style="display:none;">🚀 조판 시작</button>
+            <div id="cs-cover-info" style="display:none; font-size:12px; color:#10b981; margin-top:8px; font-family:'Noto Sans KR',sans-serif;"></div>
         `;
         messages.appendChild(card);
         scrollBottom();
 
-        // 업로드 존 클릭
-        const zone = document.getElementById('cs-upload-zone');
-        const fileInput = document.getElementById('cs-file-input');
+        const zone = document.getElementById('cs-cover-zone');
+        const fileInput = document.getElementById('cs-cover-input');
         zone.addEventListener('click', () => fileInput.click());
-
-        // 드래그 앤 드롭
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('cs-dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('cs-dragover'));
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
             zone.classList.remove('cs-dragover');
-            handleFile(e.dataTransfer.files[0]);
+            handleCoverFile(e.dataTransfer.files[0]);
         });
-
-        // 파일 선택
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        fileInput.addEventListener('change', (e) => handleCoverFile(e.target.files[0]));
     }
 
-    // ── 파일 선택 처리 ────────────────────────────────────────
-    function handleFile(file) {
+    // ── 표지 파일 선택 처리 ───────────────────────────────────
+    function handleCoverFile(file) {
         if (!file) return;
-        uploadedFile = file;
+        uploadedCoverFile = file;
         const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-        const infoEl = document.getElementById('cs-upload-info');
+        const infoEl = document.getElementById('cs-cover-info');
+        infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 표지 업로드 완료`;
+        infoEl.style.display = 'block';
+
+        // 표지 완료 후 자동으로 내지 업로드 안내
+        showTyping(600, () => {
+            addBotMessage('표지 파일이 접수되었습니다! 📎<br>이제 <strong>내지(본문) PDF 파일</strong>을 업로드해 주세요.');
+            renderInteriorUploadCard();
+            currentState = STATE.AWAITING_INTERIOR_UPLOAD;
+        });
+    }
+
+    // ── 내지 업로드 카드 (2단계) ──────────────────────────────
+    function renderInteriorUploadCard() {
+        const card = document.createElement('div');
+        card.className = 'cs-card';
+        card.id = 'cs-interior-upload-card';
+        card.innerHTML = `
+            <div class="cs-card-title">📤 [2/2] 내지(본문) PDF 업로드</div>
+            <div class="cs-upload-zone" id="cs-interior-zone">
+                <div class="cs-upload-icon">📄</div>
+                <div>내지 PDF를 클릭하거나 여기에 드롭하세요</div>
+                <div style="font-size:11px; margin-top:4px; color:#475569;">최대 500MB · PDF 형식 (본문 전체 페이지)</div>
+                <input type="file" id="cs-interior-input" accept=".pdf">
+            </div>
+            <div id="cs-interior-info" style="display:none; font-size:12px; color:#10b981; margin-top:8px; font-family:'Noto Sans KR',sans-serif;"></div>
+            <button class="cs-btn cs-btn--success" id="cs-typeset-btn" style="display:none;">🚀 가조판 시작 승인</button>
+        `;
+        messages.appendChild(card);
+        scrollBottom();
+
+        const zone = document.getElementById('cs-interior-zone');
+        const fileInput = document.getElementById('cs-interior-input');
+        zone.addEventListener('click', () => fileInput.click());
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('cs-dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('cs-dragover'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('cs-dragover');
+            handleInteriorFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => handleInteriorFile(e.target.files[0]));
+    }
+
+    // ── 내지 파일 선택 처리 ───────────────────────────────────
+    function handleInteriorFile(file) {
+        if (!file) return;
+        uploadedInteriorFile = file;
+        const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+        const infoEl = document.getElementById('cs-interior-info');
         const typesetBtn = document.getElementById('cs-typeset-btn');
-        infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 업로드 완료`;
+        infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 내지 업로드 완료`;
         infoEl.style.display = 'block';
         typesetBtn.style.display = 'flex';
         typesetBtn.addEventListener('click', startTypesetting);
@@ -312,63 +379,93 @@
         tick();
     }
 
-    // ── 결과 카드 출력 ────────────────────────────────────────
+    // ── 결과 카드 출력 (다운로드 버튼 2개 + Acrobat 검수 가이드) ──
     function showResult() {
         progressOverlay.classList.remove('cs-visible');
         currentState = STATE.RESULT_READY;
 
-        addBotMessage('🎉 조판이 완료되었어요! 아래에서 결과물을 확인하고 다운로드해 주세요.');
+        addBotMessage('✅ 가조판 작업이 완료되었습니다!<br>아래 버튼으로 표지와 내지 파일을 각각 다운로드하여 <strong>Acrobat Reader 등 전문 뷰어로 정밀 검수</strong>해 주세요.');
 
         const card = document.createElement('div');
-        card.className = 'cs-result-card';
+        card.className = 'cs-card';
         card.innerHTML = `
-            <div class="cs-result-badge">✅ 조판 완료 · 인쇄 출력 가능</div>
-            <div class="cs-result-preview">
-                <div class="cs-book-cover-mini">
-                    <div class="cs-book-back">뒤표지</div>
-                    <div class="cs-book-spine">마녀의 뜨개질</div>
-                    <div class="cs-book-front">앞표지<br>마녀의<br>뜨개질</div>
-                </div>
+            <div class="cs-card-title">📥 가조판 결과물 다운로드</div>
+            <div class="cs-card-body" style="font-size:12px; color:#f59e0b; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:10px; margin-bottom:10px;">
+                ⚠️ <strong>정밀 검수 필수</strong><br>
+                인쇄 사고를 방지하기 위해 반드시 다운로드 후 Acrobat Reader 또는 전문 PDF 뷰어로 다음 항목을 확인해 주세요.<br>
+                · 표지 책등 규격: <strong>${BOOK_MOCK.spineMm}mm</strong><br>
+                · 재단선(Bleed) 오차 여부<br>
+                · 내지 페이지 순서 및 여백 확인
             </div>
-            <div style="display:flex; gap:6px; flex-direction:column;">
-                <button class="cs-btn cs-btn--download" id="cs-download-btn">📥 가조판 PDF 다운로드 (고화질)</button>
-                <button class="cs-btn cs-btn--primary" id="cs-funding-btn">🚀 펀딩 개설 요청 (B2C 스토어 연동)</button>
-                <button class="cs-btn cs-btn--ghost" id="cs-reupload-btn">🔄 원고 재업로드</button>
-            </div>
+            <button class="cs-btn cs-btn--download" id="cs-download-cover-btn">🖼️ 표지 가조판본 다운로드</button>
+            <button class="cs-btn cs-btn--download" id="cs-download-interior-btn" style="margin-top:6px; background:linear-gradient(135deg,#0ea5e9,#0284c7);">📄 내지 가조판본 다운로드</button>
+            <button class="cs-btn cs-btn--ghost" id="cs-reupload-btn" style="margin-top:6px;">🔄 원고 재업로드</button>
         `;
         messages.appendChild(card);
         scrollBottom();
 
-        document.getElementById('cs-download-btn').addEventListener('click', handleDownload);
-        document.getElementById('cs-funding-btn').addEventListener('click', handleFunding);
+        document.getElementById('cs-download-cover-btn').addEventListener('click', () => handleDownload('cover'));
+        document.getElementById('cs-download-interior-btn').addEventListener('click', () => handleDownload('interior'));
         document.getElementById('cs-reupload-btn').addEventListener('click', () => {
-            currentState = STATE.AWAITING_UPLOAD;
-            addBotMessage('새 원고 파일을 다시 업로드해 주세요 📎');
-            renderUploadCard();
+            currentState = STATE.AWAITING_COVER_UPLOAD;
+            uploadedCoverFile = null;
+            uploadedInteriorFile = null;
+            addBotMessage('원고 파일을 처음부터 다시 업로드해 주세요. 먼저 <strong>표지 PDF</strong>부터 업로드해 주세요 📎');
+            renderCoverUploadCard();
         });
+
+        // 양쪽 다운로드 완료 감지 후 알림이 개입 안내
+        setTimeout(() => showMarketerStep(), 2000);
     }
 
-    // ── 다운로드 핸들러 ───────────────────────────────────────
-    function handleDownload() {
-        const btn = document.getElementById('cs-download-btn');
-        btn.textContent = '⏳ 다운로드 준비 중...';
+    // ── 다운로드 핸들러 (표지/내지 분리) ────────────────────
+    function handleDownload(type) {
+        const btnId = type === 'cover' ? 'cs-download-cover-btn' : 'cs-download-interior-btn';
+        const btn = document.getElementById(btnId);
+        const label = type === 'cover' ? '표지' : '내지';
+        const origText = btn.textContent;
+        btn.textContent = `⏳ ${label} 다운로드 준비 중...`;
         btn.disabled = true;
 
         setTimeout(() => {
-            // 실제 서버 연동 전 UAT 시연용: /api/typeset 결과 파일 링크 사용
+            // UAT 시연용: 실제 파일 경로로 교체 가능
             const link = document.createElement('a');
-            link.href = '/api/typeset';
-            link.download = `가조판_${BOOK_MOCK.title}_3분할.pdf`;
+            link.href = type === 'cover' ? '/api/typeset' : '/api/typeset';
+            link.download = type === 'cover'
+                ? `가조판_마녀_표지_3분할.pdf`
+                : `가조판_마녀_내지_본문.pdf`;
             link.click();
-            btn.textContent = '✅ 다운로드 완료';
+            btn.textContent = `✅ ${label} 다운로드 완료`;
         }, 1500);
     }
 
-    // ── 펀딩 개설 트리거 ─────────────────────────────────────
-    function handleFunding() {
-        addBotMessage('펀딩 개설 요청을 <strong>B2C 독자 스토어</strong>에 전달했습니다! 🎉<br>스토어에서 독자 펀딩 페이지가 곧 라이브됩니다.<br><a href="/index.html" style="color:#818cf8; text-decoration:underline;">→ B2C 스토어 바로가기</a>');
-        currentState = STATE.FUNDING_TRIGGERED;
-        showQuickReplies(['📊 실시간 현황 보기', '🖨 인쇄소 발주', '🏠 홈으로']);
+    // ── 알림이(마케터) 개입 단계 ──────────────────────────────
+    function showMarketerStep() {
+        addBotMessage('📣 <strong>알림이(마케터)</strong>가 전합니다:<br>검수가 완료되면 펀딩 개설을 진행해 주세요.<br><span style="color:#94a3b8; font-size:12px;">✨ 펀딩 개설이 진행되면 뉴스카드 및 숏폼이 자동 생성될 예정입니다.</span>');
+
+        const card = document.createElement('div');
+        card.className = 'cs-card';
+        card.innerHTML = `
+            <div class="cs-card-title">🚀 B2C 펀딩 개설 요청</div>
+            <div class="cs-card-body">검수 완료 후 아래 버튼을 눌러 B2C 독자 스토어에 펀딩 개설을 요청해 주세요.<br>
+            <span style="color:#94a3b8; font-size:12px;">개설이 진행되면 플랫폼 관리자 검수 후 정식 오픈됩니다.</span></div>
+            <button class="cs-btn cs-btn--primary" id="cs-funding-request-btn">🚀 B2C 펀딩 개설 진행 요청</button>
+        `;
+        messages.appendChild(card);
+        scrollBottom();
+
+        document.getElementById('cs-funding-request-btn').addEventListener('click', handleFundingRequest);
+        currentState = STATE.AWAITING_FUNDING_REQUEST;
+    }
+
+    // ── 펀딩 개설 요청 전송 ───────────────────────────────────
+    function handleFundingRequest() {
+        document.getElementById('cs-funding-request-btn').disabled = true;
+        addUserBubble('🚀 B2C 펀딩 개설 진행 요청');
+        showTyping(800, () => {
+            addBotMessage('펀딩 개설 요청이 플랫폼 관리자에게 전달되었습니다! 🎉<br>관리자 검수 완료 후 B2C 스토어에 도서 <strong>\'마녀\'</strong>의 펀딩이 정식 개설됩니다.<br><span style="color:#94a3b8; font-size:12px;">펀딩 개설 완료 시 이 창으로 안내드릴게요.</span>');
+            currentState = STATE.FUNDING_TRIGGERED;
+        });
     }
 
     // ── FAQ 처리 ─────────────────────────────────────────────
