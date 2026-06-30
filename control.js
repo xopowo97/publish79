@@ -3913,37 +3913,117 @@ window.addEventListener('storage', (e) => {
                 aiFab.classList.add('pulse-gold');
             }
 
-            // 헬퍼창 로그 누적
+            // 헬퍼창 단가 절감 요약 제안 카드 렌더링 (스크린샷 2번 폼 준수)
             if (chatContent) {
                 const botMsg = document.createElement('div');
                 botMsg.className = 'ai-msg ai-msg-bot';
                 botMsg.innerHTML = `
                     ⚙️ <strong>[출판사 가조판 요청 수신]</strong><br>
-                    도서 <strong>'${data.book}'</strong>(저자: 주경철, A5국판 최적화 권장안)의 가조판 요청이 실시간 접수되었습니다.<br>
-                    <span style="font-size:11px; color:#c084fc;">4번 조판이 및 8번 이지퍼비터가 본문 연산을 가동합니다.</span>
+                    도서 <strong>'${data.book}'</strong>(저자: ${data.author || '주경철'})의 판형 최적화 검토 요청이 도착했습니다.
                 `;
                 chatContent.appendChild(botMsg);
+
+                // 스크린샷 2번 형태의 절감액 비교 카드 생성 및 누적
+                const costCard = document.createElement('div');
+                costCard.className = 'ai-action-card';
+                costCard.id = 'ai-typeset-approval-card';
+                costCard.innerHTML = `
+                    <div style="font-size:12px; font-weight:800; color:#ef4444; margin-bottom:8px; display:flex; align-items:center; gap:4px; font-family:'Noto Sans KR',sans-serif;">
+                        📌 30부 제작 절감 제안
+                    </div>
+                    <div style="font-size:11px; color:#cbd5e1; margin-bottom:10px; line-height:1.5; font-family:'Noto Sans KR',sans-serif; text-align:left;">
+                        현재 신국판(152x225)으로 제작 시 권당 5,532원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 4,188원으로 약 24.3% 절감됩니다.
+                    </div>
+                    
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px; margin-bottom:10px; font-family:'Noto Sans KR',sans-serif; font-size:11px; text-align:left;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#94a3b8;">📚 대상 도서</span>
+                            <strong style="color:#fff;">${data.book} (${data.author || '주경철'})</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#94a3b8;">제작 부수</span>
+                            <strong style="color:#fff;">30부</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#94a3b8;">예상 페이지</span>
+                            <strong style="color:#fff;">336p</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
+                            <span style="color:#ef4444;">신국판 총제작비</span>
+                            <strong style="color:#ef4444;">₩165,960</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#10b981;">A5 전환 총제작비</span>
+                            <strong style="color:#10b981;">₩125,640</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.1); padding-top:6px; font-weight:800; font-size:11px;">
+                            <span style="color:#f59e0b;">💰 B2B 절감 예상액</span>
+                            <strong style="color:#f59e0b;">-₩40,320 (24.3%↓)</strong>
+                        </div>
+                    </div>
+                    
+                    <button id="ctrl-typeset-approve-btn"
+                        style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); transition: background 0.2s;"
+                        onmouseover="this.style.background='#059669'"
+                        onmouseout="this.style.background='#10b981'">
+                        ✅ A5 판형 최적화 승인 및 제안 송출
+                    </button>
+                `;
+                chatContent.appendChild(costCard);
                 setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+                // 통제실 가조판 승인 버튼 이벤트 바인딩
+                document.getElementById('ctrl-typeset-approve-btn').addEventListener('click', () => {
+                    handleAdminTypesetApproval(data.book);
+                });
             }
 
-            // 실시간 에이전트 로그 스트림에 조판이와 이지퍼비터가 일하는 실시간 비주얼 로그 출력
-            if (logEl) {
-                setTimeout(() => {
-                    _appendCtrlLogEntry(logEl, 'info', '조판_조판이', `도서 "${data.book}" 본문 340p 구조 분석 및 규격 매핑 중...`, new Date(), true);
-                }, 500);
-                setTimeout(() => {
-                    _appendCtrlLogEntry(logEl, 'warn', '조판_조판이', `책등 두께 21.8mm 최적 세네카 규격 자동 산출 완료`, new Date(), true);
-                }, 1500);
-                setTimeout(() => {
-                    _appendCtrlLogEntry(logEl, 'success', '이지퍼비터POD', `DPI 300 고해상도 인쇄 표준 PDF/X-1a 변환 완료 (가조판 준비)`, new Date(), true);
-                }, 2500);
-            }
+            // 실시간 에이전트 로그 기록용 데이터 보관
+            window._pending_log_data = data;
         } catch(err) {
             console.error('[통제실] 가조판 요청 파싱 에러:', err);
         }
         localStorage.removeItem('cs-event-typeset-requested');
         return;
     }
+
+// 대표 가조판 및 판형 승인 핸들러
+function handleAdminTypesetApproval(bookName) {
+    const card = document.getElementById('ai-typeset-approval-card');
+    if (card) {
+        card.innerHTML = `<div style="padding:10px; text-align:center; color:#10b981; font-weight:800; font-size:12px;">✅ A5 판형 최적화 승인 및 제안 완료</div>`;
+    }
+
+    const chatContent = document.getElementById('ai-chat-content');
+    const logEl = document.getElementById('ctrl-log-stream');
+    const data = window._pending_log_data || { book: bookName };
+
+    if (chatContent) {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'ai-msg ai-msg-bot';
+        botMsg.innerHTML = `
+            A5 판형 최적화 제안을 승인하고 출판사 ERP로 송출하였습니다. 4번 조판이 및 8번 이지퍼비터 백엔드 연산을 시작합니다. 🚀
+        `;
+        chatContent.appendChild(botMsg);
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+    }
+
+    // 실시간 에이전트 로그 출력
+    if (logEl) {
+        setTimeout(() => {
+            _appendCtrlLogEntry(logEl, 'info', '조판_조판이', `도서 "${data.book}" 본문 340p 구조 분석 및 규격 매핑 중...`, new Date(), true);
+        }, 500);
+        setTimeout(() => {
+            _appendCtrlLogEntry(logEl, 'warn', '조판_조판이', `책등 두께 21.8mm 최적 세네카 규격 자동 산출 완료`, new Date(), true);
+        }, 1500);
+        setTimeout(() => {
+            _appendCtrlLogEntry(logEl, 'success', '이지퍼비터POD', `DPI 300 고해상도 인쇄 표준 PDF/X-1a 변환 완료 (가조판 준비)`, new Date(), true);
+        }, 2500);
+    }
+
+    // 출판사 챗봇(erp-chat.js)에 판형 승인 완료 신호 브로드캐스트
+    localStorage.setItem('admin-event-typeset-approved', JSON.stringify({ book: bookName, timestamp: Date.now() }));
+}
 
     // 3. [출판사 챗봇] B2C 펀딩 개설 진행 요청 수신
     if (e.key === 'cs-event-funding-requested' && e.newValue) {
