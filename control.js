@@ -3706,32 +3706,8 @@ function renderVideoTab(book) {
     }
 }
 
-// 마녀 관련 펀딩 데이터 주입 로직
-if (title.includes('마녀')) {
-    const maryeoMockBook = {
-        id: 9999,
-        title: '마녀',
-        author: '주경철',
-        pubName: '출판친구 파트너사',
-        category: '에세이',
-        price: 18000,
-        status: 'funding',
-        votes_current: 10,
-        votes_target: 10,
-        funding_current: 49,
-        funding_target: 50,
-        is_funding_active: true,
-        copyright_status: 'public_domain',
-        image: 'book1.png'
-    };
-    window._ctrl_selectedBook = maryeoMockBook;
- 
-    // 탭 버튼 UI 활성화 및 ePub 탭으로 임시 포커싱
-    window.switchAssetTab('epub');
- 
-    // 대표 승인 상태를 B2C 스토어(index.html) 및 출판사 챗봇(erp-chat.js)에 브로드캐스트 전송
-    localStorage.setItem('admin-event-funding-approved', JSON.stringify({ book: title, timestamp: Date.now() }));
-}
+
+
 
 window.downloadNewsCardSim = function() {
     alert("도서가 선택되지 않았습니다.");
@@ -4215,7 +4191,7 @@ function handleAdminFundingApproval(bookName) {
         status: 'funding',
         votes_current: 10,
         votes_target: 10,
-        funding_current: 0,
+        funding_current: 49,
         funding_target: 50,
         is_funding_active: true,
         copyright_status: 'public_domain',
