@@ -22,7 +22,7 @@
     // ── 샘플 출판 데이터 (UAT 시연용 Mock) ────────────────────
     const BOOK_MOCK = {
         title: '마녀',
-        author: '김지은',
+        author: '주경철',
         pages: 340,
         genre: '에세이',
         paperType: '미색모조 100g',
@@ -206,8 +206,6 @@
                 <div class="cs-card-row"><span>저자</span><strong>${BOOK_MOCK.author}</strong></div>
                 <div class="cs-card-row"><span>분량</span><strong>${BOOK_MOCK.pages}페이지 / ${BOOK_MOCK.genre}</strong></div>
                 <div class="cs-card-row"><span>현재 판형</span><strong>${BOOK_MOCK.format}</strong></div>
-                <div class="cs-card-row"><span>용지</span><strong>${BOOK_MOCK.paperType}</strong></div>
-                <div class="cs-card-row"><span>책등 두께</span><strong>${BOOK_MOCK.spineMm}mm</strong></div>
                 <div class="cs-card-row"><span>예상 제작비</span><strong>${BOOK_MOCK.estimatedCost}</strong></div>
                 <div class="cs-card-row"><span>펀딩 목표</span><strong>${BOOK_MOCK.fundingTarget} (B2C 연동)</strong></div>
                 <div style="margin-top:10px; font-size:12px; color:#94a3b8; font-family:'Noto Sans KR',sans-serif; line-height:1.6;">
@@ -352,6 +350,9 @@
         currentState = STATE.TYPESETTING;
         clearQuickReplies();
 
+        // [통제실 실시간 연동] 가조판 요청 수신 신호 브로드캐스트
+        localStorage.setItem('cs-event-typeset-requested', JSON.stringify({ book: BOOK_MOCK.title, timestamp: Date.now() }));
+
         // 진행 오버레이 표시
         progressOverlay.classList.add('cs-visible');
 
@@ -428,9 +429,9 @@
         btn.disabled = true;
 
         setTimeout(() => {
-            // UAT 시연용: 실제 파일 경로로 교체 가능
+            // UAT 시연용: 프로젝트 루트에 존재하는 실제 PDF 주소 연결
             const link = document.createElement('a');
-            link.href = type === 'cover' ? '/api/typeset' : '/api/typeset';
+            link.href = type === 'cover' ? '/마녀_표지.pdf' : '/마녀-본문3쇄.pdf';
             link.download = type === 'cover'
                 ? `가조판_마녀_표지_3분할.pdf`
                 : `가조판_마녀_내지_본문.pdf`;
@@ -462,6 +463,10 @@
     function handleFundingRequest() {
         document.getElementById('cs-funding-request-btn').disabled = true;
         addUserBubble('🚀 B2C 펀딩 개설 진행 요청');
+
+        // [통제실 실시간 연동] B2C 펀딩 개설 요청 신호 브로드캐스트
+        localStorage.setItem('cs-event-funding-requested', JSON.stringify({ book: BOOK_MOCK.title, timestamp: Date.now() }));
+
         showTyping(800, () => {
             addBotMessage('펀딩 개설 요청이 플랫폼 관리자에게 전달되었습니다! 🎉<br>관리자 검수 완료 후 B2C 스토어에 도서 <strong>\'마녀\'</strong>의 펀딩이 정식 개설됩니다.<br><span style="color:#94a3b8; font-size:12px;">펀딩 개설 완료 시 이 창으로 안내드릴게요.</span>');
             currentState = STATE.FUNDING_TRIGGERED;
@@ -555,6 +560,70 @@
         setTimeout(() => {
             messages.scrollTop = messages.scrollHeight;
         }, 50);
+    }
+
+    // ── [통제실 및 스토어 실시간 연동 리스너] ───────────────────
+    window.addEventListener('storage', (e) => {
+        // A. 플랫폼 관리자(대표님)의 펀딩 개설 승인 수신
+        if (e.key === 'admin-event-funding-approved' && e.newValue) {
+            try {
+                const data = JSON.parse(e.newValue);
+                if (data.book === BOOK_MOCK.title) {
+                    showTyping(800, () => {
+                        addBotMessage(`🎉 <strong>[펀딩 개설 완료]</strong><br>도서 <strong>'${BOOK_MOCK.title}'</strong>의 B2C 펀딩이 대표 승인을 거쳐 정식 개설되었습니다!<br>아래 링크를 눌러 B2C 독자 스토어에서 확인하실 수 있습니다.<br><br><a href="/index.html" style="display:inline-block; padding:8px 16px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border-radius:8px; font-weight:bold; text-decoration:none; font-size:12px;">🔗 B2C 펀딩 페이지 보러가기</a>`);
+                    });
+                }
+            } catch(err) {
+                console.error('[챗봇] 승인 파싱 에러:', err);
+            }
+            localStorage.removeItem('admin-event-funding-approved');
+        }
+
+        // B. B2C 스토어 펀딩 100% 성공(결제 완수) 수신
+        if (e.key === 'store-event-funding-completed' && e.newValue) {
+            try {
+                const data = JSON.parse(e.newValue);
+                if (data.book === BOOK_MOCK.title) {
+                    showTyping(800, () => {
+                        addBotMessage(`📦 <strong>[펀딩 성공! 제작 발주 요청]</strong><br>도서 <strong>'${BOOK_MOCK.title}'</strong>의 B2C 독자 펀딩이 100% 달성 완료되었습니다!<br>최종 인쇄 제작 진행을 위해 아래 [주문하기] 버튼을 눌러 최종 제작 발주를 컨펌해 주세요.`);
+                        
+                        // 발주 버튼 카드 출력
+                        const card = document.createElement('div');
+                        card.className = 'cs-card';
+                        card.id = 'cs-final-order-card';
+                        card.innerHTML = `
+                            <div class="cs-card-title">🖨️ 최종 도서 발주 컨펌</div>
+                            <div class="cs-card-body">펀딩 성공에 따른 최종 도서 발주를 진행합니다. 제작을 확정하시겠습니까?</div>
+                            <button class="cs-btn cs-btn--success" id="cs-final-order-btn">🖨️ 최종 제작 주문 (발주)</button>
+                        `;
+                        messages.appendChild(card);
+                        scrollBottom();
+
+                        // 문자 알림 무료 모방 전송 알림
+                        triggerVirtualSMSNotification();
+
+                        document.getElementById('cs-final-order-btn').addEventListener('click', () => {
+                            document.getElementById('cs-final-order-btn').disabled = true;
+                            addUserBubble('🖨️ 최종 제작 주문 (발주)');
+                            // 통제실에 최종 발주 신호 발송 ➔ 파일 삭제 트리거
+                            localStorage.setItem('erp-event-order-completed', JSON.stringify({ book: BOOK_MOCK.title, timestamp: Date.now() }));
+                            showTyping(600, () => {
+                                addBotMessage('최종 제작 발주가 완료되었습니다! 인쇄소 파이프라인으로 발주가 안전하게 이송되었으며, 서버 공간 절약을 위해 임시 PDF 파일 2종이 파기되었습니다. 감사합니다 📦');
+                            });
+                        });
+                    });
+                }
+            } catch(err) {
+                console.error('[챗봇] 펀딩 완료 파싱 에러:', err);
+            }
+            localStorage.removeItem('store-event-funding-completed');
+        }
+    });
+
+    // 알림톡/문자 무료 모방 전송 시뮬레이션
+    function triggerVirtualSMSNotification() {
+        console.log(`[알림톡 발송] 수신처: 대표님 휴대폰 ➔ 도서 '마녀'의 B2C 펀딩 성공! B2B ERP에서 최종 발주를 완료해 주세요.`);
+        alert(`📱 [알림톡 발송 완료 - UAT 데모]\n\n수신처: 대표님 휴대폰\n내용: [출판친구] 축하합니다! 도서 '마녀'의 B2C 펀딩이 100% 성공하였습니다. B2B ERP 상담이 창에서 [최종 제작 주문(발주)]을 완수해 주세요.`);
     }
 
     // ── DOM 준비 후 init ─────────────────────────────────────

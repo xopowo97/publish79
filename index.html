@@ -88,7 +88,7 @@
                 <!-- 복귀 링크 버튼 (심사위원 전용 - 평상시 숨김) -->
                 <a href="control.html" id="back-to-control-btn" class="hidden items-center gap-1.5 px-3.5 py-1.5 border border-orange-500 text-orange-600 rounded-full text-xs font-black hover:bg-orange-50 transition-all">
                     <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-                    <span>통제실로 복귀</span>
+                    <span>AI 통제실로 이동</span>
                 </a>
 
                 <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-500">
@@ -1357,6 +1357,11 @@
 
                 localStorage.setItem('latestStoreLog', `결제 예약 성공(시뮬레이션): "${targetBook.title}" 1건 예약 완료. (서포터: ${b2cUser.name})`);
                 
+                // 펀딩 100% 성공(목표수량 도달) 시 출판사 챗봇(erp-chat.js)에 감지 신호 송신
+                if (targetBook.title === '마녀' && targetBook.funding_current >= (targetBook.funding_target || 50)) {
+                    localStorage.setItem('store-event-funding-completed', JSON.stringify({ book: targetBook.title, timestamp: Date.now() }));
+                }
+
                 renderProductGrid();
             }
         }
@@ -1615,6 +1620,60 @@
 
             updateB2CUserUI();
             loadProductsFromDB();
+
+            // 대표 승인 수신 시 B2C 펀딩 개설 실시간 연동
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'admin-event-funding-approved' && e.newValue) {
+                    try {
+                        const data = JSON.parse(e.newValue);
+                        if (data.book === '마녀') {
+                            const rawData = localStorage.getItem('MASTER_DATA') || '{"products":[]}';
+                            const parsed = JSON.parse(rawData);
+                            
+                            // MASTER_DATA 내에 마녀 책이 있으면 펀딩 활성화, 없으면 생성해서 등록
+                            let maryeoBook = parsed.products.find(p => p.title === '마녀');
+                            if (!maryeoBook) {
+                                maryeoBook = {
+                                    id: 9999,
+                                    title: '마녀',
+                                    author: '주경철',
+                                    pubName: '출판친구 파트너사',
+                                    category: '에세이',
+                                    price: 18000,
+                                    status: 'funding',
+                                    votes_current: 10,
+                                    votes_target: 10,
+                                    funding_current: 49, // 최종 50번째 클릭 시연을 위해 49로 설정
+                                    funding_target: 50,
+                                    is_funding_active: true,
+                                    image: 'book1.png'
+                                };
+                                parsed.products.unshift(maryeoBook); // 최상단 노출
+                            } else {
+                                maryeoBook.is_funding_active = true;
+                                maryeoBook.status = 'funding';
+                                maryeoBook.funding_current = 49; // 최종 50번째 결제 시연을 위해 49로 세팅
+                                maryeoBook.funding_target = 50;
+                                // 배열 내에서 맨 앞으로 당겨주기
+                                parsed.products = parsed.products.filter(p => p.title !== '마녀');
+                                parsed.products.unshift(maryeoBook);
+                            }
+                            
+                            localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
+                            
+                            // 메모리 내 상품 리스트와 그리드 즉시 강제 갱신
+                            if (typeof allProducts !== 'undefined') {
+                                allProducts = parsed.products;
+                            }
+                            renderProductGrid();
+                            console.log('[스토어] 대표 승인 ➔ 마녀 도서 B2C 펀딩 카드 라이브 성공 (49/50부 세팅 완료)');
+                        }
+                    } catch(err) {
+                        console.error('[스토어] 승인 처리 연동 실패:', err);
+                    }
+                    localStorage.removeItem('admin-event-funding-approved');
+                }
+            });
         });
     </script>
 </body>
