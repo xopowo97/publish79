@@ -3709,7 +3709,13 @@ function renderVideoTab(book) {
 // 마녀 관련 펀딩 데이터 주입 로직
 if (title.includes('마녀')) {
     const maryeoMockBook = {
-        title: title,
+        id: 9999,
+        title: '마녀',
+        author: '주경철',
+        pubName: '출판친구 파트너사',
+        category: '에세이',
+        price: 18000,
+        status: 'funding',
         votes_current: 10,
         votes_target: 10,
         funding_current: 49,
