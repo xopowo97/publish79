@@ -1939,13 +1939,47 @@ async function ctrlApproveSpec(specIndex) {
                         // 최종 완료 푸터
                         const footer = document.getElementById('ctrl-sim-footer');
                         if (footer) {
-                            footer.innerHTML = `
-                            <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
-                            <div style="display:flex; gap:8px;">
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
-                            </div>`;
+                            if (book.title.includes('마녀')) {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:#10b981; font-weight:800;">✨ 4번 조판이 & 8번 이지퍼비터 가조판 PDF 연산 완공 완료</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="window.ctrlApproveAndSendToPublisher()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669); padding:10px 18px; font-weight:900; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">🖨️ 가조판 완료 및 출판사 송출</button>
+                                </div>`;
+                            } else {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
+                                </div>`;
+                            }
                         }
+
+                        // 가조판 최종 송출 및 3단 탭 활성화 전역 함수 선언
+                        window.ctrlApproveAndSendToPublisher = function() {
+                            // 1. 모달 닫기
+                            ctrlCloseSimModal();
+                            
+                            // 2. 출판사 챗봇(erp-chat.js)에 판형 승인 완료 신호 최종 브로드캐스트
+                            localStorage.setItem('admin-event-typeset-approved', JSON.stringify({ book: book.title, timestamp: Date.now() }));
+
+                            // 3. 통제실 중앙 탭 즉시 마녀 에셋 뷰로 동기화 활성화
+                            window._ctrl_selectedBook = book;
+                            window.switchAssetTab('epub');
+
+                            // 4. 지휘 판다 헬퍼창에 최종 송출 완료 메시지 누적
+                            const chatContent = document.getElementById('ai-chat-content');
+                            if (chatContent) {
+                                const botMsg = document.createElement('div');
+                                botMsg.className = 'ai-msg ai-msg-bot';
+                                botMsg.innerHTML = `
+                                    <strong>[가조판 송출 완료]</strong><br>
+                                    에이전트들이 최종 완공한 가조판 인쇄용 PDF를 출판사 ERP로 안전하게 전송하였습니다. 출판사 피드백을 대기합니다.
+                                `;
+                                chatContent.appendChild(botMsg);
+                                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+                            }
+                        };
                     }
                 }, 1000);
             }
@@ -3987,42 +4021,39 @@ window.addEventListener('storage', (e) => {
         return;
     }
 
-// 대표 가조판 및 판형 승인 핸들러
+// 대표 가조판 및 판형 승인 핸들러 (승인 시 모달창 즉각 팝업)
 function handleAdminTypesetApproval(bookName) {
     const card = document.getElementById('ai-typeset-approval-card');
     if (card) {
-        card.innerHTML = `<div style="padding:10px; text-align:center; color:#10b981; font-weight:800; font-size:12px;">✅ A5 판형 최적화 승인 및 제안 완료</div>`;
+        card.innerHTML = `<div style="padding:10px; text-align:center; color:#10b981; font-weight:800; font-size:12px;">✅ A5 판형 최적화 승인 완료 (에이전트 조판 가동)</div>`;
     }
 
     const chatContent = document.getElementById('ai-chat-content');
     const logEl = document.getElementById('ctrl-log-stream');
-    const data = window._pending_log_data || { book: bookName };
+    const data = window._pending_log_data || { book: bookName, author: '주경철' };
 
     if (chatContent) {
         const botMsg = document.createElement('div');
         botMsg.className = 'ai-msg ai-msg-bot';
         botMsg.innerHTML = `
-            A5 판형 최적화 제안을 승인하고 출판사 ERP로 송출하였습니다. 4번 조판이 및 8번 이지퍼비터 백엔드 연산을 시작합니다. 🚀
+            A5 판형 최적화를 승인하였습니다. 화면 한가운데에 <strong>4번 조판이 & 8번 이지퍼비터</strong> 가상 조판 에이전트 파이프라인 콘솔을 동적 가동합니다.
         `;
         chatContent.appendChild(botMsg);
         setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
     }
 
-    // 실시간 에이전트 로그 출력
-    if (logEl) {
-        setTimeout(() => {
-            _appendCtrlLogEntry(logEl, 'info', '조판_조판이', `도서 "${data.book}" 본문 340p 구조 분석 및 규격 매핑 중...`, new Date(), true);
-        }, 500);
-        setTimeout(() => {
-            _appendCtrlLogEntry(logEl, 'warn', '조판_조판이', `책등 두께 21.8mm 최적 세네카 규격 자동 산출 완료`, new Date(), true);
-        }, 1500);
-        setTimeout(() => {
-            _appendCtrlLogEntry(logEl, 'success', '이지퍼비터POD', `DPI 300 고해상도 인쇄 표준 PDF/X-1a 변환 완료 (가조판 준비)`, new Date(), true);
-        }, 2500);
-    }
-
-    // 출판사 챗봇(erp-chat.js)에 판형 승인 완료 신호 브로드캐스트
-    localStorage.setItem('admin-event-typeset-approved', JSON.stringify({ book: bookName, timestamp: Date.now() }));
+    // 1~8단계 에이전트 실시간 연산 모달창을 출판사 B2B 마녀 도서 사양으로 동적 팝업
+    const maryeoMockBook = {
+        title: data.book,
+        author: data.author || '주경철',
+        reprint_score: 91.1,
+        pages: 340,
+        spineMm: 21.8,
+        copyright_status: 'copyrighted',
+        _a5Recommended: true // A5 절감 사양 강제 매핑 지시자
+    };
+    
+    startCtrlSimByBookData(maryeoMockBook);
 }
 
     // 3. [출판사 챗봇] B2C 펀딩 개설 진행 요청 수신

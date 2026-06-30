@@ -2497,41 +2497,7 @@
         <script src="script.js"></script>
     </div> <!-- End App Container -->
 
-    <!-- AI Helper (17번 CS_상담이) ERP CS Guide UI -->
-    <div id="ai-fab-erp" class="ai-fab" onclick="toggleAIPanelErp()">
-        <i data-lucide="sparkles" class="w-8 h-8"></i>
-    </div>
-
-    <div id="ai-panel-erp" class="ai-panel" style="display: none;">
-        <div class="ai-header" style="background: linear-gradient(135deg, #0284c7, #0369a1); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="ai-avatar" style="background: #ffffff; color: #0284c7; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
-                <i data-lucide="brain-circuit" style="width: 20px; height: 20px;"></i>
-            </div>
-            <div class="flex-1" style="margin-left: 10px;">
-                <div class="text-sm font-black tracking-tight text-white">출판친구 CS 안내</div>
-                <div class="text-[10px] text-sky-200 font-bold">17번 CS_상담이 (ERP CS Guide)</div>
-            </div>
-            <button onclick="toggleAIPanelErp()" class="text-white opacity-80 hover:opacity-100">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-        <div class="ai-content" id="ai-chat-content-erp">
-            <div class="ai-msg ai-msg-bot">
-                안녕하세요! 출판친구의 시스템 안내를 전담하는 **17번 CS_상담이**입니다.
-                메뉴 위치나 파일 업로드 등에 대해 편하게 물어보세요!
-            </div>
-        </div>
-        <div class="ai-footer">
-            <input type="text" id="ai-input-erp" placeholder="상담이에게 질문하기..." class="ai-input">
-            <button id="ai-send-btn-erp" class="ai-send-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-            </button>
-        </div>
-        </div>
+    <!-- Old AI Helper (17번 CS_상담이) ERP CS Guide UI Removed to avoid overlaps -->
 </body>
 
 <!-- ERP 권한 제어 스크립트: judge/admin만 [통제실 복귀] 버튼 노출 -->
