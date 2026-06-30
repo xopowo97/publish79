@@ -575,30 +575,8 @@
     <script>
         lucide.createIcons();
 
-        // 모달 열기/닫기 함수 선언
-        function openBillingModal() {
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
+        // 모달 열기/닫기 함수는 아래 스크립트 본문에서 통합 정의되어 사용되므로 중복 정의 삭제
 
-        function closeBillingModal() {
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        function closeSuccessModal() {
-            const modal = document.getElementById('success-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
 
         // Supabase configuration (using control.js keys)
         const B2C_SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
