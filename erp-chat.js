@@ -28,7 +28,7 @@
         paperType: '미색모조 100g',
         spineMm: 21.8,
         format: 'A5 (148×210mm)',
-        estimatedCost: '₩ 4,200,000',
+        estimatedCost: '₩ 125,640 (A5국판 30부 기준)',
         fundingTarget: '50부',
     };
 
