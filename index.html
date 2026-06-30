@@ -93,20 +93,29 @@
 
                 <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-500">
                     <a href="#" class="hover:text-sky-600 transition-colors">복간 요청</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">베스트셀러</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">컬렉션</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">안티그래비티 기술</a>
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <!-- B2C User Session Status -->
+                <!-- B2C User Session Status (비로그인) -->
                 <div id="b2c-logged-out-nav" class="flex items-center gap-2">
-                    <button onclick="openB2CLoginModal()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-xs font-black transition-all shadow-sm">
-                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
-                        <span>일반회원 로그인 / 가입</span>
+                    <button onclick="openB2CRegisterModal()"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-full text-xs font-black transition-all">
+                        <i data-lucide="user-plus" class="w-3.5 h-3.5 text-sky-500"></i>
+                        <span>회원가입</span>
                     </button>
+                    <button onclick="openB2CLoginModal()"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-xs font-black transition-all shadow-sm">
+                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                        <span>개인 로그인</span>
+                    </button>
+                    <a href="erp.html" id="btn-b2b-login"
+                        class="hidden md:flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-full text-xs font-black hover:bg-slate-50 hover:border-sky-400 hover:text-sky-600 transition-all">
+                        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
+                        <span>기업 로그인</span>
+                    </a>
                 </div>
+
+                <!-- B2C User Session Status (개인 로그인 상태) -->
                 <div id="b2c-logged-in-nav" class="hidden items-center gap-2">
                     <button onclick="openMyLibraryModal()"
                         class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-full text-xs font-black transition-all">
@@ -119,18 +128,30 @@
                     </button>
                 </div>
 
-                <!-- B2B ERP Login -->
-                <a href="erp.html" id="btn-b2b-login"
-                    class="hidden md:flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 text-slate-600 rounded-full text-xs font-black hover:bg-slate-50 hover:border-sky-400 hover:text-sky-600 transition-all">
-                    <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
-                    <span>기업회원(ERP) 로그인</span>
-                </a>
-                <!-- Mobile Only B2B Icon -->
-                <a href="erp.html" class="flex md:hidden p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600"
-                    title="기업회원(ERP) 로그인">
-                    <i data-lucide="briefcase" class="w-5 h-5"></i>
-                </a>
-                <button class="p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600">
+                <!-- Admin Control Center Shortcut (최고관리자 로그인 상태) -->
+                <div id="admin-shortcut-nav" class="hidden items-center gap-2">
+                    <div class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-xs font-black">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <span id="admin-nav-user-info">어드민대표 서포터님</span>
+                    </div>
+                    <a href="control.html"
+                        class="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-xs font-black transition-all shadow-sm">
+                        <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                        <span>🤖 통제실</span>
+                    </a>
+                    <a href="erp.html"
+                        class="flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-full text-xs font-black transition-all shadow-sm">
+                        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
+                        <span>⚙️ ERP</span>
+                    </a>
+                    <button onclick="handleB2CLogout()"
+                        class="flex items-center gap-1.5 px-2.5 py-2 border border-transparent text-slate-400 hover:text-slate-600 rounded-full text-xs font-bold transition-all" title="로그아웃">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <!-- 장바구니 아이콘 (어드민이 아닐 때만 노출) -->
+                <button id="nav-shopping-bag" class="p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600">
                     <i data-lucide="shopping-bag" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -348,15 +369,15 @@
         </div>
     </footer>
 
-    <!-- 일반회원 로그인/가입 모달 -->
+    <!-- 개인 로그인 모달 -->
     <div id="b2c-login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
         <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="user" class="text-white"></i>
-                    일반회원 로그인 / 회원가입
+                    <i data-lucide="log-in" class="text-white"></i>
+                    개인 로그인
                 </h3>
-                <p class="text-xs text-sky-200 mt-1">출판친구의 서포터가 되어 잠든 도서를 깨워주세요!</p>
+                <p class="text-xs text-sky-200 mt-1">출판친구 서포터 계정으로 로그인해 주세요.</p>
                 <button onclick="closeB2CLoginModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
@@ -367,19 +388,56 @@
                     <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명 입력)</label>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">성명 (실명)</label>
                     <input type="text" id="b2c-login-name" placeholder="홍길동" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div class="text-[10px] text-slate-400 leading-normal">
-                    * 입력하신 성명은 추후 도서 복간 시 제작되는 개인화 가변 증서(VDP) 책갈피에 자동으로 각인되어 함께 배송됩니다.
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
                 <button onclick="closeB2CLoginModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitB2CLogin()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인 / 시작하기</button>
+                <button onclick="submitB2CLogin()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인</button>
             </div>
         </div>
     </div>
+
+    <!-- B2C 회원가입 모달 -->
+    <div id="b2c-register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
+                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
+                    <i data-lucide="user-plus" class="text-white"></i>
+                    서포터 회원가입
+                </h3>
+                <p class="text-xs text-sky-200 mt-1">회원가입 후 배송 정보 수집 및 마일리지가 적립됩니다.</p>
+                <button onclick="closeB2CRegisterModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 max-h-[300px] overflow-y-auto">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
+                    <input type="email" id="b2c-register-email" placeholder="example@email.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명)</label>
+                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">연락처</label>
+                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">배송 주소</label>
+                    <input type="text" id="b2c-register-address" placeholder="서울특별시 강남구 테헤란로 123" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+            </div>
+            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
+                <button onclick="closeB2CRegisterModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitB2CRegister()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">가입 완료</button>
+            </div>
+        </div>
+    </div>
+
+
 
     <!-- 나의 복간 도서관 (마일리지 & 참여 이력) 모달 -->
     <div id="my-library-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -397,9 +455,11 @@
             <div class="p-6 space-y-6">
                 <!-- 프로필 요약 카드 -->
                 <div class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 flex justify-between items-center border border-slate-200/60">
-                    <div>
+                    <div class="space-y-1">
                         <div class="text-sm font-black text-slate-800" id="library-username">홍길동 서포터님</div>
-                        <div class="text-xs text-slate-500 mt-0.5" id="library-useremail">example@email.com</div>
+                        <div class="text-xs text-slate-500" id="library-useremail">example@email.com</div>
+                        <div class="text-[10px] text-slate-400" id="library-userphone">연락처: -</div>
+                        <div class="text-[10px] text-slate-400" id="library-useraddress">배송지: -</div>
                     </div>
                     <div class="bg-sky-50 border border-sky-100 rounded-xl px-4 py-2 text-right">
                         <div class="text-[10px] font-black text-sky-600 uppercase">보유 복간 포인트</div>
@@ -575,30 +635,8 @@
     <script>
         lucide.createIcons();
 
-        // 모달 열기/닫기 함수 선언
-        function openBillingModal() {
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
+        // 모달 열기/닫기 함수는 아래 스크립트 본문에서 통합 정의되어 사용되므로 중복 정의 삭제
 
-        function closeBillingModal() {
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        function closeSuccessModal() {
-            const modal = document.getElementById('success-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
 
         // Supabase configuration (using control.js keys)
         const B2C_SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
@@ -617,6 +655,8 @@
             isLoggedIn: false,
             email: '',
             name: '',
+            phone: '',
+            address: '',
             points: 0,
             joinedBooks: [] // array of { id, title, type: 'vote' | 'fund', timestamp }
         };
@@ -625,6 +665,62 @@
         let currentCategory = 'all';
         let currentSearchQuery = '';
         let selectedProductForFunding = null;
+
+        // B2C Register Modals
+        function openB2CRegisterModal() {
+            const modal = document.getElementById('b2c-register-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeB2CRegisterModal() {
+            const modal = document.getElementById('b2c-register-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
+        function submitB2CRegister() {
+            const email = document.getElementById('b2c-register-email').value.trim();
+            const name = document.getElementById('b2c-register-name').value.trim();
+            const phone = document.getElementById('b2c-register-phone').value.trim();
+            const address = document.getElementById('b2c-register-address').value.trim();
+
+            if (!email || !name || !phone || !address) {
+                alert('모든 필수 정보를 입력해 주세요.');
+                return;
+            }
+
+            b2cUser.isLoggedIn = true;
+            b2cUser.email = email;
+            b2cUser.name = name;
+            b2cUser.phone = phone;
+            b2cUser.address = address;
+            b2cUser.points = 1000; // 가입 환영 마일리지 1000P 부여
+
+            // 스토리지에 가입 정보 보존
+            localStorage.setItem(`b2c_phone_${email}`, phone);
+            localStorage.setItem(`b2c_address_${email}`, address);
+            localStorage.setItem(`b2c_points_${email}`, '1000');
+            localStorage.setItem(`b2c_joined_${email}`, '[]');
+
+            // Supabase 연동
+            syncUserProfileWithSupabase(email, name, 1000);
+
+            // 세션 저장
+            sessionStorage.setItem('b2cIsLoggedIn', 'true');
+            sessionStorage.setItem('b2cUserEmail', email);
+            sessionStorage.setItem('b2cUserName', name);
+
+            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다.');
+
+            updateB2CUserUI();
+            closeB2CRegisterModal();
+            renderProductGrid();
+        }
 
         // B2C Login Modals
         function openB2CLoginModal() {
@@ -635,6 +731,7 @@
             }
         }
 
+        // B2C Login Modals
         function closeB2CLoginModal() {
             const modal = document.getElementById('b2c-login-modal');
             if (modal) {
@@ -655,6 +752,8 @@
             b2cUser.isLoggedIn = true;
             b2cUser.email = email;
             b2cUser.name = name;
+            b2cUser.phone = localStorage.getItem(`b2c_phone_${email}`) || '';
+            b2cUser.address = localStorage.getItem(`b2c_address_${email}`) || '';
             
             // Load or initialize points
             const storedPointsKey = `b2c_points_${email}`;
@@ -682,16 +781,24 @@
             renderProductGrid();
         }
 
+
         function handleB2CLogout() {
             b2cUser.isLoggedIn = false;
             b2cUser.email = '';
             b2cUser.name = '';
+            b2cUser.phone = '';
+            b2cUser.address = '';
             b2cUser.points = 0;
             b2cUser.joinedBooks = [];
 
             sessionStorage.removeItem('b2cIsLoggedIn');
             sessionStorage.removeItem('b2cUserEmail');
             sessionStorage.removeItem('b2cUserName');
+
+            // 어드민 세션도 스토어 로그아웃 시 함께 초기화하여 안전성 확보
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('userRole');
+            sessionStorage.removeItem('userId');
 
             updateB2CUserUI();
             renderProductGrid();
@@ -701,22 +808,45 @@
             const loggedOutNav = document.getElementById('b2c-logged-out-nav');
             const loggedInNav = document.getElementById('b2c-logged-in-nav');
             const navUserInfo = document.getElementById('nav-user-info');
+            const adminShortcutNav = document.getElementById('admin-shortcut-nav');
+            const shoppingBagBtn = document.getElementById('nav-shopping-bag');
 
-            if (b2cUser.isLoggedIn) {
-                if (loggedOutNav) loggedOutNav.classList.add('hidden');
-                if (loggedInNav) {
-                    loggedInNav.classList.remove('hidden');
-                    loggedInNav.classList.add('flex');
+            // 어드민 세션 여부 체크
+            const role = sessionStorage.getItem('userRole');
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            const isAdmin = (isLoggedIn === 'true' && role === 'admin');
+
+            if (adminShortcutNav) {
+                if (isAdmin) {
+                    adminShortcutNav.classList.remove('hidden');
+                    adminShortcutNav.classList.add('flex');
+                    if (loggedOutNav) loggedOutNav.classList.add('hidden');
+                    if (loggedInNav) loggedInNav.classList.add('hidden');
+                    if (shoppingBagBtn) shoppingBagBtn.classList.add('hidden'); // 어드민일 때 장바구니 숨김
+                } else {
+                    adminShortcutNav.classList.remove('flex');
+                    adminShortcutNav.classList.add('hidden');
+                    if (shoppingBagBtn) shoppingBagBtn.classList.remove('hidden');
+                    
+                    // 어드민이 아닐 경우 일반 로그인 여부에 따라 토글
+                    if (b2cUser.isLoggedIn) {
+                        if (loggedOutNav) loggedOutNav.classList.add('hidden');
+                        if (loggedInNav) {
+                            loggedInNav.classList.remove('hidden');
+                            loggedInNav.classList.add('flex');
+                        }
+                    } else {
+                        if (loggedOutNav) {
+                            loggedOutNav.classList.remove('hidden');
+                            loggedOutNav.classList.add('flex');
+                        }
+                        if (loggedInNav) {
+                            loggedInNav.classList.remove('flex');
+                            loggedInNav.classList.add('hidden');
+                        }
+                    }
                 }
-                if (navUserInfo) {
-                    navUserInfo.textContent = `${b2cUser.name} 서포터님 (${b2cUser.points}P)`;
-                }
-            } else {
-                if (loggedOutNav) loggedOutNav.classList.remove('hidden');
-                if (loggedInNav) {
-                    loggedInNav.classList.remove('flex');
-                    loggedInNav.classList.add('hidden');
-                }
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
 
@@ -769,6 +899,12 @@
         function loadMyLibraryData() {
             document.getElementById('library-username').textContent = `${b2cUser.name} 서포터님`;
             document.getElementById('library-useremail').textContent = b2cUser.email;
+            if (document.getElementById('library-userphone')) {
+                document.getElementById('library-userphone').textContent = `연락처: ${b2cUser.phone || '-'}`;
+            }
+            if (document.getElementById('library-useraddress')) {
+                document.getElementById('library-useraddress').textContent = `배송지: ${b2cUser.address || '-'}`;
+            }
             document.getElementById('library-userpoints').textContent = `${b2cUser.points} P`;
 
             const listContainer = document.getElementById('my-joined-books-list');
@@ -1357,6 +1493,11 @@
 
                 localStorage.setItem('latestStoreLog', `결제 예약 성공(시뮬레이션): "${targetBook.title}" 1건 예약 완료. (서포터: ${b2cUser.name})`);
                 
+                // 펀딩 100% 성공(목표수량 도달) 시 출판사 챗봇(erp-chat.js)에 감지 신호 송신
+                if (targetBook.title === '마녀' && targetBook.funding_current >= (targetBook.funding_target || 50)) {
+                    localStorage.setItem('store-event-funding-completed', JSON.stringify({ book: targetBook.title, timestamp: Date.now() }));
+                }
+
                 renderProductGrid();
             }
         }
@@ -1598,10 +1739,27 @@
 
             // Restore B2C user session
             const b2cIsLoggedIn = sessionStorage.getItem('b2cIsLoggedIn');
-            if (b2cIsLoggedIn === 'true') {
+            if (isLoggedIn === 'true' && role === 'admin') {
+                // 최고관리자 전용 무음 자동 B2C 로그인 처리 (프리패스)
+                b2cUser.isLoggedIn = true;
+                b2cUser.email = 'admin@publishfriend.co.kr';
+                b2cUser.name = '어드민대표';
+                b2cUser.points = 99999;
+                b2cUser.phone = '010-0000-0000';
+                b2cUser.address = '최고관리자 본사 사무실';
+
+                const storedJoinedKey = `b2c_joined_${b2cUser.email}`;
+                try {
+                    b2cUser.joinedBooks = JSON.parse(localStorage.getItem(storedJoinedKey) || '[]');
+                } catch (e) {
+                    b2cUser.joinedBooks = [];
+                }
+            } else if (b2cIsLoggedIn === 'true') {
                 b2cUser.isLoggedIn = true;
                 b2cUser.email = sessionStorage.getItem('b2cUserEmail') || '';
                 b2cUser.name = sessionStorage.getItem('b2cUserName') || '';
+                b2cUser.phone = localStorage.getItem(`b2c_phone_${b2cUser.email}`) || '';
+                b2cUser.address = localStorage.getItem(`b2c_address_${b2cUser.email}`) || '';
 
                 const storedPointsKey = `b2c_points_${b2cUser.email}`;
                 const storedJoinedKey = `b2c_joined_${b2cUser.email}`;
@@ -1615,6 +1773,60 @@
 
             updateB2CUserUI();
             loadProductsFromDB();
+
+            // 대표 승인 수신 시 B2C 펀딩 개설 실시간 연동
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'admin-event-funding-approved' && e.newValue) {
+                    try {
+                        const data = JSON.parse(e.newValue);
+                        if (data.book === '마녀') {
+                            const rawData = localStorage.getItem('MASTER_DATA') || '{"products":[]}';
+                            const parsed = JSON.parse(rawData);
+                            
+                            // MASTER_DATA 내에 마녀 책이 있으면 펀딩 활성화, 없으면 생성해서 등록
+                            let maryeoBook = parsed.products.find(p => p.title === '마녀');
+                            if (!maryeoBook) {
+                                maryeoBook = {
+                                    id: 9999,
+                                    title: '마녀',
+                                    author: '주경철',
+                                    pubName: '출판친구 파트너사',
+                                    category: '에세이',
+                                    price: 18000,
+                                    status: 'funding',
+                                    votes_current: 10,
+                                    votes_target: 10,
+                                    funding_current: 49, // 최종 50번째 클릭 시연을 위해 49로 설정
+                                    funding_target: 50,
+                                    is_funding_active: true,
+                                    image: 'book1.png'
+                                };
+                                parsed.products.unshift(maryeoBook); // 최상단 노출
+                            } else {
+                                maryeoBook.is_funding_active = true;
+                                maryeoBook.status = 'funding';
+                                maryeoBook.funding_current = 49; // 최종 50번째 결제 시연을 위해 49로 세팅
+                                maryeoBook.funding_target = 50;
+                                // 배열 내에서 맨 앞으로 당겨주기
+                                parsed.products = parsed.products.filter(p => p.title !== '마녀');
+                                parsed.products.unshift(maryeoBook);
+                            }
+                            
+                            localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
+                            
+                            // 메모리 내 상품 리스트와 그리드 즉시 강제 갱신
+                            if (typeof allProducts !== 'undefined') {
+                                allProducts = parsed.products;
+                            }
+                            renderProductGrid();
+                            console.log('[스토어] 대표 승인 ➔ 마녀 도서 B2C 펀딩 카드 라이브 성공 (49/50부 세팅 완료)');
+                        }
+                    } catch(err) {
+                        console.error('[스토어] 승인 처리 연동 실패:', err);
+                    }
+                    localStorage.removeItem('admin-event-funding-approved');
+                }
+            });
         });
     </script>
 </body>

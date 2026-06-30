@@ -1939,13 +1939,47 @@ async function ctrlApproveSpec(specIndex) {
                         // 최종 완료 푸터
                         const footer = document.getElementById('ctrl-sim-footer');
                         if (footer) {
-                            footer.innerHTML = `
-                            <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
-                            <div style="display:flex; gap:8px;">
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
-                                <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
-                            </div>`;
+                            if (book.title.includes('마녀')) {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:#10b981; font-weight:800;">✨ 4번 조판이 & 8번 이지퍼비터 가조판 PDF 연산 완공 완료</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="window.ctrlApproveAndSendToPublisher()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669); padding:10px 18px; font-weight:900; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">🖨️ 가조판 완료 및 출판사 송출</button>
+                                </div>`;
+                            } else {
+                                footer.innerHTML = `
+                                <div style="font-size:11px; color:var(--ctrl-sky); font-weight:800;">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
+                                <div style="display:flex; gap:8px;">
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn" style="background:transparent; border:1px solid var(--ctrl-border-md); color:var(--ctrl-text-mute); font-size:11px;">그냥 닫기</button>
+                                    <button onclick="ctrlCloseSimModal()" class="ctrl-btn ctrl-btn-primary" style="font-size:11px; background:linear-gradient(135deg,#10b981,#059669);">🛒 카탈로그 등록 완료 (Supabase 반영)</button>
+                                </div>`;
+                            }
                         }
+
+                        // 가조판 최종 송출 및 3단 탭 활성화 전역 함수 선언
+                        window.ctrlApproveAndSendToPublisher = function() {
+                            // 1. 모달 닫기
+                            ctrlCloseSimModal();
+                            
+                            // 2. 출판사 챗봇(erp-chat.js)에 판형 승인 완료 신호 최종 브로드캐스트
+                            localStorage.setItem('admin-event-typeset-approved', JSON.stringify({ book: book.title, timestamp: Date.now() }));
+
+                            // 3. 통제실 중앙 탭 즉시 마녀 에셋 뷰로 동기화 활성화
+                            window._ctrl_selectedBook = book;
+                            window.switchAssetTab('epub');
+
+                            // 4. 지휘 판다 헬퍼창에 최종 송출 완료 메시지 누적
+                            const chatContent = document.getElementById('ai-chat-content');
+                            if (chatContent) {
+                                const botMsg = document.createElement('div');
+                                botMsg.className = 'ai-msg ai-msg-bot';
+                                botMsg.innerHTML = `
+                                    <strong>[가조판 송출 완료]</strong><br>
+                                    에이전트들이 최종 완공한 가조판 인쇄용 PDF를 출판친구 ERP로 안전하게 전송하였습니다. 출판사 피드백을 대기합니다.
+                                `;
+                                chatContent.appendChild(botMsg);
+                                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+                            }
+                        };
                     }
                 }, 1000);
             }
@@ -2572,6 +2606,9 @@ window.toggleAIPanel = function () {
     const panel = document.getElementById('ai-panel');
     const fab = document.getElementById('ai-fab');
     if (!panel || !fab) return;
+
+    // 헬퍼창을 열 때 노란색 깜빡임(골드 펄스) 효과 완전히 해제
+    fab.classList.remove('pulse-gold');
 
     panel.classList.toggle('active');
     if (panel.classList.contains('active')) {
@@ -3669,6 +3706,9 @@ function renderVideoTab(book) {
     }
 }
 
+
+
+
 window.downloadNewsCardSim = function() {
     alert("도서가 선택되지 않았습니다.");
 };
@@ -3884,11 +3924,11 @@ window.resolveTicket = async function(id) {
 // 스토어 예약 결제 실시간 연동 로그 수신기 (localStorage Event Listener)
 // ───────────────────────────────────────────
 window.addEventListener('storage', (e) => {
+    // 1. 기존 스토어 로그 리스너 유지
     if (e.key === 'latestStoreLog' && e.newValue) {
         const logEl = document.getElementById('ctrl-log-stream');
         if (logEl) {
             _appendCtrlLogEntry(logEl, 'success', '영업_영업이', e.newValue, new Date(), true);
-            
             const firstEntry = logEl.firstElementChild;
             if (firstEntry) {
                 firstEntry.style.borderLeft = '3px solid #ff6b00';
@@ -3897,8 +3937,305 @@ window.addEventListener('storage', (e) => {
             }
         }
         localStorage.removeItem('latestStoreLog');
+        return;
+    }
+
+    // 2. [출판사 챗봇] 가조판 승인 요청 수신
+    if (e.key === 'cs-event-typeset-requested' && e.newValue) {
+        try {
+            const data = JSON.parse(e.newValue);
+            const chatContent = document.getElementById('ai-chat-content');
+            const logEl = document.getElementById('ctrl-log-stream');
+            const aiFab = document.getElementById('ai-fab');
+
+            // 판다 FAB 골드 펄스 활성화 (열기 유도)
+            if (aiFab && !aiFab.classList.contains('active')) {
+                aiFab.classList.add('pulse-gold');
+            }
+
+            // 헬퍼창 단가 절감 요약 제안 카드 렌더링 (3번 스크린샷 양식과 100% 동일하게 일치)
+            if (chatContent) {
+                const costCard = document.createElement('div');
+                costCard.className = 'ai-action-card';
+                costCard.id = 'ai-typeset-approval-card';
+                costCard.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-top: 10px; font-family: "Noto Sans KR", sans-serif; color: #1e293b;';
+                costCard.innerHTML = `
+                    <div style="font-size:13px; font-weight:800; color:#dc2626; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
+                        📌 30부 제작 절감 제안
+                    </div>
+                    <div style="font-size:11.5px; color:#475569; margin-bottom:12px; line-height:1.5; font-weight:700; text-align:left;">
+                        현재 신국판(152x225)으로 제작 권당 5,532원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 4,188원으로 약 24.3%로 절감됩니다.
+                    </div>
+                    
+                    <div style="background:#f8fafc; border:1px solid #edf2f7; border-radius:10px; padding:12px; margin-bottom:12px; font-size:11.5px; text-align:left;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#64748b; font-weight:600;">📚 마녀 (주경철)</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#64748b; font-weight:600;">제작 부수</span>
+                            <strong style="color:#0f172a; font-weight:800;">30부</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#64748b; font-weight:600;">예상 페이지</span>
+                            <strong style="color:#0f172a; font-weight:800;">336p</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-top:1px solid #edf2f7; padding-top:6px;">
+                            <span style="color:#64748b; font-weight:600;">신국판 총제작비</span>
+                            <strong style="color:#dc2626; font-weight:800;">₩165,960</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#64748b; font-weight:600;">A5 전환 총제작비</span>
+                            <strong style="color:#16a34a; font-weight:800;">₩125,640</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; border-top:1px dashed #e2e8f0; padding-top:6px; font-weight:800;">
+                            <span style="color:#64748b; font-weight:600;">💰 B2B 절감 예상액</span>
+                            <strong style="color:#d97706; font-weight:900;">-₩40,320 (24.3%↓)</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:4px; font-weight:800;">
+                            <span style="color:#64748b; font-weight:600;">권당 원가 절감</span>
+                            <strong style="color:#0284c7; font-weight:900;">₩1,344 / 부</strong>
+                        </div>
+                    </div>
+                    
+                    <button id="ctrl-typeset-approve-btn"
+                        style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); margin-bottom: 6px; transition: background 0.2s;"
+                        onmouseover="this.style.background='#059669'"
+                        onmouseout="this.style.background='#10b981'">
+                        ✅ A5 판형 최적화 승인 및 제안 송출
+                    </button>
+                    <button id="ctrl-typeset-close-proposal-btn"
+                        style="width: 100%; padding: 9px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;"
+                        onmouseover="this.style.background='#e2e8f0'"
+                        onmouseout="this.style.background='#f1f5f9'">
+                        이 제안 닫기
+                    </button>
+                `;
+                chatContent.appendChild(costCard);
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+                // 통제실 가조판 승인 버튼 이벤트 바인딩
+                document.getElementById('ctrl-typeset-approve-btn').addEventListener('click', () => {
+                    handleAdminTypesetApproval(data.book);
+                });
+                // 닫기 버튼 이벤트 바인딩
+                document.getElementById('ctrl-typeset-close-proposal-btn').addEventListener('click', () => {
+                    costCard.remove();
+                });
+            }
+
+            // 실시간 에이전트 로그 기록용 데이터 보관
+            window._pending_log_data = data;
+        } catch(err) {
+            console.error('[통제실] 가조판 요청 파싱 에러:', err);
+        }
+        localStorage.removeItem('cs-event-typeset-requested');
+        return;
+    }
+
+// 대표 가조판 및 판형 승인 핸들러 (승인 시 모달창 즉각 팝업)
+function handleAdminTypesetApproval(bookName) {
+    const card = document.getElementById('ai-typeset-approval-card');
+    if (card) {
+        card.innerHTML = `<div style="padding:10px; text-align:center; color:#10b981; font-weight:800; font-size:12px;">✅ A5 판형 최적화 승인 완료 (에이전트 조판 가동)</div>`;
+    }
+
+    const chatContent = document.getElementById('ai-chat-content');
+    const logEl = document.getElementById('ctrl-log-stream');
+    const data = window._pending_log_data || { book: bookName, author: '주경철' };
+
+    if (chatContent) {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'ai-msg ai-msg-bot';
+        botMsg.innerHTML = `
+            A5 판형 최적화를 승인하였습니다. 화면 한가운데에 <strong>4번 조판이 & 8번 이지퍼비터</strong> 가상 조판 에이전트 파이프라인 콘솔을 동적 가동합니다.
+        `;
+        chatContent.appendChild(botMsg);
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+    }
+
+    // 1~8단계 에이전트 실시간 연산 모달창을 출판사 B2B 마녀 도서 사양으로 동적 팝업
+    const maryeoMockBook = {
+        title: data.book,
+        author: data.author || '주경철',
+        reprint_score: 91.1,
+        pages: 340,
+        spineMm: 21.8,
+        copyright_status: 'copyrighted',
+        _a5Recommended: true // A5 절감 사양 강제 매핑 지시자
+    };
+    
+    startCtrlSimByBookData(maryeoMockBook);
+}
+
+    // 3. [출판사 챗봇] B2C 펀딩 개설 진행 요청 수신
+    if (e.key === 'cs-event-funding-requested' && e.newValue) {
+        try {
+            const data = JSON.parse(e.newValue);
+            const chatContent = document.getElementById('ai-chat-content');
+            const aiFab = document.getElementById('ai-fab');
+
+            if (aiFab && !aiFab.classList.contains('active')) {
+                aiFab.classList.add('pulse-gold');
+            }
+
+            if (chatContent) {
+                const botMsg = document.createElement('div');
+                botMsg.className = 'ai-msg ai-msg-bot';
+                botMsg.innerHTML = `
+                    🚀 <strong>[펀딩 개설 요청 수신]</strong><br>
+                    도서 <strong>'${data.book}'</strong>의 가조판 검수가 출판사 측에서 완료되었습니다.<br>
+                    B2C 독자 스토어에 정식 펀딩 개설(Live) 및 마케팅 소스(뉴스카드/숏폼) 제작을 승인하시겠습니까?
+                `;
+                chatContent.appendChild(botMsg);
+
+                // 승인 버튼 카드 생성 및 순차 누적
+                const actionCard = document.createElement('div');
+                actionCard.className = 'ai-action-card';
+                actionCard.id = 'ai-funding-approval-card';
+                actionCard.innerHTML = `
+                    <div style="font-size:11px; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
+                        👤 <strong>요청 출판사:</strong> 출판친구 파트너사<br>
+                        📚 <strong>대상 도서:</strong> ${data.book} (저자: 주경철)<br>
+                        ⚙️ <strong>상태:</strong> 11번 알리미 연동 대기
+                    </div>
+                    <button id="ctrl-funding-approve-btn"
+                        style="width: 100%; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); transition: background 0.2s;"
+                        onmouseover="this.style.background='#6d28d9'"
+                        onmouseout="this.style.background='#7c3aed'">
+                        펀딩 개설 및 숏폼 제작 승인
+                    </button>
+                `;
+                chatContent.appendChild(actionCard);
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+                // 승인 이벤트 바인딩
+                document.getElementById('ctrl-funding-approve-btn').addEventListener('click', () => {
+                    handleAdminFundingApproval(data.book);
+                });
+            }
+        } catch(err) {
+            console.error('[통제실] 펀딩 요청 파싱 에러:', err);
+        }
+        localStorage.removeItem('cs-event-funding-requested');
+        return;
+    }
+
+    // 4. [B2B ERP] 최종 제작 발주 완료 수신 (원고 자동 삭제 및 디스코드 웹훅 알림)
+    if (e.key === 'erp-event-order-completed' && e.newValue) {
+        try {
+            const data = JSON.parse(e.newValue);
+            const chatContent = document.getElementById('ai-chat-content');
+            const logEl = document.getElementById('ctrl-log-stream');
+
+            // 헬퍼창 알림 누적
+            if (chatContent) {
+                const botMsg = document.createElement('div');
+                botMsg.className = 'ai-msg ai-msg-bot';
+                botMsg.innerHTML = `
+                    📦 <strong>[도서 최종 발주 및 원고 파기 완료]</strong><br>
+                    대표님, 도서 <strong>'${data.book}'</strong>의 최종 제작 발주가 완료되었습니다.<br>
+                    규정에 따라 서버 저장 공간 절약을 위해 고용량 PDF 원고 파일 2종(표지/내지)을 즉시 <strong>자동 영구 파기(삭제)</strong> 처리하였습니다.
+                `;
+                chatContent.appendChild(botMsg);
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+            }
+
+            // 어드민 로그 스트림 출력
+            if (logEl) {
+                _appendCtrlLogEntry(logEl, 'success', '(총괄) 오케스트레이터', `도서 "${data.book}" 최종 발주 수신 ➔ 서버 고용량 PDF 원고 2종 자동 삭제 완료 (용량 확보)`, new Date(), true);
+            }
+
+            // 대표 디스코드 채널로 실시간 알림 웹훅 전송
+            sendDiscordNotification(data.book);
+        } catch(err) {
+            console.error('[통제실] 발주 연동 파싱 에러:', err);
+        }
+        localStorage.removeItem('erp-event-order-completed');
+        return;
     }
 });
+
+// 대표 승인 핸들러
+function handleAdminFundingApproval(bookName) {
+    const card = document.getElementById('ai-funding-approval-card');
+    if (card) {
+        card.innerHTML = `<div style="padding:10px; text-align:center; color:#10b981; font-weight:800; font-size:12px;">✅ 승인 완료 및 스토어 펀딩 개설됨</div>`;
+    }
+
+    const chatContent = document.getElementById('ai-chat-content');
+    const logEl = document.getElementById('ctrl-log-stream');
+
+    if (chatContent) {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'ai-msg ai-msg-bot';
+        botMsg.innerHTML = `
+            🎉 도서 <strong>'${bookName}'</strong>의 B2C 펀딩 개설을 승인하셨습니다.<br>
+            B2C 독자 스토어에 정식 펀딩(Live)이 오픈되었으며, 11번 알리미가 생성한 AI 카드뉴스 및 숏폼 탭의 배포 및 SNS 공유 버튼이 통제실 중앙에 활성화되었습니다. 🚀
+        `;
+        chatContent.appendChild(botMsg);
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+    }
+
+    if (logEl) {
+        _appendCtrlLogEntry(logEl, 'success', '(총괄) 오케스트레이터', `대표 승인 격발 ➔ 도서 "${bookName}" B2C 스토어 펀딩 정식 개설 및 마케팅 숏폼 라이브 성공`, new Date(), true);
+    }
+
+    // 마녀 도서 목업 데이터를 통제실 selectedBook에 강제 세팅하여 탭 활성화 지원
+    const maryeoMockBook = {
+        id: 9999,
+        title: '마녀',
+        author: '주경철',
+        pubName: '출판친구 파트너사',
+        category: '에세이',
+        price: 18000,
+        status: 'funding',
+        votes_current: 10,
+        votes_target: 10,
+        funding_current: 49,
+        funding_target: 50,
+        is_funding_active: true,
+        copyright_status: 'public_domain',
+        image: 'book1.png'
+    };
+    window._ctrl_selectedBook = maryeoMockBook;
+
+    // 탭 버튼 UI 활성화 및 ePub 탭으로 임시 포커싱
+    window.switchAssetTab('epub');
+
+    // 대표 승인 상태를 B2C 스토어(index.html) 및 출판사 챗봇(erp-chat.js)에 브로드캐스트 전송
+    localStorage.setItem('admin-event-funding-approved', JSON.stringify({ book: bookName, timestamp: Date.now() }));
+}
+
+// 디스코드 웹훅 알림 발송 함수
+async function sendDiscordNotification(bookName) {
+    const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1508640595286032505/4W8xfbHpdQkjHi2SCq0fVz5deSIxWigsu9LWZlmwU8HS6aaba3C_cUQHMtgFmMeHVYfp';
+    
+    const payload = {
+        embeds: [{
+            title: "📦 [출판친구] 최종 제작 발주 및 원고 파기 완료",
+            description: `대표님, B2B ERP를 통해 **도서 '${bookName}'**의 제작 주문(발주)이 최종 완수되었습니다.`,
+            color: 65280, // Green
+            fields: [
+                { name: "대상 도서", value: bookName, inline: true },
+                { name: "저자", value: "주경철", inline: true },
+                { name: "서버 용량 상태", value: "🟢 안전 (고용량 PDF 2종 영구 삭제 완료)", inline: false }
+            ],
+            footer: { text: "출판친구 Anti-Gravity System" },
+            timestamp: new Date().toISOString()
+        }]
+    };
+
+    try {
+        await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        console.log('[통제실] 디스코드 웹훅 알림 발송 완료');
+    } catch(err) {
+        console.error('[통제실] 디스코드 웹훅 발송 오류:', err);
+    }
+}
 
 
 
