@@ -350,15 +350,24 @@
         currentState = STATE.TYPESETTING;
         clearQuickReplies();
 
-        // [통제실 실시간 연동] 가조판 요청 수신 신호 브로드캐스트
-        localStorage.setItem('cs-event-typeset-requested', JSON.stringify({ book: BOOK_MOCK.title, timestamp: Date.now() }));
+        // [통제실 실시간 연동] 가조판 요청 수신 신호 브로드캐스트 (저자 및 페이지 정보 탑재)
+        localStorage.setItem('cs-event-typeset-requested', JSON.stringify({ 
+            book: BOOK_MOCK.title, 
+            author: BOOK_MOCK.author, 
+            pages: BOOK_MOCK.pages, 
+            timestamp: Date.now() 
+        }));
 
-        // 진행 오버레이 표시
+        // 진행 오버레이 표시 및 30% 대기 상태 진입
         progressOverlay.classList.add('cs-visible');
+        progressBar.style.width = '30%';
+        progressLabel.textContent = '대표님(통제실)의 판형 최적화 승인을 대기 중입니다...';
+        document.getElementById('cs-progress-sub').textContent = '통제실 검토 중 (신국판 ➔ A5국판 절감액 제안)';
+    }
 
+    // ── 관리자 승인 수신 후 실제 조판 시뮬레이션 재개 ──────────────────
+    function resumeTypesetting() {
         const steps = [
-            { pct: 15, label: '원고 PDF 구조 분석 중...', sub: '4번 조판이 AI 연산 중' },
-            { pct: 35, label: '판형 규격 최적화 계산...', sub: `책등 두께: ${BOOK_MOCK.spineMm}mm 확정` },
             { pct: 60, label: '3분할 조판 레이아웃 생성...', sub: '앞표지 · 책등 · 뒤표지 분할 중' },
             { pct: 80, label: '8번 이지퍼비터 POD 파이프라인 연결...', sub: '고해상도 인쇄용 PDF 변환 중' },
             { pct: 95, label: '품질 검수 & 재단선 정렬...', sub: '✔ DPI 300 기준 적합 판정' },
@@ -564,6 +573,24 @@
 
     // ── [통제실 및 스토어 실시간 연동 리스너] ───────────────────
     window.addEventListener('storage', (e) => {
+        // AA. 플랫폼 관리자(대표님)의 판형 최적화 승인 수신 ➔ 조판 재개
+        if (e.key === 'admin-event-typeset-approved' && e.newValue) {
+            try {
+                const data = JSON.parse(e.newValue);
+                if (data.book === BOOK_MOCK.title && currentState === STATE.TYPESETTING) {
+                    progressBar.style.width = '45%';
+                    progressLabel.textContent = '대표님 승인 확인 완료! 조판 연산 가동';
+                    document.getElementById('cs-progress-sub').textContent = '4번 조판이 AI 연산 가동 중...';
+                    setTimeout(() => {
+                        resumeTypesetting();
+                    }, 800);
+                }
+            } catch(err) {
+                console.error('[챗봇] 판형 승인 파싱 에러:', err);
+            }
+            localStorage.removeItem('admin-event-typeset-approved');
+        }
+
         // A. 플랫폼 관리자(대표님)의 펀딩 개설 승인 수신
         if (e.key === 'admin-event-funding-approved' && e.newValue) {
             try {
