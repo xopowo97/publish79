@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
+    <!-- 17번 상담이 CS 챗봇 — 격리 독립 스타일 (기존 ERP 스타일 영향 없음) -->
+    <link rel="stylesheet" href="erp-chat.css">
     <!-- Daum Postcode API -->
     <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <!-- ExcelJS Library -->
@@ -54,9 +56,11 @@
 
     <!-- 실제 앱 컨테이너 -->
     <div id="app-container" class="flex h-screen hidden">
+        <!-- 모바일 사이드바 백드롭 -->
+        <div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/40 z-[140]" onclick="document.getElementById('sidebar-aside').classList.remove('active'); this.classList.add('hidden')"></div>
 
         <!-- Sidebar -->
-        <aside class="w-64 bg-slate-900 text-white flex flex-col shrink-0 p-5">
+        <aside id="sidebar-aside" class="w-64 bg-slate-900 text-white flex flex-col shrink-0 p-5">
             <div class="px-2 mb-2 font-black text-xl italic text-sky-400">출판친구</div>
 
             <!-- DB 연결 상태 표시기 (사이드바 최상단으로 이동) -->
@@ -70,10 +74,10 @@
                     <i data-lucide="cpu" class="w-4 h-4 mr-3"></i>🤖 에이전트 통제실
                                 </a>
 
-                <!-- 통제실 복귀 버튼 (judge/admin 전용 - JS가 권한 확인 후 노엄) -->
+                <!-- 통제실 복귀 버튼 (judge/admin 전용 - JS가 권한 확인 후 노출) -->
                 <a href="control.html" id="btn-return-control" class="hidden items-center gap-2 w-full px-3 py-2.5 my-1 bg-orange-500/20 border border-orange-500/40 text-orange-300 rounded-xl text-xs font-black hover:bg-orange-500/30 transition-all">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                    <span>통제실 복귀</span>
+                    <span>AI 통제실로 이동</span>
                 </a>
 
                 <!-- 스토어 링크 -->
@@ -128,6 +132,11 @@
         <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
             <header class="bg-white border-b px-8 py-4 flex justify-between items-center shrink-0">
                 <div class="flex items-center gap-4">
+                    <!-- 모바일용 햄버거 메뉴 버튼 -->
+                    <button class="block md:hidden text-slate-600 hover:text-slate-900 focus:outline-none mr-2" 
+                            onclick="document.getElementById('sidebar-aside').classList.toggle('active'); document.getElementById('sidebar-backdrop').classList.toggle('hidden')">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
                     <div class="w-1.5 h-6 bg-sky-600 rounded-full"></div>
                     <h1 class="text-xl font-black text-slate-800 tracking-tight" id="main-title">제작 사양 관리</h1>
                 </div>
@@ -2564,4 +2573,25 @@
         }
     })();
 </script>
+<script>
+    // B2B ERP 모바일 사이드바 클릭 시 자동 닫기 처리
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const aside = document.getElementById('sidebar-aside');
+                if (aside) aside.classList.remove('active');
+                const backdrop = document.getElementById('sidebar-backdrop');
+                if (backdrop) backdrop.classList.add('hidden');
+            });
+        });
+    });
+</script>
+
+<!-- ============================================================
+     17번 고객응대_상담이 챗봇 뷰어 — 완전 격리 독립 모듈
+     기존 ERP 엔진(script.js)을 일절 수정하지 않습니다.
+     ============================================================ -->
+<div id="cs-chatbot-root"></div>
+<script src="erp-chat.js"></script>
+
 </html>
