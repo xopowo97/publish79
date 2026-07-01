@@ -821,6 +821,46 @@ body {
     color: var(--ctrl-text-mute);
 }
 
+/* ============================================================
+   B2B Sales & Marketing Widgets Style
+   ============================================================ */
+.ctrl-slide-panel {
+    box-shadow: -10px 0 35px rgba(3, 7, 18, 0.6);
+}
+
+.ctrl-sales-timeline {
+    max-height: calc(100vh - 350px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.ctrl-sales-timeline::-webkit-scrollbar {
+    width: 4px;
+}
+
+.ctrl-sales-timeline::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.ctrl-m-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.ctrl-m-card:hover {
+    border-color: rgba(14, 165, 233, 0.2) !important;
+    background: rgba(14, 165, 233, 0.04) !important;
+}
+
+.ctrl-m-badge {
+    transition: all 0.3s ease-in-out;
+}
+
+.ctrl-rank-sub {
+    border-left: 4px solid var(--ctrl-border-md);
+    background: rgba(255, 255, 255, 0.01);
+}
+
 /* ───────────────────────────────────────────
    11. 실시간 로그 스트림
 ─────────────────────────────────────────── */

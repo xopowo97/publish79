@@ -124,6 +124,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true); // useCapture=true で最優先
 
+    const closeSlideBtn = document.getElementById('ctrl-slide-close-btn');
+    if (closeSlideBtn) {
+        closeSlideBtn.addEventListener('click', () => {
+            if (typeof ctrlCloseSalesMarketingPanel === 'function') {
+                ctrlCloseSalesMarketingPanel();
+            }
+        });
+    }
+
     loadCtrlDashboard();
     updateSalesTimeline();
     updateMarketingChannels(false);
@@ -497,6 +506,25 @@ function updateMarketingChannels(isCompleted = false) {
         }
     });
 }
+
+// B2B AI Sales & Marketing Panel Controls
+window.ctrlOpenSalesMarketingPanel = function (agentId) {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '0';
+        updateSalesTimeline();
+        const statusEl = document.getElementById('ctrl-pipeline-status');
+        const isCompleted = statusEl && statusEl.textContent.includes('완료');
+        updateMarketingChannels(isCompleted);
+    }
+};
+
+window.ctrlCloseSalesMarketingPanel = function () {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '-500px';
+    }
+};
 
 
 // ───────────────────────────────────────────
