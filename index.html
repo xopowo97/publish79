@@ -232,6 +232,89 @@
     <!-- Content Sections -->
     <main class="max-w-7xl mx-auto px-6 py-24 space-y-32">
 
+        <!-- [신규] 실시간 복간 펀딩 라이브 현황판 및 ESG 캠페인 보드 -->
+        <section class="bg-slate-900 rounded-[32px] p-8 md:p-12 text-white border border-slate-800 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 blur-[100px] rounded-full"></div>
+            <div class="absolute bottom-0 left-0 w-80 h-80 bg-sky-500/10 blur-[100px] rounded-full"></div>
+            
+            <div class="relative z-10 space-y-8">
+                <!-- 현황판 헤더 -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-black tracking-widest uppercase">
+                            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                            Live Dashboard
+                        </span>
+                        <h2 class="text-2xl md:text-3xl font-black font-outfit mt-2 tracking-tight">실시간 복간 라이브 현황판</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 max-w-xs leading-relaxed md:text-right">
+                        독자님들과 출판친구가 함께 절판된 명작을 구출하고 지구의 숲을 되살리는 실시간 통계 지표입니다.
+                    </p>
+                </div>
+                
+                <!-- 4열 카운터 그리드 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <!-- 카드 1: 구출된 도서 -->
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-sky-500/30 transition-all">
+                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">📚 구출된 종이책</div>
+                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
+                            <span id="stat-books-count" class="font-outfit">12</span><span class="text-sm font-bold text-slate-400">종</span> 
+                            <span id="stat-copies-count" class="font-outfit ml-1 text-sky-400">5,420</span><span class="text-xs font-bold text-sky-500">부</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 복간 성공 실적</p>
+                    </div>
+                    <!-- 카드 2: 활성 서포터 -->
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-emerald-500/30 transition-all">
+                        <div class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">👥 실시간 활성 서포터</div>
+                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
+                            <span id="stat-supporters-count" class="font-outfit">342</span><span class="text-sm font-bold text-slate-400">명</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">복간 펀딩 동참 고유 서포터</p>
+                    </div>
+                    <!-- 카드 3: 소나무 상쇄 -->
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-amber-500/30 transition-all">
+                        <div class="text-[10px] font-black text-amber-400 uppercase tracking-widest">🌱 소나무 상쇄 효과</div>
+                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
+                            <span id="stat-pine-count" class="font-outfit">899.7</span><span class="text-sm font-bold text-slate-400">그루</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">탄소 배출 5.9톤 감축 효과</p>
+                    </div>
+                    <!-- 카드 4: 묘목 기부 -->
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-rose-500/30 transition-all">
+                        <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">🔥 기부된 진짜 묘목</div>
+                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
+                            <span id="stat-donation-count" class="font-outfit">361</span><span class="text-sm font-bold text-slate-400">그루</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">강원도 산불 피해지 복원 묘목</p>
+                    </div>
+                </div>
+
+                <!-- 강원도 숲 조성 캠페인 현황 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md flex flex-col md:flex-row items-center gap-6 justify-between">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-emerald-500/20 p-3 rounded-2xl text-emerald-400 animate-pulse">
+                            <i data-lucide="trees" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-black text-white text-base">🌱 강원도 산불 피해지역 숲 조성 캠페인</h4>
+                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                                출판친구는 독자님들이 책 15권을 펀딩할 때마다 강원도 삼척 산불 피해 지역에 진짜 묘목 1그루를 기부하고 직접 심습니다. (권당 200원 적립)
+                            </p>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-80 space-y-2 shrink-0">
+                        <div class="flex justify-between text-xs font-black text-emerald-400">
+                            <span id="stat-campaign-percent">90.2% 달성</span>
+                            <span id="stat-campaign-status">361그루 / 목표 400그루</span>
+                        </div>
+                        <div class="w-full bg-white/10 h-3 rounded-full overflow-hidden border border-white/5">
+                            <div id="stat-campaign-bar" class="bg-gradient-to-r from-emerald-500 to-sky-400 h-full rounded-full transition-all duration-1000" style="width: 90.2%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Section: Newly Restored -->
         <section>
             <div class="flex justify-between items-end mb-12">

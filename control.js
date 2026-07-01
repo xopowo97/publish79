@@ -45,9 +45,11 @@ let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
 let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "주경철", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
-    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
-    { id: 3, title: "생각의 탄생", author: "루트번스타인", pub_year: 2020, library_loans: 7120, reprint_score: 91, is_out_of_print: true }
+    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
+    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", publisher: "중앙일보사", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
+    { id: 3, title: "생각의 탄생", author: "루트번스타인", publisher: "에이전트 학술", pub_year: 2020, library_loans: 9120, reprint_score: 91, is_out_of_print: true },
+    { id: 4, title: "침묵의 봄", author: "레이첼 카슨", publisher: "메디치미디어", pub_year: 2018, library_loans: 5890, reprint_score: 87, is_out_of_print: true },
+    { id: 5, title: "국가란 무엇인가", author: "유시민", publisher: "청어출판사", pub_year: 2017, library_loans: 4720, reprint_score: 82, is_out_of_print: true }
 ];
 let _ctrl_flashActive = false;
 let _ctrl_flashTimerId = null;
@@ -123,6 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true); // useCapture=true で最優先
 
     loadCtrlDashboard();
+    updateSalesTimeline();
+    updateMarketingChannels(false);
     startCtrlLogStream();
     startCtrlTicketListener();
     try {
@@ -422,6 +426,78 @@ function triggerProposalAlert(data) {
         setTimeout(() => toast.remove(), 500);
     }, 6000);
 }
+
+// B2B Sales Timeline Helper
+function updateSalesTimeline() {
+    const container = document.getElementById('ctrl-sales-timeline');
+    if (!container) return;
+
+    const timelineData = [
+        { pub: '상상아카데미', book: '마녀', status: 'success', msg: '대표 복간 제안 승인 완료 -> B2C 예약 펀딩 49부 개설 연동' },
+        { pub: '메디치미디어', book: '침묵의 봄', status: 'processing', msg: 'AI 자율 제안 송출 완료 -> 출판사 2차 BEP 원가 보고서 검토 중' },
+        { pub: '청어출판사', book: '국가란 무엇인가', status: 'running', msg: '수요 점수(82점) 임계치 도달 -> B2B 제안서 기안서 자동 작성 중' }
+    ];
+
+    container.innerHTML = timelineData.map(item => {
+        let dotClass = 'ctrl-dot-slate';
+        let statusText = '대기';
+        let bgStyle = 'background: rgba(255,255,255,0.02);';
+
+        if (item.status === 'success') {
+            dotClass = 'ctrl-dot-green';
+            statusText = '계약성공';
+            bgStyle = 'background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15);';
+        } else if (item.status === 'processing') {
+            dotClass = 'ctrl-dot-amber';
+            statusText = '협의중';
+            bgStyle = 'background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.15);';
+        } else if (item.status === 'running') {
+            dotClass = 'ctrl-dot-purple animate-pulse';
+            statusText = '제안준비';
+            bgStyle = 'background: rgba(168, 85, 247, 0.04); border: 1px solid rgba(168, 85, 247, 0.15);';
+        }
+
+        return `
+        <div style="display:flex; flex-direction:column; gap:4px; padding:10px 12px; border-radius:10px; ${bgStyle} font-size:11px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:800; color:#f1f5f9; display:flex; align-items:center; gap:6px;">
+                    <span class="ctrl-dot ${dotClass}" style="width:6px; height:6px;"></span>
+                    ${item.pub}
+                </span>
+                <span style="font-weight:800; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:auto; ${
+                    item.status === 'success' ? 'background:rgba(16,185,129,0.1); color:#10b981;' :
+                    item.status === 'processing' ? 'background:rgba(245,158,11,0.1); color:#f59e0b;' :
+                    'background:rgba(168,85,247,0.1); color:#a855f7;'
+                }">${statusText}</span>
+            </div>
+            <div style="color:var(--ctrl-text-main); font-weight:700; margin-top:2px;">대상 도서: "${item.book}"</div>
+            <div style="color:var(--ctrl-text-mute); font-size:10px; margin-top:1px; line-height:1.4;">${item.msg}</div>
+        </div>
+        `;
+    }).join('');
+}
+
+// B2C Multi-channel Marketing Helper
+function updateMarketingChannels(isCompleted = false) {
+    const channels = ['youtube', 'instagram', 'kakao', 'portal'];
+    channels.forEach(ch => {
+        const el = document.getElementById(`m-status-${ch}`);
+        if (!el) return;
+
+        if (isCompleted) {
+            el.textContent = '배포완료';
+            el.style.background = 'rgba(16, 185, 129, 0.15)';
+            el.style.color = '#10b981';
+            el.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.3)';
+        } else {
+            el.textContent = '배포대기';
+            el.style.background = 'rgba(255, 255, 255, 0.05)';
+            el.style.color = 'var(--ctrl-text-mute)';
+            el.style.boxShadow = 'none';
+        }
+    });
+}
+
 
 // ───────────────────────────────────────────
 // 3. 실시간 시계
@@ -1192,6 +1268,7 @@ async function triggerCtrlPipeline(isRetry = false) {
             }
 
             // 정상 완료
+            updateMarketingChannels(true);
             if (statusEl) {
                 statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${insertedCount}건 DB 적재`;
                 statusEl.style.color = 'var(--ctrl-green)';

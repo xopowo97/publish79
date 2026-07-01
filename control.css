@@ -928,8 +928,33 @@ body {
     flex-shrink: 0;
 }
 
-/* ───────────────────────────────────────────
-   13. 시뮬레이션 모달 (동적 생성용)
+/* ============================================================
+   B2B Sales & Marketing Widgets Style
+   ============================================================ */
+.ctrl-sales-timeline {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ctrl-m-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.ctrl-m-card:hover {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.ctrl-m-badge {
+    transition: all 0.3s ease-in-out;
+}
+
+.ctrl-rank-sub {
+    border-left: 4px solid var(--ctrl-border-md);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+/* 13. 시뮬레이션 모달 (동적 생성용)
 ─────────────────────────────────────────── */
 .ctrl-sim-overlay {
     position: fixed;
@@ -2113,13 +2138,22 @@ div[class*="text-[10px]"],
    모바일 반응형 — 조직도 패널 (768px 이하)
    ============================================= */
 @media (max-width: 768px) {
+    html, body {
+        height: auto !important;
+        overflow: auto !important;
+    }
+    .ctrl-main {
+        height: auto !important;
+        overflow: visible !important;
+    }
     .ctrl-grid {
         grid-template-columns: 1fr;
-        overflow-y: auto;
+        overflow-y: visible !important;
     }
     .ctrl-panel {
         height: auto;
         min-height: 200px;
+        overflow-y: visible !important;
     }
     .org-accordion-section .org-accordion-body {
         max-height: 0 !important;
@@ -2128,3 +2162,61 @@ div[class*="text-[10px]"],
         max-height: 800px !important;
     }
 }
+
+/* =============================================
+   11번 마케팅_알리미: 숏폼 및 카드뉴스 데코 애니메이션
+   ============================================= */
+@keyframes zoomEffect {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+.shortform-bg-zooming {
+    animation: zoomEffect 12s infinite ease-in-out;
+}
+
+/* 춤추는 오디오 이퀄라이저 애니메이션 */
+.eq-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+    padding-bottom: 2px;
+}
+
+.eq-bar {
+    width: 2px;
+    height: 3px;
+    background-color: #a855f7;
+    border-radius: 999px;
+    transition: height 0.15s ease;
+}
+
+.eq-bar.active {
+    animation: equalizing 0.8s infinite ease-in-out alternate;
+}
+
+.eq-bar:nth-child(2) { animation-delay: 0.15s; }
+.eq-bar:nth-child(3) { animation-delay: 0.3s; }
+.eq-bar:nth-child(4) { animation-delay: 0.05s; }
+.eq-bar:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes equalizing {
+    0% { height: 3px; }
+    100% { height: 14px; }
+}
+
+/* 카드뉴스 글래스모피즘 및 그라데이션 */
+.news-card-glow {
+    position: relative;
+    overflow: hidden;
+}
+.news-card-glow::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 60%);
+    pointer-events: none;
+}
+
