@@ -873,7 +873,7 @@ function renderCtrlAgentOrgTree(dbAgents) {
             const isPurple = agent.id === 16;
 
             html += `
-            <div class="ctrl-agent-row ${rowClass}">
+            <div class="ctrl-agent-row ${rowClass}" ${(Number(agent.id) === 10 || Number(agent.id) === 11) ? 'onclick="ctrlOpenSalesMarketingPanel(' + agent.id + ')" style="cursor:pointer;"' : ''}>
                 <span class="ctrl-dot ${dotClass}"></span>
                 <span class="ctrl-agent-name">${agent.id}번 ${agent.name}</span>
                 <span class="ctrl-agent-task">(${taskText})</span>
