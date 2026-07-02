@@ -2816,10 +2816,13 @@ async function reportSystemError(errorData) {
             timestamp: new Date().toISOString()
         };
 
-        const res = await fetch(ctrlApiUrl('/api/send-error'), {
+        const res = await fetch(ctrlApiUrl('/api/heal'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                action: 'trigger_error',
+                ...payload
+            })
         });
 
         if (res.ok) {
@@ -2929,10 +2932,13 @@ async function triggerSelfHealingPipeline(payload) {
     }
 
     try {
-        const res = await fetch(ctrlApiUrl('/api/self-heal'), {
+        const res = await fetch(ctrlApiUrl('/api/heal'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                action: 'heal',
+                ...payload
+            })
         });
 
         const codeBlock = document.getElementById('self-heal-code-block');

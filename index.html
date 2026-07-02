@@ -1240,15 +1240,16 @@
             submitBtn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> 딥서치 분석중...`;
 
             try {
-                // Call real REST backend API (Vercel serverless function /api/store-propose)
+                // Call real REST backend API (Vercel serverless function /api/store)
                 const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store-propose'
-                    : '/api/store-propose';
+                    ? 'https://publish79.vercel.app/api/store'
+                    : '/api/store';
 
                 const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        action: 'propose',
                         user_id: b2cUser.email,
                         title,
                         author,
@@ -1364,15 +1365,16 @@
             }
 
             try {
-                // Call real REST backend API (Vercel serverless function /api/store-vote)
+                // Call real REST backend API (Vercel serverless function /api/store)
                 const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store-vote'
-                    : '/api/store-vote';
+                    ? 'https://publish79.vercel.app/api/store'
+                    : '/api/store';
 
                 const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        action: 'vote',
                         user_id: b2cUser.email,
                         candidate_id: candidateId,
                         action_type: 'vote'
@@ -1484,15 +1486,16 @@
             closeBillingModal();
 
             try {
-                // Call real REST backend API (Vercel serverless function /api/store-vote)
+                // Call real REST backend API (Vercel serverless function /api/store)
                 const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store-vote'
-                    : '/api/store-vote';
+                    ? 'https://publish79.vercel.app/api/store'
+                    : '/api/store';
 
                 const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        action: 'fund',
                         user_id: b2cUser.email,
                         candidate_id: targetBook.id,
                         action_type: 'fund',
