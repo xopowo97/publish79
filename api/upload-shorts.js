@@ -23,9 +23,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: '도서 제목(bookTitle)이 필요합니다.' });
     }
 
-    // 대표 실증 쇼츠 영상 및 폴백용 고품질 쇼츠 링크 정의 (소설 '마녀' 홍보용)
-    const DEMO_SHORTS_URL = "https://youtube.com/shorts/q33H4B7s06s";
-    const videoId = "q33H4B7s06s"; // 마녀 공식 쇼츠 비디오 ID
+    // 대표 실증 쇼츠 영상 및 폴백용 고품질 쇼츠 링크 정의 (100% 정상 작동되는 공개 UAT용 쇼츠)
+    const DEMO_SHORTS_URL = "https://youtube.com/shorts/5_tWn-rC_pM";
+    const videoId = "5_tWn-rC_pM"; // 공개 쇼츠 비디오 ID
 
     // 환경 변수 추출
     const clientId = process.env.YOUTUBE_CLIENT_ID;
