@@ -1,6 +1,8 @@
 // api/upload-shorts.js — [11번 마케팅_알리미] 실시간 유튜브 쇼츠 API 업로드 서버리스 백엔드
 // Vercel Serverless Function - Google OAuth API v3 연동 기반 실시간 쇼츠 배포 파이프라인
 
+import fetch from 'node-fetch';
+
 export default async function handler(req, res) {
     // CORS 헤더 설정
     res.setHeader('Access-Control-Allow-Credentials', 'true');
