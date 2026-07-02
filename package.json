@@ -1,3 +1,8 @@
 {
-  "type": "module"
+  "name": "publish79",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  }
 }
