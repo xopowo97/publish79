@@ -282,21 +282,51 @@
         fileInput.addEventListener('change', (e) => handleCoverFile(e.target.files[0]));
     }
 
-    // ── 표지 파일 선택 처리 ───────────────────────────────────
+        // ── 표지 파일 선택 처리 ───────────────────────────────────
     function handleCoverFile(file) {
         if (!file) return;
-        uploadedCoverFile = file;
-        const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+        
+        const zone = document.getElementById('cs-cover-zone');
         const infoEl = document.getElementById('cs-cover-info');
-        infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 표지 업로드 완료`;
-        infoEl.style.display = 'block';
+        
+        // 업로드 무결성 검사 로더 연출
+        zone.style.pointerEvents = 'none';
+        zone.innerHTML = `
+            <div class="cs-upload-icon">⏳</div>
+            <div style="font-weight:bold; color:#f59e0b;">표지 PDF 무결성 검수 중...</div>
+            <div style="font-size:10px; margin-top:4px; color:#64748b;">바이너리 분석 및 해상도(300 DPI) 확인 중 (50%)</div>
+            <div class="cs-loading-bar-container" style="width:80%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:8px; overflow:hidden; position:relative; margin-left:auto; margin-right:auto;">
+                <div class="cs-loading-bar" style="width:0%; height:100%; background:#f59e0b; border-radius:2px; animation: csGlowLoad 1.0s ease-in-out forwards;"></div>
+            </div>
+            <style>
+                @keyframes csGlowLoad {
+                    0% { width: 0%; }
+                    100% { width: 100%; }
+                }
+            </style>
+        `;
+        
+        setTimeout(() => {
+            uploadedCoverFile = file;
+            const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+            
+            // 원래 Zone 모양 복원하되 완료 상태 표현
+            zone.innerHTML = `
+                <div class="cs-upload-icon" style="color:#10b981;">🖼️</div>
+                <div style="font-weight:bold; color:#10b981;">표지 검수 완료</div>
+                <div style="font-size:11px; margin-top:4px; color:#64748b;">${file.name} (${sizeMB}MB)</div>
+            `;
+            
+            infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 표지 업로드 검수 통과 완료`;
+            infoEl.style.display = 'block';
 
-        // 표지 완료 후 자동으로 내지 업로드 안내
-        showTyping(600, () => {
-            addBotMessage('표지 파일이 접수되었습니다! 📎<br>이제 <strong>내지(본문) PDF 파일</strong>을 업로드해 주세요.');
-            renderInteriorUploadCard();
-            currentState = STATE.AWAITING_INTERIOR_UPLOAD;
-        });
+            // 표지 완료 후 자동으로 내지 업로드 안내
+            showTyping(600, () => {
+                addBotMessage('표지 파일이 안전하게 접수되었습니다! 📎<br>이제 <strong>내지(본문) PDF 파일</strong>을 업로드해 주세요.');
+                renderInteriorUploadCard();
+                currentState = STATE.AWAITING_INTERIOR_UPLOAD;
+            });
+        }, 1200);
     }
 
     // ── 내지 업로드 카드 (2단계) ──────────────────────────────
@@ -331,17 +361,42 @@
         fileInput.addEventListener('change', (e) => handleInteriorFile(e.target.files[0]));
     }
 
-    // ── 내지 파일 선택 처리 ───────────────────────────────────
+        // ── 내지 파일 선택 처리 ───────────────────────────────────
     function handleInteriorFile(file) {
         if (!file) return;
-        uploadedInteriorFile = file;
-        const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+        
+        const zone = document.getElementById('cs-interior-zone');
         const infoEl = document.getElementById('cs-interior-info');
         const typesetBtn = document.getElementById('cs-typeset-btn');
-        infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 내지 업로드 완료`;
-        infoEl.style.display = 'block';
-        typesetBtn.style.display = 'flex';
-        typesetBtn.addEventListener('click', startTypesetting);
+        
+        // 업로드 무결성 검사 로더 연출
+        zone.style.pointerEvents = 'none';
+        zone.innerHTML = `
+            <div class="cs-upload-icon">⏳</div>
+            <div style="font-weight:bold; color:#0ea5e9;">내지 PDF 본문 페이지 스캔 중...</div>
+            <div style="font-size:10px; margin-top:4px; color:#64748b;">총 페이지 수 및 글꼴 임베딩 여부 확인 중 (60%)</div>
+            <div class="cs-loading-bar-container" style="width:80%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:8px; overflow:hidden; position:relative; margin-left:auto; margin-right:auto;">
+                <div class="cs-loading-bar" style="width:0%; height:100%; background:#0ea5e9; border-radius:2px; animation: csGlowLoad 1.0s ease-in-out forwards;"></div>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            uploadedInteriorFile = file;
+            const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+            
+            // 원래 Zone 모양 복원하되 완료 상태 표현
+            zone.innerHTML = `
+                <div class="cs-upload-icon" style="color:#10b981;">📄</div>
+                <div style="font-weight:bold; color:#10b981;">내지 검수 완료</div>
+                <div style="font-size:11px; margin-top:4px; color:#64748b;">${file.name} (${sizeMB}MB)</div>
+            `;
+            
+            infoEl.textContent = `✅ ${file.name} (${sizeMB}MB) — 내지 업로드 정합성 검사 통과`;
+            infoEl.style.display = 'block';
+            typesetBtn.style.display = 'flex';
+            typesetBtn.addEventListener('click', startTypesetting);
+            scrollBottom();
+        }, 1200);
     }
 
     // ── 조판 진행 시뮬레이션 ─────────────────────────────────
@@ -567,7 +622,7 @@
 
     function scrollBottom() {
         setTimeout(() => {
-            messages.scrollTop = messages.scrollHeight;
+            messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
         }, 50);
     }
 

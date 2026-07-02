@@ -2069,6 +2069,27 @@ async function ctrlApproveSpec(specIndex) {
                         ctrlUpdateLocalAgentStatus(6, 'success', '표지 디자인 완료');
                         ctrlUpdateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
                         logConsole(`[(총괄) 오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '(총괄) 오케스트레이터');
+
+                        // [추가 구현] 7번 그림이 & 11번 알리미 마케팅 빌드 시뮬레이션
+                        if (book.title.includes('마녀')) {
+                            ctrlUpdateLocalAgentStatus(7, 'running', '소설 마녀 삽화 이미지 창작 중');
+                            ctrlUpdateLocalAgentStatus(11, 'running', '마녀 숏폼 및 뉴스카드 인코딩 중');
+                            
+                            setTimeout(() => {
+                                logConsole(`[그림_그림이] 🎨 소설 '마녀' 삽화 프롬프트 "마녀의 고풍스러운 다락방" 기반 AI 이미지 생성 성공.`, 'success', 7, '그림_그림이');
+                                ctrlUpdateLocalAgentStatus(7, 'success', '마녀 삽화 이미지 생성 완료');
+                            }, 1200);
+
+                            setTimeout(() => {
+                                logConsole(`[마케팅_알리미] 🎬 '마녀' 카드뉴스 5장 및 9:16 vertical 숏폼 비디오 인코딩 시작...`, 'info', 11, '마케팅_알리미');
+                            }, 2200);
+
+                            setTimeout(() => {
+                                logConsole(`[마케팅_알리미] 🎬 '마녀' SNS 홍보 카드뉴스 5장 및 오디오 EQ 결합 숏폼 비디오 컴파일 완공.`, 'success', 11, '마케팅_알리미');
+                                ctrlUpdateLocalAgentStatus(11, 'success', '마녀 홍보 숏폼/카드뉴스 빌드 완료');
+                            }, 4500);
+                        }
+
                         loadCtrlDashboard();
 
                         // 최종 완료 푸터
@@ -3532,6 +3553,14 @@ function renderNewsCardTab(book) {
             "소장 가치를 극대화할 독자 성명 임베디드 실물 보증서 동봉.",
             "B2C 몰에서 펀딩 100% 달성 임박! 지금 한정판 소장 기회를 확보하세요."
         ];
+    } else if (title.includes('마녀')) {
+        copyTemplates = [
+            "1세대 판타지 미스터리의 전설, 소설 '마녀' 복간 개시!",
+            "독자들의 강력한 복간 요청으로 되살아난 숨겨진 판타지 명작.",
+            "책등 두께 21.8mm 및 고해상도 3분할 클리핑 마스크 벡터 조판 완비.",
+            "나만의 독자 성명이 각인되는 특별 가변 VDP 책갈피 보증서 포함.",
+            "지금 B2C 스토어 펀딩 성공 UAT를 확인하고 한정판을 소장하세요!"
+        ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         copyTemplates = [
             "사람의 마음을 움직이는 가장 위대한 고전, 인간관계론.",
@@ -3639,6 +3668,12 @@ function renderVideoTab(book) {
             "추리 소설의 영원한 전설, 셜록 홈즈가 마침내 돌아왔습니다!",
             "소장용 맞춤형 고해상도 디자인과 VDP 조판 기술 탑재!",
             "지금 B2C 몰에서 펀딩 100% 달성을 확인하고 예약을 진행하세요!"
+        ];
+    } else if (title.includes('마녀')) {
+        subtitles = [
+            "판타지 스릴러의 숨겨진 명작, 소설 '마녀' 전격 복간 결정!",
+            "책등 21.8mm 벡터 3분할 정밀 조판으로 인쇄소 완제품 연동.",
+            "B2C 스토어에서 펀딩 성공을 실시간 통제실에서 관제하세요!"
         ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         subtitles = [
@@ -4314,6 +4349,53 @@ function handleAdminFundingApproval(bookName) {
     if (logEl) {
         _appendCtrlLogEntry(logEl, 'success', '(총괄) 오케스트레이터', `대표 승인 격발 ➔ 도서 "${bookName}" B2C 스토어 펀딩 정식 개설 및 마케팅 숏폼 라이브 성공`, new Date(), true);
     }
+
+    // [추가 구현] 유튜브 API 실시간 쇼츠 업로드 격발 및 통제실 UI 실시간 갱신 연동
+    const ytBadge = document.getElementById('m-status-youtube');
+    if (ytBadge) {
+        ytBadge.innerHTML = `🔄 배포 중...`;
+        ytBadge.style.background = 'rgba(249, 115, 22, 0.15)';
+        ytBadge.style.color = '#f97316';
+        ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+    }
+
+    fetch(ctrlApiUrl('/api/upload-shorts'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookTitle: bookName })
+    })
+    .then(res => res.json())
+    .then(resData => {
+        if (resData.success) {
+            if (ytBadge) {
+                // 실시간 라이브 링크 렌더링 (새 창 이동 가능한 A 태그 결합)
+                ytBadge.innerHTML = `<a href="${resData.url}" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                ytBadge.style.color = '#ef4444';
+                ytBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                ytBadge.style.cursor = 'pointer';
+            }
+            if (logEl) {
+                _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 ${resData.message} (링크: ${resData.url})`, new Date(), true);
+            }
+            
+            // 🎬 AI 숏폼 탭 자막 뷰어에도 유튜브 배포 상태 업데이트 적용
+            const subtitleText = document.getElementById('shortform-subtitle-text');
+            if (subtitleText && bookName.includes('마녀')) {
+                subtitleText.innerHTML = `🔴 유튜브 쇼츠 배포 완료! [라이브 보기] 클릭`;
+            }
+        } else {
+            throw new Error(resData.error || '업로드 오류');
+        }
+    })
+    .catch(err => {
+        console.error('[유튜브 배포 API 에러]', err);
+        if (ytBadge) {
+            ytBadge.innerHTML = `⚠️ 배포 실패`;
+            ytBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+            ytBadge.style.color = '#ef4444';
+        }
+    });
 
     // 마녀 도서 목업 데이터를 통제실 selectedBook에 강제 세팅하여 탭 활성화 지원
     const maryeoMockBook = {
