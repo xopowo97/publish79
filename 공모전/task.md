@@ -46,3 +46,11 @@
 - [x] `control.js` 내 가조판/펀딩 단계에서 7번 그림이(삽화 창작) & 11번 알리미(쇼츠 제작) AI 로그 출력 및 LED 상태 점멸 트리거 구현
 - [x] 백엔드 유튜브 업로드 API (`api/upload-shorts.js`) 연동 완성 및 Quota/에러 방어용 Mocking 폴백 장치 이식
 
+## 4차 추가 구현 고도화 (Vercel API Limits Bypass / API 병합 리팩토링)
+- [x] `api/store.js` 신설 및 `store-propose.js`, `store-vote.js` 통합 병합
+- [x] `api/heal.js` 신설 및 `send-error.js`, `self-heal.js` 통합 병합
+- [x] `api/store-propose.js`, `api/store-vote.js`, `api/send-error.js`, `api/self-heal.js` 물리적 삭제
+- [x] `index.html` 의 제안/투표/펀딩 fetch 엔드포인트 `/api/store` 로 수정 및 body action 분기 탑재
+- [x] `control.js` 의 에러유입/자가치유 fetch 엔드포인트 `/api/heal` 로 수정 및 body action 분기 탑재
+
+

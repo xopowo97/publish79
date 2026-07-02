@@ -41,25 +41,40 @@
 
 ## Proposed Changes
 
+### [Vercel API Limits Bypass: API Route Merger]
+
+#### [NEW] [store.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/store.js)
+*   `api/store-propose.js` 와 `api/store-vote.js` 를 하나로 병합한 백엔드 API.
+*   POST body의 `action` 필드값(`propose` / `vote` / `fund`)에 따라 분기하여 도서 제안(국립중앙도서관 딥서치 살피미 에이전트 연동) 및 투표/펀딩 트랜잭션을 무결하게 수행.
+
+#### [NEW] [heal.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/heal.js)
+*   `api/send-error.js` 와 `api/self-heal.js` 를 하나로 병합한 백엔드 API.
+*   POST body의 `action` 필드값(`trigger_error` / `heal`)에 따라 분기하여 시스템 강제 에러 유입(디스코드 웹훅 알림 발송 포함) 및 닥터 에이전트 자가치유 복구를 무결하게 수행.
+
+#### [DELETE] [store-propose.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/store-propose.js)
+*   중복 서버리스 함수 개수 감소를 위한 물리적 영구 삭제.
+
+#### [DELETE] [store-vote.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/store-vote.js)
+*   중복 서버리스 함수 개수 감소를 위한 물리적 영구 삭제.
+
+#### [DELETE] [send-error.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/send-error.js)
+*   중복 서버리스 함수 개수 감소를 위한 물리적 영구 삭제.
+
+#### [DELETE] [self-heal.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/api/self-heal.js)
+*   중복 서버리스 함수 개수 감소를 위한 물리적 영구 삭제.
+
+#### [MODIFY] [control.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/control.js)
+*   기존 `/api/send-error` 호출 주소를 `/api/heal` 로 변경하고 payload에 `{ action: 'trigger_error' }` 를 실어 전송하도록 수정.
+*   기존 `/api/self-heal` 호출 주소를 `/api/heal` 로 변경하고 payload에 `{ action: 'heal' }` 을 실어 전송하도록 수정.
+
+#### [MODIFY] [index.html](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/index.html)
+*   도서 제안(`/api/store-propose`) 호출 주소를 `/api/store` 로 변경하고 payload에 `{ action: 'propose' }` 를 실어 전송하도록 수정.
+*   도서 투표 및 펀딩(`/api/store-vote`) 호출 주소를 `/api/store` 로 변경하고 payload에 각각 `{ action: 'vote' }`, `{ action: 'fund' }` 를 실어 전송하도록 수정.
+
 ### [Store Frontend & Database Expansion]
 
 #### [MODIFY] [control.html](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/control.html)
 *   11번 알리미 마케팅 슬라이드 드로어에 실증 도서 '마녀' 전용의 고화질 카드뉴스 캐러셀 이미지 태그 및 유튜브/숏폼 비디오 오디오 플레이어 UI 연동 마크업 보강.
-
-#### [MODIFY] [control.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/control.js)
-*   가조판 및 펀딩 개설 단계 UAT 감지 시, 7번 그림이(삽화 창작) 및 11번 알리미(쇼츠 제작) 에이전트의 작동 상태 LED를 점멸(주황색/초록색)하고, 통제실 하단 CS 로그 창에 실시간 소설 요약/삽화 프롬프트 생성 로그 출력 시뮬레이터 장착.
-*   마녀 전용 마케팅 에셋 로딩 분기 조건 구현.
-
-#### [MODIFY] [index.html](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/index.html)
-*   상단 네비게이션 로그인 버튼 리팩토링: `[일반회원 로그인 / 가입]` 및 `[기업회원(ERP) 로그인]` 분리.
-*   메인 히어로 영역의 검색바 + 12개 카테고리 태그 결합 UI 개편.
-*   검색 도서의 펀딩 진행 여부에 따른 3단계 동적 인터랙티브 카드 레이아웃 구현.
-*   일반회원용 가상 적립 마일리지 조회 및 '나의 복간 도서관' 조회 모달 팝업 추가.
-
-#### [MODIFY] [script.js](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/script.js)
-*   일반회원의 마일리지 적립 로직 및 투표수 증감 로직 구현.
-*   `pdf-lib`와 나눔명조 폰트 바이너리를 활용하여 '책갈피형 복간 증서 PDF'를 1초 만에 자동 생성하는 `generateSupporterCertificate()` 함수 신설.
-*   신규 제안 시 백엔드 살피미 연동 트리거 API 호출 추가.
 
 #### [NEW] [supabase_chat_setup.sql](file:///c:/Users/seo%20sang%20won/001.작업파일/004. 출판친구/018. 안티그래비티/scratch/supabase_chat_setup.sql)
 *   `reprint_candidates` 테이블 확장용 스크립트 작성 및 일반회원 마일리지/서포터 이력 테이블 정의 DDL 작성 (HMAC 디지털 서명 컬럼 추가).
@@ -77,6 +92,9 @@
    * 펀딩 성공 도서 영역에서 가변 증서 발행 시뮬레이션 클릭 ➔ 브라우저에서 후원자 이름이 임베딩된 고해상도 PDF 증서가 깨짐 없이 1초 이내에 자동 조판 및 다운로드되는지 검증.
 4. **실증도서 '마녀' 마케팅 에셋 빌드 및 유튜브 API 배포 검증:**
    * ERP 원고 업로드 ➔ 통제실 7번 그림이 & 11번 알리미 LED 작동 및 실시간 AI 이미지 생성 로그 가동 검증 ➔ 관제 드로어 내 마녀 카드뉴스 5장 슬라이드 및 숏폼 비디오 연동 확인 ➔ 최종 배포 버튼 클릭 시 백엔드 API 연동 성공 검증.
+5. **Vercel API Limits Bypass (API 통합) 기능 및 자가치유/투표 UAT 교차 검증:**
+   * B2C 스토어 도서 제안/투표/펀딩 시 `/api/store` 단일 엔드포인트로 각각의 요청이 구분값(`action`)에 맞추어 정상 작동하는지 UAT 검사.
+   * 통제실 자가치유 시연 시 `/api/heal` 로 에러 유입(`trigger_error`) 및 닥터 치유(`heal`)가 실시간 동작하며 디스코드 긴급 알림 및 승인 팝업이 무결하게 뜨는지 UAT 검사.
 
 ---
 
