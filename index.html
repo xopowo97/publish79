@@ -283,9 +283,9 @@
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-rose-500/30 transition-all">
                         <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">🔥 기부된 진짜 묘목</div>
                         <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-donation-count" class="font-outfit">3,613</span><span class="text-sm font-bold text-slate-400">그루</span>
+                            <span id="stat-donation-count" class="font-outfit">361</span><span class="text-sm font-bold text-slate-400">그루</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">강원도 산불 피해지 복원 묘목</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">강원도 산림청 기부 묘목</p>
                     </div>
                 </div>
 
@@ -298,7 +298,7 @@
                         <div>
                             <h4 class="font-black text-white text-base">🌱 강원도 산불 피해지역 숲 조성 캠페인</h4>
                             <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                                출판친구는 독자님들이 책 15권을 펀딩할 때마다 강원도 삼척 산불 피해 지역에 진짜 묘목 1그루를 기부하고 직접 심습니다.<br>
+                                출판친구는 독자님들이 책 15권을 펀딩할 때마다 강원도 산불 피해 지역에 진짜 묘목 1그루를 기부하고 직접 심습니다.<br>
                                 (권당 200원 출판친구에서 기부. 매월 4월 5일 식목일에 모아진 금액으로 강원도 산림청에 기부합니다.)
                             </p>
                         </div>
@@ -306,7 +306,7 @@
                     <div class="w-full md:w-80 space-y-2 shrink-0">
                         <div class="flex justify-between text-xs font-black text-emerald-400">
                             <span id="stat-campaign-percent">90.3% 달성</span>
-                            <span id="stat-campaign-status">3,613그루 / 목표 4,000그루</span>
+                            <span id="stat-campaign-status">361그루 / 목표 400그루</span>
                         </div>
                         <div class="w-full bg-white/10 h-3 rounded-full overflow-hidden border border-white/5">
                             <div id="stat-campaign-bar" class="bg-gradient-to-r from-emerald-500 to-sky-400 h-full rounded-full transition-all duration-1000" style="width: 90.3%;"></div>
@@ -1871,13 +1871,12 @@
         function updateStoreLiveDashboard() {
             const baseCopies = 5420;
             const baseSupporters = 342;
-            const baseDonations = 3613;
             
             let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
             
             const currentCopies = baseCopies + addFund;
             const currentSupporters = baseSupporters + (addFund > 0 ? 1 : 0);
-            const currentDonations = baseDonations + Math.floor(addFund / 15);
+            const currentDonations = Math.floor(currentCopies / 15);
             
             const copiesEl = document.getElementById('stat-copies-count');
             const supportersEl = document.getElementById('stat-supporters-count');
@@ -1897,7 +1896,7 @@
             const statusEl = document.getElementById('stat-campaign-status');
             const barEl = document.getElementById('stat-campaign-bar');
             
-            const targetDonations = 4000;
+            const targetDonations = 400;
             const percent = Math.min(100, parseFloat(((currentDonations / targetDonations) * 100).toFixed(1)));
             
             if (percentEl) percentEl.textContent = `${percent}% 달성`;

@@ -972,7 +972,7 @@ body {
    B2B Sales & Marketing Widgets Style
    ============================================================ */
 .ctrl-sales-timeline {
-    max-height: 200px;
+    max-height: 480px;
     overflow-y: auto;
 }
 

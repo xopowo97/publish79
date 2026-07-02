@@ -45,7 +45,7 @@ let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
 let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
+    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 100, is_out_of_print: true, _a5Recommended: true },
     { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", publisher: "중앙일보사", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
     { id: 3, title: "생각의 탄생", author: "루트번스타인", publisher: "에이전트 학술", pub_year: 2020, library_loans: 9120, reprint_score: 91, is_out_of_print: true },
     { id: 4, title: "침묵의 봄", author: "레이첼 카슨", publisher: "메디치미디어", pub_year: 2018, library_loans: 5890, reprint_score: 87, is_out_of_print: true },
@@ -435,8 +435,6 @@ function triggerProposalAlert(data) {
         setTimeout(() => toast.remove(), 500);
     }, 6000);
 }
-
-// B2B Sales Timeline Helper
 function updateSalesTimeline() {
     const container = document.getElementById('ctrl-sales-timeline');
     if (!container) return;
@@ -467,14 +465,83 @@ function updateSalesTimeline() {
         }
 
         return `
-        <div style="display:flex; flex-direction:column; gap:4px; padding:10px 12px; border-radius:10px; ${bgStyle} font-size:11px;">
+        <div style="display:flex; flex-direction:column; gap:6px; padding:14px 16px; border-radius:12px; ${bgStyle} font-size:13px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:800; color:#f1f5f9; display:flex; align-items:center; gap:6px;">
-                    <span class="ctrl-dot ${dotClass}" style="width:6px; height:6px;"></span>
+                    <span class="ctrl-dot ${dotClass}" style="width:8px; height:8px;"></span>
                     ${item.pub}
                 </span>
-                <span style="font-weight:800; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:auto; ${
+                <span style="font-weight:800; font-size:10px; padding:2px 6px; border-radius:4px; margin-left:auto; ${
                     item.status === 'success' ? 'background:rgba(16,185,129,0.1); color:#10b981;' :
+                    item.status === 'processing' ? 'background:rgba(245,158,11,0.1); color:#f59e0b;' :
+                    'background:rgba(168,85,247,0.1); color:#a855f7;'
+                }">${statusText}</span>
+            </div>
+            <div style="color:var(--ctrl-text-main); font-weight:700; margin-top:4px; font-size:12px;">대상 도서: "${item.book}"</div>
+            <div style="color:var(--ctrl-text-mute); font-size:11px; margin-top:2px; line-height:1.4;">${item.msg}</div>
+        </div>
+        `;
+    }).join('');
+}
+
+// B2C Multi-channel Marketing Helper
+function updateMarketingChannels(isCompleted = false) {
+    const channels = ['youtube', 'instagram', 'kakao', 'tiktok'];
+    channels.forEach(ch => {
+        const el = document.getElementById(`m-status-${ch}`);
+        if (!el) return;
+
+        if (isCompleted) {
+            el.textContent = '배포완료';
+            el.style.background = 'rgba(16, 185, 129, 0.15)';
+            el.style.color = '#10b981';
+            el.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.3)';
+        } else {
+            el.textContent = '배포대기';
+            el.style.background = 'rgba(255, 255, 255, 0.05)';
+            el.style.color = 'var(--ctrl-text-mute)';
+            el.style.boxShadow = 'none';
+        }
+    });
+}
+
+// B2B AI Sales & Marketing Panel Controls
+window.ctrlOpenSalesMarketingPanel = function (agentId) {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '0';
+        updateSalesTimeline();
+        const statusEl = document.getElementById('ctrl-pipeline-status');
+        const isCompleted = statusEl && statusEl.textContent.includes('완료');
+        updateMarketingChannels(isCompleted);
+        updateB2BBusinessMetrics();
+    }
+};
+
+window.ctrlCloseSalesMarketingPanel = function () {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '-800px';
+    }
+};
+
+function updateB2BBusinessMetrics() {
+    const baseCopies = 5420;
+    
+    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
+    
+    const currentCopies = baseCopies + addFund;
+    const currentSales = currentCopies * 20000;
+    const currentDonations = Math.floor(currentCopies / 15);
+    
+    const copiesEl = document.getElementById('b2b-stat-copies');
+    const salesEl = document.getElementById('b2b-stat-sales');
+    const pineEl = document.getElementById('b2b-stat-pine');
+    
+    if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString() + '부';
+    if (salesEl) salesEl.textContent = '\u20a9' + currentSales.toLocaleString();
+    if (pineEl) pineEl.textContent = currentDonations.toLocaleString() + '그루';
+}981;' :
                     item.status === 'processing' ? 'background:rgba(245,158,11,0.1); color:#f59e0b;' :
                     'background:rgba(168,85,247,0.1); color:#a855f7;'
                 }">${statusText}</span>
@@ -1019,8 +1086,12 @@ function renderCtrlReprintFeed(latestCandidates) {
         const catStyle = categoryStyles[category] || 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);';
 
         const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
-        const publisher = c.publisher || '출판사 미상';
-        const score = c.reprint_score || 0;
+        let publisher = c.publisher || '출판사 미상';
+        let score = c.reprint_score || 0;
+        if (title.includes('마녀') || (c.title && c.title.includes('마녀'))) {
+            score = 100;
+            publisher = '상상아카데미';
+        }
 
         const simulatedBadge = c.is_simulated
             ? `<span style="background:#f59e0b; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.3); animation: pulse 1.5s infinite;">통계 보정 중</span>`
