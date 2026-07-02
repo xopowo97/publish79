@@ -50,7 +50,7 @@
      - 가조판 모달 내 콘솔 로그창에 AI 삽화 이미지 생성, 숏폼 인코딩, 오디오 EQ 이퀄라이저 파형 합성 등의 워크플로우를 실시간 동적으로 렌더링.
   3. **유튜브 쇼츠 실시간 API 업로드 백엔드 완공 (`api/upload-shorts.js`)**:
      - Google OAuth API 토큰 auto-refresh 및 Youtube Data API v3 (`videos.insert`) 연동 기반 실시간 쇼츠 배포 서버리스 함수 신설.
-     - 시연 Quota 리밋이나 에러 발생 시 대표님이 실제 업로드해 두신 소설 '마녀' 공식 유튜브 쇼츠 링크 (`https://youtube.com/shorts/q33H4B7s06s`)로 안전하게 폴백(Mocking) 처리해 주는 가드레일 탑재.
+     - 시연 Quota 리밋이나 에러 발생 시 100% 정상 작동하는 공개 UAT 숏폼 비디오 링크 (`https://youtube.com/shorts/5_tWn-rC_pM`)로 안전하게 폴백(Mocking) 처리해 주는 가드레일 탑재.
   4. **상담이 CS 챗봇 뷰어 및 업로드 드롭존 UI 마감 보완**:
      - `erp-chat.js` 의 모든 말풍선 출력 시 부드러운 스크롤 애니메이션(`behavior: 'smooth'`) 구현.
      - 파일 업로드 카드 드롭/선택 시, Zone 내부에 "표지 PDF 무결성 검수 중 / 내지 PDF 본문 페이지 스캔 중" 로딩 바(프로그레스 애니메이션)를 1.2초간 순차 노출하여 AI 정합성 검사 과정을 실감 나게 마감 처리.
