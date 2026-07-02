@@ -516,15 +516,35 @@ window.ctrlOpenSalesMarketingPanel = function (agentId) {
         const statusEl = document.getElementById('ctrl-pipeline-status');
         const isCompleted = statusEl && statusEl.textContent.includes('완료');
         updateMarketingChannels(isCompleted);
+        updateB2BBusinessMetrics();
     }
 };
 
 window.ctrlCloseSalesMarketingPanel = function () {
     const panel = document.getElementById('ctrl-sales-marketing-panel');
     if (panel) {
-        panel.style.right = '-500px';
+        panel.style.right = '-800px';
     }
 };
+
+function updateB2BBusinessMetrics() {
+    const baseCopies = 5420;
+    const baseDonations = 3613;
+    
+    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
+    
+    const currentCopies = baseCopies + addFund;
+    const currentSales = currentCopies * 20000;
+    const currentDonations = baseDonations + Math.floor(addFund / 15);
+    
+    const copiesEl = document.getElementById('b2b-stat-copies');
+    const salesEl = document.getElementById('b2b-stat-sales');
+    const pineEl = document.getElementById('b2b-stat-pine');
+    
+    if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString() + '부';
+    if (salesEl) salesEl.textContent = '\u20a9' + currentSales.toLocaleString();
+    if (pineEl) pineEl.textContent = currentDonations.toLocaleString() + '그루';
+}
 
 
 // ───────────────────────────────────────────
@@ -707,7 +727,7 @@ async function loadCtrlDashboard() {
             }
 
             const [top3Res, latestRes] = await Promise.all([
-                topQuery.limit(3),
+                topQuery.limit(5),
                 latestQuery.limit(8)
             ]);
             if (!top3Res.error && top3Res.data) top3 = top3Res.data;
@@ -899,6 +919,15 @@ function renderCtrlReprintCandidates(candidates) {
     const container = document.getElementById('ctrl-top3-list');
     if (!container) return;
 
+    // 마녀 점수 100점 보정 예외처리 (대표님 피드백 반영)
+    if (candidates && candidates.length > 0) {
+        candidates.forEach(c => {
+            if (c.title && c.title.includes('\ub9c8\ub140')) {
+                c.reprint_score = 100;
+            }
+        });
+    }
+
     if (!candidates || candidates.length === 0) {
         container.innerHTML = `
         <div style="padding:24px; text-align:center; color:var(--ctrl-text-mute);">
@@ -909,7 +938,7 @@ function renderCtrlReprintCandidates(candidates) {
 
     const rankEmojis = ['🥇', '🥈', '🥉'];
 
-    container.innerHTML = candidates.slice(0, 3).map((c, i) => {
+    container.innerHTML = candidates.slice(0, 5).map((c, i) => {
         const rankClass = `ctrl-rank-${i + 1}`;
         const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const loans = c.library_loans ? c.library_loans.toLocaleString() : '0';
@@ -941,7 +970,7 @@ function renderCtrlReprintCandidates(candidates) {
 
         return `
         <div class="ctrl-book-card ${rankClass}" onclick="ctrlStartSimByIndex(${i})" style="cursor:pointer;">
-            <div class="ctrl-rank-badge">${rankEmojis[i]} ${i + 1}위</div>
+            <div class="ctrl-rank-badge">${rankEmojis[i] || '\u{1F3C5}'} ${i + 1}위</div>
             <div class="ctrl-book-info">
                 <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}${publicDomainBadge}</div>
                 <div class="ctrl-book-meta" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
