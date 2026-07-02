@@ -382,10 +382,13 @@
                     </div>
                     <div class="ctrl-log-entry ctrl-log-info">
                         <span class="ctrl-log-time">--:--:--</span>
-                        <span class="ctrl-log-agent">[에러감지_눈치왕]</span>
+                            <span class="ctrl-log-agent">[에러감지_눈치왕]</span>
                         <span>에러 없음 · 시스템 안정 상태</span>
                     </div>
                 </div>
+
+
+
 
                 <!-- 긴급 보고서 큐 섹션 (16번 지휘_판다 연동) -->
                 <div class="ctrl-panel-header" style="margin-top: 24px;">
@@ -489,6 +492,97 @@
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
             </button>
+        </div>
+    </div>
+
+    <!-- [신규] B2B AI 영업 및 마케팅 실시간 관제 센터 슬라이드 패널 -->
+    <div id="ctrl-sales-marketing-panel" class="ctrl-slide-panel" style="position:fixed; top:0; right:-800px; width:760px; height:100vh; background:#0d1117; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-10px 0 35px rgba(0,0,0,0.6); z-index:190; transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display:flex; flex-direction:column; overflow:hidden;">
+        <div class="ctrl-slide-header" style="padding:22px 28px; border-b:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center; background:#161b22;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i data-lucide="shield-alert" style="color:#0ea5e9; width:22px; height:22px;"></i>
+                <span style="font-size:15px; font-weight:900; color:#f1f5f9; letter-spacing:0.02em;">B2B AI 영업 및 마케팅 실시간 관제 센터</span>
+            </div>
+            <button id="ctrl-slide-close-btn" style="background:transparent; border:none; color:#8b949e; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:0.2s;" onmouseover="this.style.color='#f0f6fc'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#8b949e'; this.style.background='transparent';">
+                <i data-lucide="x" style="width:22px; height:22px;"></i>
+            </button>
+        </div>
+        
+        <div class="ctrl-slide-body" style="padding:28px; display:flex; flex-direction:column; gap:28px; overflow-y:auto; flex:1;">
+            <!-- [신규] B2B 플랫폼 실시간 비즈니스 실적판 (4열 대형 그리드) -->
+            <div class="ctrl-slide-section">
+                <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#10b981; margin-bottom:12px;">
+                    <i data-lucide="trending-up" style="width:18px; height:18px;"></i>
+                    <span>출판친구 B2B 플랫폼 실시간 비즈니스 실적</span>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em;">누적 절판도서 수집</span>
+                        <span style="font-size:18px; font-weight:900; color:#0ea5e9;">8,924종</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em;">누적 복간 부수</span>
+                        <span id="b2b-stat-copies" style="font-size:18px; font-weight:900; color:#10b981;">5,420부</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em;">플랫폼 누적 매출</span>
+                        <span id="b2b-stat-sales" style="font-size:18px; font-weight:900; color:#eab308;">₩108,400,000</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em;">강원도 산림청 기부 묘목</span>
+                        <span id="b2b-stat-pine" style="font-size:18px; font-weight:900; color:#a855f7;">361그루</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 영업이 타임라인 (좌우 2분할 배치) -->
+            <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:24px; align-items:start;">
+                <div class="ctrl-slide-section">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#0ea5e9; margin-bottom:14px;">
+                        <i data-lucide="briefcase" style="width:18px; height:18px;"></i>
+                        <span>10번 B2B 영업이 — 협상 타임라인</span>
+                    </div>
+                    <div id="ctrl-sales-timeline" class="ctrl-sales-timeline" style="display:flex; flex-direction:column; gap:16px;">
+                        <!-- 동적 바인딩 -->
+                    </div>
+                </div>
+                
+                <div class="ctrl-slide-section">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#a855f7; margin-bottom:14px;">
+                        <i data-lucide="megaphone" style="width:18px; height:18px;"></i>
+                        <span>11번 마케팅 알리미 — AI SNS 배포</span>
+                    </div>
+                    <div class="ctrl-marketing-channels" id="ctrl-marketing-channels" style="display:grid; grid-template-columns:1fr; gap:10px;">
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="youtube" style="width:18px; height:18px; color:#ef4444; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">YouTube Shorts</span>
+                            </div>
+                            <span id="m-status-youtube" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="instagram" style="width:18px; height:18px; color:#ec4899; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">Insta Reels</span>
+                            </div>
+                            <span id="m-status-instagram" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="message-square" style="width:18px; height:18px; color:#eab308; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">Kakao Alimtalk</span>
+                            </div>
+                            <span id="m-status-kakao" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="video" style="width:18px; height:18px; color:#ff0050; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">TikTok</span>
+                            </div>
+                            <span id="m-status-tiktok" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

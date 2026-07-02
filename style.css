@@ -1091,3 +1091,146 @@ th {
     }
 }
 
+/* =============================================
+   B2B ERP 모바일 반응형 최적화 (768px 이하)
+   ============================================= */
+@media (max-width: 768px) {
+    /* 1. 사이드바 드로어 레이아웃 */
+    #sidebar-aside {
+        position: fixed !important;
+        top: 0;
+        left: -260px;
+        width: 260px;
+        height: 100vh;
+        z-index: 150;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+    }
+    
+    #sidebar-aside.active {
+        left: 0 !important;
+    }
+    
+    /* 2. 전체 레이아웃 리플렉스 */
+    #app-container {
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    main {
+        width: 100% !important;
+        height: calc(100vh - 65px) !important;
+        overflow-y: auto !important;
+    }
+
+    header {
+        height: auto !important;
+        padding: 12px 16px !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 12px;
+    }
+
+    /* 3. 테이블 및 데이터 그리드 가로 스크롤 강제 */
+    .overflow-x-auto, 
+    .overflow-y-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 테이블 감싸는 div를 모바일에서 스크롤 가능하게 */
+    .bg-white.rounded-2xl.border.shadow-sm.overflow-hidden {
+        overflow-x: auto !important;
+    }
+
+    table {
+        min-width: 600px !important; /* 모바일에서 열이 너무 구겨지지 않게 최소 너비 보장 */
+    }
+
+    /* 4. Tailwind 다중 열 그리드 강제 1열 스택 */
+    .grid-cols-2, 
+    .grid-cols-3, 
+    .grid-cols-4, 
+    .md\:grid-cols-2, 
+    .md\:grid-cols-3, 
+    .md\:grid-cols-4 {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* 5. Flex 가로 배열 모바일에서 세로로 자동 줄바꿈 또는 정렬 */
+    .flex-row-mobile-stack,
+    header .flex,
+    main .flex.justify-between,
+    main .flex.items-center.gap-4 {
+        flex-wrap: wrap !important;
+    }
+
+    /* 단가관리 탭 등 검색/추가 필터 영역 세로 정렬 */
+    #price-tools {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 8px !important;
+        padding: 12px !important;
+    }
+
+    #price-tools .flex {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    #price-tools .input-pptx {
+        flex-grow: 1 !important;
+        width: auto !important;
+    }
+
+    /* 6. 모달(로그인 창 포함) 크기 최적화 */
+    #login-overlay > div {
+        width: 90% !important;
+        max-width: 360px !important;
+        padding: 32px 20px !important;
+        border-radius: 28px !important;
+    }
+
+    .modal-box,
+    div[class*="fixed inset-0"] > div[class*="bg-white"] {
+        width: 92% !important;
+        max-width: 92% !important;
+        padding: 20px 16px !important;
+        margin: 10px auto !important;
+    }
+
+    /* 7. 주문하기 양식 가로폭 개선 */
+    .max-w-2xl, .max-w-3xl, .max-w-4xl {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+}
+
+/* ============================================================
+   🟢 [신규] B2C 스토어 실시간 복간 라이브 현황판 스타일 추가
+   ============================================================ */
+.font-outfit {
+    font-family: 'Outfit', sans-serif;
+}
+
+@keyframes textGlowGreen {
+    0%, 100% { text-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+    50% { text-shadow: 0 0 16px rgba(16, 185, 129, 0.7); }
+}
+
+@keyframes textGlowSky {
+    0%, 100% { text-shadow: 0 0 8px rgba(14, 165, 233, 0.4); }
+    50% { text-shadow: 0 0 16px rgba(14, 165, 233, 0.7); }
+}
+
+#stat-copies-count, #stat-books-count {
+    animation: textGlowSky 2.5s infinite ease-in-out;
+}
+
+#stat-supporters-count, #stat-pine-count, #stat-donation-count {
+    animation: textGlowGreen 2.5s infinite ease-in-out;
+}
+
+

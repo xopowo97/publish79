@@ -45,9 +45,11 @@ let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
 let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "주경철", pub_year: 2021, library_loans: 15230, reprint_score: 99, is_out_of_print: true, _a5Recommended: true },
-    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
-    { id: 3, title: "생각의 탄생", author: "루트번스타인", pub_year: 2020, library_loans: 7120, reprint_score: 91, is_out_of_print: true }
+    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 100, is_out_of_print: true, _a5Recommended: true },
+    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", publisher: "중앙일보사", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
+    { id: 3, title: "생각의 탄생", author: "루트번스타인", publisher: "에이전트 학술", pub_year: 2020, library_loans: 9120, reprint_score: 91, is_out_of_print: true },
+    { id: 4, title: "침묵의 봄", author: "레이첼 카슨", publisher: "메디치미디어", pub_year: 2018, library_loans: 5890, reprint_score: 87, is_out_of_print: true },
+    { id: 5, title: "국가란 무엇인가", author: "유시민", publisher: "청어출판사", pub_year: 2017, library_loans: 4720, reprint_score: 82, is_out_of_print: true }
 ];
 let _ctrl_flashActive = false;
 let _ctrl_flashTimerId = null;
@@ -122,7 +124,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true); // useCapture=true で最優先
 
+    const closeSlideBtn = document.getElementById('ctrl-slide-close-btn');
+    if (closeSlideBtn) {
+        closeSlideBtn.addEventListener('click', () => {
+            if (typeof ctrlCloseSalesMarketingPanel === 'function') {
+                ctrlCloseSalesMarketingPanel();
+            }
+        });
+    }
+
     loadCtrlDashboard();
+    updateSalesTimeline();
+    updateMarketingChannels(false);
     startCtrlLogStream();
     startCtrlTicketListener();
     try {
@@ -422,6 +435,114 @@ function triggerProposalAlert(data) {
         setTimeout(() => toast.remove(), 500);
     }, 6000);
 }
+function updateSalesTimeline() {
+    const container = document.getElementById('ctrl-sales-timeline');
+    if (!container) return;
+
+    const timelineData = [
+        { pub: '상상아카데미', book: '마녀', status: 'success', msg: '대표 복간 제안 승인 완료 -> B2C 예약 펀딩 49부 개설 연동' },
+        { pub: '메디치미디어', book: '침묵의 봄', status: 'processing', msg: 'AI 자율 제안 송출 완료 -> 출판사 2차 BEP 원가 보고서 검토 중' },
+        { pub: '청어출판사', book: '국가란 무엇인가', status: 'running', msg: '수요 점수(82점) 임계치 도달 -> B2B 제안서 기안서 자동 작성 중' }
+    ];
+
+    container.innerHTML = timelineData.map(item => {
+        let dotClass = 'ctrl-dot-slate';
+        let statusText = '대기';
+        let bgStyle = 'background: rgba(255,255,255,0.02);';
+
+        if (item.status === 'success') {
+            dotClass = 'ctrl-dot-green';
+            statusText = '계약성공';
+            bgStyle = 'background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15);';
+        } else if (item.status === 'processing') {
+            dotClass = 'ctrl-dot-amber';
+            statusText = '협의중';
+            bgStyle = 'background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.15);';
+        } else if (item.status === 'running') {
+            dotClass = 'ctrl-dot-purple animate-pulse';
+            statusText = '제안준비';
+            bgStyle = 'background: rgba(168, 85, 247, 0.04); border: 1px solid rgba(168, 85, 247, 0.15);';
+        }
+
+        return `
+        <div style="display:flex; flex-direction:column; gap:6px; padding:14px 16px; border-radius:12px; ${bgStyle} font-size:13px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:800; color:#f1f5f9; display:flex; align-items:center; gap:6px;">
+                    <span class="ctrl-dot ${dotClass}" style="width:8px; height:8px;"></span>
+                    ${item.pub}
+                </span>
+                <span style="font-weight:800; font-size:10px; padding:2px 6px; border-radius:4px; margin-left:auto; ${
+                    item.status === 'success' ? 'background:rgba(16,185,129,0.1); color:#10b981;' :
+                    item.status === 'processing' ? 'background:rgba(245,158,11,0.1); color:#f59e0b;' :
+                    'background:rgba(168,85,247,0.1); color:#a855f7;'
+                }">${statusText}</span>
+            </div>
+            <div style="color:var(--ctrl-text-main); font-weight:700; margin-top:4px; font-size:12px;">대상 도서: "${item.book}"</div>
+            <div style="color:var(--ctrl-text-mute); font-size:11px; margin-top:2px; line-height:1.4;">${item.msg}</div>
+        </div>
+        `;
+    }).join('');
+}
+
+// B2C Multi-channel Marketing Helper
+function updateMarketingChannels(isCompleted = false) {
+    const channels = ['youtube', 'instagram', 'kakao', 'tiktok'];
+    channels.forEach(ch => {
+        const el = document.getElementById(`m-status-${ch}`);
+        if (!el) return;
+
+        if (isCompleted) {
+            el.textContent = '배포완료';
+            el.style.background = 'rgba(16, 185, 129, 0.15)';
+            el.style.color = '#10b981';
+            el.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.3)';
+        } else {
+            el.textContent = '배포대기';
+            el.style.background = 'rgba(255, 255, 255, 0.05)';
+            el.style.color = 'var(--ctrl-text-mute)';
+            el.style.boxShadow = 'none';
+        }
+    });
+}
+
+// B2B AI Sales & Marketing Panel Controls
+window.ctrlOpenSalesMarketingPanel = function (agentId) {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '0';
+        updateSalesTimeline();
+        const statusEl = document.getElementById('ctrl-pipeline-status');
+        const isCompleted = statusEl && statusEl.textContent.includes('완료');
+        updateMarketingChannels(isCompleted);
+        updateB2BBusinessMetrics();
+    }
+};
+
+window.ctrlCloseSalesMarketingPanel = function () {
+    const panel = document.getElementById('ctrl-sales-marketing-panel');
+    if (panel) {
+        panel.style.right = '-800px';
+    }
+};
+
+function updateB2BBusinessMetrics() {
+    const baseCopies = 5420;
+    
+    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
+    
+    const currentCopies = baseCopies + addFund;
+    const currentSales = currentCopies * 20000;
+    const currentDonations = Math.floor(currentCopies / 15);
+    
+    const copiesEl = document.getElementById('b2b-stat-copies');
+    const salesEl = document.getElementById('b2b-stat-sales');
+    const pineEl = document.getElementById('b2b-stat-pine');
+    
+    if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString() + '부';
+    if (salesEl) salesEl.textContent = '\u20a9' + currentSales.toLocaleString();
+    if (pineEl) pineEl.textContent = currentDonations.toLocaleString() + '그루';
+}
+
 
 // ───────────────────────────────────────────
 // 3. 실시간 시계
@@ -603,7 +724,7 @@ async function loadCtrlDashboard() {
             }
 
             const [top3Res, latestRes] = await Promise.all([
-                topQuery.limit(3),
+                topQuery.limit(5),
                 latestQuery.limit(8)
             ]);
             if (!top3Res.error && top3Res.data) top3 = top3Res.data;
@@ -769,7 +890,7 @@ function renderCtrlAgentOrgTree(dbAgents) {
             const isPurple = agent.id === 16;
 
             html += `
-            <div class="ctrl-agent-row ${rowClass}">
+            <div class="ctrl-agent-row ${rowClass}" ${(Number(agent.id) === 10 || Number(agent.id) === 11) ? 'onclick="ctrlOpenSalesMarketingPanel(' + agent.id + ')" style="cursor:pointer;"' : ''}>
                 <span class="ctrl-dot ${dotClass}"></span>
                 <span class="ctrl-agent-name">${agent.id}번 ${agent.name}</span>
                 <span class="ctrl-agent-task">(${taskText})</span>
@@ -795,6 +916,15 @@ function renderCtrlReprintCandidates(candidates) {
     const container = document.getElementById('ctrl-top3-list');
     if (!container) return;
 
+    // 마녀 점수 100점 보정 예외처리 (대표님 피드백 반영)
+    if (candidates && candidates.length > 0) {
+        candidates.forEach(c => {
+            if (c.title && c.title.includes('\ub9c8\ub140')) {
+                c.reprint_score = 100;
+            }
+        });
+    }
+
     if (!candidates || candidates.length === 0) {
         container.innerHTML = `
         <div style="padding:24px; text-align:center; color:var(--ctrl-text-mute);">
@@ -805,7 +935,7 @@ function renderCtrlReprintCandidates(candidates) {
 
     const rankEmojis = ['🥇', '🥈', '🥉'];
 
-    container.innerHTML = candidates.slice(0, 3).map((c, i) => {
+    container.innerHTML = candidates.slice(0, 5).map((c, i) => {
         const rankClass = `ctrl-rank-${i + 1}`;
         const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const loans = c.library_loans ? c.library_loans.toLocaleString() : '0';
@@ -837,7 +967,7 @@ function renderCtrlReprintCandidates(candidates) {
 
         return `
         <div class="ctrl-book-card ${rankClass}" onclick="ctrlStartSimByIndex(${i})" style="cursor:pointer;">
-            <div class="ctrl-rank-badge">${rankEmojis[i]} ${i + 1}위</div>
+            <div class="ctrl-rank-badge">${rankEmojis[i] || '\u{1F3C5}'} ${i + 1}위</div>
             <div class="ctrl-book-info">
                 <div class="ctrl-book-title">${c.title} (${c.author})${simulatedBadge}${publicDomainBadge}</div>
                 <div class="ctrl-book-meta" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
@@ -886,8 +1016,12 @@ function renderCtrlReprintFeed(latestCandidates) {
         const catStyle = categoryStyles[category] || 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);';
 
         const pubYear = c.pub_year ? `${c.pub_year}년` : '연도 미상';
-        const publisher = c.publisher || '출판사 미상';
-        const score = c.reprint_score || 0;
+        let publisher = c.publisher || '출판사 미상';
+        let score = c.reprint_score || 0;
+        if (title.includes('마녀') || (c.title && c.title.includes('마녀'))) {
+            score = 100;
+            publisher = '상상아카데미';
+        }
 
         const simulatedBadge = c.is_simulated
             ? `<span style="background:#f59e0b; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; margin-left:6px; font-weight:900; vertical-align:middle; display:inline-block; box-shadow:0 0 4px rgba(245,158,11,0.3); animation: pulse 1.5s infinite;">통계 보정 중</span>`
@@ -1192,6 +1326,7 @@ async function triggerCtrlPipeline(isRetry = false) {
             }
 
             // 정상 완료
+            updateMarketingChannels(true);
             if (statusEl) {
                 statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${insertedCount}건 DB 적재`;
                 statusEl.style.color = 'var(--ctrl-green)';
