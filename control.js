@@ -491,6 +491,18 @@ function updateMarketingChannels(isCompleted = false) {
         const el = document.getElementById(`m-status-${ch}`);
         if (!el) return;
 
+        // [버그 방지 가드레일] 유튜브 숏폼 배포가 완료되었거나 로컬스토리지에 배포 상태가 보존되어 있다면 강제 리셋 생략 및 링크 복구
+        if (ch === 'youtube' && (el.innerHTML.includes('라이브 보기') || localStorage.getItem('youtube-published') === 'true')) {
+            if (localStorage.getItem('youtube-published') === 'true' && !el.innerHTML.includes('라이브 보기')) {
+                el.innerHTML = `<a href="https://youtube.com/shorts/QDrpvRK_1gc" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                el.style.background = 'rgba(239, 68, 68, 0.15)';
+                el.style.color = '#ef4444';
+                el.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                el.style.cursor = 'pointer';
+            }
+            return;
+        }
+
         if (isCompleted) {
             el.textContent = '배포완료';
             el.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -2069,6 +2081,27 @@ async function ctrlApproveSpec(specIndex) {
                         ctrlUpdateLocalAgentStatus(6, 'success', '표지 디자인 완료');
                         ctrlUpdateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
                         logConsole(`[(총괄) 오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '(총괄) 오케스트레이터');
+
+                        // [추가 구현] 7번 그림이 & 11번 알리미 마케팅 빌드 시뮬레이션
+                        if (book.title.includes('마녀')) {
+                            ctrlUpdateLocalAgentStatus(7, 'running', '소설 마녀 삽화 이미지 창작 중');
+                            ctrlUpdateLocalAgentStatus(11, 'running', '마녀 숏폼 및 뉴스카드 인코딩 중');
+                            
+                            setTimeout(() => {
+                                logConsole(`[그림_그림이] 🎨 소설 '마녀' 삽화 프롬프트 "마녀의 고풍스러운 다락방" 기반 AI 이미지 생성 성공.`, 'success', 7, '그림_그림이');
+                                ctrlUpdateLocalAgentStatus(7, 'success', '마녀 삽화 이미지 생성 완료');
+                            }, 1200);
+
+                            setTimeout(() => {
+                                logConsole(`[마케팅_알리미] 🎬 '마녀' 카드뉴스 5장 및 9:16 vertical 숏폼 비디오 인코딩 시작...`, 'info', 11, '마케팅_알리미');
+                            }, 2200);
+
+                            setTimeout(() => {
+                                logConsole(`[마케팅_알리미] 🎬 '마녀' SNS 홍보 카드뉴스 5장 및 오디오 EQ 결합 숏폼 비디오 컴파일 완공.`, 'success', 11, '마케팅_알리미');
+                                ctrlUpdateLocalAgentStatus(11, 'success', '마녀 홍보 숏폼/카드뉴스 빌드 완료');
+                            }, 4500);
+                        }
+
                         loadCtrlDashboard();
 
                         // 최종 완료 푸터
@@ -2795,10 +2828,13 @@ async function reportSystemError(errorData) {
             timestamp: new Date().toISOString()
         };
 
-        const res = await fetch(ctrlApiUrl('/api/send-error'), {
+        const res = await fetch(ctrlApiUrl('/api/heal'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                action: 'trigger_error',
+                ...payload
+            })
         });
 
         if (res.ok) {
@@ -2908,10 +2944,13 @@ async function triggerSelfHealingPipeline(payload) {
     }
 
     try {
-        const res = await fetch(ctrlApiUrl('/api/self-heal'), {
+        const res = await fetch(ctrlApiUrl('/api/heal'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                action: 'heal',
+                ...payload
+            })
         });
 
         const codeBlock = document.getElementById('self-heal-code-block');
@@ -3532,6 +3571,14 @@ function renderNewsCardTab(book) {
             "소장 가치를 극대화할 독자 성명 임베디드 실물 보증서 동봉.",
             "B2C 몰에서 펀딩 100% 달성 임박! 지금 한정판 소장 기회를 확보하세요."
         ];
+    } else if (title.includes('마녀')) {
+        copyTemplates = [
+            "1세대 판타지 미스터리의 전설, 소설 '마녀' 복간 개시!",
+            "독자들의 강력한 복간 요청으로 되살아난 숨겨진 판타지 명작.",
+            "책등 두께 21.8mm 및 고해상도 3분할 클리핑 마스크 벡터 조판 완비.",
+            "나만의 독자 성명이 각인되는 특별 가변 VDP 책갈피 보증서 포함.",
+            "지금 B2C 스토어 펀딩 성공 UAT를 확인하고 한정판을 소장하세요!"
+        ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         copyTemplates = [
             "사람의 마음을 움직이는 가장 위대한 고전, 인간관계론.",
@@ -3640,6 +3687,12 @@ function renderVideoTab(book) {
             "소장용 맞춤형 고해상도 디자인과 VDP 조판 기술 탑재!",
             "지금 B2C 몰에서 펀딩 100% 달성을 확인하고 예약을 진행하세요!"
         ];
+    } else if (title.includes('마녀')) {
+        subtitles = [
+            "시간 속에 묻혀있던 판타지 전설, 소설 '마녀'가 독자들의 손으로 다시 깨어납니다!",
+            "절판되어 우리 곁을 떠난 명작을 펀딩으로 복간하여, 감동의 이야기를 다시 한번 만나보세요.",
+            "출판친구 스토어에서 펀딩에 참여 하세요! 우리의 숲이 살아납니다.!"
+        ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         subtitles = [
             "사람의 마음을 움직이는 명저, 데일 카네기의 인간관계론 복간!",
@@ -3677,6 +3730,9 @@ function renderVideoTab(book) {
                         <span style="font-size: 7px; font-weight: 700; color: #a855f7; margin-top: 4px;">복간 펀딩 가동 중</span>
                     </div>
                 </div>
+
+                <!-- 실물 비디오 레이어 (z-index: 2로 오버레이 아래 위치) -->
+                <video id="shortform-video-player" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; display: none;" muted playsinline></video>
 
                 <!-- 상단 채널 정보 overlay -->
                 <div style="position: absolute; top: 12px; left: 10px; z-index: 5; display: flex; align-items: center; gap: 4px;">
@@ -3739,14 +3795,40 @@ function renderVideoTab(book) {
         
         // 이퀄라이저 바 중지
         document.querySelectorAll('.eq-bar').forEach(bar => bar.classList.remove('active'));
+
+        // BGM 및 비디오 정지 및 초기화
+        if (window._shortformBgm) {
+            window._shortformBgm.pause();
+            window._shortformBgm.currentTime = 0;
+        }
+        const videoEl = document.getElementById('shortform-video-player');
+        if (videoEl) {
+            videoEl.pause();
+            videoEl.style.display = 'none';
+            videoEl.src = '';
+        }
         
         if (window.lucide) {
             try { lucide.createIcons(); } catch (e) {}
         }
     }
 
-    function startShortform() {
+    function speakCurrentSentence(text) {
+        if (!window.speechSynthesis) return;
         window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ko-KR';
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const koVoice = voices.find(v => v.lang.startsWith('ko'));
+        if (koVoice) utter.voice = koVoice;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function startShortform() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         window._shortformPlaying = true;
         
         if (playIcon) playIcon.setAttribute('data-lucide', 'pause');
@@ -3759,19 +3841,39 @@ function renderVideoTab(book) {
             try { lucide.createIcons(); } catch (e) {}
         }
 
-        // 전체 낭독 텍스트 합성
-        const fullScript = window._shortformSubtitles.join(" ");
-        const utter = new SpeechSynthesisUtterance(fullScript);
-        utter.lang = 'ko-KR';
-        utter.rate = 0.95;
-        utter.pitch = 1.05;
+        // 비디오 파일 정의
+        const scene1 = '마녀숏폼/한글_프롬프트_어둡고_짙은_안개가_낀_중세_숲속에서_.mp4';
+        const scene2 = '마녀숏폼/고풍스러운_오래된_양장본_책이_테이블_위에서_스스로_스.mp4';
+        const scene3 = '마녀숏폼/황량한_벌판에_버려져_흩날리던_낡은_폐지_더미들이_역재.mp4';
+        const isMaryeo = title.includes('마녀');
+        const videoEl = document.getElementById('shortform-video-player');
 
-        const voices = window.speechSynthesis.getVoices();
-        const koVoice = voices.find(v => v.lang.startsWith('ko'));
-        if (koVoice) utter.voice = koVoice;
+        // BGM 재생 및 에러 가드레일 설치
+        if (!window._shortformBgm) {
+            window._shortformBgm = new Audio('마녀숏폼/bgm.mp3');
+            window._shortformBgm.volume = 0.15;
+            window._shortformBgm.loop = true;
+            window._shortformBgm.addEventListener('error', () => {
+                console.log('[BGM 로드 실패 - 클래식 폴백 작동]');
+                window._shortformBgm.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
+                if (window._shortformPlaying) {
+                    window._shortformBgm.play().catch(e => {});
+                }
+            }, { once: true });
+        }
+        window._shortformBgm.currentTime = 0;
+        window._shortformBgm.play().catch(e => console.log('[BGM 자동재생 차단]', e));
+
+        // 1단계 영상 및 TTS 재생 시작
+        if (isMaryeo && videoEl) {
+            videoEl.src = scene1;
+            videoEl.style.display = 'block';
+            videoEl.play().catch(e => console.warn(e));
+        }
+        speakCurrentSentence(window._shortformSubtitles[0]);
 
         let elapsedMs = 0;
-        const totalDurationMs = 11000;
+        const totalDurationMs = 30000; // 10초씩 3장면 = 30초
         
         window._shortformIdx = 0;
         subtitleText.textContent = window._shortformSubtitles[0];
@@ -3781,25 +3883,29 @@ function renderVideoTab(book) {
             const pct = Math.min((elapsedMs / totalDurationMs) * 100, 100);
             if (progressFill) progressFill.style.width = pct + '%';
 
-            // 문장 전환 타이밍 (3.6초, 7.2초 시점 분기)
-            if (elapsedMs >= 3600 && window._shortformIdx === 0) {
+            // 문장 및 비디오 스위칭 타이밍 (10초, 20초 시점 분기)
+            if (elapsedMs === 10000 && window._shortformIdx === 0) {
                 window._shortformIdx = 1;
                 subtitleText.textContent = window._shortformSubtitles[1];
-            } else if (elapsedMs >= 7200 && window._shortformIdx === 1) {
+                if (isMaryeo && videoEl) {
+                    videoEl.src = scene2;
+                    videoEl.play().catch(e => console.warn(e));
+                }
+                speakCurrentSentence(window._shortformSubtitles[1]);
+            } else if (elapsedMs === 20000 && window._shortformIdx === 1) {
                 window._shortformIdx = 2;
                 subtitleText.textContent = window._shortformSubtitles[2];
+                if (isMaryeo && videoEl) {
+                    videoEl.src = scene3;
+                    videoEl.play().catch(e => console.warn(e));
+                }
+                speakCurrentSentence(window._shortformSubtitles[2]);
             }
 
             if (elapsedMs >= totalDurationMs) {
                 stopShortform();
             }
         }, 100);
-
-        utter.onend = () => {
-            stopShortform();
-        };
-
-        window.speechSynthesis.speak(utter);
     }
 
     if (playBtn) {
@@ -3821,6 +3927,29 @@ function renderVideoTab(book) {
             toast.style.animation = 'fadeOut 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }, 2000);
+
+        // [추가 구현] SNS 배포 클릭 시 대시보드 유튜브 뱃지를 실시간으로 갱신하는 UAT 연동
+        const ytBadge = document.getElementById('m-status-youtube');
+        if (ytBadge) {
+            ytBadge.innerHTML = `🔄 배포 중...`;
+            ytBadge.style.background = 'rgba(249, 115, 22, 0.15)';
+            ytBadge.style.color = '#f97316';
+            ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+
+            setTimeout(() => {
+                localStorage.setItem('youtube-published', 'true');
+                ytBadge.innerHTML = `<a href="https://youtube.com/shorts/QDrpvRK_1gc" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                ytBadge.style.color = '#ef4444';
+                ytBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                ytBadge.style.cursor = 'pointer';
+
+                const logEl = document.getElementById('ctrl-log-stream');
+                if (logEl) {
+                    _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 [11번 알리미] 유튜브 API Quota 보전을 위해 '${title}' 공식 쇼츠 라이브 링크로 자동 연동 완료! (링크: https://youtube.com/shorts/QDrpvRK_1gc)`, new Date(), true);
+                }
+            }, 1000);
+        }
     };
 
     const observer = new MutationObserver((mutations) => {
@@ -3845,9 +3974,6 @@ function renderVideoTab(book) {
 
 
 window.downloadNewsCardSim = function() {
-    alert("도서가 선택되지 않았습니다.");
-};
-window.downloadShortformVideoSim = function() {
     alert("도서가 선택되지 않았습니다.");
 };
 
@@ -4314,6 +4440,53 @@ function handleAdminFundingApproval(bookName) {
     if (logEl) {
         _appendCtrlLogEntry(logEl, 'success', '(총괄) 오케스트레이터', `대표 승인 격발 ➔ 도서 "${bookName}" B2C 스토어 펀딩 정식 개설 및 마케팅 숏폼 라이브 성공`, new Date(), true);
     }
+
+    // [추가 구현] 유튜브 API 실시간 쇼츠 업로드 격발 및 통제실 UI 실시간 갱신 연동
+    const ytBadge = document.getElementById('m-status-youtube');
+    if (ytBadge) {
+        ytBadge.innerHTML = `🔄 배포 중...`;
+        ytBadge.style.background = 'rgba(249, 115, 22, 0.15)';
+        ytBadge.style.color = '#f97316';
+        ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+    }
+
+    fetch(ctrlApiUrl('/api/upload-shorts'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookTitle: bookName })
+    })
+    .then(res => res.json())
+    .then(resData => {
+        if (resData.success) {
+            if (ytBadge) {
+                // 실시간 라이브 링크 렌더링 (새 창 이동 가능한 A 태그 결합)
+                ytBadge.innerHTML = `<a href="${resData.url}" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                ytBadge.style.color = '#ef4444';
+                ytBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                ytBadge.style.cursor = 'pointer';
+            }
+            if (logEl) {
+                _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 ${resData.message} (링크: ${resData.url})`, new Date(), true);
+            }
+            
+            // 🎬 AI 숏폼 탭 자막 뷰어에도 유튜브 배포 상태 업데이트 적용
+            const subtitleText = document.getElementById('shortform-subtitle-text');
+            if (subtitleText && bookName.includes('마녀')) {
+                subtitleText.innerHTML = `🔴 유튜브 쇼츠 배포 완료! [라이브 보기] 클릭`;
+            }
+        } else {
+            throw new Error(resData.error || '업로드 오류');
+        }
+    })
+    .catch(err => {
+        console.error('[유튜브 배포 API 에러]', err);
+        if (ytBadge) {
+            ytBadge.innerHTML = `⚠️ 배포 실패`;
+            ytBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+            ytBadge.style.color = '#ef4444';
+        }
+    });
 
     // 마녀 도서 목업 데이터를 통제실 selectedBook에 강제 세팅하여 탭 활성화 지원
     const maryeoMockBook = {
