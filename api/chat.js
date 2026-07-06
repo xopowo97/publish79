@@ -178,10 +178,25 @@ export default async function handler(req, res) {
                 if (embedding) {
                     const ragChunks = await fetchRAGKnowledge(embedding, chat_type, rawUrl, supKey);
                     if (ragChunks && ragChunks.length > 0) {
-                        const knowledgeContext = ragChunks
-                            .map((chunk, idx) => `[관련 지식 ${idx + 1}] (${chunk.file_name})\n${chunk.content}`)
-                            .join('\n\n');
-                        systemPrompt += `\n\n[출판친구 지식 기지 참조 내용]\n아래는 당신의 내부 지식 기지에서 검색된 최신 및 과거 관련 정보입니다. 답변 시 이 내용을 적극 참고하십시오:\n${knowledgeContext}`;
+                        // [RAG 보안 격리] 세션 권한에 따른 인쇄소 민감 매뉴얼 필터링 (해킹 방지)
+                        const isAuthorized = userRole === 'printer' || userRole === 'admin' || userRole === 'judge';
+                        
+                        const filteredChunks = ragChunks.filter(chunk => {
+                            const isPrinterManual = chunk.file_name?.includes('공식매뉴얼') && 
+                                                  (chunk.content?.includes('인쇄소') || chunk.content?.includes('정산 및 주문관리'));
+                            // 인쇄소 매뉴얼 청크인데 권한이 없으면 제외(false) 처리
+                            if (isPrinterManual && !isAuthorized) {
+                                return false; 
+                            }
+                            return true;
+                        });
+
+                        if (filteredChunks.length > 0) {
+                            const knowledgeContext = filteredChunks
+                                .map((chunk, idx) => `[관련 지식 ${idx + 1}] (${chunk.file_name})\n${chunk.content}`)
+                                .join('\n\n');
+                            systemPrompt += `\n\n[출판친구 지식 기지 참조 내용]\n아래는 당신의 내부 지식 기지에서 검색된 최신 및 과거 관련 정보입니다. 답변 시 이 내용을 적극 참고하십시오:\n${knowledgeContext}`;
+                        }
                     }
                 }
             }
