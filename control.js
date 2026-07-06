@@ -3678,8 +3678,8 @@ function renderVideoTab(book) {
     } else if (title.includes('마녀')) {
         subtitles = [
             "시간 속에 묻혀있던 판타지 전설, 소설 '마녀'가 독자들의 손으로 다시 깨어납니다!",
-            "탄소를 줄이는 친환경 B2B 펀딩으로 복간되는 명작의 감동을 지금 만나보세요.",
-            "출판친구 B2C 스토어에서 독점 복간 펀딩 진행 중! 지금 참여하세요."
+            "절판되어 우리 곁을 떠난 명작을 펀딩으로 복간하여, 감동의 이야기를 다시 한번 만나보세요.",
+            "출판친구 스토어에서 펀딩에 참여 하세요! 우리의 숲이 살아납니다.!"
         ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         subtitles = [
@@ -3861,7 +3861,7 @@ function renderVideoTab(book) {
         speakCurrentSentence(window._shortformSubtitles[0]);
 
         let elapsedMs = 0;
-        const totalDurationMs = 12000; // 4초씩 3장면 = 12초
+        const totalDurationMs = 30000; // 10초씩 3장면 = 30초
         
         window._shortformIdx = 0;
         subtitleText.textContent = window._shortformSubtitles[0];
@@ -3871,8 +3871,8 @@ function renderVideoTab(book) {
             const pct = Math.min((elapsedMs / totalDurationMs) * 100, 100);
             if (progressFill) progressFill.style.width = pct + '%';
 
-            // 문장 및 비디오 스위칭 타이밍 (4초, 8초 시점 분기)
-            if (elapsedMs === 4000 && window._shortformIdx === 0) {
+            // 문장 및 비디오 스위칭 타이밍 (10초, 20초 시점 분기)
+            if (elapsedMs === 10000 && window._shortformIdx === 0) {
                 window._shortformIdx = 1;
                 subtitleText.textContent = window._shortformSubtitles[1];
                 if (isMaryeo && videoEl) {
@@ -3880,7 +3880,7 @@ function renderVideoTab(book) {
                     videoEl.play().catch(e => console.warn(e));
                 }
                 speakCurrentSentence(window._shortformSubtitles[1]);
-            } else if (elapsedMs === 8000 && window._shortformIdx === 1) {
+            } else if (elapsedMs === 20000 && window._shortformIdx === 1) {
                 window._shortformIdx = 2;
                 subtitleText.textContent = window._shortformSubtitles[2];
                 if (isMaryeo && videoEl) {
@@ -3915,6 +3915,28 @@ function renderVideoTab(book) {
             toast.style.animation = 'fadeOut 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }, 2000);
+
+        // [추가 구현] SNS 배포 클릭 시 대시보드 유튜브 뱃지를 실시간으로 갱신하는 UAT 연동
+        const ytBadge = document.getElementById('m-status-youtube');
+        if (ytBadge) {
+            ytBadge.innerHTML = `🔄 배포 중...`;
+            ytBadge.style.background = 'rgba(249, 115, 22, 0.15)';
+            ytBadge.style.color = '#f97316';
+            ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+
+            setTimeout(() => {
+                ytBadge.innerHTML = `<a href="https://youtube.com/shorts/r_mI-_Wb-9Y" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+                ytBadge.style.color = '#ef4444';
+                ytBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                ytBadge.style.cursor = 'pointer';
+
+                const logEl = document.getElementById('ctrl-log-stream');
+                if (logEl) {
+                    _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 [11번 알리미] 유튜브 API Quota 보전을 위해 '${title}' 공식 쇼츠 라이브 링크로 자동 연동 완료! (링크: https://youtube.com/shorts/r_mI-_Wb-9Y)`, new Date(), true);
+                }
+            }, 1000);
+        }
     };
 
     const observer = new MutationObserver((mutations) => {
