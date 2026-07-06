@@ -3677,9 +3677,9 @@ function renderVideoTab(book) {
         ];
     } else if (title.includes('마녀')) {
         subtitles = [
-            "판타지 스릴러의 숨겨진 명작, 소설 '마녀' 전격 복간 결정!",
-            "책등 21.8mm 벡터 3분할 정밀 조판으로 인쇄소 완제품 연동.",
-            "B2C 스토어에서 펀딩 성공을 실시간 통제실에서 관제하세요!"
+            "시간 속에 묻혀있던 판타지 전설, 소설 '마녀'가 독자들의 손으로 다시 깨어납니다!",
+            "탄소를 줄이는 친환경 B2B 펀딩으로 복간되는 명작의 감동을 지금 만나보세요.",
+            "출판친구 B2C 스토어에서 독점 복간 펀딩 진행 중! 지금 참여하세요."
         ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         subtitles = [
@@ -3718,6 +3718,9 @@ function renderVideoTab(book) {
                         <span style="font-size: 7px; font-weight: 700; color: #a855f7; margin-top: 4px;">복간 펀딩 가동 중</span>
                     </div>
                 </div>
+
+                <!-- 실물 비디오 레이어 (z-index: 2로 오버레이 아래 위치) -->
+                <video id="shortform-video-player" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; display: none;" muted playsinline></video>
 
                 <!-- 상단 채널 정보 overlay -->
                 <div style="position: absolute; top: 12px; left: 10px; z-index: 5; display: flex; align-items: center; gap: 4px;">
@@ -3780,14 +3783,40 @@ function renderVideoTab(book) {
         
         // 이퀄라이저 바 중지
         document.querySelectorAll('.eq-bar').forEach(bar => bar.classList.remove('active'));
+
+        // BGM 및 비디오 정지 및 초기화
+        if (window._shortformBgm) {
+            window._shortformBgm.pause();
+            window._shortformBgm.currentTime = 0;
+        }
+        const videoEl = document.getElementById('shortform-video-player');
+        if (videoEl) {
+            videoEl.pause();
+            videoEl.style.display = 'none';
+            videoEl.src = '';
+        }
         
         if (window.lucide) {
             try { lucide.createIcons(); } catch (e) {}
         }
     }
 
-    function startShortform() {
+    function speakCurrentSentence(text) {
+        if (!window.speechSynthesis) return;
         window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ko-KR';
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const koVoice = voices.find(v => v.lang.startsWith('ko'));
+        if (koVoice) utter.voice = koVoice;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function startShortform() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         window._shortformPlaying = true;
         
         if (playIcon) playIcon.setAttribute('data-lucide', 'pause');
@@ -3800,19 +3829,39 @@ function renderVideoTab(book) {
             try { lucide.createIcons(); } catch (e) {}
         }
 
-        // 전체 낭독 텍스트 합성
-        const fullScript = window._shortformSubtitles.join(" ");
-        const utter = new SpeechSynthesisUtterance(fullScript);
-        utter.lang = 'ko-KR';
-        utter.rate = 0.95;
-        utter.pitch = 1.05;
+        // 비디오 파일 정의
+        const scene1 = '마녀숏폼/한글_프롬프트_어둡고_짙은_안개가_낀_중세_숲속에서_.mp4';
+        const scene2 = '마녀숏폼/고풍스러운_오래된_양장본_책이_테이블_위에서_스스로_스.mp4';
+        const scene3 = '마녀숏폼/황량한_벌판에_버려져_흩날리던_낡은_폐지_더미들이_역재.mp4';
+        const isMaryeo = title.includes('마녀');
+        const videoEl = document.getElementById('shortform-video-player');
 
-        const voices = window.speechSynthesis.getVoices();
-        const koVoice = voices.find(v => v.lang.startsWith('ko'));
-        if (koVoice) utter.voice = koVoice;
+        // BGM 재생 및 에러 가드레일 설치
+        if (!window._shortformBgm) {
+            window._shortformBgm = new Audio('마녀숏폼/bgm.mp3');
+            window._shortformBgm.volume = 0.15;
+            window._shortformBgm.loop = true;
+            window._shortformBgm.addEventListener('error', () => {
+                console.log('[BGM 로드 실패 - 클래식 폴백 작동]');
+                window._shortformBgm.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
+                if (window._shortformPlaying) {
+                    window._shortformBgm.play().catch(e => {});
+                }
+            }, { once: true });
+        }
+        window._shortformBgm.currentTime = 0;
+        window._shortformBgm.play().catch(e => console.log('[BGM 자동재생 차단]', e));
+
+        // 1단계 영상 및 TTS 재생 시작
+        if (isMaryeo && videoEl) {
+            videoEl.src = scene1;
+            videoEl.style.display = 'block';
+            videoEl.play().catch(e => console.warn(e));
+        }
+        speakCurrentSentence(window._shortformSubtitles[0]);
 
         let elapsedMs = 0;
-        const totalDurationMs = 11000;
+        const totalDurationMs = 12000; // 4초씩 3장면 = 12초
         
         window._shortformIdx = 0;
         subtitleText.textContent = window._shortformSubtitles[0];
@@ -3822,25 +3871,29 @@ function renderVideoTab(book) {
             const pct = Math.min((elapsedMs / totalDurationMs) * 100, 100);
             if (progressFill) progressFill.style.width = pct + '%';
 
-            // 문장 전환 타이밍 (3.6초, 7.2초 시점 분기)
-            if (elapsedMs >= 3600 && window._shortformIdx === 0) {
+            // 문장 및 비디오 스위칭 타이밍 (4초, 8초 시점 분기)
+            if (elapsedMs === 4000 && window._shortformIdx === 0) {
                 window._shortformIdx = 1;
                 subtitleText.textContent = window._shortformSubtitles[1];
-            } else if (elapsedMs >= 7200 && window._shortformIdx === 1) {
+                if (isMaryeo && videoEl) {
+                    videoEl.src = scene2;
+                    videoEl.play().catch(e => console.warn(e));
+                }
+                speakCurrentSentence(window._shortformSubtitles[1]);
+            } else if (elapsedMs === 8000 && window._shortformIdx === 1) {
                 window._shortformIdx = 2;
                 subtitleText.textContent = window._shortformSubtitles[2];
+                if (isMaryeo && videoEl) {
+                    videoEl.src = scene3;
+                    videoEl.play().catch(e => console.warn(e));
+                }
+                speakCurrentSentence(window._shortformSubtitles[2]);
             }
 
             if (elapsedMs >= totalDurationMs) {
                 stopShortform();
             }
         }, 100);
-
-        utter.onend = () => {
-            stopShortform();
-        };
-
-        window.speechSynthesis.speak(utter);
     }
 
     if (playBtn) {
