@@ -3925,7 +3925,7 @@ function renderVideoTab(book) {
             ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
 
             setTimeout(() => {
-                ytBadge.innerHTML = `<a href="https://youtube.com/shorts/r_mI-_Wb-9Y" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                ytBadge.innerHTML = `<a href="https://youtube.com/shorts/QDrpvRK_1gc" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
                 ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
                 ytBadge.style.color = '#ef4444';
                 ytBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
@@ -3933,7 +3933,7 @@ function renderVideoTab(book) {
 
                 const logEl = document.getElementById('ctrl-log-stream');
                 if (logEl) {
-                    _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 [11번 알리미] 유튜브 API Quota 보전을 위해 '${title}' 공식 쇼츠 라이브 링크로 자동 연동 완료! (링크: https://youtube.com/shorts/r_mI-_Wb-9Y)`, new Date(), true);
+                    _appendCtrlLogEntry(logEl, 'success', '마케팅_알리미', `📢 [11번 알리미] 유튜브 API Quota 보전을 위해 '${title}' 공식 쇼츠 라이브 링크로 자동 연동 완료! (링크: https://youtube.com/shorts/QDrpvRK_1gc)`, new Date(), true);
                 }
             }, 1000);
         }
