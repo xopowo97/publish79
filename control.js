@@ -3963,9 +3963,6 @@ function renderVideoTab(book) {
 window.downloadNewsCardSim = function() {
     alert("도서가 선택되지 않았습니다.");
 };
-window.downloadShortformVideoSim = function() {
-    alert("도서가 선택되지 않았습니다.");
-};
 
 // ───────────────────────────────────────────
 // 16번 지휘_판다 [긴급 보고서 큐] 티켓 수신기 & 보안 서명 검증
