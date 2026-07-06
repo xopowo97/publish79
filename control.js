@@ -491,6 +491,18 @@ function updateMarketingChannels(isCompleted = false) {
         const el = document.getElementById(`m-status-${ch}`);
         if (!el) return;
 
+        // [버그 방지 가드레일] 유튜브 숏폼 배포가 완료되었거나 로컬스토리지에 배포 상태가 보존되어 있다면 강제 리셋 생략 및 링크 복구
+        if (ch === 'youtube' && (el.innerHTML.includes('라이브 보기') || localStorage.getItem('youtube-published') === 'true')) {
+            if (localStorage.getItem('youtube-published') === 'true' && !el.innerHTML.includes('라이브 보기')) {
+                el.innerHTML = `<a href="https://youtube.com/shorts/QDrpvRK_1gc" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                el.style.background = 'rgba(239, 68, 68, 0.15)';
+                el.style.color = '#ef4444';
+                el.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                el.style.cursor = 'pointer';
+            }
+            return;
+        }
+
         if (isCompleted) {
             el.textContent = '배포완료';
             el.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -3925,6 +3937,7 @@ function renderVideoTab(book) {
             ytBadge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
 
             setTimeout(() => {
+                localStorage.setItem('youtube-published', 'true');
                 ytBadge.innerHTML = `<a href="https://youtube.com/shorts/QDrpvRK_1gc" target="_blank" style="color:#ef4444; text-decoration:none; display:flex; align-items:center; gap:2px; font-weight: 900;">🔴 라이브 보기 <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
                 ytBadge.style.background = 'rgba(239, 68, 68, 0.15)';
                 ytBadge.style.color = '#ef4444';
