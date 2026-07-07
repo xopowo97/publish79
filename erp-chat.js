@@ -38,6 +38,8 @@
     let currentState = STATE.IDLE;
     let uploadedCoverFile = null;
     let uploadedInteriorFile = null;
+    let chatHistory = [];
+    let chatLogId = null;
 
     // ── 초기화 ────────────────────────────────────────────────
     function init() {
@@ -48,16 +50,32 @@
         cacheDOM();
         bindEvents();
 
+        // 17번 상담이 챗봇 웰컴 메시지 분기 (로그인 세션 권한 식별)
+        const userRole = sessionStorage.getItem('userRole') || 'guest';
+        const userId = sessionStorage.getItem('userId') || '';
+
         // 1.2초 후 환영 메시지 자동 출력
         setTimeout(() => addBotMessage(
-            '안녕하세요! 저는 <strong>출판친구 CS 매니저 상담이</strong>예요 🤗<br>출판사 도서 제작 문의부터 원고 업로드까지 함께해 드릴게요.'
+            '안녕하세요! 저는 <strong>출판친구 CS 매니저 상담이</strong>예요 🤗<br>플랫폼 이용 관련 실무 가이드부터 원고 업로드까지 함께해 드릴게요.'
         ), 1200);
 
-        setTimeout(() => {
-            addBotMessage('현재 <strong>검토 중인 도서 제안서</strong>가 도착해 있어요. 확인하시겠어요?');
-            showQuickReplies(['📄 제안서 확인', '❓ 자주 묻는 질문', '📞 담당자 연결']);
-            currentState = STATE.AWAITING_PROPOSAL_CONFIRM;
-        }, 2400);
+        // [기획 보완] 인쇄소가 아닌, '마녀' 도서의 계약 제안 대상 출판사(상상아카데미) 또는 관리자/심사위원인 경우에만 제안 카드 팝업
+        const isTargetPublisher = userId === 'sangsang' || userRole === 'admin' || userRole === 'judge';
+
+        if (isTargetPublisher) {
+            setTimeout(() => {
+                addBotMessage('현재 <strong>검토 중인 도서 제안서</strong>가 도착해 있어요. 확인하시겠어요?');
+                showQuickReplies(['📄 제안서 확인', '❓ 자주 묻는 질문', '📞 담당자 연결']);
+                currentState = STATE.AWAITING_PROPOSAL_CONFIRM;
+            }, 2400);
+        } else {
+            // 인쇄소(printer)이거나 타 출판사인 경우, 복간 제안 팝업을 철저하게 격리(생략)하고 FAQ 실무 가이드 안내
+            setTimeout(() => {
+                addBotMessage('인쇄/제본 공정 관리, 송장 등록, 월말 정산 방법 등 실무 과정 중 궁금하신 점을 물어보세요!');
+                showQuickReplies(['❓ 자주 묻는 질문', '📞 담당자 연결']);
+                currentState = STATE.IDLE;
+            }, 2400);
+        }
     }
 
     // ── HTML 쉘 빌드 ─────────────────────────────────────────
@@ -168,9 +186,9 @@
     function processInput(text) {
         const t = text.toLowerCase();
 
-        if (currentState === STATE.AWAITING_PROPOSAL_CONFIRM ||
-            currentState === STATE.AWAITING_FORMAT_CHOICE ||
-            t.includes('제안서') || t.includes('확인') || t.includes('proposal')) {
+        // [버그 완치] 대기 중에도 일반 RAG 질문 입력 시 대답을 묵살하지 않도록 키워드 교차 판정으로 개편
+        if ((currentState === STATE.AWAITING_PROPOSAL_CONFIRM || currentState === STATE.AWAITING_FORMAT_CHOICE) &&
+            (t.includes('제안서') || t.includes('확인') || t.includes('proposal') || t.includes('📄'))) {
             if (currentState === STATE.AWAITING_FORMAT_CHOICE) return; // 버튼으로만 처리
             handleProposalView();
             return;
@@ -549,16 +567,53 @@
     async function callChatAPI(userMessage) {
         showTyping(0);
         try {
-            const res = await fetch('/api/chat', {
+            const userRole = sessionStorage.getItem('userRole') || 'guest';
+            const userId = sessionStorage.getItem('userId') || '';
+
+            // 사용자 메시지 히스토리에 추가
+            chatHistory.push({
+                role: 'user',
+                parts: [{ text: userMessage }]
+            });
+
+            const getApiUrl = (path) => {
+                const isLocal = window.location.hostname === 'localhost' ||
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname === '' ||
+                    window.location.protocol === 'file:';
+                return isLocal ? `https://publish79.vercel.app${path}` : path;
+            };
+
+            const res = await fetch(getApiUrl('/api/chat'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage, agentId: '17' }),
+                body: JSON.stringify({ 
+                    chat_type: 'ERP_STORE',
+                    contents: chatHistory,
+                    userRole: userRole,
+                    userId: userId,
+                    logId: chatLogId
+                }),
             });
             removeTyping();
             if (!res.ok) throw new Error('API Error');
             const data = await res.json();
-            addBotMessage(data.reply || '답변을 불러오는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.');
-        } catch {
+            
+            if (data.logId) {
+                chatLogId = data.logId;
+            }
+
+            const replyText = data.responseText || '답변을 불러오는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
+            
+            // 모델 응답 히스토리에 추가
+            chatHistory.push({
+                role: 'model',
+                parts: [{ text: replyText }]
+            });
+
+            addBotMessage(replyText);
+        } catch (err) {
+            console.error('CS 챗봇 API 호출 오류:', err);
             removeTyping();
             addBotMessage('지금 네트워크 연결이 불안정해요 🔌<br>잠시 후 다시 시도해 주세요.');
         }

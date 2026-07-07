@@ -4562,7 +4562,7 @@ function selectPrinterMgmt(id) {
                     <div class="text-indigo-700 font-black text-lg mb-1">🤝 계약 및 협약 단가 확인</div>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" onclick="alert('계약서 원본 PDF를 불러옵니다.')" class="bg-white text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl text-xs font-black shadow-sm">계약 문서 확인</button>
+                    <button type="button" title="체결된 계약 문서가 존재하지 않습니다." disabled class="bg-gray-100 text-gray-400 border border-gray-200 px-4 py-2.5 rounded-xl text-xs font-black cursor-not-allowed">계약 문서 확인</button>
                     <button type="button" onclick="openPrinterPriceModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-indigo-100">현재 협약 단가표</button>
                 </div>
             </div>
