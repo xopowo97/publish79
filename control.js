@@ -3573,11 +3573,11 @@ function renderNewsCardTab(book) {
         ];
     } else if (title.includes('마녀')) {
         copyTemplates = [
-            "1세대 판타지 미스터리의 전설, 소설 '마녀' 복간 개시!",
-            "독자들의 강력한 복간 요청으로 되살아난 숨겨진 판타지 명작.",
-            "책등 두께 21.8mm 및 고해상도 3분할 클리핑 마스크 벡터 조판 완비.",
-            "나만의 독자 성명이 각인되는 특별 가변 VDP 책갈피 보증서 포함.",
-            "지금 B2C 스토어 펀딩 성공 UAT를 확인하고 한정판을 소장하세요!"
+            "역사의 뒤안길로 사라졌던 미스터리 판타지의 명작, 소설 '마녀'가 다시 깨어납니다.",
+            "스산한 바람만이 스치는 어두운 침엽수림 속, 마녀 사냥의 감춰진 진실이 시작됩니다.",
+            "독자들의 간절한 목소리가 모여 복간이 결정된, 절판 도서 복원 프로젝트의 첫 시작.",
+            "아래 [출판친구스토어] 링크를 클릭하여 단 10초 만에 '마녀'의 정식 펀딩을 개설하고 첫 서포터가 되어주세요.",
+            "책을 한 권 읽을 때마다 대지에 나무가 자라납니다. 출판친구와 함께 푸른 숲을 기부해 주세요."
         ];
     } else if (title.includes('인간') || title.includes('카네기')) {
         copyTemplates = [
@@ -3599,9 +3599,45 @@ function renderNewsCardTab(book) {
 
     window._newsCardCopies = copyTemplates;
 
+    // 백업용 고화질 Unsplash CDN 이미지 (정적 에셋 유실 대비 비상 Bypass 가드)
+    const fallbackUrls = [
+        "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=600", // 1장: 중세 마법 고서
+        "https://images.unsplash.com/photo-1502082553048-f009c37129b9?q=80&w=600", // 2장: 신비로운 숲 밤 안개
+        "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=600", // 3장: 울창한 소나무 거목
+        "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600", // 4장: 달빛 별밤 숲길
+        "https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=600"  // 5장: 새싹과 푸른 생명의 숲
+    ];
+
+    async function updateCardImageAsync(imgElement, promptText, index) {
+        try {
+            // 백엔드 Imagen 3 API 비동기 가동 검증
+            const response = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: promptText,
+                    slideIndex: index,
+                    isDemo: true // UAT 시연 최적화 (딜레이 차단)
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.imageUrl) {
+                    // API에서 리턴받은 경로 또는 base64 데이터로 교체 바인딩
+                    imgElement.src = data.imageUrl;
+                }
+            }
+        } catch (e) {
+            console.warn('Imagen 3 API 비동기 매핑 실패, 로컬 캐시 자산 유지:', e.message);
+        }
+    }
+
     function buildCardHTML() {
         const idx = window._newsCardIdx;
         const text = window._newsCardCopies[idx];
+        const defaultSrc = `book${idx + 1}.png`; // 로컬 file:/// 실행 시 호환되도록 절대경로(/) 제거
+        const backupSrc = fallbackUrls[idx];
+
         return `
             <div style="padding: 14px; display: flex; flex-direction: column; height: 100%;">
                 <div style="font-size: 8px; font-weight: 900; color: #10b981; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -3609,29 +3645,47 @@ function renderNewsCardTab(book) {
                     <span style="background: rgba(16,185,129,0.15); padding: 2px 6px; border-radius: 999px;">${idx + 1} / 5</span>
                 </div>
                 
-                <!-- 카드뉴스 본판 (글래스모피즘 + 광원 필터 추가) -->
-                <div class="news-card-glow" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #020617 0%, #1e1b4b 100%); border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 22px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
-                    <div style="font-size: 8px; color: #10b981; font-weight: 900; letter-spacing: 0.15em; opacity: 0.85;">PUBLISHING FRIEND ADVANCED MARKETING</div>
-                    <div style="font-size: 13px; font-weight: 800; color: #fff; line-height: 1.7; padding: 10px 0; min-height: 80px; display: flex; align-items: center; justify-content: center; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
-                        "${text}"
+                <!-- 카드뉴스 본판 (글래스모피즘 + 초고화질 일러스트 + 하단 가독성 그라데이션 오버레이, 높이 붕괴 방지 min-height 추가) -->
+                <div class="news-card-glow" style="flex: 1; display: flex; flex-direction: column; background: #020617; border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(10px); position: relative; overflow: hidden; min-height: 250px;">
+                    
+                    <!-- 이미지 마스크 및 호버 줌인 효과 적용 -->
+                    <div class="news-card-image-wrap" style="width: 100%; height: 100%; position: absolute; top:0; left:0; z-index:1;">
+                        <img id="ctrl-card-img-element" 
+                             src="${defaultSrc}" 
+                             class="news-card-img" 
+                             onerror="this.onerror=null; this.src='${backupSrc}';" 
+                             style="width: 100%; height: 100%; object-fit: cover;">
+                        
+                        <!-- 하단 30% 블랙 그라데이션 오버레이 강제 (가독성 보장 마스크) -->
+                        <div class="news-card-overlay"></div>
                     </div>
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
-                        <i data-lucide="book-open" style="width: 13px; height: 13px; color: #10b981;"></i>
-                        <span style="font-size: 10px; font-weight: 900; color: #f1f5f9;">${title}</span>
+
+                    <!-- 텍스트/캡션 레이아웃 (오버레이 위에 얹어 가독성 확보) -->
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 24px; z-index: 2; display: flex; flex-direction: column; justify-content: flex-end; text-align: center;">
+                        <div style="font-size: 8px; color: #10b981; font-weight: 900; letter-spacing: 0.15em; margin-bottom: 6px; opacity: 0.9;">
+                            PUBLISHING FRIEND ADVANCED MARKETING
+                        </div>
+                        <div style="font-size: 12.5px; font-weight: 800; color: #fff; line-height: 1.6; min-height: 52px; display: flex; align-items: center; justify-content: center; letter-spacing: -0.02em; text-shadow: 0 2px 12px rgba(0,0,0,0.95); margin-bottom: 12px;">
+                            "${text}"
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; border-top: 1px dashed rgba(255,255,255,0.25); padding-top: 10px;">
+                            <i data-lucide="book-open" style="width: 12px; height: 12px; color: #10b981;"></i>
+                            <span style="font-size: 10px; font-weight: 900; color: #f1f5f9; text-shadow: 0 1px 4px rgba(0,0,0,0.85);">${title}</span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- 캐러셀 제어 버튼 -->
                 <div style="display: flex; gap: 6px; margin-top: 12px;">
-                    <button onclick="window.changeNewsCard(-1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    <button onclick="window.changeNewsCard(-1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; z-index:10;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
                         <i data-lucide="chevron-left" style="width: 12px; height: 12px;"></i>이전
                     </button>
-                    <button onclick="window.changeNewsCard(1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    <button onclick="window.changeNewsCard(1)" style="flex: 1; padding: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--ctrl-border-md); border-radius: 8px; color: var(--ctrl-text); font-size: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; z-index:10;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
                         다음<i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
                     </button>
                 </div>
                 
-                <button onclick="window.downloadNewsCardSim()" style="width: 100%; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                <button onclick="window.downloadNewsCardSim()" style="width: 100%; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 10px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.2s; z-index:10;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                     <i data-lucide="download" style="width: 12px; height: 12px;"></i>카드뉴스 세트 전체 다운로드 (Local ZIP)
                 </button>
             </div>
@@ -3640,9 +3694,22 @@ function renderNewsCardTab(book) {
 
     viewer.innerHTML = buildCardHTML();
 
+    // 렌더링 직후 비동기 API 통신을 통해 검증 및 base64 전환 트리거 가동
+    const imgEl = document.getElementById('ctrl-card-img-element');
+    if (imgEl) {
+        updateCardImageAsync(imgEl, window._newsCardCopies[0], 1);
+    }
+
     window.changeNewsCard = function(offset) {
         window._newsCardIdx = (window._newsCardIdx + offset + 5) % 5;
         viewer.innerHTML = buildCardHTML();
+        
+        // 캐러셀 슬라이드 변경 시에도 비동기 이미지 로딩을 재격발
+        const newImgEl = document.getElementById('ctrl-card-img-element');
+        if (newImgEl) {
+            updateCardImageAsync(newImgEl, window._newsCardCopies[window._newsCardIdx], window._newsCardIdx + 1);
+        }
+
         if (window.lucide) {
             try { lucide.createIcons(); } catch (e) {}
         }
