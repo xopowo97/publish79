@@ -38,6 +38,8 @@
     let currentState = STATE.IDLE;
     let uploadedCoverFile = null;
     let uploadedInteriorFile = null;
+    let chatHistory = [];
+    let chatLogId = null;
 
     // ── 초기화 ────────────────────────────────────────────────
     function init() {
@@ -568,21 +570,50 @@
             const userRole = sessionStorage.getItem('userRole') || 'guest';
             const userId = sessionStorage.getItem('userId') || '';
 
-            const res = await fetch('/api/chat', {
+            // 사용자 메시지 히스토리에 추가
+            chatHistory.push({
+                role: 'user',
+                parts: [{ text: userMessage }]
+            });
+
+            const getApiUrl = (path) => {
+                const isLocal = window.location.hostname === 'localhost' ||
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname === '' ||
+                    window.location.protocol === 'file:';
+                return isLocal ? `https://publish79.vercel.app${path}` : path;
+            };
+
+            const res = await fetch(getApiUrl('/api/chat'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    message: userMessage, 
-                    agentId: '17',
+                    chat_type: 'ERP_STORE',
+                    contents: chatHistory,
                     userRole: userRole,
-                    userId: userId
+                    userId: userId,
+                    logId: chatLogId
                 }),
             });
             removeTyping();
             if (!res.ok) throw new Error('API Error');
             const data = await res.json();
-            addBotMessage(data.reply || '답변을 불러오는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.');
-        } catch {
+            
+            if (data.logId) {
+                chatLogId = data.logId;
+            }
+
+            const replyText = data.responseText || '답변을 불러오는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
+            
+            // 모델 응답 히스토리에 추가
+            chatHistory.push({
+                role: 'model',
+                parts: [{ text: replyText }]
+            });
+
+            addBotMessage(replyText);
+        } catch (err) {
+            console.error('CS 챗봇 API 호출 오류:', err);
             removeTyping();
             addBotMessage('지금 네트워크 연결이 불안정해요 🔌<br>잠시 후 다시 시도해 주세요.');
         }
