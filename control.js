@@ -1167,15 +1167,12 @@ const CTRL_LOG_POOL = [
 ];
 
 function startCtrlLogStream() {
-    if (_ctrl_logIntervalId) clearInterval(_ctrl_logIntervalId);
-
+    if (_ctrl_logIntervalId) {
+        clearInterval(_ctrl_logIntervalId);
+        _ctrl_logIntervalId = null;
+    }
+    // 최초 1회만 진짜 로그(DB) 렌더링하고, 주기적인 가짜 로그 생성 타이머는 삭제함
     _fetchAndRenderCtrlLogs();
-
-    _ctrl_logIntervalId = setInterval(() => {
-        const el = document.getElementById('ctrl-log-stream');
-        if (!el) { clearInterval(_ctrl_logIntervalId); return; }
-        _fetchAndRenderCtrlLogs();
-    }, 5000);
 }
 
 async function _fetchAndRenderCtrlLogs() {
@@ -1183,7 +1180,6 @@ async function _fetchAndRenderCtrlLogs() {
     if (!el) return;
 
     if (!_ctrl_supabase) {
-        _appendCtrlSimulatedLog(el);
         return;
     }
 
@@ -1211,9 +1207,6 @@ async function _fetchAndRenderCtrlLogs() {
             return;
         }
     } catch (_) { /* 폴백 */ }
-
-    // DB 미연동 시 시뮬레이션 폴백
-    _appendCtrlSimulatedLog(el);
 }
 
 function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) {

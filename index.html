@@ -13,6 +13,8 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/@pdf-lib/fontkit@0.0.2/dist/fontkit.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Daum Postcode API -->
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <!-- Google Fonts: Inter & Outfit -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;900&display=swap"
@@ -33,7 +35,7 @@
         }
 
         .glass-nav {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
@@ -74,33 +76,33 @@
     </style>
 </head>
 
-<body class="bg-white text-slate-900">
+<body class="bg-slate-950 text-slate-100">
 
     <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-100">
+    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-800">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center gap-8">
-                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-slate-900 flex items-center gap-2">
+                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-white flex items-center gap-2">
                     <span>출판친구</span>
-                    <span class="text-sky-500 text-sm">STORE</span>
+                    <span class="text-sky-400 text-sm">STORE</span>
                 </a>
                 
                 <!-- 복귀 링크 버튼 (심사위원 전용 - 평상시 숨김) -->
-                <a href="control.html" id="back-to-control-btn" class="hidden items-center gap-1.5 px-3.5 py-1.5 border border-orange-500 text-orange-600 rounded-full text-xs font-black hover:bg-orange-50 transition-all">
+                <a href="control.html" id="back-to-control-btn" class="hidden items-center gap-1.5 px-3.5 py-1.5 border border-orange-500 text-orange-400 rounded-full text-xs font-black hover:bg-orange-950/40 transition-all">
                     <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                     <span>AI 통제실로 이동</span>
                 </a>
 
-                <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-500">
-                    <a href="#" class="hover:text-sky-600 transition-colors">복간 요청</a>
+                <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-400">
+                    <a href="#" class="hover:text-sky-400 transition-colors">복간 요청</a>
                 </div>
             </div>
             <div class="flex items-center gap-3">
                 <!-- B2C User Session Status (비로그인) -->
                 <div id="b2c-logged-out-nav" class="flex items-center gap-2">
                     <button onclick="openB2CRegisterModal()"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-full text-xs font-black transition-all">
-                        <i data-lucide="user-plus" class="w-3.5 h-3.5 text-sky-500"></i>
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all">
+                        <i data-lucide="user-plus" class="w-3.5 h-3.5 text-sky-400"></i>
                         <span>회원가입</span>
                     </button>
                     <button onclick="openB2CLoginModal()"
@@ -109,7 +111,7 @@
                         <span>개인 로그인</span>
                     </button>
                     <a href="erp.html" id="btn-b2b-login"
-                        class="hidden md:flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-full text-xs font-black hover:bg-slate-50 hover:border-sky-400 hover:text-sky-600 transition-all">
+                        class="hidden md:flex items-center gap-1.5 px-3 py-2 border border-slate-700 text-slate-300 rounded-full text-xs font-black hover:bg-slate-800 hover:border-sky-400 hover:text-sky-400 transition-all">
                         <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
                         <span>기업 로그인</span>
                     </a>
@@ -118,20 +120,21 @@
                 <!-- B2C User Session Status (개인 로그인 상태) -->
                 <div id="b2c-logged-in-nav" class="hidden items-center gap-2">
                     <button onclick="openMyLibraryModal()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-full text-xs font-black transition-all">
-                        <i data-lucide="user" class="w-3.5 h-3.5 text-sky-500"></i>
+                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-sky-400"></i>
                         <span id="nav-user-info">서포터님 (0P)</span>
                     </button>
                     <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-2.5 py-2 border border-transparent text-slate-400 hover:text-slate-600 rounded-full text-xs font-bold transition-all" title="로그아웃">
+                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 rounded-full text-xs font-black transition-all" title="로그아웃">
                         <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        <span>로그아웃</span>
                     </button>
                 </div>
 
                 <!-- Admin Control Center Shortcut (최고관리자 로그인 상태) -->
                 <div id="admin-shortcut-nav" class="hidden items-center gap-2">
-                    <div class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-xs font-black">
-                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                    <div class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-xs font-black">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
                         <span id="admin-nav-user-info">어드민대표 서포터님</span>
                     </div>
                     <a href="control.html"
@@ -145,14 +148,16 @@
                         <span>⚙️ ERP</span>
                     </a>
                     <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-2.5 py-2 border border-transparent text-slate-400 hover:text-slate-600 rounded-full text-xs font-bold transition-all" title="로그아웃">
+                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 rounded-full text-xs font-black transition-all" title="로그아웃">
                         <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        <span>로그아웃</span>
                     </button>
                 </div>
 
-                <!-- 장바구니 아이콘 (어드민이 아닐 때만 노출) -->
-                <button id="nav-shopping-bag" class="p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600">
-                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <!-- 나의서재 버튼 (어드민이 아닐 때만 노출) -->
+                <button id="nav-shopping-bag" onclick="openMyLibraryModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all" title="나의 예약 도서함">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span>나의서재</span>
                 </button>
             </div>
         </div>
@@ -232,23 +237,23 @@
     <!-- Content Sections -->
     <main class="max-w-7xl mx-auto px-6 py-24 space-y-32">
 
-        <!-- [신규] 실시간 복간 펀딩 라이브 현황판 및 ESG 캠페인 보드 -->
+        <!-- [신규] 실시간 복간 펀딩 라이브 현황판 -->
         <section class="bg-slate-900 rounded-[32px] p-8 md:p-12 text-white border border-slate-800 shadow-2xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 blur-[100px] rounded-full"></div>
-            <div class="absolute bottom-0 left-0 w-80 h-80 bg-sky-500/10 blur-[100px] rounded-full"></div>
+            <div class="absolute top-0 right-0 w-80 h-80 bg-sky-500/10 blur-[100px] rounded-full"></div>
+            <div class="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 blur-[100px] rounded-full"></div>
             
             <div class="relative z-10 space-y-8">
                 <!-- 현황판 헤더 -->
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6">
                     <div>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-black tracking-widest uppercase">
-                            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full text-[10px] font-black tracking-widest uppercase">
+                            <span class="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span>
                             Live Dashboard
                         </span>
                         <h2 class="text-2xl md:text-3xl font-black font-outfit mt-2 tracking-tight">실시간 복간 라이브 현황판</h2>
                     </div>
                     <p class="text-xs text-slate-400 max-w-xs leading-relaxed md:text-right">
-                        독자님들과 출판친구가 함께 절판된 명작을 구출하고 지구의 숲을 되살리는 실시간 통계 지표입니다.
+                        출판친구와 독자님들이 함께 만들어 가는 실시간 예약 펀딩 실적 및 플랫폼 통계 지표입니다.
                     </p>
                 </div>
                 
@@ -256,12 +261,12 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <!-- 카드 1: 구출된 도서 -->
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-sky-500/30 transition-all">
-                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">📚 구출된 종이책</div>
+                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">📚 복간 성공 도서</div>
                         <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
                             <span id="stat-books-count" class="font-outfit">12</span><span class="text-sm font-bold text-slate-400">종</span> 
                             <span id="stat-copies-count" class="font-outfit ml-1 text-sky-400">5,420</span><span class="text-xs font-bold text-sky-500">부</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 복간 성공 실적</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 복간 제작 수량</p>
                     </div>
                     <!-- 카드 2: 활성 서포터 -->
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-emerald-500/30 transition-all">
@@ -269,48 +274,23 @@
                         <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
                             <span id="stat-supporters-count" class="font-outfit">342</span><span class="text-sm font-bold text-slate-400">명</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">복간 펀딩 동참 고유 서포터</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">복간 펀딩 동참 서포터</p>
                     </div>
-                    <!-- 카드 3: 소나무 상쇄 -->
+                    <!-- 카드 3: 누적 펀딩 규모 -->
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-amber-500/30 transition-all">
-                        <div class="text-[10px] font-black text-amber-400 uppercase tracking-widest">🌱 소나무 상쇄 효과</div>
+                        <div class="text-[10px] font-black text-amber-400 uppercase tracking-widest">💰 누적 예약 결제 규모</div>
                         <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-pine-count" class="font-outfit">899.7</span><span class="text-sm font-bold text-slate-400">그루</span>
+                            <span id="stat-sales-volume" class="font-outfit">97.56</span><span class="text-sm font-bold text-slate-400">백만원</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">탄소 배출 5.9톤 감축 효과</p>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 결제 대기 예약액</p>
                     </div>
-                    <!-- 카드 4: 묘목 기부 -->
+                    <!-- 카드 4: 평균 달성률 -->
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-rose-500/30 transition-all">
-                        <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">🔥 기부된 진짜 묘목</div>
+                        <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">📈 평균 펀딩 달성률</div>
                         <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-donation-count" class="font-outfit">361</span><span class="text-sm font-bold text-slate-400">그루</span>
+                            <span id="stat-achievement-rate" class="font-outfit">112.5</span><span class="text-sm font-bold text-slate-400">%</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">강원도 산림청 기부 묘목</p>
-                    </div>
-                </div>
-
-                <!-- 강원도 숲 조성 캠페인 현황 -->
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md flex flex-col md:flex-row items-center gap-6 justify-between">
-                    <div class="flex items-start gap-4">
-                        <div class="bg-emerald-500/20 p-3 rounded-2xl text-emerald-400 animate-pulse">
-                            <i data-lucide="trees" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-black text-white text-base">🌱 강원도 산불 피해지역 숲 조성 캠페인</h4>
-                            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                                출판친구는 독자님들이 책 15권을 펀딩할 때마다 강원도 산불 피해 지역에 진짜 묘목 1그루를 기부하고 직접 심습니다.<br>
-                                (권당 200원 출판친구에서 기부. 매월 4월 5일 식목일에 모아진 금액으로 강원도 산림청에 기부합니다.)
-                            </p>
-                        </div>
-                    </div>
-                    <div class="w-full md:w-80 space-y-2 shrink-0">
-                        <div class="flex justify-between text-xs font-black text-emerald-400">
-                            <span id="stat-campaign-percent">90.3% 달성</span>
-                            <span id="stat-campaign-status">361그루 / 목표 400그루</span>
-                        </div>
-                        <div class="w-full bg-white/10 h-3 rounded-full overflow-hidden border border-white/5">
-                            <div id="stat-campaign-bar" class="bg-gradient-to-r from-emerald-500 to-sky-400 h-full rounded-full transition-all duration-1000" style="width: 90.3%;"></div>
-                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold">진행 과제 목표 대비 달성도</p>
                     </div>
                 </div>
             </div>
@@ -469,16 +449,45 @@
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">성명 (실명)</label>
-                    <input type="text" id="b2c-login-name" placeholder="홍길동" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
+                    <input type="password" id="b2c-login-password" placeholder="비밀번호를 입력해 주세요." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div class="text-right">
+                    <button type="button" onclick="openResetPasswordModal()" class="text-[10px] text-sky-600 hover:text-sky-500 underline font-bold">비밀번호를 분실하셨나요?</button>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
                 <button onclick="closeB2CLoginModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
                 <button onclick="submitB2CLogin()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- B2C 비밀번호 재설정 모달 -->
+    <div id="b2c-reset-pw-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
+                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
+                    <i data-lucide="key-round" class="text-white"></i>
+                    비밀번호 재설정
+                </h3>
+                <p class="text-xs text-sky-200 mt-1">가입하신 이메일로 비밀번호 재설정 안내를 전송합니다.</p>
+                <button onclick="closeResetPasswordModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
+                    <input type="email" id="b2c-reset-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+            </div>
+            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
+                <button onclick="closeResetPasswordModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitResetPasswordRequest()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">재설정 요청</button>
             </div>
         </div>
     </div>
@@ -496,22 +505,56 @@
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="p-6 space-y-4 max-h-[300px] overflow-y-auto">
+            <div class="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-register-email" placeholder="example@email.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <div class="flex gap-2">
+                        <input type="email" id="b2c-register-email" oninput="resetEmailCheck()" placeholder="example@email.com" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                        <button type="button" onclick="checkEmailDuplicate()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all shadow-sm">중복확인</button>
+                    </div>
+                    <span id="email-check-msg" class="text-[10px] font-bold block mt-1 hidden"></span>
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
+                    <input type="password" id="b2c-register-password" placeholder="영문+숫자+특수문자 8자 이상" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호 확인</label>
+                    <input type="password" id="b2c-register-password-confirm" placeholder="비밀번호 재입력" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명)</label>
-                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">연락처</label>
-                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">배송 주소</label>
-                    <input type="text" id="b2c-register-address" placeholder="서울특별시 강남구 테헤란로 123" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="b2c-register-zipcode" placeholder="우편번호" readonly class="w-24 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none">
+                        <button type="button" onclick="openDaumPostcode()" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-650 text-white rounded-xl text-xs font-black transition-all shadow-sm">우편번호 검색</button>
+                    </div>
+                    <input type="text" id="b2c-register-address" placeholder="기본 주소 (검색 시 자동 입력)" readonly class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none mb-2">
+                    <input type="text" id="b2c-register-detail-address" placeholder="상세 주소 입력 (동, 호수 등)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <!-- 약관 동의 체크박스 추가 -->
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="register-agree-terms" class="rounded text-sky-500 focus:ring-sky-500">
+                        <label for="register-agree-terms" class="text-xs text-slate-600 font-bold">
+                            <span class="text-sky-600">[필수]</span> 이용약관 동의
+                        </label>
+                        <button onclick="viewTerms('terms')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="register-agree-privacy" class="rounded text-sky-500 focus:ring-sky-500">
+                        <label for="register-agree-privacy" class="text-xs text-slate-600 font-bold">
+                            <span class="text-sky-600">[필수]</span> 개인정보 처리방침 동의
+                        </label>
+                        <button onclick="viewTerms('privacy')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
+                    </div>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
@@ -520,6 +563,25 @@
             </div>
         </div>
     </div>
+
+    <!-- 약관 상세 모달 -->
+    <div id="terms-detail-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="bg-slate-950 text-white p-6 relative">
+                <h3 class="text-base font-black font-outfit" id="terms-title">약관 상세</h3>
+                <button onclick="closeTermsDetailModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <textarea id="terms-content-area" readonly class="w-full h-64 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-600 leading-relaxed outline-none resize-none"></textarea>
+            </div>
+            <div class="bg-slate-50 p-6 flex justify-end border-t border-slate-100">
+                <button onclick="closeTermsDetailModal()" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">확인</button>
+            </div>
+        </div>
+    </div>
+
 
 
 
@@ -767,43 +829,205 @@
             }
         }
 
-        function submitB2CRegister() {
+        // B2C Register Modals
+        let isEmailChecked = false;
+
+        function resetEmailCheck() {
+            isEmailChecked = false;
+            const msgEl = document.getElementById('email-check-msg');
+            if (msgEl) {
+                msgEl.classList.add('hidden');
+            }
+        }
+
+        async function checkEmailDuplicate() {
             const email = document.getElementById('b2c-register-email').value.trim();
+            const msgEl = document.getElementById('email-check-msg');
+            if (!email) {
+                alert('이메일 주소를 입력해 주세요.');
+                return;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('올바른 이메일 형식이 아닙니다.');
+                return;
+            }
+
+            const localExist = localStorage.getItem(`b2c_phone_${email}`);
+            if (localExist) {
+                msgEl.textContent = '이미 등록된 이메일 주소입니다.';
+                msgEl.className = 'text-[10px] font-bold block mt-1 text-rose-500';
+                msgEl.classList.remove('hidden');
+                isEmailChecked = false;
+                return;
+            }
+
+            if (supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('user_profiles')
+                        .select('email')
+                        .eq('email', email)
+                        .maybeSingle();
+                    
+                    if (error) throw error;
+                    if (data) {
+                        msgEl.textContent = '이미 등록된 이메일 주소입니다. (DB)';
+                        msgEl.className = 'text-[10px] font-bold block mt-1 text-rose-500';
+                        msgEl.classList.remove('hidden');
+                        isEmailChecked = false;
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[Store] Supabase 중복체크 중 오류 발생:', err);
+                }
+            }
+
+            msgEl.textContent = '사용 가능한 이메일 주소입니다.';
+            msgEl.className = 'text-[10px] font-bold block mt-1 text-emerald-500';
+            msgEl.classList.remove('hidden');
+            isEmailChecked = true;
+        }
+
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        function openB2CRegisterModal() {
+            const modal = document.getElementById('b2c-register-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeB2CRegisterModal() {
+            const modal = document.getElementById('b2c-register-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
+        async function submitB2CRegister() {
+            const email = document.getElementById('b2c-register-email').value.trim();
+            const pw = document.getElementById('b2c-register-password').value;
+            const pwConfirm = document.getElementById('b2c-register-password-confirm').value;
             const name = document.getElementById('b2c-register-name').value.trim();
             const phone = document.getElementById('b2c-register-phone').value.trim();
+            const zipcode = document.getElementById('b2c-register-zipcode').value.trim();
             const address = document.getElementById('b2c-register-address').value.trim();
+            const detailAddress = document.getElementById('b2c-register-detail-address').value.trim();
 
-            if (!email || !name || !phone || !address) {
+            if (!email || !pw || !pwConfirm || !name || !phone || !zipcode || !address || !detailAddress) {
                 alert('모든 필수 정보를 입력해 주세요.');
                 return;
             }
 
-            b2cUser.isLoggedIn = true;
-            b2cUser.email = email;
-            b2cUser.name = name;
-            b2cUser.phone = phone;
-            b2cUser.address = address;
-            b2cUser.points = 1000; // 가입 환영 마일리지 1000P 부여
+            if (!isEmailChecked) {
+                alert('이메일 중복 확인을 완료해 주세요.');
+                return;
+            }
+
+            // KISA 가이드라인에 따른 비밀번호 영문+숫자+특수문자 조합 8자 이상 정규식 검증
+            const pwRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+            if (!pwRegex.test(pw)) {
+                alert('비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함하여 8자 이상이어야 합니다.');
+                return;
+            }
+
+            if (pw !== pwConfirm) {
+                alert('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            // 약관 필수 동의 여부 체크
+            const agreeTerms = document.getElementById('register-agree-terms').checked;
+            const agreePrivacy = document.getElementById('register-agree-privacy').checked;
+            if (!agreeTerms || !agreePrivacy) {
+                alert('이용약관 및 개인정보 처리방침에 모두 동의해 주세요.');
+                return;
+            }
+
+            const combinedAddress = `[${zipcode}] ${address} ${detailAddress}`;
+
+            // 솔티드 해시(Salted Hash) 처리 (비밀번호 원문 뒤에 이메일 솔트 체이닝)
+            const saltedPw = pw + email;
+            const pwHash = await sha256(saltedPw);
 
             // 스토리지에 가입 정보 보존
             localStorage.setItem(`b2c_phone_${email}`, phone);
-            localStorage.setItem(`b2c_address_${email}`, address);
+            localStorage.setItem(`b2c_address_${email}`, combinedAddress);
             localStorage.setItem(`b2c_points_${email}`, '1000');
             localStorage.setItem(`b2c_joined_${email}`, '[]');
+            localStorage.setItem(`b2c_name_${email}`, name); // 로그인 후 웰컴 이름 바인딩용
+            localStorage.setItem(`b2c_pw_hash_${email}`, pwHash); // SHA-256 해시 암호 저장
 
             // Supabase 연동
             syncUserProfileWithSupabase(email, name, 1000);
 
-            // 세션 저장
-            sessionStorage.setItem('b2cIsLoggedIn', 'true');
-            sessionStorage.setItem('b2cUserEmail', email);
-            sessionStorage.setItem('b2cUserName', name);
+            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다. 로그인 창으로 이동합니다.');
 
-            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다.');
-
-            updateB2CUserUI();
             closeB2CRegisterModal();
-            renderProductGrid();
+            openB2CLoginModal(); // 회원가입 후 로그인창 바로 띄우기
+        }
+
+        // 다음 우편번호 검색 팝업 실행 함수
+        function openDaumPostcode() {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    let addr = '';
+                    if (data.userSelectedType === 'R') {
+                        addr = data.roadAddress;
+                    } else {
+                        addr = data.jibunAddress;
+                    }
+                    document.getElementById('b2c-register-zipcode').value = data.zonecode;
+                    document.getElementById('b2c-register-address').value = addr;
+                    document.getElementById('b2c-register-detail-address').focus();
+                }
+            }).open();
+        }
+
+        // 약관 상세 보기 동적 로딩 함수
+        async function viewTerms(type) {
+            const titleEl = document.getElementById('terms-title');
+            const contentEl = document.getElementById('terms-content-area');
+            const modal = document.getElementById('terms-detail-modal');
+
+            if (!titleEl || !contentEl || !modal) return;
+
+            try {
+                contentEl.value = '약관을 불러오는 중입니다...';
+                titleEl.textContent = type === 'terms' ? '이용약관 상세' : '개인정보 처리방침 상세';
+
+                const filename = type === 'terms' ? 'terms.txt' : 'privacy.txt';
+                const response = await fetch('/' + filename);
+                if (!response.ok) {
+                    throw new Error('약관 파일 로드 실패');
+                }
+                const text = await response.text();
+                contentEl.value = text;
+            } catch (err) {
+                console.error(err);
+                contentEl.value = '약관 내용을 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTermsDetailModal() {
+            const modal = document.getElementById('terms-detail-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
         }
 
         // B2C Login Modals
@@ -824,19 +1048,38 @@
             }
         }
 
-        function submitB2CLogin() {
+        async function submitB2CLogin() {
             const email = document.getElementById('b2c-login-email').value.trim();
-            const name = document.getElementById('b2c-login-name').value.trim();
+            const pw = document.getElementById('b2c-login-password').value;
 
-            if (!email || !name) {
-                alert('이메일과 성명을 모두 입력해 주세요.');
+            if (!email || !pw) {
+                alert('이메일과 비밀번호를 모두 입력해 주세요.');
+                return;
+            }
+
+            // 가입 여부 및 성명 획득
+            const registeredPhone = localStorage.getItem(`b2c_phone_${email}`);
+            const name = localStorage.getItem(`b2c_name_${email}`) || '서포터';
+            const registeredHash = localStorage.getItem(`b2c_pw_hash_${email}`);
+
+            if (!registeredPhone || !registeredHash) {
+                alert('등록되지 않은 이메일이거나 회원 정보가 일치하지 않습니다. 회원가입을 먼저 진행해 주세요.');
+                return;
+            }
+
+            // 솔티드 해시 대조 검증
+            const saltedPw = pw + email;
+            const inputHash = await sha256(saltedPw);
+
+            if (registeredHash !== inputHash) {
+                alert('이메일 또는 비밀번호가 일치하지 않습니다.');
                 return;
             }
 
             b2cUser.isLoggedIn = true;
             b2cUser.email = email;
             b2cUser.name = name;
-            b2cUser.phone = localStorage.getItem(`b2c_phone_${email}`) || '';
+            b2cUser.phone = registeredPhone;
             b2cUser.address = localStorage.getItem(`b2c_address_${email}`) || '';
             
             // Load or initialize points
@@ -863,6 +1106,40 @@
             
             // Re-render to update grid buttons (vote/fund require login)
             renderProductGrid();
+        }
+
+        // 비밀번호 재설정 모달 함수들
+        function openResetPasswordModal() {
+            closeB2CLoginModal();
+            const modal = document.getElementById('b2c-reset-pw-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeResetPasswordModal() {
+            const modal = document.getElementById('b2c-reset-pw-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+            document.getElementById('b2c-reset-email').value = '';
+        }
+
+        function submitResetPasswordRequest() {
+            const email = document.getElementById('b2c-reset-email').value.trim();
+            if (!email) {
+                alert('이메일 주소를 입력해 주세요.');
+                return;
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('올바른 이메일 형식이 아닙니다.');
+                return;
+            }
+            alert(`[재설정 시뮬레이션] ${email} 주소로 임시 비밀번호 설정 링크가 발송되었습니다. 메일함을 확인해 주세요.`);
+            closeResetPasswordModal();
         }
 
 
@@ -918,6 +1195,9 @@
                         if (loggedInNav) {
                             loggedInNav.classList.remove('hidden');
                             loggedInNav.classList.add('flex');
+                        }
+                        if (navUserInfo) {
+                            navUserInfo.textContent = `${b2cUser.name}님 (${b2cUser.points.toLocaleString()}P)`;
                         }
                     } else {
                         if (loggedOutNav) {
@@ -1655,7 +1935,6 @@
 
             grid.innerHTML = filtered.map(p => {
                 // Determine display type based on candidate settings
-                // If votes_current >= votes_target, it upgrades to 'funding' phase
                 const isFunding = p.is_funding_active || (p.status === 'funding') || (p.votes_current >= p.votes_target);
                 const isRestored = p.status === 'restored';
                 const isVoteOnly = !isFunding && !isRestored;
@@ -1673,53 +1952,53 @@
                 if (isVoteOnly) badgeHtml = `<span class="badge-funding bg-gradient-to-r from-amber-500 to-yellow-500">복간대기</span>`;
 
                 return `
-                <div class="group bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all flex flex-col justify-between">
+                <div class="group bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all flex flex-col justify-between text-white">
                     <div>
-                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-950 mb-4 relative flex items-center justify-center">
                             ${p.image
                                 ? `<img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://via.placeholder.com/300x400?text=${encodeURIComponent(p.title)}'">`
-                                : `<div class="flex flex-col items-center justify-center text-slate-300 w-full h-full bg-slate-50"><i data-lucide="book-open" class="w-12 h-12 text-slate-300 mb-2"></i><span class="text-[10px] font-bold text-slate-400">이미지 준비중</span></div>`
+                                : `<div class="flex flex-col items-center justify-center text-slate-500 w-full h-full bg-slate-900"><i data-lucide="book-open" class="w-12 h-12 text-slate-500 mb-2"></i><span class="text-[10px] font-bold text-slate-500">이미지 준비중</span></div>`
                             }
                             <div class="absolute top-3 left-3">${badgeHtml}</div>
                         </div>
-                        <div class="text-[10px] font-black text-sky-600 uppercase tracking-widest mb-1">${p.category || '기타'}</div>
-                        <h3 class="font-black text-slate-800 leading-tight h-10 overflow-hidden mb-1">${p.title}</h3>
+                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1">${p.category || '기타'}</div>
+                        <h3 class="font-black text-white leading-tight h-10 overflow-hidden mb-1">${p.title}</h3>
                         <p class="text-xs text-slate-400 mb-3">${p.author || '저자 미상'} | ${p.pubName || '출판사 미상'}</p>
                         
                         <!-- Dynamic Status rendering -->
                         ${isFunding ? `
-                            <div class="inline-block bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-md mb-2">
+                            <div class="inline-block bg-orange-950/50 text-orange-400 text-[10px] font-black px-2 py-0.5 rounded-md mb-2 border border-orange-850">
                                 AI 판형 최적화 (인쇄 원가 33.3% 절감)
                             </div>
                             <div class="mt-2 mb-4 space-y-1">
-                                <div class="flex justify-between text-[10px] font-black text-orange-600">
+                                <div class="flex justify-between text-[10px] font-black text-orange-400">
                                     <span>${fundingPercent}% 달성</span>
                                     <span>${fundingCurrent}부 / ${fundingTarget}부 목표</span>
                                 </div>
-                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
                                     <div class="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full" style="width: ${fundingPercent}%;"></div>
                                 </div>
                             </div>
                         ` : ''}
 
                         ${isVoteOnly ? `
-                            <div class="inline-block bg-amber-50 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-md mb-2 border border-amber-200">
+                            <div class="inline-block bg-amber-950/50 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-md mb-2 border border-amber-850">
                                 복간 요청 접수 중
                             </div>
                             <div class="mt-2 mb-4 space-y-1">
-                                <div class="flex justify-between text-[10px] font-black text-amber-600">
+                                <div class="flex justify-between text-[10px] font-black text-amber-400">
                                     <span>${votesCurrent}표 확보 / 최소 ${votesTarget}표 목표</span>
                                     <span>${votesTarget - votesCurrent}표 필요</span>
                                 </div>
-                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
                                     <div class="bg-gradient-to-r from-amber-500 to-yellow-500 h-full rounded-full" style="width: ${votesPercent}%;"></div>
                                 </div>
                             </div>
                         ` : ''}
                     </div>
 
-                    <div class="flex justify-between items-center pt-3 border-t border-slate-100 mt-2">
-                        <span class="font-black text-base text-slate-800">${(p.price || 0).toLocaleString()}원</span>
+                    <div class="flex justify-between items-center pt-3 border-t border-slate-800 mt-2">
+                        <span class="font-black text-base text-white">${(p.price || 0).toLocaleString()}원</span>
                         ${isRestored ? `
                             <div class="flex text-amber-400">
                                 <i data-lucide="star" class="w-3 h-3 fill-current"></i>
@@ -1733,7 +2012,7 @@
                             <button onclick="openBillingModal(${p.id})" class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm">결제예약</button>
                         ` : ''}
                         ${isVoteOnly ? `
-                            <button onclick="submitVote(${p.id})" class="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1">
+                            <button onclick="submitVote(${p.id})" class="bg-sky-500 hover:bg-sky-650 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1">
                                 <i data-lucide="thumbs-up" class="w-3 h-3"></i>
                                 <span>요청 투표</span>
                             </button>
@@ -1879,32 +2158,25 @@
             
             const currentCopies = baseCopies + addFund;
             const currentSupporters = baseSupporters + (addFund > 0 ? 1 : 0);
-            const currentDonations = Math.floor(currentCopies / 15);
             
             const copiesEl = document.getElementById('stat-copies-count');
             const supportersEl = document.getElementById('stat-supporters-count');
-            const donationEl = document.getElementById('stat-donation-count');
-            const pineEl = document.getElementById('stat-pine-count');
+            const salesVolumeEl = document.getElementById('stat-sales-volume');
+            const achievementRateEl = document.getElementById('stat-achievement-rate');
             
             if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString();
             if (supportersEl) supportersEl.textContent = currentSupporters.toLocaleString();
-            if (donationEl) donationEl.textContent = currentDonations.toLocaleString();
             
-            if (pineEl) {
-                const currentPine = (currentCopies * 0.166).toFixed(1);
-                pineEl.textContent = parseFloat(currentPine).toLocaleString();
+            if (salesVolumeEl) {
+                // 평균 18,000원 가정하여 백만원 단위로 계산
+                const salesVolume = ((currentCopies * 18000) / 1000000).toFixed(2);
+                salesVolumeEl.textContent = parseFloat(salesVolume).toLocaleString();
             }
             
-            const percentEl = document.getElementById('stat-campaign-percent');
-            const statusEl = document.getElementById('stat-campaign-status');
-            const barEl = document.getElementById('stat-campaign-bar');
-            
-            const targetDonations = 400;
-            const percent = Math.min(100, parseFloat(((currentDonations / targetDonations) * 100).toFixed(1)));
-            
-            if (percentEl) percentEl.textContent = `${percent}% 달성`;
-            if (statusEl) statusEl.textContent = `${currentDonations.toLocaleString()}그루 / 목표 ${targetDonations.toLocaleString()}그루`;
-            if (barEl) barEl.style.width = `${percent}%`;
+            if (achievementRateEl) {
+                const achievementRate = (112.5 + (addFund * 0.1)).toFixed(1);
+                achievementRateEl.textContent = achievementRate;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
