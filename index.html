@@ -811,32 +811,20 @@
 
             const combinedAddress = `[${zipcode}] ${address} ${detailAddress}`;
 
-            b2cUser.isLoggedIn = true;
-            b2cUser.email = email;
-            b2cUser.name = name;
-            b2cUser.phone = phone;
-            b2cUser.address = combinedAddress;
-            b2cUser.points = 1000; // 가입 환영 마일리지 1000P 부여
-
             // 스토리지에 가입 정보 보존
             localStorage.setItem(`b2c_phone_${email}`, phone);
             localStorage.setItem(`b2c_address_${email}`, combinedAddress);
             localStorage.setItem(`b2c_points_${email}`, '1000');
             localStorage.setItem(`b2c_joined_${email}`, '[]');
+            localStorage.setItem(`b2c_name_${email}`, name); // 로그인 검증용으로 이름도 보관
 
             // Supabase 연동
             syncUserProfileWithSupabase(email, name, 1000);
 
-            // 세션 저장
-            sessionStorage.setItem('b2cIsLoggedIn', 'true');
-            sessionStorage.setItem('b2cUserEmail', email);
-            sessionStorage.setItem('b2cUserName', name);
+            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다. 로그인 창으로 이동합니다.');
 
-            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다.');
-
-            updateB2CUserUI();
             closeB2CRegisterModal();
-            renderProductGrid();
+            openB2CLoginModal(); // 회원가입 후 로그인창 바로 띄우기
         }
 
         // 다음 우편번호 검색 팝업 실행 함수
@@ -919,10 +907,19 @@
                 return;
             }
 
+            // 가입 여부 및 성명 매칭 검증
+            const registeredPhone = localStorage.getItem(`b2c_phone_${email}`);
+            const registeredName = localStorage.getItem(`b2c_name_${email}`);
+
+            if (!registeredPhone || (registeredName && registeredName !== name)) {
+                alert('등록되지 않은 이메일이거나 회원 정보가 일치하지 않습니다. 회원가입을 먼저 진행해 주세요.');
+                return;
+            }
+
             b2cUser.isLoggedIn = true;
             b2cUser.email = email;
             b2cUser.name = name;
-            b2cUser.phone = localStorage.getItem(`b2c_phone_${email}`) || '';
+            b2cUser.phone = registeredPhone;
             b2cUser.address = localStorage.getItem(`b2c_address_${email}`) || '';
             
             // Load or initialize points
