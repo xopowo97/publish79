@@ -69,7 +69,7 @@
             <nav class="ctrl-nav">
                 <a href="index.html" class="ctrl-nav-link" style="margin-right: 8px;">
                     <i data-lucide="shopping-bag"></i>
-                    <span>B2C 스토어로 이동</span>
+                    <span>출판친구스토어</span>
                 </a>
                 <a href="erp.html" class="ctrl-nav-link" style="margin-right: 8px;">
                     <i data-lucide="external-link"></i>
@@ -135,7 +135,7 @@
                 <span id="ctrl-pipeline-status" class="ctrl-pipeline-status">
                     대기 중 — 버튼을 눌러 파이프라인을 가동하세요.
                 </span>
-                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash">
+                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash" style="display: none;">
                     <i data-lucide="zap"></i>
                     플래시 라이트 모드 시연
                 </button>
@@ -441,7 +441,7 @@
                     <div class="text-[10px] text-purple-200 font-bold" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Panda Orchestrator</div>
                 </div>
                 <button id="ai-demo-btn"
-                    style="flex-shrink: 0; font-size: 9px; background: rgba(255, 255, 255, 0.15); color: #ffffff; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3); cursor: pointer; font-weight: bold; margin-left: 8px; transition: background 0.2s;"
+                    style="display: none; flex-shrink: 0; font-size: 9px; background: rgba(255, 255, 255, 0.15); color: #ffffff; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3); cursor: pointer; font-weight: bold; margin-left: 8px; transition: background 0.2s;"
                     onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
                     onmouseout="this.style.background='rgba(255, 255, 255, 0.15)'">
                     DEMO
@@ -458,7 +458,7 @@
             </div>
 
             <!-- Example of Agent Action (Shown for Demo) -->
-            <div id="ai-agent-action">
+            <div id="ai-agent-action" class="hidden">
                 <div class="ai-msg ai-msg-bot">
                     🚨 **시스템 에러 감지!**
                     파일 업로드 과정에서 예기치 못한 이슈가 발생했습니다. 제가 즉시 원인을 분석하고 해결책을 마련하겠습니다.
