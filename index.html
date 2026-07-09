@@ -154,9 +154,10 @@
                     </button>
                 </div>
 
-                <!-- 장바구니 아이콘 (어드민이 아닐 때만 노출) -->
-                <button id="nav-shopping-bag" onclick="openMyLibraryModal()" class="p-2.5 hover:bg-slate-800 rounded-full transition-all text-slate-300" title="나의 예약 도서함">
-                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <!-- 나의서재 버튼 (어드민이 아닐 때만 노출) -->
+                <button id="nav-shopping-bag" onclick="openMyLibraryModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all" title="나의 예약 도서함">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span>나의서재</span>
                 </button>
             </div>
         </div>
