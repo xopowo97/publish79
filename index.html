@@ -13,6 +13,8 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/@pdf-lib/fontkit@0.0.2/dist/fontkit.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Daum Postcode API -->
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <!-- Google Fonts: Inter & Outfit -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;900&display=swap"
@@ -444,11 +446,11 @@
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">성명 (실명)</label>
-                    <input type="text" id="b2c-login-name" placeholder="홍길동" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-login-name" placeholder="홍길동" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
@@ -474,19 +476,24 @@
             <div class="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-register-email" placeholder="example@email.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="email" id="b2c-register-email" placeholder="example@email.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명)</label>
-                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">연락처</label>
-                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">배송 주소</label>
-                    <input type="text" id="b2c-register-address" placeholder="서울특별시 강남구 테헤란로 123" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="b2c-register-zipcode" placeholder="우편번호" readonly class="w-24 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none">
+                        <button type="button" onclick="openDaumPostcode()" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-650 text-white rounded-xl text-xs font-black transition-all shadow-sm">우편번호 검색</button>
+                    </div>
+                    <input type="text" id="b2c-register-address" placeholder="기본 주소 (검색 시 자동 입력)" readonly class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none mb-2">
+                    <input type="text" id="b2c-register-detail-address" placeholder="상세 주소 입력 (동, 호수 등)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <!-- 약관 동의 체크박스 추가 -->
                 <div class="space-y-2 pt-2 border-t border-slate-100">
@@ -782,9 +789,11 @@
             const email = document.getElementById('b2c-register-email').value.trim();
             const name = document.getElementById('b2c-register-name').value.trim();
             const phone = document.getElementById('b2c-register-phone').value.trim();
+            const zipcode = document.getElementById('b2c-register-zipcode').value.trim();
             const address = document.getElementById('b2c-register-address').value.trim();
+            const detailAddress = document.getElementById('b2c-register-detail-address').value.trim();
 
-            if (!email || !name || !phone || !address) {
+            if (!email || !name || !phone || !zipcode || !address || !detailAddress) {
                 alert('모든 필수 정보를 입력해 주세요.');
                 return;
             }
@@ -797,16 +806,18 @@
                 return;
             }
 
+            const combinedAddress = `[${zipcode}] ${address} ${detailAddress}`;
+
             b2cUser.isLoggedIn = true;
             b2cUser.email = email;
             b2cUser.name = name;
             b2cUser.phone = phone;
-            b2cUser.address = address;
+            b2cUser.address = combinedAddress;
             b2cUser.points = 1000; // 가입 환영 마일리지 1000P 부여
 
             // 스토리지에 가입 정보 보존
             localStorage.setItem(`b2c_phone_${email}`, phone);
-            localStorage.setItem(`b2c_address_${email}`, address);
+            localStorage.setItem(`b2c_address_${email}`, combinedAddress);
             localStorage.setItem(`b2c_points_${email}`, '1000');
             localStorage.setItem(`b2c_joined_${email}`, '[]');
 
@@ -823,6 +834,23 @@
             updateB2CUserUI();
             closeB2CRegisterModal();
             renderProductGrid();
+        }
+
+        // 다음 우편번호 검색 팝업 실행 함수
+        function openDaumPostcode() {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    let addr = '';
+                    if (data.userSelectedType === 'R') {
+                        addr = data.roadAddress;
+                    } else {
+                        addr = data.jibunAddress;
+                    }
+                    document.getElementById('b2c-register-zipcode').value = data.zonecode;
+                    document.getElementById('b2c-register-address').value = addr;
+                    document.getElementById('b2c-register-detail-address').focus();
+                }
+            }).open();
         }
 
         // 약관 상세 보기 동적 로딩 함수
