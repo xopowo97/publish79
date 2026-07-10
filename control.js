@@ -828,23 +828,27 @@ function renderCtrlSkeletons() {
 // 5. 대시보드 데이터 로드 (에이전트 조직도 + 복간 후보)
 // ───────────────────────────────────────────
 async function loadCtrlDashboard() {
+    let agentData = [];
     if (!_ctrl_supabase) {
         console.warn('[통제실] Supabase 객체가 없어 로컬 정적 데이터 모드로 실행합니다.');
-        return;
-    }
-    // 5-1. 에이전트 조직도
-    try {
-        const { data, error } = await _ctrl_supabase
-            .from('agents')
-            .select('*')
-            .order('id', { ascending: true });
+    } else {
+        // 5-1. 에이전트 조직도
+        try {
+            const { data, error } = await _ctrl_supabase
+                .from('agents')
+                .select('*')
+                .order('id', { ascending: true });
 
-        if (!error && data && data.length > 0) {
-            renderCtrlAgentOrgTree(data);
+            if (!error && data && data.length > 0) {
+                agentData = data;
+            }
+        } catch (e) {
+            console.warn('[통제실] 에이전트 조직도 DB 연동 실패 (정적 UI 유지):', e.message);
         }
-    } catch (e) {
-        console.warn('[통제실] 에이전트 조직도 DB 연동 실패 (정적 UI 유지):', e.message);
     }
+
+    // Supabase 연동에 실패하더라도 조직도는 동적 생성(아코디언 연동 및 클릭 이벤트 탑재)
+    renderCtrlAgentOrgTree(agentData);
 
     const kwInput = document.getElementById('ctrl-keyword-input');
     const category = kwInput ? kwInput.value : 'all';
@@ -946,7 +950,7 @@ function renderCtrlAgentOrgTree(dbAgents) {
 
     const departments = [
         {
-            title: "🏢 [종이책 복간 POD 사업부]",
+            title: "🏢 [디지털 POD 사업부]",
             desc: "오프라인 종이책의 최적화 소량 생산을 전담하는 라인입니다.",
             agents: [
                 { id: 1, name: "살피미", tag: "빅데이터 수집", cond: "" },
@@ -962,7 +966,7 @@ function renderCtrlAgentOrgTree(dbAgents) {
             ]
         },
         {
-            title: "📱 [디지털 ePub 사업부]",
+            title: "📱 [디지털 epubb 사업부]",
             desc: "모바일/태블릿 환경에 맞는 인터랙티브 가변형 전자책을 생성하는 라인입니다.",
             agents: [
                 { id: 1, name: "살피미", tag: "디지털 수요 분석", cond: "" },
