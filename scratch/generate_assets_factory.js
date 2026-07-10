@@ -6,7 +6,6 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,18 +163,16 @@ async function generateMarketingPlan(book) {
 
 // 7-a. 실패 상태 마킹 헬퍼 (예외 발생 시 DB에 'failed' 기록)
 async function markFailed(isbn, reason) {
-    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets`;
+    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?isbn=eq.${isbn}`;
     try {
         await fetch(dbUrl, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
                 "apikey": MASTER_KEY,
                 "Authorization": `Bearer ${MASTER_KEY}`,
-                "Content-Type": "application/json",
-                "Prefer": "resolution=merge-dup"
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                isbn,
                 status: 'failed',
                 summary_script: `[오류] ${reason}`.slice(0, 500),
                 updated_at: new Date().toISOString()
@@ -192,9 +189,13 @@ async function markFailed(isbn, reason) {
 async function processBook(book, tempDir) {
     console.log(`\n📖 [처리 개시] ISBN: ${book.isbn} | 제목: "${book.title}"`);
 
+    // [스코프 방어] try-finally 블록 전체에서 파일 정리를 수행할 수 있도록 상위 변수 선언
+    let srtPath = null;
+    let audioFiles = [];
+
     // [인프라 가드] 에셋 생성 시작 즉시 DB에 'processing' 상태 선점
     // → Vercel 타임아웃이 발생해도 'processing' 행이 남아 재시도 감지 가능
-    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets`;
+    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?on_conflict=isbn`;
     await fetch(dbUrl, {
         method: 'POST',
         headers: {
@@ -218,13 +219,13 @@ async function processBook(book, tempDir) {
     const plan = await generateMarketingPlan(book);
     
     const srtContent = generateSRT(plan.timeline);
-    const srtPath = path.join(tempDir, `sub_${book.isbn}.srt`);
+    srtPath = path.join(tempDir, `sub_${book.isbn}.srt`);
     fs.writeFileSync(srtPath, srtContent, 'utf-8');
     console.log("      * 자막 SRT 컴파일 완료.");
 
     // Step B. TTS 나레이션 음성 파일 덩어리들 다운로드
     console.log("   -> [B 단계] Google TTS 조각 오디오 다운로드 중...");
-    const audioFiles = [];
+    audioFiles = [];
     for (let i = 0; i < plan.timeline.length; i++) {
         const text = plan.timeline[i].text;
         const dest = path.join(tempDir, `part_${book.isbn}_${i}.mp3`);
@@ -312,15 +313,22 @@ async function processBook(book, tempDir) {
         updated_at: new Date().toISOString()
     };
 
-    const dbRes = await fetch(dbUrl, {
-        method: 'POST',
+    const updateUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?isbn=eq.${book.isbn}`;
+    const dbRes = await fetch(updateUrl, {
+        method: 'PATCH',
         headers: {
             "apikey": MASTER_KEY,
             "Authorization": `Bearer ${MASTER_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-dup" // 중복 키 발생 시 덮어쓰기(UPSERT)
+            "Content-Type": "application/json"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+            card_news_data: plan.card_news,
+            audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+            shorts_video_url: finalVideoUrl,
+            summary_script: plan.summary_script,
+            status: 'success', // ✅ [인프라 가드] 모든 에셋 생성 완료 — 최종 상태 확정
+            updated_at: new Date().toISOString()
+        })
     });
 
     if (!dbRes.ok) {
@@ -334,11 +342,17 @@ async function processBook(book, tempDir) {
         await markFailed(book.isbn, err.message);
         throw err;
     } finally {
-        // 임시 자막 및 오디오 정리 (성공/실패 무관하게 반드시 실행)
-        if (fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
-        audioFiles.forEach(af => {
-            if (fs.existsSync(af.path)) fs.unlinkSync(af.path);
-        });
+        // 임시 자막 및 오디오 정리 (성공/실패 무관하게 존재하면 안전하게 삭제)
+        if (srtPath && fs.existsSync(srtPath)) {
+            fs.unlinkSync(srtPath);
+        }
+        if (Array.isArray(audioFiles)) {
+            audioFiles.forEach(af => {
+                if (af && af.path && fs.existsSync(af.path)) {
+                    fs.unlinkSync(af.path);
+                }
+            });
+        }
     }
 }
 
@@ -350,7 +364,7 @@ async function main() {
     console.log("============================================================");
     console.log("🚀 출판친구 300종 대량 마케팅 에셋 생성 파이프라인 가동");
     console.log(`- Supabase 원격 서버: ${SUPABASE_URL}`);
-    console.log(`- 수집 모수: books 테이블 전체 (BATCH_LIMIT: ${BATCH_LIMIT}종)`);
+    console.log(`- 수집 모수: reprint_candidates 테이블 전체 (BATCH_LIMIT: ${BATCH_LIMIT}종)`);
     console.log("============================================================");
 
     const tempDir = path.join(workspaceRoot, 'scratch', 'temp_assets');
@@ -359,25 +373,25 @@ async function main() {
     }
 
     try {
-        // Step 1. books 테이블 전체 조회 (원체 수집 데이터, reprint_candidates 아님!)
+        // Step 1. reprint_candidates 테이블 조회
         // 통제: BATCH_LIMIT으로 수집 모수 제한
-        const booksUrl = `${SUPABASE_URL}/rest/v1/books?select=isbn,title,author,publisher,pub_year,category,subject&isbn=not.is.null&limit=${BATCH_LIMIT}`;
+        const candidateUrl = `${SUPABASE_URL}/rest/v1/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=not.is.null&limit=${BATCH_LIMIT}`;
 
-        console.log(`📡 DB books 테이블에서 원천 도서 ${BATCH_LIMIT}종을 조회 중...`);
-        const res = await fetch(booksUrl, {
+        console.log(`📡 DB reprint_candidates 테이블에서 원천 도서 ${BATCH_LIMIT}종을 조회 중...`);
+        const res = await fetch(candidateUrl, {
             headers: {
                 "apikey": MASTER_KEY,
                 "Authorization": `Bearer ${MASTER_KEY}`
             }
         });
 
-        if (!res.ok) throw new Error(`books 테이블 조회 실패: ${res.statusText}`);
+        if (!res.ok) throw new Error(`reprint_candidates 테이블 조회 실패: ${res.statusText}`);
 
         const books = await res.json();
         console.log(`📚 DB로부터 원체 도서 ${books.length}종을 수신했습니다.`);
 
         if (books.length === 0) {
-            console.log("⚠️ DB에 ISBN이 있는 원체 도서가 없습니다. 수집기(살피미)를 먼저 가동해주세요.");
+            console.log("⚠️ DB에 ISBN이 있는 원천 도서가 없습니다. 수집기(살피미)를 먼저 가동해주세요.");
             return;
         }
 
