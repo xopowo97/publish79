@@ -538,6 +538,7 @@ window.ctrlCloseSalesMarketingPanel = function () {
 };
 
 async function updateB2BBusinessMetrics() {
+    let totalBooksCount = 354;
     let outOfPrintCount = 5;
     let expiredCount = 1;
     let partnersCount = 3; // 상상아카데미, 메디치미디어, 청어출판사 기본 제안
@@ -551,13 +552,22 @@ async function updateB2BBusinessMetrics() {
     // Supabase DB와 연동하여 실시간 지표 긁어오기
     if (_ctrl_supabase) {
         try {
+            // 1. 전체 수집된 원천도서 개수 조회 (books 테이블)
+            const { count, error: countErr } = await _ctrl_supabase
+                .from('books')
+                .select('*', { count: 'exact', head: true });
+            if (!countErr && count !== null) {
+                totalBooksCount = count;
+            }
+
+            // 2. 최종 평가 분석 완료된 복간 후보 조회 (reprint_candidates 테이블)
             const { data, error } = await _ctrl_supabase
                 .from('reprint_candidates')
                 .select('id, copyright_status, is_funding_active, funding_current, funding_target, is_out_of_print');
             
             if (!error && data) {
                 outOfPrintCount = data.filter(b => b.is_out_of_print !== false).length;
-                expiredCount = data.filter(b => b.copyright_status === 'expired').length;
+                expiredCount = data.filter(b => b.copyright_status === 'expired' || b.copyright_status === 'public_domain').length;
                 
                 // 복간 성공 조건: funding_current >= funding_target 또는 50부 이상 달성
                 const successBooks = data.filter(b => (b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false);
@@ -571,10 +581,12 @@ async function updateB2BBusinessMetrics() {
     }
 
     // 1. 수집된 도서 및 만료 도서 바인딩
+    const totalBooksEl = document.getElementById('b2b-stat-totalbooks');
     const outOfPrintEl = document.getElementById('b2b-stat-outofprint');
     const expiredEl = document.getElementById('b2b-stat-expired');
     const partnersEl = document.getElementById('b2b-stat-partners');
     
+    if (totalBooksEl) totalBooksEl.textContent = totalBooksCount.toLocaleString() + '종';
     if (outOfPrintEl) outOfPrintEl.textContent = outOfPrintCount.toLocaleString() + '종';
     if (expiredEl) expiredEl.textContent = expiredCount.toLocaleString() + '종';
     if (partnersEl) partnersEl.textContent = partnersCount.toLocaleString() + '곳';
@@ -583,7 +595,7 @@ async function updateB2BBusinessMetrics() {
     const successKindsEl = document.getElementById('b2b-stat-success-kinds');
     const copiesEl = document.getElementById('b2b-stat-copies');
     if (successKindsEl) successKindsEl.textContent = successKinds.toLocaleString();
-    if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString() + '부';
+    if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString();
 
     // 3. 플랫폼 누적 매출 및 가변 마진율 계산 바인딩
     const salesEl = document.getElementById('b2b-stat-sales');

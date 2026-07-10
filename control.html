@@ -514,18 +514,22 @@
                     <i data-lucide="trending-up" style="width:18px; height:18px;"></i>
                     <span>출판친구 B2B 플랫폼 실시간 비즈니스 전략 관제판</span>
                 </div>
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15); margin-bottom:12px;">
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15); margin-bottom:12px;">
                     <div style="display:flex; flex-direction:column; gap:6px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('all')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
-                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="book" style="width:12px; height:12px; color:#38bdf8;"></i>수집된 절판도서</span>
-                        <span id="b2b-stat-outofprint" style="font-size:18px; font-weight:900; color:#0ea5e9;">0종</span>
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="library" style="width:11px; height:11px; color:#38bdf8;"></i>수집된 원천도서</span>
+                        <span id="b2b-stat-totalbooks" style="font-size:16px; font-weight:900; color:#38bdf8;">0종</span>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('expired')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
-                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="unlock" style="width:12px; height:12px; color:#f59e0b;"></i>저작권 만료도서</span>
-                        <span id="b2b-stat-expired" style="font-size:18px; font-weight:900; color:#f59e0b;">0종</span>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('outofprint')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="book-open" style="width:11px; height:11px; color:#0ea5e9;"></i>영업가능 절판도서</span>
+                        <span id="b2b-stat-outofprint" style="font-size:16px; font-weight:900; color:#0ea5e9;">0종</span>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
-                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="users" style="width:12px; height:12px; color:#c084fc;"></i>영업 제안중 출판사</span>
-                        <span id="b2b-stat-partners" style="font-size:18px; font-weight:900; color:#a855f7;">0곳</span>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('expired')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="unlock" style="width:11px; height:11px; color:#f59e0b;"></i>영업가능 만료도서</span>
+                        <span id="b2b-stat-expired" style="font-size:16px; font-weight:900; color:#f59e0b;">0종</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="users" style="width:11px; height:11px; color:#c084fc;"></i>영업 제안중 출판사</span>
+                        <span id="b2b-stat-partners" style="font-size:16px; font-weight:900; color:#a855f7;">0곳</span>
                     </div>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15);">
