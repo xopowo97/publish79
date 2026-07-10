@@ -162,9 +162,56 @@ async function generateMarketingPlan(book) {
     return JSON.parse(rawText);
 }
 
-// 7. 싱글 도서 에셋 파이프라인 가동 엔진
+// 7-a. 실패 상태 마킹 헬퍼 (예외 발생 시 DB에 'failed' 기록)
+async function markFailed(isbn, reason) {
+    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets`;
+    try {
+        await fetch(dbUrl, {
+            method: 'POST',
+            headers: {
+                "apikey": MASTER_KEY,
+                "Authorization": `Bearer ${MASTER_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-dup"
+            },
+            body: JSON.stringify({
+                isbn,
+                status: 'failed',
+                summary_script: `[오류] ${reason}`.slice(0, 500),
+                updated_at: new Date().toISOString()
+            })
+        });
+        console.log(`   ⚠️  ISBN: ${isbn} → DB status='failed' 기록 완료.`);
+    } catch (e) {
+        // markFailed 자체 실패는 무시 (원본 에러 전파 우선)
+        console.error(`   ⚠️  markFailed 기록 실패 (무시):`, e.message);
+    }
+}
+
+// 7-b. 싱글 도서 에셋 파이프라인 가동 엔진
 async function processBook(book, tempDir) {
     console.log(`\n📖 [처리 개시] ISBN: ${book.isbn} | 제목: "${book.title}"`);
+
+    // [인프라 가드] 에셋 생성 시작 즉시 DB에 'processing' 상태 선점
+    // → Vercel 타임아웃이 발생해도 'processing' 행이 남아 재시도 감지 가능
+    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets`;
+    await fetch(dbUrl, {
+        method: 'POST',
+        headers: {
+            "apikey": MASTER_KEY,
+            "Authorization": `Bearer ${MASTER_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-dup"
+        },
+        body: JSON.stringify({
+            isbn: book.isbn,
+            status: 'processing',
+            updated_at: new Date().toISOString()
+        })
+    });
+    console.log(`   -> [선점] DB status='processing' 기록 완료.`);
+
+    try {
     
     // Step A. Gemini 마케팅 및 자막 타임라인 빌드
     console.log("   -> [A 단계] Gemini 마케팅 기획서 생성 및 자막 추출 중...");
@@ -253,15 +300,15 @@ async function processBook(book, tempDir) {
         console.log("   -> [C 단계] FFmpeg 미지원 환경으로 인해 폴백 동영상 주소 매핑.");
     }
 
-    // Step E. Supabase DB 적재 (service_role 안전 락 우회)
+    // Step E. Supabase DB 최종 적재 — status='success' 로 상태 거버넌스 완료
     console.log("   -> [E 단계] Supabase DB 'book_marketing_assets'에 최종 적재 중...");
-    const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets`;
     const payload = {
         isbn: book.isbn,
         card_news_data: plan.card_news,
         audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
         shorts_video_url: finalVideoUrl,
         summary_script: plan.summary_script,
+        status: 'success', // ✅ [인프라 가드] 모든 에셋 생성 완료 — 최종 상태 확정
         updated_at: new Date().toISOString()
     };
 
@@ -280,71 +327,83 @@ async function processBook(book, tempDir) {
         const dbErrText = await dbRes.text();
         throw new Error(`DB upsert failed: ${dbRes.statusText} (${dbErrText})`);
     }
-    console.log(`✅ [완료] ISBN: ${book.isbn}의 모든 마케팅 에셋이 DB에 안전하게 적재되었습니다!`);
+    console.log(`✅ [완료] ISBN: ${book.isbn} | status='success' — 모든 에셋 DB 적재 완료!`);
 
-    // 임시 자막 및 오디오 정리
-    if (fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
-    audioFiles.forEach(af => {
-        if (fs.existsSync(af.path)) fs.unlinkSync(af.path);
-    });
+    } catch (err) {
+        // [인프라 가드] 예외 발생 시 DB에 'failed' 상태 마킹 후 에러 재전파
+        await markFailed(book.isbn, err.message);
+        throw err;
+    } finally {
+        // 임시 자막 및 오디오 정리 (성공/실패 무관하게 반드시 실행)
+        if (fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
+        audioFiles.forEach(af => {
+            if (fs.existsSync(af.path)) fs.unlinkSync(af.path);
+        });
+    }
 }
 
-// 8. 메인 오케스트레이터 루프 구동
+// 10. 메인 오케스트레이터 루프 구동
+// 설정: BATCH_LIMIT 파라미터로 수집 모수 제어 (1일차=10, 2일차=100, 3일차=300)
 async function main() {
+    const BATCH_LIMIT = parseInt(process.env.BATCH_LIMIT || '10', 10);
+
     console.log("============================================================");
     console.log("🚀 출판친구 300종 대량 마케팅 에셋 생성 파이프라인 가동");
     console.log(`- Supabase 원격 서버: ${SUPABASE_URL}`);
+    console.log(`- 수집 모수: books 테이블 전체 (BATCH_LIMIT: ${BATCH_LIMIT}종)`);
     console.log("============================================================");
 
-    // 임시 디렉토리 생성
     const tempDir = path.join(workspaceRoot, 'scratch', 'temp_assets');
     if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
     }
 
     try {
-        // Step 1. DB에서 복간 대상 도서(reprint_candidates) 목록 쿼리
-        // 🔒 상용 가드레일: 과소비 방지를 위해 1차 UAT 시연 시 최대 3종으로 제한 쿼리
-        const candidateUrl = `${SUPABASE_URL}/rest/v1/reprint_candidates?select=isbn,title,author,publisher,pub_year&isbn=not.is.null&limit=3`;
-        
-        const res = await fetch(candidateUrl, {
+        // Step 1. books 테이블 전체 조회 (원체 수집 데이터, reprint_candidates 아님!)
+        // 통제: BATCH_LIMIT으로 수집 모수 제한
+        const booksUrl = `${SUPABASE_URL}/rest/v1/books?select=isbn,title,author,publisher,pub_year,category,subject&isbn=not.is.null&limit=${BATCH_LIMIT}`;
+
+        console.log(`📡 DB books 테이블에서 원천 도서 ${BATCH_LIMIT}종을 조회 중...`);
+        const res = await fetch(booksUrl, {
             headers: {
                 "apikey": MASTER_KEY,
                 "Authorization": `Bearer ${MASTER_KEY}`
             }
         });
 
-        if (!res.ok) {
-            throw new Error(`Failed to query reprint candidates: ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`books 테이블 조회 실패: ${res.statusText}`);
 
         const books = await res.json();
-        console.log(`📡 DB로부터 복간 대상 후보 도서 ${books.length}종을 수신했습니다.`);
+        console.log(`📚 DB로부터 원체 도서 ${books.length}종을 수신했습니다.`);
 
         if (books.length === 0) {
-            console.log("⚠️ DB에 분석 가능한 ISBN을 가진 후보 도서가 존재하지 않습니다.");
+            console.log("⚠️ DB에 ISBN이 있는 원체 도서가 없습니다. 수집기(살피미)를 먼저 가동해주세요.");
             return;
         }
 
         // Step 2. 순차적으로 루프를 돌며 에셋 빌드
+        let successCount = 0;
+        let failCount = 0;
         for (const book of books) {
             try {
                 await processBook(book, tempDir);
+                successCount++;
             } catch (bookErr) {
-                console.error(`❌ [오류 발생] ISBN: ${book.isbn} 작업 실패:`, bookErr);
+                console.error(`❌ [오류 발생] ISBN: ${book.isbn}:`, bookErr);
+                failCount++;
             }
-            // Gemini API Limit 방지를 위한 대기
-            await new Promise(r => setTimeout(r, 2000));
+            // Gemini API Limit 방지를 위한 대기 (300ms)
+            await new Promise(r => setTimeout(r, 300));
         }
 
         console.log("\n============================================================");
-        console.log("🎉 300종 에셋 배치 생성 파이프라인의 1차 가동 UAT가 완료되었습니다!");
+        console.log(`🎉 배치 완료! 성공: ${successCount}종 / 실패: ${failCount}종`);
+        console.log(`📦 Supabase 'book_marketing_assets' 테이블에서 status='success' 항목을 확인하세요.`);
         console.log("============================================================");
 
     } catch (err) {
         console.error("Fatal Error during pipeline execution:", err);
     } finally {
-        // 임시 디렉토리 정리
         if (fs.existsSync(tempDir)) {
             const files = fs.readdirSync(tempDir);
             files.forEach(f => fs.unlinkSync(path.join(tempDir, f)));

@@ -281,22 +281,59 @@ DROP POLICY IF EXISTS "서비스 역할 전체 접근" ON reprint_candidates;
 -- ============================================================
 CREATE TABLE IF NOT EXISTS book_marketing_assets (
     isbn               TEXT PRIMARY KEY,
-    card_news_data     JSONB, -- 5장 텍스트 정보 JSON
-    audio_tts_url      TEXT,  -- MP3 오디오 경로
-    shorts_video_url   TEXT,  -- MP4 비디오 경로
-    summary_script     TEXT,  -- 쇼츠 나레이션 대본
+    card_news_data     JSONB,     -- 5장 카드뉴스 텍스트 JSON
+    audio_tts_url      TEXT,      -- TTS MP3 오디오 경로
+    shorts_video_url   TEXT,      -- 세로형 숏폼 MP4 경로
+    summary_script     TEXT,      -- 쇼츠 나레이션 전체 대본
+    genre_type         TEXT,      -- 장르 유형 (novel | humanities | children | business)
+    status             TEXT NOT NULL DEFAULT 'processing', -- 상태 거버넌스 (processing | success | failed)
     created_at         TIMESTAMPTZ DEFAULT NOW(),
-    updated_at         TIMESTAMPTZ DEFAULT NOW()
+    updated_at         TIMESTAMPTZ DEFAULT NOW(),
+
+    -- [가드레일] status 허용값 제약 (그 외 차단)
+    CONSTRAINT chk_asset_status CHECK (status IN ('processing', 'success', 'failed'))
 );
+
+-- [멱등성] status 컬럼 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'book_marketing_assets' AND column_name = 'status'
+    ) THEN
+        ALTER TABLE book_marketing_assets ADD COLUMN status TEXT NOT NULL DEFAULT 'processing'
+            CONSTRAINT chk_asset_status CHECK (status IN ('processing', 'success', 'failed'));
+    END IF;
+END $$;
+
+-- [멱등성] genre_type 컬럼 — 이미 존재하면 건너뜀
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'book_marketing_assets' AND column_name = 'genre_type'
+    ) THEN
+        ALTER TABLE book_marketing_assets ADD COLUMN genre_type TEXT;
+    END IF;
+END $$;
+
+-- status 인덱스 (processing 상태 폴링 최적화)
+CREATE INDEX IF NOT EXISTS idx_assets_status ON book_marketing_assets (status);
 
 
 -- ============================================================
 -- ⑤ book_marketing_assets RLS(Row Level Security) 설정
---    anon(익명) 권한은 SELECT 조차 완전 금지, 오직 service_role만 가능
+--    anon(익명) 권한은 SELECT / INSERT / UPDATE / DELETE 완전 파기
+--    오직 service_role 마스터 키를 가진 백엔드만 트랜잭션 수용
 -- ============================================================
 ALTER TABLE book_marketing_assets ENABLE ROW LEVEL SECURITY;
 
+-- anon SELECT 허용 정책 완전 파기 (7월 6일 자 rls_disabled_in_public 경고 방어)
 DROP POLICY IF EXISTS "익명 사용자 도서 에셋 읽기 허용" ON book_marketing_assets;
+DROP POLICY IF EXISTS "anon select policy" ON book_marketing_assets;
+DROP POLICY IF EXISTS "Allow anonymous read" ON book_marketing_assets;
+-- anon / authenticated 접근을 허용하는 정책을 일절 생성하지 않음
+-- → service_role 키는 RLS를 자동 우회하므로 Vercel API 레이어만 접근 가능
 
 
 -- ============================================================
@@ -306,7 +343,8 @@ SELECT
     table_name,
     column_name,
     data_type,
-    is_nullable
+    is_nullable,
+    column_default
 FROM information_schema.columns
-WHERE table_name IN ('agent_audit_logs', 'reprint_candidates', 'book_marketing_assets')
+WHERE table_name IN ('agent_audit_logs', 'reprint_candidates', 'book_marketing_assets', 'books')
 ORDER BY table_name, ordinal_position;
