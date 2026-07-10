@@ -55,7 +55,7 @@ export default async function handler(req, res) {
                 return res.status(400).json({ success: false, error: '마케팅 에셋 조회를 위한 필수 파라미터(isbn)가 누락되었습니다.' });
             }
 
-            const assetUrl = `${base}/book_marketing_assets?isbn=eq.${encodeURIComponent(isbn)}`;
+            const assetUrl = `${base}/book_marketing_assets?isbn=eq.${encodeURIComponent(isbn)}&status=eq.success`;
             const assetRes = await fetch(assetUrl, { method: 'GET', headers: { apikey: key, Authorization: `Bearer ${key}` } });
             
             if (!assetRes.ok) {
