@@ -277,6 +277,29 @@ DROP POLICY IF EXISTS "서비스 역할 전체 접근" ON reprint_candidates;
 
 
 -- ============================================================
+-- ④ book_marketing_assets 테이블 신설 (마케팅 에셋 보관)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS book_marketing_assets (
+    isbn               TEXT PRIMARY KEY,
+    card_news_data     JSONB, -- 5장 텍스트 정보 JSON
+    audio_tts_url      TEXT,  -- MP3 오디오 경로
+    shorts_video_url   TEXT,  -- MP4 비디오 경로
+    summary_script     TEXT,  -- 쇼츠 나레이션 대본
+    created_at         TIMESTAMPTZ DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- ============================================================
+-- ⑤ book_marketing_assets RLS(Row Level Security) 설정
+--    anon(익명) 권한은 SELECT 조차 완전 금지, 오직 service_role만 가능
+-- ============================================================
+ALTER TABLE book_marketing_assets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "익명 사용자 도서 에셋 읽기 허용" ON book_marketing_assets;
+
+
+-- ============================================================
 -- [검증 쿼리] 스키마 정상 적용 확인
 -- ============================================================
 SELECT
@@ -285,5 +308,5 @@ SELECT
     data_type,
     is_nullable
 FROM information_schema.columns
-WHERE table_name IN ('agent_audit_logs', 'reprint_candidates')
+WHERE table_name IN ('agent_audit_logs', 'reprint_candidates', 'book_marketing_assets')
 ORDER BY table_name, ordinal_position;
