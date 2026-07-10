@@ -24,14 +24,14 @@ export default async function handler(req, res) {
         return res.status(405).json({ success: false, error: 'POST 메소드만 지원합니다.' });
     }
 
-    const { action, user_id, title, author, publisher, category, reason, candidate_id, action_type, amount = 1 } = req.body || {};
-
-    if (!user_id) {
-        return res.status(400).json({ success: false, error: '필수 파라미터(user_id)가 누락되었습니다.' });
-    }
+    const { action, user_id, title, author, publisher, category, reason, candidate_id, action_type, amount = 1, isbn } = req.body || {};
 
     // action 구분값 처리
     const resolvedAction = action || action_type || 'vote';
+
+    if (resolvedAction !== 'get-marketing-assets' && !user_id) {
+        return res.status(400).json({ success: false, error: '필수 파라미터(user_id)가 누락되었습니다.' });
+    }
 
     try {
         const rawUrl = process.env.SUPABASE_URL;
@@ -48,6 +48,27 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json',
             'Prefer': 'return=representation'
         };
+
+        // 분기 0: 마케팅 에셋 조회 (get-marketing-assets) - service_role 우회
+        if (resolvedAction === 'get-marketing-assets') {
+            if (!isbn) {
+                return res.status(400).json({ success: false, error: '마케팅 에셋 조회를 위한 필수 파라미터(isbn)가 누락되었습니다.' });
+            }
+
+            const assetUrl = `${base}/book_marketing_assets?isbn=eq.${encodeURIComponent(isbn)}`;
+            const assetRes = await fetch(assetUrl, { method: 'GET', headers: { apikey: key, Authorization: `Bearer ${key}` } });
+            
+            if (!assetRes.ok) {
+                const errText = await assetRes.text();
+                throw new Error(`마케팅 에셋 DB 조회 실패: ${errText}`);
+            }
+
+            const assets = await assetRes.json();
+            return res.status(200).json({
+                success: true,
+                data: assets.length > 0 ? assets[0] : null
+            });
+        }
 
         // 분기 1: 도서 신규 제안 (propose)
         if (resolvedAction === 'propose') {
