@@ -537,23 +537,170 @@ window.ctrlCloseSalesMarketingPanel = function () {
     }
 };
 
-function updateB2BBusinessMetrics() {
+async function updateB2BBusinessMetrics() {
+    let outOfPrintCount = 5;
+    let expiredCount = 1;
+    let partnersCount = 3; // 상상아카데미, 메디치미디어, 청어출판사 기본 제안
+    let successKinds = 1;  // '마녀' 기본 복간 성공
+
     const baseCopies = 5420;
-    
     let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
-    
     const currentCopies = baseCopies + addFund;
     const currentSales = currentCopies * 20000;
-    const currentDonations = Math.floor(currentCopies / 15);
+
+    // Supabase DB와 연동하여 실시간 지표 긁어오기
+    if (_ctrl_supabase) {
+        try {
+            const { data, error } = await _ctrl_supabase
+                .from('reprint_candidates')
+                .select('id, copyright_status, is_funding_active, funding_current, funding_target, is_out_of_print');
+            
+            if (!error && data) {
+                outOfPrintCount = data.filter(b => b.is_out_of_print !== false).length;
+                expiredCount = data.filter(b => b.copyright_status === 'expired').length;
+                
+                // 복간 성공 조건: funding_current >= funding_target 또는 50부 이상 달성
+                const successBooks = data.filter(b => (b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false);
+                if (successBooks.length > 0) {
+                    successKinds = successBooks.length;
+                }
+            }
+        } catch(err) {
+            console.warn('[통제실] 실시간 지표 수집 쿼리 오류:', err);
+        }
+    }
+
+    // 1. 수집된 도서 및 만료 도서 바인딩
+    const outOfPrintEl = document.getElementById('b2b-stat-outofprint');
+    const expiredEl = document.getElementById('b2b-stat-expired');
+    const partnersEl = document.getElementById('b2b-stat-partners');
     
+    if (outOfPrintEl) outOfPrintEl.textContent = outOfPrintCount.toLocaleString() + '종';
+    if (expiredEl) expiredEl.textContent = expiredCount.toLocaleString() + '종';
+    if (partnersEl) partnersEl.textContent = partnersCount.toLocaleString() + '곳';
+
+    // 2. 복간 성공 (종/부수) 바인딩
+    const successKindsEl = document.getElementById('b2b-stat-success-kinds');
     const copiesEl = document.getElementById('b2b-stat-copies');
-    const salesEl = document.getElementById('b2b-stat-sales');
-    const pineEl = document.getElementById('b2b-stat-pine');
-    
+    if (successKindsEl) successKindsEl.textContent = successKinds.toLocaleString();
     if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString() + '부';
-    if (salesEl) salesEl.textContent = '\u20a9' + currentSales.toLocaleString();
-    if (pineEl) pineEl.textContent = currentDonations.toLocaleString() + '그루';
+
+    // 3. 플랫폼 누적 매출 및 가변 마진율 계산 바인딩
+    const salesEl = document.getElementById('b2b-stat-sales');
+    const marginPctEl = document.getElementById('b2b-stat-margin-pct');
+    if (salesEl) salesEl.textContent = '₩' + currentSales.toLocaleString();
+    
+    // 플랫폼 수수료 예상 마진 비율: 펀딩 가속도에 따른 동적 가변 (기본 35% ~ 최대 45% 캡)
+    const currentMarginPct = Math.min(45, Math.max(30, 35 + Math.floor(addFund / 100)));
+    if (marginPctEl) marginPctEl.textContent = currentMarginPct.toString();
+
+    // 4. 누적 AI API 사용료 계산 바인딩
+    const apiCostsEl = document.getElementById('b2b-stat-api-costs');
+    if (apiCostsEl) {
+        // 수집도서당 20원 + 에셋팩당 150원 + 챗봇 대화당 50원 + 기본 배치 인프라 유지비 8,500원
+        const baseCost = 8500;
+        const scanCost = outOfPrintCount * 20;
+        const assetCost = successKinds * 150;
+        // audit_logs 개수를 연동하여 챗봇 사용료 산출
+        let chatCount = 5;
+        try {
+            if (_ctrl_supabase) {
+                const { count } = await _ctrl_supabase
+                    .from('agent_audit_logs')
+                    .select('*', { count: 'exact', head: true });
+                if (count) chatCount = count;
+            }
+        } catch(e){}
+        
+        const totalApiCosts = baseCost + scanCost + assetCost + (chatCount * 50);
+        apiCostsEl.textContent = '₩' + totalApiCosts.toLocaleString();
+    }
 }
+
+// [신규] B2B 수집 도서 목록 팝업 모달 구동
+window.showBooksListPopup = async function(filterType) {
+    const modal = document.getElementById('b2b-books-modal');
+    const titleEl = document.getElementById('b2b-modal-title');
+    const container = document.getElementById('b2b-modal-list-container');
+    
+    if (!modal || !container) return;
+
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    container.innerHTML = '<div style="text-align:center; padding:40px; color:#8b949e; font-size:12px;">데이터 로딩 중...</div>';
+
+    let books = [];
+    if (_ctrl_supabase) {
+        try {
+            let query = _ctrl_supabase.from('reprint_candidates').select('*');
+            if (filterType === 'expired') {
+                query = query.eq('copyright_status', 'expired');
+            }
+            const { data, error } = query;
+            let resultData = data;
+            
+            // 만약 REST 쿼리에서 직접 select 처리가 되지 않은 경우 select * 후 filter
+            if (error) {
+                const { data: allData, error: allErr } = await _ctrl_supabase.from('reprint_candidates').select('*');
+                if (!allErr && allData) {
+                    resultData = filterType === 'expired' 
+                        ? allData.filter(b => b.copyright_status === 'expired') 
+                        : allData;
+                }
+            } else {
+                const { data: fetchedData } = await query;
+                resultData = fetchedData;
+            }
+            
+            if (resultData && resultData.length > 0) {
+                books = resultData;
+            }
+        } catch(err) {
+            console.warn('[통제실] 책 목록 조회 실패, 로컬 데이터로 대체합니다.', err);
+        }
+    }
+
+    if (books.length === 0) {
+        books = _ctrl_candidates.filter(b => {
+            if (filterType === 'expired') return b.copyright_status === 'expired' || b.id === 5;
+            return true;
+        });
+    }
+
+    titleEl.innerText = filterType === 'expired' 
+        ? '저작권 만료 도서 목록 (실시간 관제)' 
+        : '수집 절판 도서 목록 (실시간 관제)';
+
+    container.innerHTML = books.map((book, idx) => `
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; border-left: 4px solid ${
+            book.copyright_status === 'expired' ? '#f59e0b' : '#38bdf8'
+        };">
+            <div>
+                <div style="font-size:10px; font-weight:800; color:#58a6ff; margin-bottom:4px; font-family:monospace;">ISBN: ${book.isbn || '9791104' + (100000 + book.id)}</div>
+                <h4 style="font-size:13px; font-weight:900; color:#f0f6fc; margin:0 0-4px 0; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${book.title}</h4>
+                <p style="font-size:11px; color:#8b949e; margin:0;">${book.author || '저자 미상'} | ${book.publisher || '출판사 미상'} (${book.pub_year || '년도 미상'})</p>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:9px; font-weight:900; padding:3px 8px; border-radius:6px; background:${
+                    book.copyright_status === 'expired' ? 'rgba(245,158,11,0.15); color:#f59e0b;' : 'rgba(56,189,248,0.15); color:#38bdf8;'
+                }">${book.copyright_status === 'expired' ? '만료 도서' : '저작권 보호'}</span>
+                <div style="font-size:10px; color:#8b949e; margin-top:6px; font-weight:700;">대출점수: ${book.library_loans ? book.library_loans.toLocaleString() : '0'}점</div>
+            </div>
+        </div>
+    `).join('');
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+};
+
+window.closeB2BBooksModal = function() {
+    const modal = document.getElementById('b2b-books-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
 
 
 // ───────────────────────────────────────────
@@ -1474,7 +1621,7 @@ function triggerOrchestratorRecommendation() {
  *   · 50부 미만 → 연속지(롤) 전환 불가 → 낱장 강제
  *   · 따라서 신국판 + qty < 50 조합에서는 A5 전환 시 면당 33.3% 절감
  */
-function checkPrintCostOptimization(bookData, printQty) {
+async function checkPrintCostOptimization(bookData, printQty) {
     // ePub 뷰어 모드 중에는 종이책 원가 최적화 제안 차단
     if (_ctrl_epubViewerActive) return;
 
@@ -1490,22 +1637,56 @@ function checkPrintCostOptimization(bookData, printQty) {
 
     if (!isSheetfedForced || !defaultSpecIsShinkuk) return; // 조건 미충족 시 제안 안 함
 
-    // ─── 원가 계산 (대표님 단가 요율 공식 반영: 내지비 + 표지/코팅/제본 1500원 합산) ───
+    // ─── [3번 수익분석 계산이] 파트너 등급별 단가 실시간 조회 ───
+    let publisher = bookData.publisher || '상상아카데미';
+    // 상상아카데미는 VIP 등급으로 우대, 나머지는 일반 등급으로 처리
+    const isVip = publisher.includes('상상아카데미');
+    const partnerGrade = isVip ? 'VIP' : '일반';
+
+    let printCostPerPageShinkuk = 12; // 기본 폴백
+    let printCostPerPageA5 = 8;
+    const coverProcessingCost = 1500;
+
+    if (_ctrl_supabase) {
+        try {
+            const { data, error } = await _ctrl_supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
+            if (!error && data?.data) {
+                const gradeKey = isVip ? 'VIP 등급(우대)' : '일반등급(표준)';
+                const gradeData = data.data.pricesByGrade?.[gradeKey];
+                if (gradeData) {
+                    // A5국판 낱장 요율 조회
+                    const a5Match = gradeData.sheetSpecs?.find(x => x.n && x.n.includes('A5국판'));
+                    if (a5Match && typeof a5Match.bw === 'number') {
+                        printCostPerPageA5 = a5Match.bw;
+                    }
+                    // 신국판 낱장 요율 조회 (신국판은 낱장 규격이 없어서 패널티가 부과되나 VIP는 우대 요율 10원 적용)
+                    printCostPerPageShinkuk = isVip ? 10 : 12;
+                }
+            }
+        } catch(err) {
+            console.warn('[수익분석_계산이] master_config 실시간 단가 연동 실패:', err);
+        }
+    }
+
     let totalPages = Math.max(200, Math.round((bookData.reprint_score || 80) * 2.5));
     if (bookData.title && bookData.title.includes('마녀')) {
         totalPages = 336; // 마녀 실증 도서 336P 고정
     }
-    const printCostPerPageShinkuk = 12; // 원/면 (신국판 2판거리)
-    const printCostPerPageA5 = 8; // 원/면 (A5 4판거리)
-    const coverProcessingCost = 1500; // 원 (코팅 200원 + 날개 500원 + 제본 800원 합산)
 
+    // 원가 계산
     const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
     const totalCostA5 = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
     const shinkukPerCopy = totalPages * printCostPerPageShinkuk + coverProcessingCost;
     const a5PerCopy = totalPages * printCostPerPageA5 + coverProcessingCost;
-    const savingPerCopy = (totalCostShinkuk - totalCostA5) / qty;
     const savingTotal = totalCostShinkuk - totalCostA5;
+    const savingPerCopy = savingTotal / qty;
     const savingPct = Number(((totalCostShinkuk - totalCostA5) / totalCostShinkuk * 100).toFixed(1));
+
+    // 대표님 요청: 마진율 대신 직관적인 실제 예상 원화 금액들 산출
+    const retailPrice = 20000; // 책 소비자가 기본값
+    const totalSales = retailPrice * qty; // 총 매출액 (30부 기준 600,000원)
+    const platformFee = totalSales * 0.15; // 플랫폼 수수료 15% (30부 기준 90,000원)
+    const publisherPayout = totalSales - totalCostA5 - platformFee; // 출판사 실질 예상 정산금
 
     const cleanTitle = (bookData.title || '').replace(/<\/?[^>]+(>|$)/g, '');
     const cleanAuthor = (bookData.author || '미상').replace(/<\/?[^>]+(>|$)/g, '');
@@ -1540,33 +1721,37 @@ function checkPrintCostOptimization(bookData, printQty) {
     costCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-weight:900; margin-bottom:10px; font-size:12px;">
             <span style="font-size:17px;">💼</span>
-            <span>[7번 B2B영업_영업이] 복간 및 원가 최적화 영업 제안</span>
+            <span>[3번 수익분석_계산이] 파트너 등급별 실시간 원가/수익제안 (${partnerGrade}등급)</span>
         </div>
         <p style="font-size:11px; color:#334155; line-height:1.6; margin-bottom:10px; font-weight:500; background:#fff; padding:10px; border-radius:8px; border:1px dashed rgba(16,185,129,0.3)">
-            📢 <strong>8번 마케팅_알리미</strong>의 SNS 트렌드/수요 예측 분석에 근거해 타겟 출판사 복간 최적 사양을 영업 제안합니다. 승인 시 <strong>VDP_이지퍼비터(ezpubitor) 조판/커버 엔진</strong>이 대기 상태에 들어갑니다.
+            📢 <strong>3번 수익분석_계산이</strong>가 Supabase 원격 DDL 단가를 분석하여 제작비를 산출했습니다. 승인 시 <strong>8번 이지퍼비터_POD 조판 생산 라인</strong>으로 발주 PDF가 전송됩니다.
         </p>
         <p style="font-size:11.5px; color:#0f172a; line-height:1.65; margin-bottom:10px; font-weight:600;">
-            <strong style="color:#dc2626;">📌 ${qty}부 제작 절감 제안</strong><br>
-            현재 신국판(152x225)으로 제작 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}%로 절감됩니다.
+            <strong style="color:#dc2626;">📌 ${qty}부 제작 원가 절감 제안</strong><br>
+            현재 신국판 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판 변경 시 권당 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}% 절감됩니다.
         </p>
         <div style="background:#fff; border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; font-size:11px; margin-bottom:10px; color:#475569;">
             <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px;">📚 ${cleanTitle} (${cleanAuthor})</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;">
-                <div style="color:#64748b;">제작 부수</div>
-                <div style="font-weight:800; color:#0f172a;">${qty}부</div>
-                <div style="color:#64748b;">예상 페이지</div>
-                <div style="font-weight:800; color:#0f172a;">${totalPages}p</div>
-                <div style="color:#dc2626;">신국판 총제작비</div>
-                <div style="font-weight:800; color:#dc2626;">₩${totalCostShinkuk.toLocaleString()}</div>
-                <div style="color:#10b981;">A5 전환 총제작비</div>
-                <div style="font-weight:800; color:#10b981;">₩${totalCostA5.toLocaleString()}</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 8px;">
+                <div style="color:#64748b;">제작 부수 / 예상 페이지</div>
+                <div style="font-weight:800; color:#0f172a; text-align:right;">${qty}부 / ${totalPages}p</div>
+                <div style="color:#64748b;">신국판 총제작비</div>
+                <div style="font-weight:800; color:#dc2626; text-align:right;">₩${totalCostShinkuk.toLocaleString()}</div>
+                <div style="color:#10b981; font-weight:700;">A5 전환 인쇄원가</div>
+                <div style="font-weight:800; color:#10b981; text-align:right;">₩${totalCostA5.toLocaleString()}</div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; padding-top:8px;">
+                <div style="color:#64748b;">출판사 예상 정산금</div>
+                <div style="font-weight:800; color:#0284c7; text-align:right;">₩${Math.round(publisherPayout).toLocaleString()}</div>
+                <div style="color:#64748b;">플랫폼 순수익 실금액</div>
+                <div style="font-weight:800; color:#a855f7; text-align:right;">₩${Math.round(platformFee).toLocaleString()}</div>
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; margin-top:8px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">💰 B2B 절감 예상액</span>
+                <span style="font-weight:700; color:#64748b;">💰 B2B 총 제작비 절감</span>
                 <span style="font-size:15px; font-weight:900; color:#10b981;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:4px; align-items:center;">
-                <span style="font-weight:700; color:#64748b;">권당 원가 절감</span>
+                <span style="font-weight:700; color:#64748b;">권당 제작비 절감</span>
                 <span style="font-weight:800; color:#059669;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</span>
             </div>
         </div>
@@ -4263,93 +4448,141 @@ window.addEventListener('storage', (e) => {
 
     // 2. [출판사 챗봇] 가조판 승인 요청 수신
     if (e.key === 'cs-event-typeset-requested' && e.newValue) {
-        try {
-            const data = JSON.parse(e.newValue);
-            const chatContent = document.getElementById('ai-chat-content');
-            const logEl = document.getElementById('ctrl-log-stream');
-            const aiFab = document.getElementById('ai-fab');
+        (async () => {
+            try {
+                const data = JSON.parse(e.newValue);
+                const chatContent = document.getElementById('ai-chat-content');
+                const logEl = document.getElementById('ctrl-log-stream');
+                const aiFab = document.getElementById('ai-fab');
 
-            // 판다 FAB 골드 펄스 활성화 (열기 유도)
-            if (aiFab && !aiFab.classList.contains('active')) {
-                aiFab.classList.add('pulse-gold');
+                // 판다 FAB 골드 펄스 활성화 (열기 유도)
+                if (aiFab && !aiFab.classList.contains('active')) {
+                    aiFab.classList.add('pulse-gold');
+                }
+
+                // ─── [3번 수익분석 계산이] 파트너 등급별 단가 실시간 조회 ───
+                let publisher = data.publisher || '상상아카데미';
+                const isVip = publisher.includes('상상아카데미');
+                const partnerGrade = isVip ? 'VIP' : '일반';
+
+                let printCostPerPageShinkuk = 12; // 기본 폴백
+                let printCostPerPageA5 = 8;
+                const coverProcessingCost = 1500;
+
+                if (_ctrl_supabase) {
+                    try {
+                        const { data: configData, error } = await _ctrl_supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
+                        if (!error && configData?.data) {
+                            const gradeKey = isVip ? 'VIP 등급(우대)' : '일반등급(표준)';
+                            const gradeData = configData.data.pricesByGrade?.[gradeKey];
+                            if (gradeData) {
+                                const a5Match = gradeData.sheetSpecs?.find(x => x.n && x.n.includes('A5국판'));
+                                if (a5Match && typeof a5Match.bw === 'number') printCostPerPageA5 = a5Match.bw;
+                                printCostPerPageShinkuk = isVip ? 10 : 12;
+                            }
+                        }
+                    } catch(err) {
+                        console.warn('[수익분석_계산이] master_config 실시간 단가 연동 실패:', err);
+                    }
+                }
+
+                const qty = 30; // 30부 고정 기준 시뮬레이션
+                const totalPages = 336; // 마녀 실증 도서 336P 기준
+
+                const totalCostShinkuk = (totalPages * printCostPerPageShinkuk * qty) + (coverProcessingCost * qty);
+                const totalCostA5 = (totalPages * printCostPerPageA5 * qty) + (coverProcessingCost * qty);
+                const shinkukPerCopy = totalPages * printCostPerPageShinkuk + coverProcessingCost;
+                const a5PerCopy = totalPages * printCostPerPageA5 + coverProcessingCost;
+                const savingTotal = totalCostShinkuk - totalCostA5;
+                const savingPerCopy = savingTotal / qty;
+                const savingPct = Number(((totalCostShinkuk - totalCostA5) / totalCostShinkuk * 100).toFixed(1));
+
+                const retailPrice = 20000;
+                const totalSales = retailPrice * qty;
+                const platformFee = totalSales * 0.15;
+                const publisherPayout = totalSales - totalCostA5 - platformFee;
+
+                // 헬퍼창 단가 절감 요약 제안 카드 렌더링
+                if (chatContent) {
+                    const costCard = document.createElement('div');
+                    costCard.className = 'ai-action-card';
+                    costCard.id = 'ai-typeset-approval-card';
+                    costCard.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-top: 10px; font-family: "Noto Sans KR", sans-serif; color: #1e293b;';
+                    costCard.innerHTML = `
+                        <div style="font-size:13px; font-weight:800; color:#dc2626; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
+                            📌 ${qty}부 제작 원가 절감 제안 (${partnerGrade}등급 우대적용)
+                        </div>
+                        <div style="font-size:11.5px; color:#475569; margin-bottom:12px; line-height:1.5; font-weight:700; text-align:left;">
+                            현재 신국판 권당 ${shinkukPerCopy.toLocaleString()}원이 적용됩니다. 이를 A5국판 변경 시 권당 ${a5PerCopy.toLocaleString()}원으로 약 ${savingPct}% 절감됩니다.
+                        </div>
+                        
+                        <div style="background:#f8fafc; border:1px solid #edf2f7; border-radius:10px; padding:12px; margin-bottom:12px; font-size:11.5px; text-align:left;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="color:#64748b; font-weight:600;">📚 마녀 (주경철)</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="color:#64748b; font-weight:600;">제작 부수 / 예상 페이지</span>
+                                <strong style="color:#0f172a; font-weight:800;">${qty}부 / ${totalPages}p</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-top:1px solid #edf2f7; padding-top:6px;">
+                                <span style="color:#64748b; font-weight:600;">신국판 총제작비</span>
+                                <strong style="color:#dc2626; font-weight:800;">₩${totalCostShinkuk.toLocaleString()}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="color:#64748b; font-weight:600;">A5 전환 인쇄원가</span>
+                                <strong style="color:#16a34a; font-weight:800;">₩${totalCostA5.toLocaleString()}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px dashed #e2e8f0; padding-top:6px; font-weight:800;">
+                                <span style="color:#64748b; font-weight:600;">출판사 예상 정산금</span>
+                                <strong style="color:#0284c7; font-weight:900;">₩${Math.round(publisherPayout).toLocaleString()}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:800;">
+                                <span style="color:#64748b; font-weight:600;">플랫폼 순수익 실금액</span>
+                                <strong style="color:#a855f7; font-weight:900;">₩${Math.round(platformFee).toLocaleString()}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px dashed #e2e8f0; padding-top:6px; font-weight:800;">
+                                <span style="color:#64748b; font-weight:600;">💰 B2B 총 제작비 절감</span>
+                                <strong style="color:#d97706; font-weight:900;">-₩${savingTotal.toLocaleString()} (${savingPct}%↓)</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:4px; font-weight:800;">
+                                <span style="color:#64748b; font-weight:600;">권당 제작비 절감</span>
+                                <strong style="color:#0284c7; font-weight:900;">₩${Math.round(savingPerCopy).toLocaleString()} / 부</strong>
+                            </div>
+                        </div>
+                        
+                        <button id="ctrl-typeset-approve-btn"
+                            style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); margin-bottom: 6px; transition: background 0.2s;"
+                            onmouseover="this.style.background='#059669'"
+                            onmouseout="this.style.background='#10b981'">
+                            ✅ A5 판형 최적화 승인 및 제안 송출
+                        </button>
+                        <button id="ctrl-typeset-close-proposal-btn"
+                            style="width: 100%; padding: 9px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='#e2e8f0'"
+                            onmouseout="this.style.background='#f1f5f9'">
+                            이 제안 닫기
+                        </button>
+                    `;
+                    chatContent.appendChild(costCard);
+                    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+                    // 통제실 가조판 승인 버튼 이벤트 바인딩
+                    document.getElementById('ctrl-typeset-approve-btn').addEventListener('click', () => {
+                        handleAdminTypesetApproval(data.book);
+                    });
+                    // 닫기 버튼 이벤트 바인딩
+                    document.getElementById('ctrl-typeset-close-proposal-btn').addEventListener('click', () => {
+                        costCard.remove();
+                    });
+                }
+
+                // 실시간 에이전트 로그 기록용 데이터 보관
+                window._pending_log_data = data;
+            } catch(err) {
+                console.error('[통제실] 가조판 요청 파싱 에러:', err);
             }
-
-            // 헬퍼창 단가 절감 요약 제안 카드 렌더링 (3번 스크린샷 양식과 100% 동일하게 일치)
-            if (chatContent) {
-                const costCard = document.createElement('div');
-                costCard.className = 'ai-action-card';
-                costCard.id = 'ai-typeset-approval-card';
-                costCard.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-top: 10px; font-family: "Noto Sans KR", sans-serif; color: #1e293b;';
-                costCard.innerHTML = `
-                    <div style="font-size:13px; font-weight:800; color:#dc2626; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
-                        📌 30부 제작 절감 제안
-                    </div>
-                    <div style="font-size:11.5px; color:#475569; margin-bottom:12px; line-height:1.5; font-weight:700; text-align:left;">
-                        현재 신국판(152x225)으로 제작 권당 5,532원이 적용됩니다. 이를 A5국판(148x210)으로 변경 시 4,188원으로 약 24.3%로 절감됩니다.
-                    </div>
-                    
-                    <div style="background:#f8fafc; border:1px solid #edf2f7; border-radius:10px; padding:12px; margin-bottom:12px; font-size:11.5px; text-align:left;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="color:#64748b; font-weight:600;">📚 마녀 (주경철)</span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="color:#64748b; font-weight:600;">제작 부수</span>
-                            <strong style="color:#0f172a; font-weight:800;">30부</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="color:#64748b; font-weight:600;">예상 페이지</span>
-                            <strong style="color:#0f172a; font-weight:800;">336p</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-top:1px solid #edf2f7; padding-top:6px;">
-                            <span style="color:#64748b; font-weight:600;">신국판 총제작비</span>
-                            <strong style="color:#dc2626; font-weight:800;">₩165,960</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="color:#64748b; font-weight:600;">A5 전환 총제작비</span>
-                            <strong style="color:#16a34a; font-weight:800;">₩125,640</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; border-top:1px dashed #e2e8f0; padding-top:6px; font-weight:800;">
-                            <span style="color:#64748b; font-weight:600;">💰 B2B 절감 예상액</span>
-                            <strong style="color:#d97706; font-weight:900;">-₩40,320 (24.3%↓)</strong>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-top:4px; font-weight:800;">
-                            <span style="color:#64748b; font-weight:600;">권당 원가 절감</span>
-                            <strong style="color:#0284c7; font-weight:900;">₩1,344 / 부</strong>
-                        </div>
-                    </div>
-                    
-                    <button id="ctrl-typeset-approve-btn"
-                        style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); margin-bottom: 6px; transition: background 0.2s;"
-                        onmouseover="this.style.background='#059669'"
-                        onmouseout="this.style.background='#10b981'">
-                        ✅ A5 판형 최적화 승인 및 제안 송출
-                    </button>
-                    <button id="ctrl-typeset-close-proposal-btn"
-                        style="width: 100%; padding: 9px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;"
-                        onmouseover="this.style.background='#e2e8f0'"
-                        onmouseout="this.style.background='#f1f5f9'">
-                        이 제안 닫기
-                    </button>
-                `;
-                chatContent.appendChild(costCard);
-                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
-
-                // 통제실 가조판 승인 버튼 이벤트 바인딩
-                document.getElementById('ctrl-typeset-approve-btn').addEventListener('click', () => {
-                    handleAdminTypesetApproval(data.book);
-                });
-                // 닫기 버튼 이벤트 바인딩
-                document.getElementById('ctrl-typeset-close-proposal-btn').addEventListener('click', () => {
-                    costCard.remove();
-                });
-            }
-
-            // 실시간 에이전트 로그 기록용 데이터 보관
-            window._pending_log_data = data;
-        } catch(err) {
-            console.error('[통제실] 가조판 요청 파싱 에러:', err);
-        }
-        localStorage.removeItem('cs-event-typeset-requested');
+            localStorage.removeItem('cs-event-typeset-requested');
+        })();
         return;
     }
 
