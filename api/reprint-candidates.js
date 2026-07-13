@@ -65,11 +65,7 @@ export default async function handler(req, res) {
         }
 
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
-        
-        // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
-        const top3Url = `${base}/reprint_candidates?select=*${categoryFilter}&order=reprint_score.desc&limit=3`;
-        // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
-        const latestUrl = `${base}/reprint_candidates?select=*${categoryFilter}&order=created_at.desc&limit=8`;
+        const isbn = req.query.isbn || '';
 
         const headers = {
             'apikey': key,
@@ -77,9 +73,47 @@ export default async function handler(req, res) {
             'Accept': 'application/json'
         };
 
-        const [top3Res, latestRes] = await Promise.all([
+        // 만약 특정 ISBN에 대한 마케팅 에셋 개별 조회가 요청된 경우 (RLS 우회)
+        if (isbn) {
+            try {
+                const assetUrl = `${base}/book_marketing_assets?select=*&isbn=eq.${isbn}&status=eq.success&limit=1`;
+                const assetRes = await fetch(assetUrl, { method: 'GET', headers });
+                const assetData = assetRes.ok ? await assetRes.json() : [];
+                const asset = Array.isArray(assetData) && assetData.length > 0 ? assetData[0] : null;
+                
+                return res.status(200).json({
+                    success: true,
+                    asset: asset
+                });
+            } catch (err) {
+                return res.status(500).json({ success: false, error: err.message });
+            }
+        }
+
+        // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
+        const top3Url = `${base}/reprint_candidates?select=*${categoryFilter}&order=reprint_score.desc&limit=3`;
+        // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
+        const latestUrl = `${base}/reprint_candidates?select=*${categoryFilter}&order=created_at.desc&limit=8`;
+
+        // B2B 통계 및 실시간 로그 쿼리 병합 (SERVICE_ROLE_KEY 권한으로 RLS 우회)
+        const totalBooksUrl = `${base}/reprint_candidates?select=id`;
+        const oopUrl = `${base}/reprint_candidates?select=id&is_out_of_print=eq.true`;
+        const expUrl = `${base}/reprint_candidates?select=id&copyright_status=eq.public_domain`;
+        const assetSuccessUrl = `${base}/book_marketing_assets?select=isbn&status=eq.success`;
+        const partnerUrl = `${base}/partners?select=id`;
+        const logsUrl = `${base}/agent_audit_logs?select=*&order=created_at.desc&limit=15`;
+
+        // 1. 복간 점수 및 통계 쿼리 실행
+
+        const [top3Res, latestRes, totalRes, oopRes, expRes, assetRes, partnerRes, logsRes] = await Promise.all([
             fetch(top3Url, { method: 'GET', headers }),
-            fetch(latestUrl, { method: 'GET', headers })
+            fetch(latestUrl, { method: 'GET', headers }),
+            fetch(totalBooksUrl, { method: 'GET', headers }),
+            fetch(oopUrl, { method: 'GET', headers }),
+            fetch(expUrl, { method: 'GET', headers }),
+            fetch(assetSuccessUrl, { method: 'GET', headers }),
+            fetch(partnerUrl, { method: 'GET', headers }),
+            fetch(logsUrl, { method: 'GET', headers })
         ]);
 
         if (!top3Res.ok) {
@@ -93,32 +127,26 @@ export default async function handler(req, res) {
 
         let top3Data = await top3Res.json();
         let latestData = await latestRes.json();
+        
+        const totalData = totalRes.ok ? await totalRes.json() : [];
+        const oopData = oopRes.ok ? await oopRes.json() : [];
+        const expData = expRes.ok ? await expRes.json() : [];
+        const assetData = assetRes.ok ? await assetRes.json() : [];
+        const partnerData = partnerRes.ok ? await partnerRes.json() : [];
+        const logsData = logsRes.ok ? await logsRes.json() : [];
 
-        // 실증 도서 '마녀' 강제 동적 주입 (1순위 고정)
-        const witchBook = {
-            id: 1,
-            title: "마녀",
-            author: "주경철",
-            pub_year: 2021,
-            library_loans: 15230,
-            reprint_score: 99,
-            category: "소설",
-            is_out_of_print: true,
-            _a5Recommended: true,
-            copyright_status: "protected",
-            created_at: new Date().toISOString()
-        };
+        const totalBooksCount = Array.isArray(totalData) ? totalData.length : 0;
+        const outOfPrintCount = Array.isArray(oopData) ? oopData.length : 0;
+        const expiredCount = Array.isArray(expData) ? expData.length : 0;
+        const successKinds = Array.isArray(assetData) ? assetData.length : 0;
+        const partnersCount = Array.isArray(partnerData) ? partnerData.length : 3;
 
-        if (Array.isArray(top3Data)) {
-            top3Data = [witchBook, ...top3Data.filter(b => b.title !== '마녀' && b.id !== 1)].slice(0, 3);
-        } else {
-            top3Data = [witchBook];
+        // 0건 또는 비정상 데이터 방지용 Null/Undefined 폴백 가드레일 장착
+        if (!Array.isArray(top3Data)) {
+            top3Data = [];
         }
-
-        if (Array.isArray(latestData)) {
-            latestData = [witchBook, ...latestData.filter(b => b.title !== '마녀' && b.id !== 1)].slice(0, 8);
-        } else {
-            latestData = [witchBook];
+        if (!Array.isArray(latestData)) {
+            latestData = [];
         }
 
         return res.status(200).json({
@@ -126,7 +154,15 @@ export default async function handler(req, res) {
             count: top3Data.length,
             data: top3Data, // 하위 호환용 기존 필드
             top3: top3Data,
-            latest: latestData
+            latest: latestData,
+            stats: {
+                totalBooksCount,
+                outOfPrintCount,
+                expiredCount,
+                successKinds,
+                partnersCount
+            },
+            logs: Array.isArray(logsData) ? logsData : []
         });
 
     } catch (err) {

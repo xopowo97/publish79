@@ -44,13 +44,7 @@ const MOCK_SALES_LOGS = [
 let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
-let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 100, is_out_of_print: true, _a5Recommended: true },
-    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", publisher: "중앙일보사", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
-    { id: 3, title: "생각의 탄생", author: "루트번스타인", publisher: "에이전트 학술", pub_year: 2020, library_loans: 9120, reprint_score: 91, is_out_of_print: true },
-    { id: 4, title: "침묵의 봄", author: "레이첼 카슨", publisher: "메디치미디어", pub_year: 2018, library_loans: 5890, reprint_score: 87, is_out_of_print: true },
-    { id: 5, title: "국가란 무엇인가", author: "유시민", publisher: "청어출판사", pub_year: 2017, library_loans: 4720, reprint_score: 82, is_out_of_print: true }
-];
+let _ctrl_candidates = [];
 let _ctrl_flashActive = false;
 let _ctrl_flashTimerId = null;
 let _ctrl_approvalLog = [];  // 승인 이력 배열
@@ -137,6 +131,58 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSalesTimeline();
     updateMarketingChannels(false);
     startCtrlLogStream();
+
+    // 5초 간격으로 실시간 B2B 지표 및 로그 갱신 (RLS 우회)
+    setInterval(async () => {
+        try {
+            const category = document.getElementById('ctrl-keyword-input')?.value || 'all';
+            const endpoint = ctrlApiUrl('/api/reprint-candidates?category=' + encodeURIComponent(category));
+            const res = await fetch(endpoint);
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    // B2B 통계 갱신 및 캐시
+                    if (apiRes.stats) {
+                        window._ctrl_cachedStats = apiRes.stats;
+                        
+                        const totalBooksEl = document.getElementById('b2b-stat-totalbooks');
+                        const outOfPrintEl = document.getElementById('b2b-stat-outofprint');
+                        const expiredEl = document.getElementById('b2b-stat-expired');
+                        const successKindsEl = document.getElementById('b2b-stat-success-kinds');
+                        const partnersEl = document.getElementById('b2b-stat-partners');
+
+                        if (totalBooksEl) totalBooksEl.textContent = apiRes.stats.totalBooksCount.toLocaleString() + '종';
+                        if (outOfPrintEl) outOfPrintEl.textContent = apiRes.stats.outOfPrintCount.toLocaleString() + '종';
+                        if (expiredEl) expiredEl.textContent = apiRes.stats.expiredCount.toLocaleString() + '종';
+                        if (successKindsEl) successKindsEl.textContent = apiRes.stats.successKinds.toLocaleString();
+                        if (partnersEl) partnersEl.textContent = apiRes.stats.partnersCount.toLocaleString() + '곳';
+                    }
+                    
+                    // 실시간 에이전트 로그 리스트 증분 갱신
+                    if (apiRes.logs && apiRes.logs.length > 0) {
+                        const streamEl = document.getElementById('ctrl-log-stream');
+                        if (streamEl) {
+                            const newLogs = apiRes.logs.filter(l => l.id > _ctrl_lastLogId);
+                            if (newLogs.length > 0) {
+                                _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => Number(l.id) || 0), 0);
+                                newLogs.slice().reverse().forEach(log => {
+                                    _appendCtrlLogEntry(streamEl,
+                                        log.log_level || 'info',
+                                        log.agent_name || '시스템',
+                                        log.message,
+                                        new Date(log.created_at)
+                                    );
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[통제실] 5초 백그라운드 지표/로그 갱신 오류:', e.message);
+        }
+    }, 5000);
+
     startCtrlTicketListener();
     try {
         if (typeof lucide !== 'undefined') {
@@ -435,15 +481,54 @@ function triggerProposalAlert(data) {
         setTimeout(() => toast.remove(), 500);
     }, 6000);
 }
-function updateSalesTimeline() {
+async function updateSalesTimeline() {
     const container = document.getElementById('ctrl-sales-timeline');
     if (!container) return;
 
-    const timelineData = [
-        { pub: '상상아카데미', book: '마녀', status: 'success', msg: '대표 복간 제안 승인 완료 -> B2C 예약 펀딩 49부 개설 연동' },
-        { pub: '메디치미디어', book: '침묵의 봄', status: 'processing', msg: 'AI 자율 제안 송출 완료 -> 출판사 2차 BEP 원가 보고서 검토 중' },
-        { pub: '청어출판사', book: '국가란 무엇인가', status: 'running', msg: '수요 점수(82점) 임계치 도달 -> B2B 제안서 기안서 자동 작성 중' }
-    ];
+    let timelineData = [];
+
+    // 진짜 DB(partners) 테이블로부터 동적 매핑 시도
+    if (_ctrl_supabase) {
+        try {
+            const { data, error } = await _ctrl_supabase
+                .from('partners')
+                .select('*')
+                .limit(10);
+            
+            if (!error && data && data.length > 0) {
+                timelineData = data.map((item, idx) => {
+                    const statusTypes = ['success', 'processing', 'running'];
+                    const currentStatus = statusTypes[idx % statusTypes.length];
+                    const statusMsg = currentStatus === 'success' ? 'B2B 제안 최종 계약성공 및 펀딩 개설 준비 단계' :
+                                      currentStatus === 'processing' ? 'BEP 원가 산출 및 출판사 경영진 제안서 검토 중' :
+                                      '도서관 대출 인기도 임계치 도달에 따른 영업 제안 자동 준비 중';
+
+                    return {
+                        pub: item.name || '알 수 없는 출판사',
+                        book: item.target_book_title || '복간 추천 절판도서',
+                        status: currentStatus,
+                        msg: statusMsg
+                    };
+                });
+            }
+        } catch(e) {
+            console.warn('[통제실] 파트너 타임라인 DB 조회 오류:', e.message);
+        }
+    }
+
+    if (timelineData.length === 0) {
+        container.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; border: 1px dashed var(--ctrl-border); border-radius:12px; text-align:center; color:var(--ctrl-text-mute); gap:8px;">
+            <i data-lucide="handshake" style="width:24px; height:24px; color:var(--ctrl-text-mute); opacity:0.6;"></i>
+            <span style="font-size:11px; font-weight:700;">진행 중인 출판사 영업 협상 내역이 없습니다.</span>
+            <span style="font-size:9.5px; opacity:0.6; line-height:1.4;">[10번 영업이] 에이전트가 절판도서 20종에 대한 제안서 및 기안서를 작성하면 협상 타임라인이 실시간으로 시작됩니다.</span>
+        </div>
+        `;
+        if (window.lucide) {
+            try { lucide.createIcons(); } catch(e){}
+        }
+        return;
+    }
 
     container.innerHTML = timelineData.map(item => {
         let dotClass = 'ctrl-dot-slate';
@@ -538,46 +623,23 @@ window.ctrlCloseSalesMarketingPanel = function () {
 };
 
 async function updateB2BBusinessMetrics() {
-    let totalBooksCount = 354;
-    let outOfPrintCount = 5;
-    let expiredCount = 1;
-    let partnersCount = 3; // 상상아카데미, 메디치미디어, 청어출판사 기본 제안
-    let successKinds = 1;  // '마녀' 기본 복간 성공
+    let totalBooksCount = 0;
+    let outOfPrintCount = 0;
+    let expiredCount = 0;
+    let partnersCount = 0; 
+    let successKinds = 0;  
 
-    const baseCopies = 5420;
-    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
+    const baseCopies = 0;
+    let addFund = 0;
     const currentCopies = baseCopies + addFund;
     const currentSales = currentCopies * 20000;
-
-    // Supabase DB와 연동하여 실시간 지표 긁어오기
-    if (_ctrl_supabase) {
-        try {
-            // 1. 전체 수집된 원천도서 개수 조회 (books 테이블)
-            const { count, error: countErr } = await _ctrl_supabase
-                .from('books')
-                .select('*', { count: 'exact', head: true });
-            if (!countErr && count !== null) {
-                totalBooksCount = count;
-            }
-
-            // 2. 최종 평가 분석 완료된 복간 후보 조회 (reprint_candidates 테이블)
-            const { data, error } = await _ctrl_supabase
-                .from('reprint_candidates')
-                .select('id, copyright_status, is_funding_active, funding_current, funding_target, is_out_of_print');
-            
-            if (!error && data) {
-                outOfPrintCount = data.filter(b => b.is_out_of_print !== false).length;
-                expiredCount = data.filter(b => b.copyright_status === 'expired' || b.copyright_status === 'public_domain').length;
-                
-                // 복간 성공 조건: funding_current >= funding_target 또는 50부 이상 달성
-                const successBooks = data.filter(b => (b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false);
-                if (successBooks.length > 0) {
-                    successKinds = successBooks.length;
-                }
-            }
-        } catch(err) {
-            console.warn('[통제실] 실시간 지표 수집 쿼리 오류:', err);
-        }
+    // Supabase 직접 조회(RLS 권한 제약) 대신, 5초마다 API가 리프레시하는 캐시 데이터 우선 연동
+    if (window._ctrl_cachedStats) {
+        totalBooksCount = window._ctrl_cachedStats.totalBooksCount;
+        outOfPrintCount = window._ctrl_cachedStats.outOfPrintCount;
+        expiredCount = window._ctrl_cachedStats.expiredCount;
+        partnersCount = window._ctrl_cachedStats.partnersCount;
+        successKinds = window._ctrl_cachedStats.successKinds;
     }
 
     // 1. 수집된 도서 및 만료 도서 바인딩
@@ -602,19 +664,19 @@ async function updateB2BBusinessMetrics() {
     const marginPctEl = document.getElementById('b2b-stat-margin-pct');
     if (salesEl) salesEl.textContent = '₩' + currentSales.toLocaleString();
     
-    // 플랫폼 수수료 예상 마진 비율: 펀딩 가속도에 따른 동적 가변 (기본 35% ~ 최대 45% 캡)
-    const currentMarginPct = Math.min(45, Math.max(30, 35 + Math.floor(addFund / 100)));
+    // 플랫폼 수수료 예상 마진 비율: 펀딩 가속도에 따른 동적 가변 (기본 0% ~ 최대 45% 캡)
+    const currentMarginPct = currentCopies > 0 ? Math.min(45, Math.max(30, 35 + Math.floor(addFund / 100))) : 0;
     if (marginPctEl) marginPctEl.textContent = currentMarginPct.toString();
 
     // 4. 누적 AI API 사용료 계산 바인딩
     const apiCostsEl = document.getElementById('b2b-stat-api-costs');
     if (apiCostsEl) {
-        // 수집도서당 20원 + 에셋팩당 150원 + 챗봇 대화당 50원 + 기본 배치 인프라 유지비 8,500원
-        const baseCost = 8500;
+        // 수집도서당 20원 + 에셋팩당 150원 + 챗봇 대화당 50원
+        const baseCost = 0;
         const scanCost = outOfPrintCount * 20;
         const assetCost = successKinds * 150;
         // audit_logs 개수를 연동하여 챗봇 사용료 산출
-        let chatCount = 5;
+        let chatCount = 0;
         try {
             if (_ctrl_supabase) {
                 const { count } = await _ctrl_supabase
@@ -880,6 +942,39 @@ async function loadCtrlDashboard() {
             if (apiRes.success) {
                 top3 = apiRes.top3 || apiRes.data || [];
                 latest = apiRes.latest || [];
+
+                // B2B 지표 및 출판사 수 실시간 동기화 (RLS 우회)
+                if (apiRes.stats) {
+                    const stats = apiRes.stats;
+                    const totalBooksEl = document.getElementById('b2b-stat-totalbooks');
+                    const outOfPrintEl = document.getElementById('b2b-stat-outofprint');
+                    const expiredEl = document.getElementById('b2b-stat-expired');
+                    const successKindsEl = document.getElementById('b2b-stat-success-kinds');
+                    const partnersEl = document.getElementById('b2b-stat-partners');
+
+                    if (totalBooksEl) totalBooksEl.textContent = stats.totalBooksCount.toLocaleString() + '종';
+                    if (outOfPrintEl) outOfPrintEl.textContent = stats.outOfPrintCount.toLocaleString() + '종';
+                    if (expiredEl) expiredEl.textContent = stats.expiredCount.toLocaleString() + '종';
+                    if (successKindsEl) successKindsEl.textContent = stats.successKinds.toLocaleString();
+                    if (partnersEl) partnersEl.textContent = stats.partnersCount.toLocaleString() + '곳';
+                }
+
+                // 실시간 에이전트 로그 하드코딩 완전 덮어쓰기
+                if (apiRes.logs && apiRes.logs.length > 0) {
+                    const streamEl = document.getElementById('ctrl-log-stream');
+                    if (streamEl) {
+                        streamEl.innerHTML = ''; // mock 로그 소거
+                        _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => Number(l.id) || 0), 0);
+                        apiRes.logs.slice().reverse().forEach(log => {
+                            _appendCtrlLogEntry(streamEl,
+                                log.log_level || 'info',
+                                log.agent_name || '시스템',
+                                log.message,
+                                new Date(log.created_at)
+                            );
+                        });
+                    }
+                }
             }
         }
 
@@ -1387,20 +1482,39 @@ function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) 
     
     el.prepend(div);
 
+    // 에이전트 이름 파싱 및 조직도 상태 실시간 활성화 브릿지 연동
+    let agentId = null;
+    const cleanAgent = agent.replace(/\[|\]/g, '');
+    if (cleanAgent.includes('살피미')) agentId = 1;
+    else if (cleanAgent.includes('다듬이')) agentId = 2;
+    else if (cleanAgent.includes('계산이')) agentId = 3;
+    else if (cleanAgent.includes('조판이')) agentId = 4;
+    else if (cleanAgent.includes('고치미')) agentId = 5;
+    else if (cleanAgent.includes('번역이')) agentId = 6;
+    else if (cleanAgent.includes('그림이')) agentId = 7;
+    else if (cleanAgent.includes('이지퍼블')) agentId = 8;
+    else if (cleanAgent.includes('영업이')) agentId = 10;
+    else if (cleanAgent.includes('알리미')) agentId = 11;
+    else if (cleanAgent.includes('판다') || cleanAgent.includes('지휘')) agentId = 16;
+    else if (cleanAgent.includes('상담이')) agentId = 17;
+    else if (cleanAgent.includes('보안관')) agentId = 18;
+    else if (cleanAgent.includes('닥터')) agentId = 19;
+    
+    if (agentId !== null) {
+        ctrlUpdateLocalAgentStatus(agentId, 'active', message.slice(0, 22) + (message.length > 22 ? '...' : ''));
+        
+        // 5초 후 어두운 대기등(idle)으로 복귀하는 쿨다운 적용
+        setTimeout(() => {
+            ctrlUpdateLocalAgentStatus(agentId, 'idle', '대기 중');
+        }, 5000);
+    }
+
     while (el.children.length > 20) el.removeChild(el.lastChild);
 }
 
 function _appendCtrlSimulatedLog(el) {
-    // 25% 확률로 영업이 mock 로그를 섞어서 출력합니다.
-    const useMock = Math.random() < 0.25;
-    let pool;
-    if (useMock) {
-        pool = MOCK_SALES_LOGS[Math.floor(Math.random() * MOCK_SALES_LOGS.length)];
-    } else {
-        pool = CTRL_LOG_POOL[Math.floor(Math.random() * CTRL_LOG_POOL.length)];
-    }
-    const n = Math.floor(Math.random() * 50) + 50;
-    _appendCtrlLogEntry(el, pool.type, pool.agent.replace(/\[|\]/g, ''), pool.msg.replace('{n}', n), new Date(), pool.isMock || false);
+    // 가짜 로그 생성기 무력화 (진짜 DB 로그만 렌더링되도록 차단)
+    return;
 }
 
 // ───────────────────────────────────────────
@@ -3334,11 +3448,28 @@ function setupAccordionEvents() {
 window._ctrl_selectedBook = null;
 window._ctrl_activeTab = 'epub';
 
-window.ctrlStartSimByIndex = function ctrlStartSimByIndex(index) {
+window._ctrl_selectedAsset = null;
+window.ctrlStartSimByIndex = async function ctrlStartSimByIndex(index) {
     const book = _ctrl_candidates[index];
     if (!book) return;
 
     window._ctrl_selectedBook = book;
+    window._ctrl_selectedAsset = null; // 초기화
+
+    // 백엔드 API를 통해 RLS 우회하여 해당 도서의 진짜 에셋 조회 (ISBN 기준)
+    if (book.isbn13) {
+        try {
+            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + book.isbn13));
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success && apiRes.asset) {
+                    window._ctrl_selectedAsset = apiRes.asset;
+                }
+            }
+        } catch (e) {
+            console.warn('[통제실] 마케팅 에셋 API 조회 실패:', e.message);
+        }
+    }
     
     // 저작권 만료 도서(public_domain)인 경우 ePub 뷰어/마케팅 팩 자동 실행
     if (book.copyright_status === 'public_domain') {
@@ -3757,50 +3888,81 @@ function renderNewsCardTab(book) {
 
     // 도서별 템플릿 카피 데이터
     let copyTemplates = [];
-    if (title.includes('홈즈') || title.includes('Holmes')) {
-        copyTemplates = [
-            "그가 돌아왔다. 추리 역사상 가장 위대한 탐정, 셜록 홈즈!",
-            "100년의 세월을 넘어, 오직 당신만을 위한 한정판 실물 복간 완료.",
-            "디지털 연속지 인쇄와 프리미엄 조판으로 되살아난 전설의 원작.",
-            "소장 가치를 극대화할 독자 성명 임베디드 실물 보증서 동봉.",
-            "B2C 몰에서 펀딩 100% 달성 임박! 지금 한정판 소장 기회를 확보하세요."
-        ];
-    } else if (title.includes('마녀')) {
-        copyTemplates = [
-            "역사의 뒤안길로 사라졌던 미스터리 판타지의 명작, 소설 '마녀'가 다시 깨어납니다.",
-            "스산한 바람만이 스치는 어두운 침엽수림 속, 마녀 사냥의 감춰진 진실이 시작됩니다.",
-            "독자들의 간절한 목소리가 모여 복간이 결정된, 절판 도서 복원 프로젝트의 첫 시작.",
-            "아래 [출판친구스토어] 링크를 클릭하여 단 10초 만에 '마녀'의 정식 펀딩을 개설하고 첫 서포터가 되어주세요.",
-            "책을 한 권 읽을 때마다 대지에 나무가 자라납니다. 출판친구와 함께 푸른 숲을 기부해 주세요."
-        ];
-    } else if (title.includes('인간') || title.includes('카네기')) {
-        copyTemplates = [
-            "사람의 마음을 움직이는 가장 위대한 고전, 인간관계론.",
-            "현대 비즈니스맨의 필수 지침서, 오리지널 무삭제판 복간 결정.",
-            "가변 데이터 인쇄 기술로 당신의 이름이 박힌 수제 책갈피 포함.",
-            "출판친구 자율 배포 시스템이 인쇄소와 출판사를 직접 매칭해 단가 대폭 인하.",
-            "지금 B2C 스토어 펀딩에 참여해 나만의 맞춤형 도서를 소장해 보세요."
-        ];
+    const cat = book.category || '소설';
+    
+    // 카테고리별 고화질 Unsplash 테마 이미지 매핑 (마녀 테마 고정 제거 및 시각적 일치 수호)
+    const categoryThemeImages = {
+        '인문학': [
+            "https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=600", // 도서관/서재
+            "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=600", // 깊은 생각/사색
+            "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=600", // 찻잔과 책
+            "https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=600", // 조용한 독서 (엑박 교정 완료)
+            "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=600"  // 노트와 펜
+        ],
+        '과학': [
+            "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600", // 밤하늘 은하수
+            "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=600", // 뇌/생각 일러스트
+            "https://images.unsplash.com/photo-1461360370896-922624d12aa1?q=80&w=600", // 현미경/실험실
+            "https://images.unsplash.com/photo-1532187643603-ba119ca4109e?q=80&w=600", // 기술/데이터
+            "https://images.unsplash.com/photo-1447069387593-a5de0862481e?q=80&w=600"  // 오래된 천문 지도
+        ],
+        '소설': [
+            "https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=600", // 날아다니는 책들
+            "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=600", // 별밤과 텐트
+            "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?q=80&w=600", // 옛날 타자기
+            "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=600", // 마법 가득한 고서
+            "https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=600"  // 감성 찻잔과 소설
+        ],
+        '기본': [
+            "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=600", // 마법 고서
+            "https://images.unsplash.com/photo-1502082553048-f009c37129b9?q=80&w=600", // 안개 숲
+            "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=600", // 햇살 숲
+            "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600", // 밤 숲길
+            "https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=600"  // 새싹
+        ]
+    };
+
+    const fallbackUrls = categoryThemeImages[cat] || categoryThemeImages['기본'];
+
+    if (window._ctrl_selectedAsset && Array.isArray(window._ctrl_selectedAsset.card_news_data)) {
+        copyTemplates = window._ctrl_selectedAsset.card_news_data.map(item => item.body || item.text || item.title || '시간에 묻혀있던 명작');
     } else {
-        copyTemplates = [
-            "시간에 묻혀있던 명작, 독자의 목소리로 다시 태어납니다.",
-            "절판 도서 복간 프로젝트 ➔ 독자 참여형 B2C 크라우드 펀딩 가동.",
-            "디지털 초소량 인쇄를 통해 재고 걱정 없이 실물 책으로 즉각 제작.",
-            "오직 당신만을 위한 맞춤형 가변 조판 VDP 책갈피 증정.",
-            "지금 펀딩에 투표하여 소중한 문화를 보존하는 데 동참하세요."
-        ];
+        if (title.includes('홈즈') || title.includes('Holmes')) {
+            copyTemplates = [
+                "그가 돌아왔다. 추리 역사상 가장 위대한 탐정, 셜록 홈즈!",
+                "100년의 세월을 넘어, 오직 당신만을 위한 한정판 실물 복간 완료.",
+                "디지털 연속지 인쇄와 프리미엄 조판으로 되살아난 전설의 원작.",
+                "소장 가치를 극대화할 독자 성명 임베디드 실물 보증서 동봉.",
+                "B2C 몰에서 펀딩 100% 달성 임박! 지금 한정판 소장 기회를 확보하세요."
+            ];
+        } else if (title.includes('마녀')) {
+            copyTemplates = [
+                "역사의 뒤안길로 사라졌던 미스터리 판타지의 명작, 소설 '마녀'가 다시 깨어납니다.",
+                "스산한 바람만이 스치는 어두운 침엽수림 속, 마녀 사냥의 감춰진 진실이 시작됩니다.",
+                "독자들의 간절한 목소리가 모여 복간이 결정된, 절판 도서 복원 프로젝트의 첫 시작.",
+                "아래 [출판친구스토어] 링크를 클릭하여 단 10초 만에 '마녀'의 정식 펀딩을 개설하고 첫 서포터가 되어주세요.",
+                "책을 한 권 읽을 때마다 대지에 나무가 자라납니다. 출판친구와 함께 푸른 숲을 기부해 주세요."
+            ];
+        } else if (title.includes('인간') || title.includes('카네기')) {
+            copyTemplates = [
+                "사람의 마음을 움직이는 가장 위대한 고전, 인간관계론.",
+                "현대 비즈니스맨의 필수 지침서, 오리지널 무삭제판 복간 결정.",
+                "가변 데이터 인쇄 기술로 당신의 이름이 박힌 수제 책갈피 포함.",
+                "출판친구 자율 배포 시스템이 인쇄소와 출판사를 직접 매칭해 단가 대폭 인하.",
+                "지금 B2C 스토어 펀딩에 참여해 나만의 맞춤형 도서를 소장해 보세요."
+            ];
+        } else {
+            copyTemplates = [
+                "시간에 묻혀있던 명작, 독자의 목소리로 다시 태어납니다.",
+                "절판 도서 복간 프로젝트 ➔ 독자 참여형 B2C 크라우드 펀딩 가동.",
+                "디지털 초소량 인쇄를 통해 재고 걱정 없이 실물 책으로 즉각 제작.",
+                "오직 당신만을 위한 맞춤형 가변 조판 VDP 책갈피 증정.",
+                "지금 펀딩에 투표하여 소중한 문화를 보존하는 데 동참하세요."
+            ];
+        }
     }
 
     window._newsCardCopies = copyTemplates;
-
-    // 백업용 고화질 Unsplash CDN 이미지 (정적 에셋 유실 대비 비상 Bypass 가드)
-    const fallbackUrls = [
-        "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=600", // 1장: 중세 마법 고서
-        "https://images.unsplash.com/photo-1502082553048-f009c37129b9?q=80&w=600", // 2장: 신비로운 숲 밤 안개
-        "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=600", // 3장: 울창한 소나무 거목
-        "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600", // 4장: 달빛 별밤 숲길
-        "https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=600"  // 5장: 새싹과 푸른 생명의 숲
-    ];
 
     async function updateCardImageAsync(imgElement, promptText, index) {
         try {
@@ -3829,7 +3991,8 @@ function renderNewsCardTab(book) {
     function buildCardHTML() {
         const idx = window._newsCardIdx;
         const text = window._newsCardCopies[idx];
-        const defaultSrc = `book${idx + 1}.png`; // 로컬 file:/// 실행 시 호환되도록 절대경로(/) 제거
+        const isMaryeo = title.includes('마녀');
+        const defaultSrc = isMaryeo ? `book${idx + 1}.png` : fallbackUrls[idx];
         const backupSrc = fallbackUrls[idx];
 
         return `
@@ -3890,7 +4053,8 @@ function renderNewsCardTab(book) {
 
     // 렌더링 직후 비동기 API 통신을 통해 검증 및 base64 전환 트리거 가동
     const imgEl = document.getElementById('ctrl-card-img-element');
-    if (imgEl) {
+    const isMaryeo = title.includes('마녀');
+    if (imgEl && isMaryeo) {
         updateCardImageAsync(imgEl, window._newsCardCopies[0], 1);
     }
 
@@ -3900,7 +4064,8 @@ function renderNewsCardTab(book) {
         
         // 캐러셀 슬라이드 변경 시에도 비동기 이미지 로딩을 재격발
         const newImgEl = document.getElementById('ctrl-card-img-element');
-        if (newImgEl) {
+        const isMaryeoSlide = title.includes('마녀');
+        if (newImgEl && isMaryeoSlide) {
             updateCardImageAsync(newImgEl, window._newsCardCopies[window._newsCardIdx], window._newsCardIdx + 1);
         }
 
@@ -3942,30 +4107,53 @@ function renderVideoTab(book) {
 
     // 숏폼 비디오 자막 데이터
     let subtitles = [];
-    if (title.includes('홈즈') || title.includes('Holmes')) {
-        subtitles = [
-            "추리 소설의 영원한 전설, 셜록 홈즈가 마침내 돌아왔습니다!",
-            "소장용 맞춤형 고해상도 디자인과 VDP 조판 기술 탑재!",
-            "지금 B2C 몰에서 펀딩 100% 달성을 확인하고 예약을 진행하세요!"
-        ];
-    } else if (title.includes('마녀')) {
-        subtitles = [
-            "시간 속에 묻혀있던 판타지 전설, 소설 '마녀'가 독자들의 손으로 다시 깨어납니다!",
-            "절판되어 우리 곁을 떠난 명작을 펀딩으로 복간하여, 감동의 이야기를 다시 한번 만나보세요.",
-            "출판친구 스토어에서 펀딩에 참여 하세요! 우리의 숲이 살아납니다.!"
-        ];
-    } else if (title.includes('인간') || title.includes('카네기')) {
-        subtitles = [
-            "사람의 마음을 움직이는 명저, 데일 카네기의 인간관계론 복간!",
-            "당신의 이름이 영구 인쇄된 가변 보증서와 함께 소장하세요.",
-            "B2C 스토어에서 단 1초 만에 펀딩 참여가 가능합니다!"
-        ];
+    
+    // 진짜 마케팅 에셋의 요약 대본(summary_script)이 존재할 경우 문장 분할 매핑 [진짜 데이터 100% 연동]
+    if (window._ctrl_selectedAsset && window._ctrl_selectedAsset.summary_script) {
+        const sentences = window._ctrl_selectedAsset.summary_script
+            .split(/[.!?]+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 5);
+        if (sentences.length >= 3) {
+            subtitles = [
+                sentences[0] + "!",
+                sentences[1] + "!",
+                sentences[2] + "!"
+            ];
+        } else {
+            const script = window._ctrl_selectedAsset.summary_script;
+            subtitles = [
+                script.slice(0, 45) + "...",
+                script.slice(45, 90) + "...",
+                script.slice(90, 135) + "..."
+            ];
+        }
     } else {
-        subtitles = [
-            "시간에 묻혀있던 명작이 독자의 참여로 다시 태어납니다!",
-            "무재고 B2B 인쇄 플랫폼으로 완벽 복간 및 매칭 지원.",
-            "지금 바로 예약 판매 펀딩에 참여해 보존에 동참하세요!"
-        ];
+        if (title.includes('홈즈') || title.includes('Holmes')) {
+            subtitles = [
+                "추리 소설의 영원한 전설, 셜록 홈즈가 마침내 돌아왔습니다!",
+                "소장용 맞춤형 고해상도 디자인과 VDP 조판 기술 탑재!",
+                "지금 B2C 몰에서 펀딩 100% 달성을 확인하고 예약을 진행하세요!"
+            ];
+        } else if (title.includes('마녀')) {
+            subtitles = [
+                "시간 속에 묻혀있던 판타지 전설, 소설 '마녀'가 독자들의 손으로 다시 깨어납니다!",
+                "절판되어 우리 곁을 떠난 명작을 펀딩으로 복간하여, 감동의 이야기를 다시 한번 만나보세요.",
+                "출판친구 스토어에서 펀딩에 참여 하세요! 우리의 숲이 살아납니다.!"
+            ];
+        } else if (title.includes('인간') || title.includes('카네기')) {
+            subtitles = [
+                "사람의 마음을 움직이는 명저, 데일 카네기의 인간관계론 복간!",
+                "당신의 이름이 영구 인쇄된 가변 보증서와 함께 소장하세요.",
+                "B2C 스토어에서 단 1초 만에 펀딩 참여가 가능합니다!"
+            ];
+        } else {
+            subtitles = [
+                "시간에 묻혀있던 명작이 독자의 참여로 다시 태어납니다!",
+                "무재고 B2B 인쇄 플랫폼으로 완벽 복간 및 매칭 지원.",
+                "지금 바로 예약 판매 펀딩에 참여해 보존에 동참하세요!"
+            ];
+        }
     }
 
     window._shortformSubtitles = subtitles;
@@ -4106,6 +4294,9 @@ function renderVideoTab(book) {
         const scene1 = '마녀숏폼/한글_프롬프트_어둡고_짙은_안개가_낀_중세_숲속에서_.mp4';
         const scene2 = '마녀숏폼/고풍스러운_오래된_양장본_책이_테이블_위에서_스스로_스.mp4';
         const scene3 = '마녀숏폼/황량한_벌판에_버려져_흩날리던_낡은_폐지_더미들이_역재.mp4';
+        
+        const asset = window._ctrl_selectedAsset;
+        const hasRealVideo = asset && asset.shorts_video_url;
         const isMaryeo = title.includes('마녀');
         const videoEl = document.getElementById('shortform-video-player');
 
@@ -4125,11 +4316,21 @@ function renderVideoTab(book) {
         window._shortformBgm.currentTime = 0;
         window._shortformBgm.play().catch(e => console.log('[BGM 자동재생 차단]', e));
 
-        // 1단계 영상 및 TTS 재생 시작
-        if (isMaryeo && videoEl) {
-            videoEl.src = scene1;
-            videoEl.style.display = 'block';
-            videoEl.play().catch(e => console.warn(e));
+        // 진짜 비디오 자산이 존재할 시 HTML5 비디오 직접 플레이 바인딩
+        if (videoEl) {
+            if (hasRealVideo) {
+                videoEl.src = asset.shorts_video_url;
+                videoEl.style.display = 'block';
+                videoEl.loop = true; // 단일 비디오 루프 상영
+                videoEl.play().catch(e => console.warn(e));
+            } else if (isMaryeo) {
+                videoEl.src = scene1;
+                videoEl.style.display = 'block';
+                videoEl.loop = false;
+                videoEl.play().catch(e => console.warn(e));
+            } else {
+                videoEl.style.display = 'none';
+            }
         }
         speakCurrentSentence(window._shortformSubtitles[0]);
 
@@ -4148,17 +4349,21 @@ function renderVideoTab(book) {
             if (elapsedMs === 10000 && window._shortformIdx === 0) {
                 window._shortformIdx = 1;
                 subtitleText.textContent = window._shortformSubtitles[1];
-                if (isMaryeo && videoEl) {
-                    videoEl.src = scene2;
-                    videoEl.play().catch(e => console.warn(e));
+                if (videoEl && !hasRealVideo) {
+                    if (isMaryeo) {
+                        videoEl.src = scene2;
+                        videoEl.play().catch(e => console.warn(e));
+                    }
                 }
                 speakCurrentSentence(window._shortformSubtitles[1]);
             } else if (elapsedMs === 20000 && window._shortformIdx === 1) {
                 window._shortformIdx = 2;
                 subtitleText.textContent = window._shortformSubtitles[2];
-                if (isMaryeo && videoEl) {
-                    videoEl.src = scene3;
-                    videoEl.play().catch(e => console.warn(e));
+                if (videoEl && !hasRealVideo) {
+                    if (isMaryeo) {
+                        videoEl.src = scene3;
+                        videoEl.play().catch(e => console.warn(e));
+                    }
                 }
                 speakCurrentSentence(window._shortformSubtitles[2]);
             }
