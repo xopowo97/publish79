@@ -44,13 +44,7 @@ const MOCK_SALES_LOGS = [
 let _ctrl_trendChart = null;
 let _ctrl_logIntervalId = null;
 let _ctrl_lastLogId = 0;
-let _ctrl_candidates = [
-    { id: 1, title: "마녀", author: "주경철", publisher: "상상아카데미", pub_year: 2021, library_loans: 15230, reprint_score: 100, is_out_of_print: true, _a5Recommended: true },
-    { id: 2, title: "오래된 미래", author: "헬레나 노르베리-호지", publisher: "중앙일보사", pub_year: 2019, library_loans: 12450, reprint_score: 98, is_out_of_print: true },
-    { id: 3, title: "생각의 탄생", author: "루트번스타인", publisher: "에이전트 학술", pub_year: 2020, library_loans: 9120, reprint_score: 91, is_out_of_print: true },
-    { id: 4, title: "침묵의 봄", author: "레이첼 카슨", publisher: "메디치미디어", pub_year: 2018, library_loans: 5890, reprint_score: 87, is_out_of_print: true },
-    { id: 5, title: "국가란 무엇인가", author: "유시민", publisher: "청어출판사", pub_year: 2017, library_loans: 4720, reprint_score: 82, is_out_of_print: true }
-];
+let _ctrl_candidates = [];
 let _ctrl_flashActive = false;
 let _ctrl_flashTimerId = null;
 let _ctrl_approvalLog = [];  // 승인 이력 배열
@@ -548,13 +542,12 @@ async function updateB2BBusinessMetrics() {
     let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
     const currentCopies = baseCopies + addFund;
     const currentSales = currentCopies * 20000;
-
     // Supabase DB와 연동하여 실시간 지표 긁어오기
     if (_ctrl_supabase) {
         try {
-            // 1. 전체 수집된 원천도서 개수 조회 (books 테이블)
+            // 1. 전체 수집된 원천도서 개수 조회 (reprint_candidates 테이블로 404오류 정정)
             const { count, error: countErr } = await _ctrl_supabase
-                .from('books')
+                .from('reprint_candidates')
                 .select('*', { count: 'exact', head: true });
             if (!countErr && count !== null) {
                 totalBooksCount = count;
@@ -565,18 +558,30 @@ async function updateB2BBusinessMetrics() {
                 .from('reprint_candidates')
                 .select('id, copyright_status, is_funding_active, funding_current, funding_target, is_out_of_print');
             
-            if (!error && data) {
-                outOfPrintCount = data.filter(b => b.is_out_of_print !== false).length;
-                expiredCount = data.filter(b => b.copyright_status === 'expired' || b.copyright_status === 'public_domain').length;
-                
-                // 복간 성공 조건: funding_current >= funding_target 또는 50부 이상 달성
-                const successBooks = data.filter(b => (b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false);
+            const candidateData = Array.isArray(data) ? data : [];
+            
+            if (!error) {
+                outOfPrintCount = candidateData.filter(b => b && b.is_out_of_print !== false).length;
+                expiredCount = candidateData.filter(b => b && (b.copyright_status === 'expired' || b.copyright_status === 'public_domain')).length;
+            }
+
+            // 3. 실제 마케팅 에셋 생성이 성공한(success) 진짜 복간 성공 종수 조회 (대표님 피드백 ① 수렴)
+            const { count: assetSuccessCount, error: assetErr } = await _ctrl_supabase
+                .from('book_marketing_assets')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'success');
+            
+            if (!assetErr && assetSuccessCount !== null) {
+                successKinds = assetSuccessCount;
+            } else {
+                // 백업 폴백: 펀딩 목표 달성 도서 카운트
+                const successBooks = candidateData.filter(b => b && ((b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false));
                 if (successBooks.length > 0) {
                     successKinds = successBooks.length;
                 }
             }
         } catch(err) {
-            console.warn('[통제실] 실시간 지표 수집 쿼리 오류:', err);
+            console.warn('[통제실] 실시간 지표 수집 쿼리 오류 (Null 가드 작동):', err);
         }
     }
 
