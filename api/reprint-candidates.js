@@ -65,7 +65,31 @@ export default async function handler(req, res) {
         }
 
         const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
-        
+        const isbn = req.query.isbn || '';
+
+        const headers = {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Accept': 'application/json'
+        };
+
+        // 만약 특정 ISBN에 대한 마케팅 에셋 개별 조회가 요청된 경우 (RLS 우회)
+        if (isbn) {
+            try {
+                const assetUrl = `${base}/book_marketing_assets?select=*&isbn=eq.${isbn}&status=eq.success&limit=1`;
+                const assetRes = await fetch(assetUrl, { method: 'GET', headers });
+                const assetData = assetRes.ok ? await assetRes.json() : [];
+                const asset = Array.isArray(assetData) && assetData.length > 0 ? assetData[0] : null;
+                
+                return res.status(200).json({
+                    success: true,
+                    asset: asset
+                });
+            } catch (err) {
+                return res.status(500).json({ success: false, error: err.message });
+            }
+        }
+
         // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
         const top3Url = `${base}/reprint_candidates?select=*${categoryFilter}&order=reprint_score.desc&limit=3`;
         // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
