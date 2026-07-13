@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (streamEl) {
                             const newLogs = apiRes.logs.filter(l => l.id > _ctrl_lastLogId);
                             if (newLogs.length > 0) {
-                                _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => l.id));
+                                _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => Number(l.id) || 0), 0);
                                 newLogs.slice().reverse().forEach(log => {
                                     _appendCtrlLogEntry(streamEl,
                                         log.log_level || 'info',
@@ -925,7 +925,7 @@ async function loadCtrlDashboard() {
                     const streamEl = document.getElementById('ctrl-log-stream');
                     if (streamEl) {
                         streamEl.innerHTML = ''; // mock 로그 소거
-                        _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => l.id));
+                        _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => Number(l.id) || 0), 0);
                         apiRes.logs.slice().reverse().forEach(log => {
                             _appendCtrlLogEntry(streamEl,
                                 log.log_level || 'info',
