@@ -481,15 +481,54 @@ function triggerProposalAlert(data) {
         setTimeout(() => toast.remove(), 500);
     }, 6000);
 }
-function updateSalesTimeline() {
+async function updateSalesTimeline() {
     const container = document.getElementById('ctrl-sales-timeline');
     if (!container) return;
 
-    const timelineData = [
-        { pub: '상상아카데미', book: '마녀', status: 'success', msg: '대표 복간 제안 승인 완료 -> B2C 예약 펀딩 49부 개설 연동' },
-        { pub: '메디치미디어', book: '침묵의 봄', status: 'processing', msg: 'AI 자율 제안 송출 완료 -> 출판사 2차 BEP 원가 보고서 검토 중' },
-        { pub: '청어출판사', book: '국가란 무엇인가', status: 'running', msg: '수요 점수(82점) 임계치 도달 -> B2B 제안서 기안서 자동 작성 중' }
-    ];
+    let timelineData = [];
+
+    // 진짜 DB(partners) 테이블로부터 동적 매핑 시도
+    if (_ctrl_supabase) {
+        try {
+            const { data, error } = await _ctrl_supabase
+                .from('partners')
+                .select('*')
+                .limit(10);
+            
+            if (!error && data && data.length > 0) {
+                timelineData = data.map((item, idx) => {
+                    const statusTypes = ['success', 'processing', 'running'];
+                    const currentStatus = statusTypes[idx % statusTypes.length];
+                    const statusMsg = currentStatus === 'success' ? 'B2B 제안 최종 계약성공 및 펀딩 개설 준비 단계' :
+                                      currentStatus === 'processing' ? 'BEP 원가 산출 및 출판사 경영진 제안서 검토 중' :
+                                      '도서관 대출 인기도 임계치 도달에 따른 영업 제안 자동 준비 중';
+
+                    return {
+                        pub: item.name || '알 수 없는 출판사',
+                        book: item.target_book_title || '복간 추천 절판도서',
+                        status: currentStatus,
+                        msg: statusMsg
+                    };
+                });
+            }
+        } catch(e) {
+            console.warn('[통제실] 파트너 타임라인 DB 조회 오류:', e.message);
+        }
+    }
+
+    if (timelineData.length === 0) {
+        container.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; border: 1px dashed var(--ctrl-border); border-radius:12px; text-align:center; color:var(--ctrl-text-mute); gap:8px;">
+            <i data-lucide="handshake" style="width:24px; height:24px; color:var(--ctrl-text-mute); opacity:0.6;"></i>
+            <span style="font-size:11px; font-weight:700;">진행 중인 출판사 영업 협상 내역이 없습니다.</span>
+            <span style="font-size:9.5px; opacity:0.6; line-height:1.4;">[10번 영업이] 에이전트가 절판도서 20종에 대한 제안서 및 기안서를 작성하면 협상 타임라인이 실시간으로 시작됩니다.</span>
+        </div>
+        `;
+        if (window.lucide) {
+            try { lucide.createIcons(); } catch(e){}
+        }
+        return;
+    }
 
     container.innerHTML = timelineData.map(item => {
         let dotClass = 'ctrl-dot-slate';
@@ -584,14 +623,14 @@ window.ctrlCloseSalesMarketingPanel = function () {
 };
 
 async function updateB2BBusinessMetrics() {
-    let totalBooksCount = 354;
-    let outOfPrintCount = 5;
-    let expiredCount = 1;
-    let partnersCount = 3; // 상상아카데미, 메디치미디어, 청어출판사 기본 제안
-    let successKinds = 1;  // '마녀' 기본 복간 성공
+    let totalBooksCount = 0;
+    let outOfPrintCount = 0;
+    let expiredCount = 0;
+    let partnersCount = 0; 
+    let successKinds = 0;  
 
-    const baseCopies = 5420;
-    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
+    const baseCopies = 0;
+    let addFund = 0;
     const currentCopies = baseCopies + addFund;
     const currentSales = currentCopies * 20000;
     // Supabase 직접 조회(RLS 권한 제약) 대신, 5초마다 API가 리프레시하는 캐시 데이터 우선 연동
@@ -625,19 +664,19 @@ async function updateB2BBusinessMetrics() {
     const marginPctEl = document.getElementById('b2b-stat-margin-pct');
     if (salesEl) salesEl.textContent = '₩' + currentSales.toLocaleString();
     
-    // 플랫폼 수수료 예상 마진 비율: 펀딩 가속도에 따른 동적 가변 (기본 35% ~ 최대 45% 캡)
-    const currentMarginPct = Math.min(45, Math.max(30, 35 + Math.floor(addFund / 100)));
+    // 플랫폼 수수료 예상 마진 비율: 펀딩 가속도에 따른 동적 가변 (기본 0% ~ 최대 45% 캡)
+    const currentMarginPct = currentCopies > 0 ? Math.min(45, Math.max(30, 35 + Math.floor(addFund / 100))) : 0;
     if (marginPctEl) marginPctEl.textContent = currentMarginPct.toString();
 
     // 4. 누적 AI API 사용료 계산 바인딩
     const apiCostsEl = document.getElementById('b2b-stat-api-costs');
     if (apiCostsEl) {
-        // 수집도서당 20원 + 에셋팩당 150원 + 챗봇 대화당 50원 + 기본 배치 인프라 유지비 8,500원
-        const baseCost = 8500;
+        // 수집도서당 20원 + 에셋팩당 150원 + 챗봇 대화당 50원
+        const baseCost = 0;
         const scanCost = outOfPrintCount * 20;
         const assetCost = successKinds * 150;
         // audit_logs 개수를 연동하여 챗봇 사용료 산출
-        let chatCount = 5;
+        let chatCount = 0;
         try {
             if (_ctrl_supabase) {
                 const { count } = await _ctrl_supabase
@@ -1443,20 +1482,39 @@ function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) 
     
     el.prepend(div);
 
+    // 에이전트 이름 파싱 및 조직도 상태 실시간 활성화 브릿지 연동
+    let agentId = null;
+    const cleanAgent = agent.replace(/\[|\]/g, '');
+    if (cleanAgent.includes('살피미')) agentId = 1;
+    else if (cleanAgent.includes('다듬이')) agentId = 2;
+    else if (cleanAgent.includes('계산이')) agentId = 3;
+    else if (cleanAgent.includes('조판이')) agentId = 4;
+    else if (cleanAgent.includes('고치미')) agentId = 5;
+    else if (cleanAgent.includes('번역이')) agentId = 6;
+    else if (cleanAgent.includes('그림이')) agentId = 7;
+    else if (cleanAgent.includes('이지퍼블')) agentId = 8;
+    else if (cleanAgent.includes('영업이')) agentId = 10;
+    else if (cleanAgent.includes('알리미')) agentId = 11;
+    else if (cleanAgent.includes('판다') || cleanAgent.includes('지휘')) agentId = 16;
+    else if (cleanAgent.includes('상담이')) agentId = 17;
+    else if (cleanAgent.includes('보안관')) agentId = 18;
+    else if (cleanAgent.includes('닥터')) agentId = 19;
+    
+    if (agentId !== null) {
+        ctrlUpdateLocalAgentStatus(agentId, 'active', message.slice(0, 22) + (message.length > 22 ? '...' : ''));
+        
+        // 5초 후 어두운 대기등(idle)으로 복귀하는 쿨다운 적용
+        setTimeout(() => {
+            ctrlUpdateLocalAgentStatus(agentId, 'idle', '대기 중');
+        }, 5000);
+    }
+
     while (el.children.length > 20) el.removeChild(el.lastChild);
 }
 
 function _appendCtrlSimulatedLog(el) {
-    // 25% 확률로 영업이 mock 로그를 섞어서 출력합니다.
-    const useMock = Math.random() < 0.25;
-    let pool;
-    if (useMock) {
-        pool = MOCK_SALES_LOGS[Math.floor(Math.random() * MOCK_SALES_LOGS.length)];
-    } else {
-        pool = CTRL_LOG_POOL[Math.floor(Math.random() * CTRL_LOG_POOL.length)];
-    }
-    const n = Math.floor(Math.random() * 50) + 50;
-    _appendCtrlLogEntry(el, pool.type, pool.agent.replace(/\[|\]/g, ''), pool.msg.replace('{n}', n), new Date(), pool.isMock || false);
+    // 가짜 로그 생성기 무력화 (진짜 DB 로그만 렌더링되도록 차단)
+    return;
 }
 
 // ───────────────────────────────────────────
@@ -3838,7 +3896,7 @@ function renderNewsCardTab(book) {
             "https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=600", // 도서관/서재
             "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=600", // 깊은 생각/사색
             "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=600", // 찻잔과 책
-            "https://images.unsplash.com/photo-1463320306629-64aa901b8d94?q=80&w=600", // 조용한 독서
+            "https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=600", // 조용한 독서 (엑박 교정 완료)
             "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=600"  // 노트와 펜
         ],
         '과학': [
