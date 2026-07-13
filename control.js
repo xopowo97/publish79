@@ -131,6 +131,58 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSalesTimeline();
     updateMarketingChannels(false);
     startCtrlLogStream();
+
+    // 5초 간격으로 실시간 B2B 지표 및 로그 갱신 (RLS 우회)
+    setInterval(async () => {
+        try {
+            const category = document.getElementById('ctrl-keyword-input')?.value || 'all';
+            const endpoint = ctrlApiUrl('/api/reprint-candidates?category=' + encodeURIComponent(category));
+            const res = await fetch(endpoint);
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    // B2B 통계 갱신 및 캐시
+                    if (apiRes.stats) {
+                        window._ctrl_cachedStats = apiRes.stats;
+                        
+                        const totalBooksEl = document.getElementById('b2b-stat-totalbooks');
+                        const outOfPrintEl = document.getElementById('b2b-stat-outofprint');
+                        const expiredEl = document.getElementById('b2b-stat-expired');
+                        const successKindsEl = document.getElementById('b2b-stat-success-kinds');
+                        const partnersEl = document.getElementById('b2b-stat-partners');
+
+                        if (totalBooksEl) totalBooksEl.textContent = apiRes.stats.totalBooksCount.toLocaleString() + '종';
+                        if (outOfPrintEl) outOfPrintEl.textContent = apiRes.stats.outOfPrintCount.toLocaleString() + '종';
+                        if (expiredEl) expiredEl.textContent = apiRes.stats.expiredCount.toLocaleString() + '종';
+                        if (successKindsEl) successKindsEl.textContent = apiRes.stats.successKinds.toLocaleString();
+                        if (partnersEl) partnersEl.textContent = apiRes.stats.partnersCount.toLocaleString() + '곳';
+                    }
+                    
+                    // 실시간 에이전트 로그 리스트 증분 갱신
+                    if (apiRes.logs && apiRes.logs.length > 0) {
+                        const streamEl = document.getElementById('ctrl-log-stream');
+                        if (streamEl) {
+                            const newLogs = apiRes.logs.filter(l => l.id > _ctrl_lastLogId);
+                            if (newLogs.length > 0) {
+                                _ctrl_lastLogId = Math.max(...apiRes.logs.map(l => l.id));
+                                newLogs.slice().reverse().forEach(log => {
+                                    _appendCtrlLogEntry(streamEl,
+                                        log.log_level || 'info',
+                                        log.agent_name || '시스템',
+                                        log.message,
+                                        new Date(log.created_at)
+                                    );
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[통제실] 5초 백그라운드 지표/로그 갱신 오류:', e.message);
+        }
+    }, 5000);
+
     startCtrlTicketListener();
     try {
         if (typeof lucide !== 'undefined') {
@@ -542,47 +594,13 @@ async function updateB2BBusinessMetrics() {
     let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
     const currentCopies = baseCopies + addFund;
     const currentSales = currentCopies * 20000;
-    // Supabase DB와 연동하여 실시간 지표 긁어오기
-    if (_ctrl_supabase) {
-        try {
-            // 1. 전체 수집된 원천도서 개수 조회 (reprint_candidates 테이블로 404오류 정정)
-            const { count, error: countErr } = await _ctrl_supabase
-                .from('reprint_candidates')
-                .select('*', { count: 'exact', head: true });
-            if (!countErr && count !== null) {
-                totalBooksCount = count;
-            }
-
-            // 2. 최종 평가 분석 완료된 복간 후보 조회 (reprint_candidates 테이블)
-            const { data, error } = await _ctrl_supabase
-                .from('reprint_candidates')
-                .select('id, copyright_status, is_funding_active, funding_current, funding_target, is_out_of_print');
-            
-            const candidateData = Array.isArray(data) ? data : [];
-            
-            if (!error) {
-                outOfPrintCount = candidateData.filter(b => b && b.is_out_of_print !== false).length;
-                expiredCount = candidateData.filter(b => b && (b.copyright_status === 'expired' || b.copyright_status === 'public_domain')).length;
-            }
-
-            // 3. 실제 마케팅 에셋 생성이 성공한(success) 진짜 복간 성공 종수 조회 (대표님 피드백 ① 수렴)
-            const { count: assetSuccessCount, error: assetErr } = await _ctrl_supabase
-                .from('book_marketing_assets')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'success');
-            
-            if (!assetErr && assetSuccessCount !== null) {
-                successKinds = assetSuccessCount;
-            } else {
-                // 백업 폴백: 펀딩 목표 달성 도서 카운트
-                const successBooks = candidateData.filter(b => b && ((b.funding_current >= (b.funding_target || 50)) || b.is_funding_active === false));
-                if (successBooks.length > 0) {
-                    successKinds = successBooks.length;
-                }
-            }
-        } catch(err) {
-            console.warn('[통제실] 실시간 지표 수집 쿼리 오류 (Null 가드 작동):', err);
-        }
+    // Supabase 직접 조회(RLS 권한 제약) 대신, 5초마다 API가 리프레시하는 캐시 데이터 우선 연동
+    if (window._ctrl_cachedStats) {
+        totalBooksCount = window._ctrl_cachedStats.totalBooksCount;
+        outOfPrintCount = window._ctrl_cachedStats.outOfPrintCount;
+        expiredCount = window._ctrl_cachedStats.expiredCount;
+        partnersCount = window._ctrl_cachedStats.partnersCount;
+        successKinds = window._ctrl_cachedStats.successKinds;
     }
 
     // 1. 수집된 도서 및 만료 도서 바인딩
@@ -3380,21 +3398,18 @@ window.ctrlStartSimByIndex = async function ctrlStartSimByIndex(index) {
     window._ctrl_selectedBook = book;
     window._ctrl_selectedAsset = null; // 초기화
 
-    // Supabase로부터 해당 도서의 진짜 에셋 조회 (ISBN 기준)
-    if (_ctrl_supabase && book.isbn13) {
+    // 백엔드 API를 통해 RLS 우회하여 해당 도서의 진짜 에셋 조회 (ISBN 기준)
+    if (book.isbn13) {
         try {
-            const { data, error } = await _ctrl_supabase
-                .from('book_marketing_assets')
-                .select('*')
-                .eq('isbn', book.isbn13)
-                .eq('status', 'success')
-                .maybeSingle();
-            
-            if (!error && data) {
-                window._ctrl_selectedAsset = data;
+            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + book.isbn13));
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success && apiRes.asset) {
+                    window._ctrl_selectedAsset = apiRes.asset;
+                }
             }
         } catch (e) {
-            console.warn('[통제실] 마케팅 에셋 조회 실패:', e.message);
+            console.warn('[통제실] 마케팅 에셋 API 조회 실패:', e.message);
         }
     }
     
@@ -3980,7 +3995,8 @@ function renderNewsCardTab(book) {
 
     // 렌더링 직후 비동기 API 통신을 통해 검증 및 base64 전환 트리거 가동
     const imgEl = document.getElementById('ctrl-card-img-element');
-    if (imgEl) {
+    const isMaryeo = title.includes('마녀');
+    if (imgEl && isMaryeo) {
         updateCardImageAsync(imgEl, window._newsCardCopies[0], 1);
     }
 
@@ -3990,7 +4006,8 @@ function renderNewsCardTab(book) {
         
         // 캐러셀 슬라이드 변경 시에도 비동기 이미지 로딩을 재격발
         const newImgEl = document.getElementById('ctrl-card-img-element');
-        if (newImgEl) {
+        const isMaryeoSlide = title.includes('마녀');
+        if (newImgEl && isMaryeoSlide) {
             updateCardImageAsync(newImgEl, window._newsCardCopies[window._newsCardIdx], window._newsCardIdx + 1);
         }
 
