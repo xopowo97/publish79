@@ -103,11 +103,7 @@ export default async function handler(req, res) {
         const partnerUrl = `${base}/partners?select=id`;
         const logsUrl = `${base}/agent_audit_logs?select=*&order=created_at.desc&limit=15`;
 
-        const headers = {
-            'apikey': key,
-            'Authorization': `Bearer ${key}`,
-            'Accept': 'application/json'
-        };
+        // 1. 복간 점수 및 통계 쿼리 실행
 
         const [top3Res, latestRes, totalRes, oopRes, expRes, assetRes, partnerRes, logsRes] = await Promise.all([
             fetch(top3Url, { method: 'GET', headers }),
