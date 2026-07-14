@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 const SECRET_KEY = process.env.HMAC_SECRET_KEY || 'CHULPAN_FRIEND_SECRET_KEY_79';
 const SELF_BASE_URL = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
 
 // 🎨 [11번 알리미] Gemini API 책정보 분석 및 숏폼 자막/대본 기획
 async function generateMarketingPlan(book, geminiApiKey) {
