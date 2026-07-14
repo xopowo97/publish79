@@ -465,21 +465,74 @@ export default async function handler(req, res) {
             });
         }
         
-        // 분기 3: 대량 에셋 자동 생성공장 기동 (trigger-bulk-assets)
+        // 분기 3: 단일 에셋 즉석 생성 가동 (trigger-bulk-assets - 프론트엔드 루프 제어)
         else if (resolvedAction === 'trigger-bulk-assets') {
             const geminiApiKey = process.env.GEMINI_API_KEY;
             if (!geminiApiKey) {
                 return res.status(400).json({ success: false, error: 'GEMINI_API_KEY 환경변수가 설정되지 않았습니다.' });
             }
 
-            const limitVal = parseInt(req.body.limit || '20', 10);
-            
-            // Vercel Serverless Function 타임아웃 방지를 위해 백그라운드로 스레드 분리 실행
-            runBackgroundAssetBatch(base, key, geminiApiKey, limitVal);
+            const targetIsbn = req.body.isbn;
+            if (!targetIsbn) {
+                return res.status(400).json({ success: false, error: '에셋 생성을 위한 필수 파라미터(isbn)가 누락되었습니다.' });
+            }
+
+            // 1. reprint_candidates에서 대상 도서 메타데이터 1건 쿼리
+            const bookUrl = `${base}/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=eq.${targetIsbn}&limit=1`;
+            const bookRes = await fetch(bookUrl, { headers });
+            if (!bookRes.ok) throw new Error(`도서 정보 조회 실패: ${bookRes.statusText}`);
+            const books = await bookRes.json();
+            if (books.length === 0) {
+                return res.status(404).json({ success: false, error: '해당 ISBN의 도서를 찾을 수 없습니다.' });
+            }
+            const book = books[0];
+
+            // 2. 선점 마킹 (POST + resolution=merge-duplicates로 확실하게 Upsert)
+            await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                method: 'POST',
+                headers: {
+                    ...headers,
+                    "Prefer": "resolution=merge-duplicates"
+                },
+                body: JSON.stringify({
+                    isbn: book.isbn,
+                    status: 'processing',
+                    updated_at: new Date().toISOString()
+                })
+            });
+
+            // 3. Gemini 기획서 생성 (동기 실행, Vercel 10초 이내 종료)
+            const plan = await generateMarketingPlan(book, geminiApiKey);
+
+            // 4. DB 최종 적재 (UAT 폴백 동영상 주소 QDrpvRK_1gc 연동)
+            const payload = {
+                isbn: book.isbn,
+                card_news_data: plan.card_news,
+                audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+                shorts_video_url: "https://youtube.com/shorts/QDrpvRK_1gc",
+                summary_script: plan.summary_script,
+                status: 'success',
+                updated_at: new Date().toISOString()
+            };
+
+            const postRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                method: 'POST',
+                headers: {
+                    ...headers,
+                    "Prefer": "resolution=merge-duplicates"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!postRes.ok) {
+                const errTxt = await postRes.text();
+                throw new Error(`최종 에셋 적재 실패: ${errTxt}`);
+            }
 
             return res.status(200).json({
                 success: true,
-                message: `🚀 [11번 알리미] 357종 템플릿 기반 대량 마케팅 에셋 공장(총 ${limitVal}종 대상)이 서버 백그라운드에서 성공적으로 가동을 시작했습니다. 약 1~2분 뒤 DB 적재 상태를 확인해 주세요.`
+                message: `✅ ISBN: ${book.isbn} 에셋 적재 완료.`,
+                book: book
             });
         }
         
