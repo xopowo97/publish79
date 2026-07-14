@@ -3,17 +3,19 @@
 // 🔒 보안 가드: service_role 권한을 통한 안전한 API 업로드
 
 import fs from 'fs';
-import path from 'path';
+import path from 'url';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import pathModule from 'path';
 
+// URL과 path 모듈 충돌 방지 및 안전한 경로 처리
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const workspaceRoot = path.join(__dirname, '..');
+const __dirname = pathModule.dirname(__filename);
+const workspaceRoot = pathModule.join(__dirname, '..');
 
 // 1. .env 파일 파싱 헬퍼 (npm dotenv 무설치 대응)
 function loadEnv() {
-    const envPath = path.join(workspaceRoot, '.env');
+    const envPath = pathModule.join(workspaceRoot, '.env');
     if (!fs.existsSync(envPath)) {
         console.error("Error: .env file not found.");
         process.exit(1);
@@ -180,7 +182,6 @@ async function markFailed(isbn, reason) {
         });
         console.log(`   ⚠️  ISBN: ${isbn} → DB status='failed' 기록 완료.`);
     } catch (e) {
-        // markFailed 자체 실패는 무시 (원본 에러 전파 우선)
         console.error(`   ⚠️  markFailed 기록 실패 (무시):`, e.message);
     }
 }
@@ -189,12 +190,9 @@ async function markFailed(isbn, reason) {
 async function processBook(book, tempDir) {
     console.log(`\n📖 [처리 개시] ISBN: ${book.isbn} | 제목: "${book.title}"`);
 
-    // [스코프 방어] try-finally 블록 전체에서 파일 정리를 수행할 수 있도록 상위 변수 선언
     let srtPath = null;
     let audioFiles = [];
 
-    // [인프라 가드] 에셋 생성 시작 즉시 DB에 'processing' 상태 선점
-    // → Vercel 타임아웃이 발생해도 'processing' 행이 남아 재시도 감지 가능
     const dbUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?on_conflict=isbn`;
     await fetch(dbUrl, {
         method: 'POST',
@@ -213,136 +211,107 @@ async function processBook(book, tempDir) {
     console.log(`   -> [선점] DB status='processing' 기록 완료.`);
 
     try {
-    
-    // Step A. Gemini 마케팅 및 자막 타임라인 빌드
-    console.log("   -> [A 단계] Gemini 마케팅 기획서 생성 및 자막 추출 중...");
-    const plan = await generateMarketingPlan(book);
-    
-    const srtContent = generateSRT(plan.timeline);
-    srtPath = path.join(tempDir, `sub_${book.isbn}.srt`);
-    fs.writeFileSync(srtPath, srtContent, 'utf-8');
-    console.log("      * 자막 SRT 컴파일 완료.");
-
-    // Step B. TTS 나레이션 음성 파일 덩어리들 다운로드
-    console.log("   -> [B 단계] Google TTS 조각 오디오 다운로드 중...");
-    audioFiles = [];
-    for (let i = 0; i < plan.timeline.length; i++) {
-        const text = plan.timeline[i].text;
-        const dest = path.join(tempDir, `part_${book.isbn}_${i}.mp3`);
-        await downloadTTSChunk(text, dest);
-        audioFiles.push({ path: dest, start: parseFloat(plan.timeline[i].start) });
-        // API 리밋 방지 텀
-        await new Promise(r => setTimeout(r, 200));
-    }
-    console.log(`      * ${audioFiles.length}개 오디오 조각 다운로드 완료.`);
-
-    // Step C. FFmpeg 자막 각인 및 오디오 싱크 매핑 렌더링
-    let finalVideoUrl = "https://youtube.com/shorts/5_tWn-rC_pM"; // fallback
-    
-    if (hasFFmpeg) {
-        console.log("   -> [C 단계] FFmpeg 오디오 믹싱 및 자막 각인 시작...");
+        console.log("   -> [A 단계] Gemini 마케팅 기획서 생성 및 자막 추출 중...");
+        const plan = await generateMarketingPlan(book);
         
-        // 3개의 기본 슬라이드용 책 이미지 로테이션 매핑
-        const defaultImgs = ['book1.png', 'book2.png', 'book3.png', 'sherlock_illustration.png']
-            .map(f => path.join(workspaceRoot, f))
-            .filter(f => fs.existsSync(f));
-        const bgImage = defaultImgs.length > 0 ? defaultImgs[Math.floor(Math.random() * defaultImgs.length)] : path.join(workspaceRoot, 'book1.png');
+        const srtContent = generateSRT(plan.timeline);
+        srtPath = pathModule.join(tempDir, `sub_${book.isbn}.srt`);
+        fs.writeFileSync(srtPath, srtContent, 'utf-8');
+        console.log("      * 자막 SRT 컴파일 완료.");
 
-        // BGM 파일 (bgm.mp3 또는 Unsplash CDN 폴백)
-        const localBgm = path.join(workspaceRoot, '마녀숏폼', 'bgm.mp3');
-        const bgmSource = fs.existsSync(localBgm) ? localBgm : "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-
-        // 임시 파일 경로
-        const tempMixedAudio = path.join(tempDir, `mixed_${book.isbn}.mp3`);
-        const tempOutputVideo = path.join(tempDir, `out_${book.isbn}.mp4`);
-
-        try {
-            // 1. 오디오 조각들 지연 및 믹싱
-            // FFmpeg -filter_complex adelay를 위한 입력 인수 및 필터 스트링 조합
-            const inputs = audioFiles.map(af => `-i "${af.path}"`).join(' ');
-            let adelayFilter = '';
-            let amixInputs = '';
-            audioFiles.forEach((af, idx) => {
-                const delayMs = Math.round(af.start * 1000);
-                adelayFilter += `[${idx}:a]adelay=${delayMs}|${delayMs}[a${idx}]; `;
-                amixInputs += `[a${idx}]`;
-            });
-            // 배경음 BGM을 추가 인풋으로 입력하여 은은하게 mix (-i bgm -i part0 -i part1...)
-            const bgmIdx = audioFiles.length;
-            const fullInputs = `${inputs} -i "${bgmSource}"`;
-            
-            // bgm의 볼륨을 줄이고(volume=0.1) 모든 오디오 병합
-            adelayFilter += `[${bgmIdx}:a]volume=0.08[abgm]; ${amixInputs}[abgm]amix=inputs=${audioFiles.length + 1}:duration=shortest[outa]`;
-            
-            const audioCmd = `ffmpeg -y ${fullInputs} -filter_complex "${adelayFilter}" -map "[outa]" "${tempMixedAudio}"`;
-            execSync(audioCmd, { stdio: 'ignore' });
-            console.log("      * 성우 나레이션 및 BGM 싱크 오디오 컴파일 완료.");
-
-            // 2. 비디오 슬라이드쇼 렌더링 + 자막 하드코딩 각인(Burn-in)
-            // 비디오 스케일 1080x1920 (9:16) 및 padding 적용
-            const relativeSrtPath = path.relative(process.cwd(), srtPath).replace(/\\/g, '/');
-            const videoCmd = `ffmpeg -y -loop 1 -t 30 -i "${bgImage}" -i "${tempMixedAudio}" -vf "subtitles=${relativeSrtPath},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "${tempOutputVideo}"`;
-            execSync(videoCmd, { stdio: 'ignore' });
-            console.log("      * 비디오 30초 슬라이드 및 자막 Burn-in 렌더링 완료.");
-
-            // 3. Supabase Storage에 업로드
-            console.log("   -> [D 단계] Supabase Storage에 MP4 파일 업로드 중...");
-            finalVideoUrl = await uploadToStorage(tempOutputVideo, book.isbn);
-            console.log(`      * 업로드 완료: ${finalVideoUrl}`);
-
-        } catch (err) {
-            console.error("      ❌ FFmpeg 컴파일 또는 업로드 도중 에러가 발생했습니다. 폴백 주소로 매핑합니다.", err);
-        } finally {
-            // 임시 생성 오디오/비디오 소거
-            if (fs.existsSync(tempMixedAudio)) fs.unlinkSync(tempMixedAudio);
-            if (fs.existsSync(tempOutputVideo)) fs.unlinkSync(tempOutputVideo);
+        console.log("   -> [B 단계] Google TTS 조각 오디오 다운로드 중...");
+        audioFiles = [];
+        for (let i = 0; i < plan.timeline.length; i++) {
+            const text = plan.timeline[i].text;
+            const dest = pathModule.join(tempDir, `part_${book.isbn}_${i}.mp3`);
+            await downloadTTSChunk(text, dest);
+            audioFiles.push({ path: dest, start: parseFloat(plan.timeline[i].start) });
+            await new Promise(r => setTimeout(r, 200));
         }
-    } else {
-        console.log("   -> [C 단계] FFmpeg 미지원 환경으로 인해 폴백 동영상 주소 매핑.");
-    }
+        console.log(`      * ${audioFiles.length}개 오디오 조각 다운로드 완료.`);
 
-    // Step E. Supabase DB 최종 적재 — status='success' 로 상태 거버넌스 완료
-    console.log("   -> [E 단계] Supabase DB 'book_marketing_assets'에 최종 적재 중...");
-    const payload = {
-        isbn: book.isbn,
-        card_news_data: plan.card_news,
-        audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
-        shorts_video_url: finalVideoUrl,
-        summary_script: plan.summary_script,
-        status: 'success', // ✅ [인프라 가드] 모든 에셋 생성 완료 — 최종 상태 확정
-        updated_at: new Date().toISOString()
-    };
+        let finalVideoUrl = "https://youtube.com/shorts/5_tWn-rC_pM"; // fallback
+        
+        if (hasFFmpeg) {
+            console.log("   -> [C 단계] FFmpeg 오디오 믹싱 및 자막 각인 시작...");
+            
+            const defaultImgs = ['book1.png', 'book2.png', 'book3.png', 'sherlock_illustration.png']
+                .map(f => pathModule.join(workspaceRoot, f))
+                .filter(f => fs.existsSync(f));
+            const bgImage = defaultImgs.length > 0 ? defaultImgs[Math.floor(Math.random() * defaultImgs.length)] : pathModule.join(workspaceRoot, 'book1.png');
 
-    const updateUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?isbn=eq.${book.isbn}`;
-    const dbRes = await fetch(updateUrl, {
-        method: 'PATCH',
-        headers: {
-            "apikey": MASTER_KEY,
-            "Authorization": `Bearer ${MASTER_KEY}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            card_news_data: plan.card_news,
-            audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
-            shorts_video_url: finalVideoUrl,
-            summary_script: plan.summary_script,
-            status: 'success', // ✅ [인프라 가드] 모든 에셋 생성 완료 — 최종 상태 확정
-            updated_at: new Date().toISOString()
-        })
-    });
+            const localBgm = pathModule.join(workspaceRoot, '마녀숏폼', 'bgm.mp3');
+            const bgmSource = fs.existsSync(localBgm) ? localBgm : "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
-    if (!dbRes.ok) {
-        const dbErrText = await dbRes.text();
-        throw new Error(`DB upsert failed: ${dbRes.statusText} (${dbErrText})`);
-    }
-    console.log(`✅ [완료] ISBN: ${book.isbn} | status='success' — 모든 에셋 DB 적재 완료!`);
+            const tempMixedAudio = pathModule.join(tempDir, `mixed_${book.isbn}.mp3`);
+            const tempOutputVideo = pathModule.join(tempDir, `out_${book.isbn}.mp4`);
+
+            try {
+                const inputs = audioFiles.map(af => `-i "${af.path}"`).join(' ');
+                let adelayFilter = '';
+                let amixInputs = '';
+                audioFiles.forEach((af, idx) => {
+                    const delayMs = Math.round(af.start * 1000);
+                    adelayFilter += `[${idx}:a]adelay=${delayMs}|${delayMs}[a${idx}]; `;
+                    amixInputs += `[a${idx}]`;
+                });
+                const bgmIdx = audioFiles.length;
+                const fullInputs = `${inputs} -i "${bgmSource}"`;
+                
+                adelayFilter += `[${bgmIdx}:a]volume=0.08[abgm]; ${amixInputs}[abgm]amix=inputs=${audioFiles.length + 1}:duration=shortest[outa]`;
+                
+                const audioCmd = `ffmpeg -y ${fullInputs} -filter_complex "${adelayFilter}" -map "[outa]" "${tempMixedAudio}"`;
+                execSync(audioCmd, { stdio: 'ignore' });
+                console.log("      * 성우 나레이션 및 BGM 싱크 오디오 컴파일 완료.");
+
+                const relativeSrtPath = pathModule.relative(process.cwd(), srtPath).replace(/\\/g, '/');
+                const videoCmd = `ffmpeg -y -loop 1 -t 30 -i "${bgImage}" -i "${tempMixedAudio}" -vf "subtitles=${relativeSrtPath},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "${tempOutputVideo}"`;
+                execSync(videoCmd, { stdio: 'ignore' });
+                console.log("      * 비디오 30초 슬라이드 및 자막 Burn-in 렌더링 완료.");
+
+                console.log("   -> [D 단계] Supabase Storage에 MP4 파일 업로드 중...");
+                finalVideoUrl = await uploadToStorage(tempOutputVideo, book.isbn);
+                console.log(`      * 업로드 완료: ${finalVideoUrl}`);
+
+            } catch (err) {
+                console.error("      ❌ FFmpeg 컴파일 또는 업로드 도중 에러가 발생했습니다. 폴백 주소로 매핑합니다.", err);
+            } finally {
+                if (fs.existsSync(tempMixedAudio)) fs.unlinkSync(tempMixedAudio);
+                if (fs.existsSync(tempOutputVideo)) fs.unlinkSync(tempOutputVideo);
+            }
+        } else {
+            console.log("   -> [C 단계] FFmpeg 미지원 환경으로 인해 폴백 동영상 주소 매핑.");
+        }
+
+        console.log("   -> [E 단계] Supabase DB 'book_marketing_assets'에 최종 적재 중...");
+        const updateUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?isbn=eq.${book.isbn}`;
+        const dbRes = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                "apikey": MASTER_KEY,
+                "Authorization": `Bearer ${MASTER_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                card_news_data: plan.card_news,
+                audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+                shorts_video_url: finalVideoUrl,
+                summary_script: plan.summary_script,
+                status: 'success',
+                updated_at: new Date().toISOString()
+            })
+        });
+
+        if (!dbRes.ok) {
+            const dbErrText = await dbRes.text();
+            throw new Error(`DB upsert failed: ${dbRes.statusText} (${dbErrText})`);
+        }
+        console.log(`✅ [완료] ISBN: ${book.isbn} | status='success' — 모든 에셋 DB 적재 완료!`);
 
     } catch (err) {
-        // [인프라 가드] 예외 발생 시 DB에 'failed' 상태 마킹 후 에러 재전파
         await markFailed(book.isbn, err.message);
         throw err;
     } finally {
-        // 임시 자막 및 오디오 정리 (성공/실패 무관하게 존재하면 안전하게 삭제)
         if (srtPath && fs.existsSync(srtPath)) {
             fs.unlinkSync(srtPath);
         }
@@ -356,71 +325,90 @@ async function processBook(book, tempDir) {
     }
 }
 
-// 10. 메인 오케스트레이터 루프 구동
-// 설정: BATCH_LIMIT 파라미터로 수집 모수 제어 (1일차=10, 2일차=100, 3일차=300)
+// 10. 메인 오케스트레이터 루프 구동 (자동 쉬어가기 루프)
 async function main() {
     const BATCH_LIMIT = parseInt(process.env.BATCH_LIMIT || '10', 10);
 
     console.log("============================================================");
-    console.log("🚀 출판친구 300종 대량 마케팅 에셋 생성 파이프라인 가동");
+    console.log("🚀 출판친구 300종 대량 마케팅 에셋 생성 파이프라인 가동 (자동 쉬어가기 루프)");
     console.log(`- Supabase 원격 서버: ${SUPABASE_URL}`);
-    console.log(`- 수집 모수: reprint_candidates 테이블 전체 (BATCH_LIMIT: ${BATCH_LIMIT}종)`);
+    console.log(`- 회차당 처리 한도: ${BATCH_LIMIT}종`);
     console.log("============================================================");
 
-    const tempDir = path.join(workspaceRoot, 'scratch', 'temp_assets');
+    const tempDir = pathModule.join(workspaceRoot, 'scratch', 'temp_assets');
     if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
     }
 
     try {
-        // Step 1. reprint_candidates 테이블 조회
-        // 통제: BATCH_LIMIT으로 수집 모수 제한
-        const candidateUrl = `${SUPABASE_URL}/rest/v1/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=not.is.null&limit=${BATCH_LIMIT}`;
+        let loopCount = 1;
+        while (true) {
+            console.log(`\n🔄 [루프 ${loopCount}회차 시작] 처리할 새로운 도서 ${BATCH_LIMIT}종 수집 중...`);
 
-        console.log(`📡 DB reprint_candidates 테이블에서 원천 도서 ${BATCH_LIMIT}종을 조회 중...`);
-        const res = await fetch(candidateUrl, {
-            headers: {
-                "apikey": MASTER_KEY,
-                "Authorization": `Bearer ${MASTER_KEY}`
+            // Step 1. 이미 완료된 에셋 목록 조회 (Deduplication 용)
+            const successAssetUrl = `${SUPABASE_URL}/rest/v1/book_marketing_assets?select=isbn&status=eq.success`;
+            const successAssetRes = await fetch(successAssetUrl, {
+                headers: {
+                    "apikey": MASTER_KEY,
+                    "Authorization": `Bearer ${MASTER_KEY}`
+                }
+            });
+            if (!successAssetRes.ok) throw new Error(`book_marketing_assets 조회 실패: ${successAssetRes.statusText}`);
+            const successAssets = await successAssetRes.json();
+            const successIsbns = new Set(successAssets.map(a => a.isbn));
+
+            // Step 2. 전체 후보 도서 조회 (최대 100종씩 넉넉히 받아와서 필터링)
+            const candidateUrl = `${SUPABASE_URL}/rest/v1/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=not.is.null&limit=100`;
+            const candRes = await fetch(candidateUrl, {
+                headers: {
+                    "apikey": MASTER_KEY,
+                    "Authorization": `Bearer ${MASTER_KEY}`
+                }
+            });
+            if (!candRes.ok) throw new Error(`reprint_candidates 테이블 조회 실패: ${candRes.statusText}`);
+            const allBooks = await candRes.json();
+
+            // 이미 성공한 에셋이 있는 도서는 필터링해서 제외
+            const targetBooks = allBooks.filter(book => !successIsbns.has(book.isbn)).slice(0, BATCH_LIMIT);
+
+            if (targetBooks.length === 0) {
+                console.log("🟢 [완료] 더 이상 마케팅 에셋 생성이 필요한 도서가 없습니다. 자율 루프를 안전하게 종료합니다.");
+                break;
             }
-        });
 
-        if (!res.ok) throw new Error(`reprint_candidates 테이블 조회 실패: ${res.statusText}`);
+            console.log(`📚 이번 회차에서 처리할 대상 도서 ${targetBooks.length}종을 선별했습니다.`);
 
-        const books = await res.json();
-        console.log(`📚 DB로부터 원체 도서 ${books.length}종을 수신했습니다.`);
+            let successCount = 0;
+            let failCount = 0;
 
-        if (books.length === 0) {
-            console.log("⚠️ DB에 ISBN이 있는 원천 도서가 없습니다. 수집기(살피미)를 먼저 가동해주세요.");
-            return;
-        }
-
-        // Step 2. 순차적으로 루프를 돌며 에셋 빌드
-        let successCount = 0;
-        let failCount = 0;
-        for (const book of books) {
-            try {
-                await processBook(book, tempDir);
-                successCount++;
-            } catch (bookErr) {
-                console.error(`❌ [오류 발생] ISBN: ${book.isbn}:`, bookErr);
-                failCount++;
+            for (const book of targetBooks) {
+                try {
+                    await processBook(book, tempDir);
+                    successCount++;
+                } catch (bookErr) {
+                    console.error(`❌ [오류 발생] ISBN: ${book.isbn}:`, bookErr);
+                    failCount++;
+                }
+                // Gemini API Limit 방지를 위한 대기 (300ms)
+                await new Promise(r => setTimeout(r, 300));
             }
-            // Gemini API Limit 방지를 위한 대기 (300ms)
-            await new Promise(r => setTimeout(r, 300));
+
+            console.log(`\n============================================================`);
+            console.log(`🎉 [루프 ${loopCount}회차 마감] 성공: ${successCount}종 / 실패: ${failCount}종`);
+            console.log(`============================================================`);
+
+            // 다음 루프로 넘어가기 전 5초 쿨다운 쿨링타임 (속도 제한 및 CPU 과열 회피)
+            console.log("⏱️ API 속도 제한 및 요금 폭탄 방지를 위해 5초간 대기(쿨다운)합니다...");
+            await new Promise(r => setTimeout(r, 5000));
+            
+            loopCount++;
         }
-
-        console.log("\n============================================================");
-        console.log(`🎉 배치 완료! 성공: ${successCount}종 / 실패: ${failCount}종`);
-        console.log(`📦 Supabase 'book_marketing_assets' 테이블에서 status='success' 항목을 확인하세요.`);
-        console.log("============================================================");
-
     } catch (err) {
         console.error("Fatal Error during pipeline execution:", err);
     } finally {
         if (fs.existsSync(tempDir)) {
             const files = fs.readdirSync(tempDir);
-            files.forEach(f => fs.unlinkSync(path.join(tempDir, f)));
+            files.forEach(f => fs.unlinkSync(pathModule.join(tempDir, f)));
             fs.rmdirSync(tempDir);
         }
     }
