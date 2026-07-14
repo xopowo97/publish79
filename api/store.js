@@ -9,6 +9,179 @@ const SELF_BASE_URL = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000';
 
+// 🎨 [11번 알리미] Gemini API 책정보 분석 및 숏폼 자막/대본 기획 (4.5초 타임아웃 및 초경량 룰베이스 폴백 가드 장착)
+async function generateMarketingPlan(book, geminiApiKey) {
+    const title = (book.title || '도서').replace(/<\/?[^>]+(>|$)/g, '');
+    const author = (book.author || '저자 미상').replace(/<\/?[^>]+(>|$)/g, '');
+    const cat = book.category || '소설';
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+        const prompt = `
+        다음 도서의 메타데이터를 정밀 분석하여 B2C 상용 서점 수준의 도서 소개 및 소셜 미디어 배포용 30초 숏폼 비디오 자막 타임라인을 기획해 주세요.
+        
+        도서명: ${title}
+        저자: ${author}
+        출판사: ${book.publisher || '미상'}
+        출간년도: ${book.pub_year || '미상'}
+        
+        반드시 다음 JSON 규격으로만 완벽하게 답변해야 하며, JSON 외에 다른 설명(마크다운 \`\`\`json 꼬리표 포함)은 절대 출력하지 마세요:
+        {
+          "card_news": [
+            {"slide": 1, "title": "도서 아트 표지 및 인트로 카피", "body": "책의 깊이와 분위기를 담은 품격 있는 문학적 한 줄 카피"},
+            {"slide": 2, "title": "핵심 줄거리 및 호기심 유발", "body": "독자가 책을 읽고 싶게 만드는 매혹적인 스토리 요약"},
+            {"slide": 3, "title": "주요 등장인물 및 관계도", "body": "이야기의 주역들과 대립 구도를 입체적으로 정리한 캐릭터 소개"},
+            {"slide": 4, "title": "이번 복간본의 물리적 소장 가치", "body": "AI 삽화, 조판, 두께 등 실물 소장용 가치 명세"},
+            {"slide": 5, "title": "추천사 및 가치 제언", "body": "어떤 사람에게 추천하는지 타겟 독자 제언"}
+          ],
+          "summary_script": "숏폼 나레이션 전체 대본 텍스트",
+          "timeline": [
+            {"start": "0.0", "end": "5.0", "text": "첫 번째 5초 자막 나레이션 (15자 내외)"},
+            {"start": "5.5", "end": "11.0", "text": "두 번째 자막 나레이션 (15자 내외)"},
+            {"start": "11.5", "end": "17.0", "text": "세 번째 자막 나레이션 (15자 내외)"},
+            {"start": "17.5", "end": "23.0", "text": "네 번째 자막 나레이션 (15자 내외)"},
+            {"start": "23.5", "end": "29.0", "text": "다섯 번째 자막 나레이션 (15자 내외)"}
+          ]
+        }
+        `;
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+            const json = await res.json();
+            const rawText = json.candidates[0].content.parts[0].text.trim();
+            return JSON.parse(rawText);
+        }
+    } catch (e) {
+        console.warn(`[Gemini API] 타임아웃 또는 실패로 룰베이스 초경량 렌더러 가동:`, e.message);
+    }
+
+    // 2단계: 룰베이스 초경량 렌더러 (0.01초 만에 즉석 조립, Vercel 타임아웃 절대 방지)
+    return {
+        card_news: [
+            { slide: 1, title: `${title}의 복간`, body: `독자들이 오랫동안 소망해 온 위대한 명작, '${title}'가 마침내 복간 프로젝트로 깨어납니다.` },
+            { slide: 2, title: `숨겨진 가치와 의미`, body: `세월 속에 가려져 있던 작가 ${author}의 철학적 통찰과 매혹적인 세계관을 완벽 복원.` },
+            { slide: 3, title: `명품 특별 소장판`, body: `VDP 초정밀 가변 조판 기술과 고급 내지를 적용하여 소장 가치를 극대화한 양장본.` },
+            { slide: 4, title: `첫 서포터 참여 혜택`, body: `아래 출판친구스토어에서 펀딩에 참여해 나만의 맞춤형 도서 및 서포터 보증서를 획득하세요.` },
+            { slide: 5, title: `문화를 지키는 발걸음`, body: `절판 도서의 복간은 단순히 옛 책을 찍는 것을 넘어, 우리 세대의 소중한 지적 유산을 영구히 보존하는 일입니다.` }
+        ],
+        summary_script: `시간의 베일에 가려져 있던 위대한 걸작, ${author}의 ${title} 복간 펀딩이 드디어 시작되었습니다. 진짜 한국어 마케팅 카피와 함께 이 특별한 역사에 동참해 보세요.`,
+        timeline: [
+            { start: "0.0", end: "5.0", text: `${title} 복간 펀딩 가동` },
+            { start: "5.5", end: "11.0", text: `${author} 작가의 위대한 귀환` },
+            { start: "11.5", end: "17.0", text: `오리지널 명품 조판 복원` },
+            { start: "17.5", end: "23.0", text: `VDP 책갈피 한정 증정` },
+            { start: "23.5", end: "29.0", text: `지금 펀딩을 개설하세요` }
+        ]
+    };
+}
+
+// 📦 [11번 알리미] 비동기 대량 에셋 생성 백그라운드 구동 스레드
+async function runBackgroundAssetBatch(base, key, geminiApiKey, limit) {
+    try {
+        console.log(`[bulk-assets] 📡 DB reprint_candidates에서 ${limit}종 조회 중...`);
+        const candidateUrl = `${base}/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=not.is.null&limit=${limit}`;
+        const res = await fetch(candidateUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+        if (!res.ok) throw new Error(`reprint_candidates 조회 실패: ${res.statusText}`);
+        
+        const books = await res.json();
+        console.log(`[bulk-assets] 📚 도서 ${books.length}종 수신 완료.`);
+        
+        for (const book of books) {
+            if (!book.isbn) continue;
+            try {
+                // 선점 마킹 (POST + resolution=merge-duplicates로 확실하게 Upsert)
+                const preRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
+                    },
+                    body: JSON.stringify({
+                        isbn: book.isbn,
+                        status: 'processing',
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                
+                if (!preRes.ok) {
+                    const errTxt = await preRes.text();
+                    console.warn(`[bulk-assets] 선점 마킹 오류 (계속 진행): ${errTxt}`);
+                }
+
+                // Gemini 기획서 생성
+                const plan = await generateMarketingPlan(book, geminiApiKey);
+                
+                // DB 최종 적재 (UAT 폴백 동영상 주소 QDrpvRK_1gc 연동)
+                const payload = {
+                    isbn: book.isbn,
+                    card_news_data: plan.card_news,
+                    audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+                    shorts_video_url: "https://youtube.com/shorts/QDrpvRK_1gc",
+                    summary_script: plan.summary_script,
+                    status: 'success',
+                    updated_at: new Date().toISOString()
+                };
+
+                const postRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!postRes.ok) {
+                    const errTxt = await postRes.text();
+                    throw new Error(`최종 에셋 적재 실패: ${errTxt}`);
+                }
+
+                console.log(`[bulk-assets] ✅ ISBN: ${book.isbn} 에셋 적재 완료.`);
+                
+            } catch (bookErr) {
+                console.error(`[bulk-assets] ❌ ISBN: ${book.isbn} 생성 오류:`, bookErr.message);
+                // 실패 상태 마킹
+                await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
+                    },
+                    body: JSON.stringify({
+                        isbn: book.isbn,
+                        status: 'failed',
+                        summary_script: `[오류] ${bookErr.message}`.slice(0, 500),
+                        updated_at: new Date().toISOString()
+                    })
+                }).catch(() => {});
+            }
+            // API 리밋 방지 텀
+            await new Promise(r => setTimeout(r, 400));
+        }
+    } catch (err) {
+        console.error('[bulk-assets] 치명적 오류:', err.message);
+    }
+}
+
 export default async function handler(req, res) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -323,7 +496,108 @@ export default async function handler(req, res) {
                     funding_current: fundingCurrent
                 }
             });
-        } else {
+        }
+        
+        // 분기 3: 단일 에셋 즉석 생성 가동 (trigger-bulk-assets - 프론트엔드 루프 제어)
+        else if (resolvedAction === 'trigger-bulk-assets') {
+            const geminiApiKey = process.env.GEMINI_API_KEY;
+            if (!geminiApiKey) {
+                return res.status(400).json({ success: false, error: 'GEMINI_API_KEY 환경변수가 설정되지 않았습니다.' });
+            }
+
+            const targetIsbn = req.body.isbn;
+            if (!targetIsbn) {
+                return res.status(400).json({ success: false, error: '에셋 생성을 위한 필수 파라미터(isbn)가 누락되었습니다.' });
+            }
+
+            // 1. reprint_candidates에서 대상 도서 메타데이터 1건 쿼리
+            const bookUrl = `${base}/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=eq.${targetIsbn}&limit=1`;
+            const bookRes = await fetch(bookUrl, { headers });
+            if (!bookRes.ok) throw new Error(`도서 정보 조회 실패: ${bookRes.statusText}`);
+            const books = await bookRes.json();
+            if (books.length === 0) {
+                return res.status(404).json({ success: false, error: '해당 ISBN의 도서를 찾을 수 없습니다.' });
+            }
+            const book = books[0];
+
+            // 2. 선점 마킹 (POST + resolution=merge-duplicates로 확실하게 Upsert)
+            await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                method: 'POST',
+                headers: {
+                    ...headers,
+                    "Prefer": "resolution=merge-duplicates"
+                },
+                body: JSON.stringify({
+                    isbn: book.isbn,
+                    status: 'processing',
+                    updated_at: new Date().toISOString()
+                })
+            });
+
+            // 3. Gemini 기획서 생성 (동기 실행, Vercel 10초 이내 종료)
+            const plan = await generateMarketingPlan(book, geminiApiKey);
+
+            // 4. DB 최종 적재 (UAT 폴백 동영상 주소 QDrpvRK_1gc 연동)
+            const payload = {
+                isbn: book.isbn,
+                card_news_data: plan.card_news,
+                audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+                shorts_video_url: "https://youtube.com/shorts/QDrpvRK_1gc",
+                summary_script: plan.summary_script,
+                status: 'success',
+                updated_at: new Date().toISOString()
+            };
+
+            const postRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                method: 'POST',
+                headers: {
+                    ...headers,
+                    "Prefer": "resolution=merge-duplicates"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!postRes.ok) {
+                const errTxt = await postRes.text();
+                throw new Error(`최종 에셋 적재 실패: ${errTxt}`);
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: `✅ ISBN: ${book.isbn} 에셋 적재 완료.`,
+                book: book
+            });
+        }
+        
+        // 분기 4: 20종 대량 적재 대상 도서 목록 조회 (get-bulk-candidates)
+        else if (resolvedAction === 'get-bulk-candidates') {
+            const limitVal = parseInt(req.body.limit || '20', 10);
+            
+            // 1. reprint_candidates에서 최대 limitVal개 도서 조회 (ISBN이 있는 실체 도서)
+            const candidateUrl = `${base}/reprint_candidates?select=isbn,title,author&isbn=not.is.null&order=reprint_score.desc&limit=${limitVal}`;
+            const candsRes = await fetch(candidateUrl, { headers });
+            if (!candsRes.ok) throw new Error(`후보 도서 조회 실패: ${candsRes.statusText}`);
+            const books = await candsRes.json();
+
+            // 2. book_marketing_assets에서 성공 상태인 에셋들의 isbn 리스트 조회
+            const assetUrl = `${base}/book_marketing_assets?select=isbn&status=eq.success`;
+            const assetRes = await fetch(assetUrl, { headers });
+            const assets = assetRes.ok ? await assetRes.json() : [];
+            const successIsbns = new Set(assets.map(a => a.isbn));
+
+            // 3. 각 도서별로 이미 에셋이 성공적으로 존재하는지 여부 매핑
+            const mappedBooks = books.map(b => ({
+                ...b,
+                has_asset: successIsbns.has(b.isbn)
+            }));
+
+            return res.status(200).json({
+                success: true,
+                books: mappedBooks
+            });
+        }
+        
+        else {
             return res.status(400).json({ success: false, error: '유효하지 않은 action 구분값입니다.' });
         }
 

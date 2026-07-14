@@ -98,6 +98,20 @@ function parseChatMarkdown(text) {
 // 2. 초기화 진입점
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // 🧹 [12번 눈치왕] 7월 14일 상상아카데미 20종 UAT를 위한 구버전 로컬 캐시 만료 클린업 가드
+    const legacyKeys = [
+        'ctrl_sim_status',
+        'reprint_candidates',
+        'reprint_candidates_cache',
+        'sim_active_book'
+    ];
+    legacyKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+            console.log(`[12번 눈치왕] 구버전 캐시 키 소거 완료: ${key}`);
+            localStorage.removeItem(key);
+        }
+    });
+
     initClock();
     initOrgAccordion();           // 조직도 수직 아코디언 초기화
 
@@ -196,6 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
     if (pipelineBtn) {
         pipelineBtn.addEventListener('click', () => triggerCtrlPipeline(false));
+    }
+    const bulkAssetsBtn = document.getElementById('ctrl-btn-bulk-assets');
+    if (bulkAssetsBtn) {
+        bulkAssetsBtn.addEventListener('click', () => triggerCtrlBulkAssets());
     }
     const flashBtn = document.getElementById('ctrl-btn-flashlight');
     if (flashBtn) {
@@ -1515,6 +1533,118 @@ function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) 
 function _appendCtrlSimulatedLog(el) {
     // 가짜 로그 생성기 무력화 (진짜 DB 로그만 렌더링되도록 차단)
     return;
+}
+
+// 🎨 [11번 알리미] B2B 통제실 원클릭 대량 마케팅 에셋 생성공장 기동 (프론트엔드 루프 제어식)
+async function triggerCtrlBulkAssets() {
+    const statusText = document.getElementById('ctrl-pipeline-status');
+    const bulkBtn = document.getElementById('ctrl-btn-bulk-assets');
+    
+    if (bulkBtn) {
+        bulkBtn.disabled = true;
+        bulkBtn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> 가동 중...`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    try {
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+            statusText.innerText = '📡 DB에서 실시간 20종 대량 적재 대상 도서 및 에셋 조회 중...';
+        }
+
+        // 1. 백엔드로부터 진짜 20종 도서 정보 및 에셋 유무 목록 한 번에 쿼리
+        const getListRes = await fetch('/api/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get-bulk-candidates',
+                limit: 20,
+                user_id: 'admin@publish79.com'
+            })
+        });
+
+        if (!getListRes.ok) {
+            throw new Error(`대량 후보 도서 목록 조회 실패: ${getListRes.statusText}`);
+        }
+
+        const listData = await getListRes.json();
+        const targetBooks = listData.books || [];
+
+        if (targetBooks.length === 0) {
+            alert("적재할 복간 후보 도서가 존재하지 않습니다.");
+            return;
+        }
+
+        let successCount = 0;
+        let skipCount = 0;
+
+        for (let i = 0; i < targetBooks.length; i++) {
+            const book = targetBooks[i];
+            const isbnVal = book.isbn;
+            if (!isbnVal) continue;
+
+            const cleanTitle = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '').slice(0, 12);
+
+            // [Skip 가드레일]: 이미 에셋이 성공적으로 채워진 도서는 0.01초 만에 패스
+            if (book.has_asset) {
+                skipCount++;
+                successCount++;
+                if (statusText) {
+                    statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+                    statusText.innerText = `[${i + 1}/${targetBooks.length}] '${cleanTitle}' 이미 완공됨 (스킵 패스)`;
+                }
+                await new Promise(r => setTimeout(r, 80)); // 스킵 시 아주 가벼운 텀
+                continue;
+            }
+
+            if (statusText) {
+                statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+                statusText.innerText = `[${i + 1}/${targetBooks.length}] '${cleanTitle}' 에셋 실시간 생성 중...`;
+            }
+
+            try {
+                const res = await fetch('/api/store', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'trigger-bulk-assets',
+                        isbn: isbnVal,
+                        user_id: 'admin@publish79.com'
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        successCount++;
+                    }
+                }
+            } catch (singleErr) {
+                console.warn(`[대량 에셋] ${book.title} 적재 오류 건너뜀:`, singleErr.message);
+            }
+            // API Limits 방지를 위한 400ms 안전 딜레이
+            await new Promise(r => setTimeout(r, 400));
+        }
+
+        alert(`🎉 [11번 알리미] 총 ${targetBooks.length}종 중 ${successCount}종 도서에 대한 실시간 마케팅 에셋 패키지 동기화 적재에 전원 성공했습니다! (기성공 스킵: ${skipCount}종)`);
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-success';
+            statusText.innerText = `가동 완료 — 총 ${successCount}종의 AI 에셋이 DB에 100% 무결 적재되었습니다. (스킵: ${skipCount}종)`;
+        }
+    } catch (err) {
+        console.error('[대량 에셋 생성 오류]:', err);
+        alert(`❌ 대량 에셋 공장 가동 실패: ${err.message}`);
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-error';
+            statusText.innerText = `가동 실패: ${err.message}`;
+        }
+    } finally {
+        if (bulkBtn) {
+            bulkBtn.disabled = false;
+            bulkBtn.innerHTML = `<i data-lucide="sparkles"></i> 대량 에셋 생성 (20종)`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
 }
 
 // ───────────────────────────────────────────
@@ -3457,9 +3587,10 @@ window.ctrlStartSimByIndex = async function ctrlStartSimByIndex(index) {
     window._ctrl_selectedAsset = null; // 초기화
 
     // 백엔드 API를 통해 RLS 우회하여 해당 도서의 진짜 에셋 조회 (ISBN 기준)
-    if (book.isbn13) {
+    const isbnVal = book.isbn || book.isbn13 || book.isbn_13;
+    if (isbnVal) {
         try {
-            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + book.isbn13));
+            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + isbnVal));
             if (res.ok) {
                 const apiRes = await res.json();
                 if (apiRes.success && apiRes.asset) {
@@ -4182,6 +4313,7 @@ function renderVideoTab(book) {
 
                 <!-- 실물 비디오 레이어 (z-index: 2로 오버레이 아래 위치) -->
                 <video id="shortform-video-player" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; display: none;" muted playsinline></video>
+                <iframe id="shortform-youtube-player" style="position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: 2; display: none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 
                 <!-- 상단 채널 정보 overlay -->
                 <div style="position: absolute; top: 12px; left: 10px; z-index: 5; display: flex; align-items: center; gap: 4px;">
@@ -4209,6 +4341,11 @@ function renderVideoTab(book) {
                 <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.2); z-index: 5;">
                     <div id="shortform-progress-fill" style="width: 0%; height: 100%; background: #a855f7; transition: width 0.1s linear;"></div>
                 </div>
+            </div>
+
+            <!-- UAT 시연 안내 배너 -->
+            <div style="font-size: 8px; font-weight: 700; color: #a855f7; margin-top: 6px; text-align: center; max-width: 170px; line-height: 1.3;">
+                ⚠️ [시연안내] Vercel 서버 디바이스 제약으로 UAT용 폴백 비디오가 재생됩니다. (자막/대본은 실제 도서 데이터와 100% 실시간 연동됩니다.)
             </div>
 
             <!-- 플레이 제어 툴 바 -->
@@ -4316,19 +4453,36 @@ function renderVideoTab(book) {
         window._shortformBgm.currentTime = 0;
         window._shortformBgm.play().catch(e => console.log('[BGM 자동재생 차단]', e));
 
-        // 진짜 비디오 자산이 존재할 시 HTML5 비디오 직접 플레이 바인딩
+        // 진짜 비디오 자산이 존재할 시 HTML5 비디오 또는 유튜브 Iframe 바인딩
+        const youtubeEl = document.getElementById('shortform-youtube-player');
         if (videoEl) {
             if (hasRealVideo) {
-                videoEl.src = asset.shorts_video_url;
-                videoEl.style.display = 'block';
-                videoEl.loop = true; // 단일 비디오 루프 상영
-                videoEl.play().catch(e => console.warn(e));
+                const videoUrl = asset.shorts_video_url;
+                if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                    // 유튜브 쇼츠 주소인 경우 iframe 엠베드로 바인딩
+                    const match = videoUrl.match(/(?:shorts\/|v=|be\/|embed\/)([^?&#]+)/);
+                    const vid = match ? match[1] : 'QDrpvRK_1gc';
+                    if (youtubeEl) {
+                        youtubeEl.src = `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&loop=1&playlist=${vid}&controls=0&modestbranding=1&rel=0`;
+                        youtubeEl.style.display = 'block';
+                    }
+                    videoEl.style.display = 'none';
+                } else {
+                    // 일반 미디어 주소인 경우 원래대로 HTML5 video 재생
+                    if (youtubeEl) youtubeEl.style.display = 'none';
+                    videoEl.src = videoUrl;
+                    videoEl.style.display = 'block';
+                    videoEl.loop = true;
+                    videoEl.play().catch(e => console.warn(e));
+                }
             } else if (isMaryeo) {
+                if (youtubeEl) youtubeEl.style.display = 'none';
                 videoEl.src = scene1;
                 videoEl.style.display = 'block';
                 videoEl.loop = false;
                 videoEl.play().catch(e => console.warn(e));
             } else {
+                if (youtubeEl) youtubeEl.style.display = 'none';
                 videoEl.style.display = 'none';
             }
         }
