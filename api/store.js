@@ -446,6 +446,7 @@ export default async function handler(req, res) {
                     is_funding_active: isFundingActive,
                     funding_current: fundingCurrent
                 }
+            });
         }
         
         // 분기 3: 대량 에셋 자동 생성공장 기동 (trigger-bulk-assets)
