@@ -230,4 +230,7 @@
   - [api/upload-shorts.js](file:///c:/Users/seo sang won/001.작업파일/004. 출판친구/018. 안티그래비티/api/upload-shorts.js) 백엔드의 catch 블록 내부에 Supabase 감사 로그(`agent_audit_logs`) post fetch API를 주입했습니다.
   - 하루 6회 업로드 제한으로 인한 Quota 초과(403) 또는 외부 API 장애 감지 시, `QDrpvRK_1gc` 폴백 비디오로 우회 처리함과 동시에 **12번 감시_눈치왕** 에이전트 이름의 `warn` 레벨 예외 감사 로그를 DB에 자동 인서트합니다. 
   - 이를 통해 플랫폼 통제실 우측 실시간 관제 로그 스트림 상에 눈치왕의 주황색 경고 불빛과 함께 자동 우회 조치 사실이 실시간 노출되도록 동적 복원력을 완성했습니다.
-
+- **B2B 통제실 원클릭 대량 에셋(20종) 생성 공장 완공**:
+  - [control.html](file:///c:/Users/seo sang won/001.작업파일/004. 출판친구/018. 안티그래비티/control.html) 내에 에메랄드그린 그라데이션 디자인의 `[🚀 대량 에셋 생성 (20종)]` 버튼을 추가하고, [control.js](file:///c:/Users/seo sang won/001.작업파일/004. 출판친구/018. 안티그래비티/control.js)에 `triggerCtrlBulkAssets()` 비동기 호출 기능을 탑재했습니다.
+  - [api/store.js](file:///c:/Users/seo sang won/001.작업파일/004. 출판친구/018. 안티그래비티/api/store.js) 백엔드에 `action: 'trigger-bulk-assets'` 분기를 신설하고, 비동기 스레드 분리 기동 방식을 적용하여 Vercel의 10초 타임아웃 제한(504 Gateway Timeout)을 안전하게 회피했습니다.
+  - 대표님이 통제실에서 버튼 1클릭만 하시면 서버 백그라운드 데몬이 자동으로 도서 20종에 대해 Gemini API를 차례대로 기동하여 카드뉴스 기획과 숏폼 동영상 매핑을 완료하고 Supabase DB에 적재를 완료하도록 자동화 오퍼레이션을 달성했습니다.
