@@ -211,6 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pipelineBtn) {
         pipelineBtn.addEventListener('click', () => triggerCtrlPipeline(false));
     }
+    const bulkAssetsBtn = document.getElementById('ctrl-btn-bulk-assets');
+    if (bulkAssetsBtn) {
+        bulkAssetsBtn.addEventListener('click', () => triggerCtrlBulkAssets());
+    }
     const flashBtn = document.getElementById('ctrl-btn-flashlight');
     if (flashBtn) {
         flashBtn.addEventListener('click', () => toggleCtrlFlashlight());
@@ -1529,6 +1533,59 @@ function _appendCtrlLogEntry(el, type, agent, message, dateObj, isMock = false) 
 function _appendCtrlSimulatedLog(el) {
     // 가짜 로그 생성기 무력화 (진짜 DB 로그만 렌더링되도록 차단)
     return;
+}
+
+// 🎨 [11번 알리미] B2B 통제실 원클릭 대량 마케팅 에셋 생성공장 기동
+async function triggerCtrlBulkAssets() {
+    const statusText = document.getElementById('ctrl-pipeline-status');
+    const bulkBtn = document.getElementById('ctrl-btn-bulk-assets');
+    
+    if (bulkBtn) {
+        bulkBtn.disabled = true;
+        bulkBtn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> 가동 중...`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    
+    if (statusText) {
+        statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+        statusText.innerText = '대량 에셋 자동 생성 파이프라인 가동 시작... 백그라운드 처리 중...';
+    }
+
+    try {
+        const res = await fetch('/api/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'trigger-bulk-assets',
+                limit: 20,
+                user_id: 'admin@publish79.com'
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            alert(data.message || '20종 대량 에셋 생성 파이프라인이 성공적으로 기동되었습니다.');
+            if (statusText) {
+                statusText.className = 'ctrl-pipeline-status ctrl-status-success';
+                statusText.innerText = '가동 성공 — 백그라운드에서 Supabase DB 에셋 적재가 실시간 진행 중입니다.';
+            }
+        } else {
+            throw new Error(data.error || '백엔드 처리 오류');
+        }
+    } catch (err) {
+        console.error('[대량 에셋 생성 오류]:', err);
+        alert(`❌ 대량 에셋 공장 가동 실패: ${err.message}`);
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-error';
+            statusText.innerText = `가동 실패: ${err.message}`;
+        }
+    } finally {
+        if (bulkBtn) {
+            bulkBtn.disabled = false;
+            bulkBtn.innerHTML = `<i data-lucide="sparkles"></i> 대량 에셋 생성 (20종)`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
 }
 
 // ───────────────────────────────────────────
