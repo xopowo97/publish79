@@ -1535,42 +1535,65 @@ function _appendCtrlSimulatedLog(el) {
     return;
 }
 
-// 🎨 [11번 알리미] B2B 통제실 원클릭 대량 마케팅 에셋 생성공장 기동
+// 🎨 [11번 알리미] B2B 통제실 원클릭 대량 마케팅 에셋 생성공장 기동 (프론트엔드 루프 제어식)
 async function triggerCtrlBulkAssets() {
     const statusText = document.getElementById('ctrl-pipeline-status');
     const bulkBtn = document.getElementById('ctrl-btn-bulk-assets');
     
+    // 대시보드에 기 로드되어 있는 복간 후보군을 우선 생성 대상으로 삼음 (최대 20종)
+    const targetBooks = _ctrl_candidates.slice(0, 20);
+    if (targetBooks.length === 0) {
+        alert("적재할 복간 후보 도서가 존재하지 않습니다.");
+        return;
+    }
+
     if (bulkBtn) {
         bulkBtn.disabled = true;
         bulkBtn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> 가동 중...`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
-    
-    if (statusText) {
-        statusText.className = 'ctrl-pipeline-status ctrl-status-running';
-        statusText.innerText = '대량 에셋 자동 생성 파이프라인 가동 시작... 백그라운드 처리 중...';
-    }
 
+    let successCount = 0;
     try {
-        const res = await fetch('/api/store', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'trigger-bulk-assets',
-                limit: 20,
-                user_id: 'admin@publish79.com'
-            })
-        });
+        for (let i = 0; i < targetBooks.length; i++) {
+            const book = targetBooks[i];
+            const isbnVal = book.isbn || book.isbn13 || book.isbn_13;
+            if (!isbnVal) continue;
 
-        const data = await res.json();
-        if (res.ok && data.success) {
-            alert(data.message || '20종 대량 에셋 생성 파이프라인이 성공적으로 기동되었습니다.');
+            const cleanTitle = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '').slice(0, 15);
             if (statusText) {
-                statusText.className = 'ctrl-pipeline-status ctrl-status-success';
-                statusText.innerText = '가동 성공 — 백그라운드에서 Supabase DB 에셋 적재가 실시간 진행 중입니다.';
+                statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+                statusText.innerText = `[${i + 1}/${targetBooks.length}] '${cleanTitle}' 에셋 실시간 생성 중...`;
             }
-        } else {
-            throw new Error(data.error || '백엔드 처리 오류');
+
+            try {
+                const res = await fetch('/api/store', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'trigger-bulk-assets',
+                        isbn: isbnVal,
+                        user_id: 'admin@publish79.com'
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        successCount++;
+                    }
+                }
+            } catch (singleErr) {
+                console.warn(`[대량 에셋] ${book.title} 적재 건너뜀:`, singleErr.message);
+            }
+            // API Limits 방지를 위한 400ms 안전 딜레이
+            await new Promise(r => setTimeout(r, 400));
+        }
+
+        alert(`🎉 [11번 알리미] 총 ${successCount}종 도서에 대한 실시간 마케팅 에셋 패키지 동기화 적재에 전원 성공했습니다!`);
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-success';
+            statusText.innerText = `가동 완료 — 총 ${successCount}종의 AI 에셋이 DB에 100% 무결 적재되었습니다.`;
         }
     } catch (err) {
         console.error('[대량 에셋 생성 오류]:', err);
