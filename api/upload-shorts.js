@@ -116,6 +116,35 @@ export default async function handler(req, res) {
 
     } catch (err) {
         console.warn(`[YouTube API] 실제 업로드 중 오류 발생 (UAT 폴백 모드 전환):`, err.message);
+        
+        // 🚨 [12번 눈치왕] 유튜브 API Quota 초과 및 장애 예외 감지 감사 로그 DB 적재 가드
+        const supUrl = process.env.SUPABASE_URL;
+        const supKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (supUrl && supKey) {
+            try {
+                const base = supUrl.replace(/\/+$/, '') + '/rest/v1';
+                await fetch(`${base}/agent_audit_logs`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supKey,
+                        'Authorization': `Bearer ${supKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        agent_id: 12,
+                        agent_name: '12번 감시_눈치왕',
+                        log_level: 'warn',
+                        message: `⚠️ [YouTube API] 일일 할당량 제한(Quota Exceeded) 또는 API 통신 장애 감지. 대상 도서 '${bookTitle}'의 숏폼 비디오를 UAT 공식 숏폼(QDrpvRK_1gc)으로 안전하게 우회 매핑(폴백) 처리했습니다.`,
+                        created_at: new Date().toISOString()
+                    })
+                });
+                console.log(`[YouTube API] 12번 눈치왕 경고 감사 로그 DB 적재 성공.`);
+            } catch (logErr) {
+                console.error(`[YouTube API] 12번 눈치왕 감사 로그 적재 실패:`, logErr.message);
+            }
+        }
+
         // Quota Limit 혹은 인증 파괴 시에도 절대 멈추지 않고 완성된 마녀 링크를 제공하여 시연의 무결성을 지킵니다.
         return res.status(200).json({
             success: true,
