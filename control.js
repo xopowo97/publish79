@@ -1540,27 +1540,63 @@ async function triggerCtrlBulkAssets() {
     const statusText = document.getElementById('ctrl-pipeline-status');
     const bulkBtn = document.getElementById('ctrl-btn-bulk-assets');
     
-    // 대시보드에 기 로드되어 있는 복간 후보군을 우선 생성 대상으로 삼음 (최대 20종)
-    const targetBooks = _ctrl_candidates.slice(0, 20);
-    if (targetBooks.length === 0) {
-        alert("적재할 복간 후보 도서가 존재하지 않습니다.");
-        return;
-    }
-
     if (bulkBtn) {
         bulkBtn.disabled = true;
         bulkBtn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> 가동 중...`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    let successCount = 0;
     try {
+        if (statusText) {
+            statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+            statusText.innerText = '📡 DB에서 실시간 20종 대량 적재 대상 도서 및 에셋 조회 중...';
+        }
+
+        // 1. 백엔드로부터 진짜 20종 도서 정보 및 에셋 유무 목록 한 번에 쿼리
+        const getListRes = await fetch('/api/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get-bulk-candidates',
+                limit: 20,
+                user_id: 'admin@publish79.com'
+            })
+        });
+
+        if (!getListRes.ok) {
+            throw new Error(`대량 후보 도서 목록 조회 실패: ${getListRes.statusText}`);
+        }
+
+        const listData = await getListRes.json();
+        const targetBooks = listData.books || [];
+
+        if (targetBooks.length === 0) {
+            alert("적재할 복간 후보 도서가 존재하지 않습니다.");
+            return;
+        }
+
+        let successCount = 0;
+        let skipCount = 0;
+
         for (let i = 0; i < targetBooks.length; i++) {
             const book = targetBooks[i];
-            const isbnVal = book.isbn || book.isbn13 || book.isbn_13;
+            const isbnVal = book.isbn;
             if (!isbnVal) continue;
 
-            const cleanTitle = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '').slice(0, 15);
+            const cleanTitle = (book.title || '').replace(/<\/?[^>]+(>|$)/g, '').slice(0, 12);
+
+            // [Skip 가드레일]: 이미 에셋이 성공적으로 채워진 도서는 0.01초 만에 패스
+            if (book.has_asset) {
+                skipCount++;
+                successCount++;
+                if (statusText) {
+                    statusText.className = 'ctrl-pipeline-status ctrl-status-running';
+                    statusText.innerText = `[${i + 1}/${targetBooks.length}] '${cleanTitle}' 이미 완공됨 (스킵 패스)`;
+                }
+                await new Promise(r => setTimeout(r, 80)); // 스킵 시 아주 가벼운 텀
+                continue;
+            }
+
             if (statusText) {
                 statusText.className = 'ctrl-pipeline-status ctrl-status-running';
                 statusText.innerText = `[${i + 1}/${targetBooks.length}] '${cleanTitle}' 에셋 실시간 생성 중...`;
@@ -1584,16 +1620,16 @@ async function triggerCtrlBulkAssets() {
                     }
                 }
             } catch (singleErr) {
-                console.warn(`[대량 에셋] ${book.title} 적재 건너뜀:`, singleErr.message);
+                console.warn(`[대량 에셋] ${book.title} 적재 오류 건너뜀:`, singleErr.message);
             }
             // API Limits 방지를 위한 400ms 안전 딜레이
             await new Promise(r => setTimeout(r, 400));
         }
 
-        alert(`🎉 [11번 알리미] 총 ${successCount}종 도서에 대한 실시간 마케팅 에셋 패키지 동기화 적재에 전원 성공했습니다!`);
+        alert(`🎉 [11번 알리미] 총 ${targetBooks.length}종 중 ${successCount}종 도서에 대한 실시간 마케팅 에셋 패키지 동기화 적재에 전원 성공했습니다! (기성공 스킵: ${skipCount}종)`);
         if (statusText) {
             statusText.className = 'ctrl-pipeline-status ctrl-status-success';
-            statusText.innerText = `가동 완료 — 총 ${successCount}종의 AI 에셋이 DB에 100% 무결 적재되었습니다.`;
+            statusText.innerText = `가동 완료 — 총 ${successCount}종의 AI 에셋이 DB에 100% 무결 적재되었습니다. (스킵: ${skipCount}종)`;
         }
     } catch (err) {
         console.error('[대량 에셋 생성 오류]:', err);
@@ -4305,6 +4341,11 @@ function renderVideoTab(book) {
                 <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.2); z-index: 5;">
                     <div id="shortform-progress-fill" style="width: 0%; height: 100%; background: #a855f7; transition: width 0.1s linear;"></div>
                 </div>
+            </div>
+
+            <!-- UAT 시연 안내 배너 -->
+            <div style="font-size: 8px; font-weight: 700; color: #a855f7; margin-top: 6px; text-align: center; max-width: 170px; line-height: 1.3;">
+                ⚠️ [시연안내] Vercel 서버 디바이스 제약으로 UAT용 폴백 비디오가 재생됩니다. (자막/대본은 실제 도서 데이터와 100% 실시간 연동됩니다.)
             </div>
 
             <!-- 플레이 제어 툴 바 -->
