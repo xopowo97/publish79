@@ -98,6 +98,20 @@ function parseChatMarkdown(text) {
 // 2. 초기화 진입점
 // ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // 🧹 [12번 눈치왕] 7월 14일 상상아카데미 20종 UAT를 위한 구버전 로컬 캐시 만료 클린업 가드
+    const legacyKeys = [
+        'ctrl_sim_status',
+        'reprint_candidates',
+        'reprint_candidates_cache',
+        'sim_active_book'
+    ];
+    legacyKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+            console.log(`[12번 눈치왕] 구버전 캐시 키 소거 완료: ${key}`);
+            localStorage.removeItem(key);
+        }
+    });
+
     initClock();
     initOrgAccordion();           // 조직도 수직 아코디언 초기화
 
