@@ -67,15 +67,16 @@ async function runBackgroundAssetBatch(base, key, geminiApiKey, limit) {
         console.log(`[bulk-assets] 📚 도서 ${books.length}종 수신 완료.`);
         
         for (const book of books) {
+            if (!book.isbn) continue;
             try {
-                // 선점 마킹
-                await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                // 선점 마킹 (POST + resolution=merge-duplicates로 확실하게 Upsert)
+                const preRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
                     method: 'POST',
                     headers: {
                         "apikey": key,
                         "Authorization": `Bearer ${key}`,
                         "Content-Type": "application/json",
-                        "Prefer": "resolution=merge-dup"
+                        "Prefer": "resolution=merge-duplicates"
                     },
                     body: JSON.stringify({
                         isbn: book.isbn,
@@ -83,12 +84,18 @@ async function runBackgroundAssetBatch(base, key, geminiApiKey, limit) {
                         updated_at: new Date().toISOString()
                     })
                 });
+                
+                if (!preRes.ok) {
+                    const errTxt = await preRes.text();
+                    console.warn(`[bulk-assets] 선점 마킹 오류 (계속 진행): ${errTxt}`);
+                }
 
                 // Gemini 기획서 생성
                 const plan = await generateMarketingPlan(book, geminiApiKey);
                 
                 // DB 최종 적재 (UAT 폴백 동영상 주소 QDrpvRK_1gc 연동)
                 const payload = {
+                    isbn: book.isbn,
                     card_news_data: plan.card_news,
                     audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
                     shorts_video_url: "https://youtube.com/shorts/QDrpvRK_1gc",
@@ -97,28 +104,37 @@ async function runBackgroundAssetBatch(base, key, geminiApiKey, limit) {
                     updated_at: new Date().toISOString()
                 };
 
-                await fetch(`${base}/book_marketing_assets?isbn=eq.${book.isbn}`, {
-                    method: 'PATCH',
+                const postRes = await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
                     headers: {
                         "apikey": key,
                         "Authorization": `Bearer ${key}`,
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
                     },
                     body: JSON.stringify(payload)
                 });
+
+                if (!postRes.ok) {
+                    const errTxt = await postRes.text();
+                    throw new Error(`최종 에셋 적재 실패: ${errTxt}`);
+                }
+
                 console.log(`[bulk-assets] ✅ ISBN: ${book.isbn} 에셋 적재 완료.`);
                 
             } catch (bookErr) {
                 console.error(`[bulk-assets] ❌ ISBN: ${book.isbn} 생성 오류:`, bookErr.message);
                 // 실패 상태 마킹
-                await fetch(`${base}/book_marketing_assets?isbn=eq.${book.isbn}`, {
-                    method: 'PATCH',
+                await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
                     headers: {
                         "apikey": key,
                         "Authorization": `Bearer ${key}`,
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
                     },
                     body: JSON.stringify({
+                        isbn: book.isbn,
                         status: 'failed',
                         summary_script: `[오류] ${bookErr.message}`.slice(0, 500),
                         updated_at: new Date().toISOString()
