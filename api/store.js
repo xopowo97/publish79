@@ -7,7 +7,130 @@ import fetch from 'node-fetch';
 const SECRET_KEY = process.env.HMAC_SECRET_KEY || 'CHULPAN_FRIEND_SECRET_KEY_79';
 const SELF_BASE_URL = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000';
+
+// 🎨 [11번 알리미] Gemini API 책정보 분석 및 숏폼 자막/대본 기획
+async function generateMarketingPlan(book, geminiApiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    const prompt = `
+    다음 도서의 메타데이터를 정밀 분석하여 B2C 상용 서점 수준의 도서 소개 및 소셜 미디어 배포용 30초 숏폼 비디오 자막 타임라인을 기획해 주세요.
+    
+    도서명: ${book.title}
+    저자: ${book.author}
+    출판사: ${book.publisher || '미상'}
+    출간년도: ${book.pub_year || '미상'}
+    
+    반드시 다음 JSON 규격으로만 완벽하게 답변해야 하며, JSON 외에 다른 설명(마크다운 \`\`\`json 꼬리표 포함)은 절대 출력하지 마세요:
+    {
+      "card_news": [
+        {"slide": 1, "title": "도서 아트 표지 및 인트로 카피", "body": "책의 깊이와 분위기를 담은 품격 있는 문학적 한 줄 카피"},
+        {"slide": 2, "title": "핵심 줄거리 및 호기심 유발", "body": "독자가 책을 읽고 싶게 만드는 매혹적인 스토리 요약"},
+        {"slide": 3, "title": "주요 등장인물 및 관계도", "body": "이야기의 주역들과 대립 구도를 입체적으로 정리한 캐릭터 소개"},
+        {"slide": 4, "title": "이번 복간본의 물리적 소장 가치", "body": "AI 삽화, 조판, 두께 등 실물 소장용 가치 명세"},
+        {"slide": 5, "title": "추천사 및 가치 제언", "body": "어떤 사람에게 추천하는지 타겟 독자 제언"}
+      ],
+      "summary_script": "숏폼 나레이션 전체 대본 텍스트",
+      "timeline": [
+        {"start": "0.0", "end": "5.0", "text": "첫 번째 5초 자막 나레이션 (15자 내외)"},
+        {"start": "5.5", "end": "11.0", "text": "두 번째 자막 나레이션 (15자 내외)"},
+        {"start": "11.5", "end": "17.0", "text": "세 번째 자막 나레이션 (15자 내외)"},
+        {"start": "17.5", "end": "23.0", "text": "네 번째 자막 나레이션 (15자 내외)"},
+        {"start": "23.5", "end": "29.0", "text": "다섯 번째 자막 나레이션 (15자 내외)"}
+      ]
+    }
+    `;
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        })
+    });
+
+    if (!res.ok) throw new Error(`Gemini generateContent failed: ${res.statusText}`);
+    const json = await res.json();
+    const rawText = json.candidates[0].content.parts[0].text.trim();
+    return JSON.parse(rawText);
+}
+
+// 📦 [11번 알리미] 비동기 대량 에셋 생성 백그라운드 구동 스레드
+async function runBackgroundAssetBatch(base, key, geminiApiKey, limit) {
+    try {
+        console.log(`[bulk-assets] 📡 DB reprint_candidates에서 ${limit}종 조회 중...`);
+        const candidateUrl = `${base}/reprint_candidates?select=isbn,title,author,publisher,pub_year,category&isbn=not.is.null&limit=${limit}`;
+        const res = await fetch(candidateUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+        if (!res.ok) throw new Error(`reprint_candidates 조회 실패: ${res.statusText}`);
+        
+        const books = await res.json();
+        console.log(`[bulk-assets] 📚 도서 ${books.length}종 수신 완료.`);
+        
+        for (const book of books) {
+            try {
+                // 선점 마킹
+                await fetch(`${base}/book_marketing_assets?on_conflict=isbn`, {
+                    method: 'POST',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-dup"
+                    },
+                    body: JSON.stringify({
+                        isbn: book.isbn,
+                        status: 'processing',
+                        updated_at: new Date().toISOString()
+                    })
+                });
+
+                // Gemini 기획서 생성
+                const plan = await generateMarketingPlan(book, geminiApiKey);
+                
+                // DB 최종 적재 (UAT 폴백 동영상 주소 QDrpvRK_1gc 연동)
+                const payload = {
+                    card_news_data: plan.card_news,
+                    audio_tts_url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(plan.timeline[0].text)}`,
+                    shorts_video_url: "https://youtube.com/shorts/QDrpvRK_1gc",
+                    summary_script: plan.summary_script,
+                    status: 'success',
+                    updated_at: new Date().toISOString()
+                };
+
+                await fetch(`${base}/book_marketing_assets?isbn=eq.${book.isbn}`, {
+                    method: 'PATCH',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+                console.log(`[bulk-assets] ✅ ISBN: ${book.isbn} 에셋 적재 완료.`);
+                
+            } catch (bookErr) {
+                console.error(`[bulk-assets] ❌ ISBN: ${book.isbn} 생성 오류:`, bookErr.message);
+                // 실패 상태 마킹
+                await fetch(`${base}/book_marketing_assets?isbn=eq.${book.isbn}`, {
+                    method: 'PATCH',
+                    headers: {
+                        "apikey": key,
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        status: 'failed',
+                        summary_script: `[오류] ${bookErr.message}`.slice(0, 500),
+                        updated_at: new Date().toISOString()
+                    })
+                }).catch(() => {});
+            }
+            // API 리밋 방지 텀
+            await new Promise(r => setTimeout(r, 400));
+        }
+    } catch (err) {
+        console.error('[bulk-assets] 치명적 오류:', err.message);
+    }
+}
 
 export default async function handler(req, res) {
     // CORS headers
@@ -322,8 +445,27 @@ export default async function handler(req, res) {
                     is_funding_active: isFundingActive,
                     funding_current: fundingCurrent
                 }
+        }
+        
+        // 분기 3: 대량 에셋 자동 생성공장 기동 (trigger-bulk-assets)
+        else if (resolvedAction === 'trigger-bulk-assets') {
+            const geminiApiKey = process.env.GEMINI_API_KEY;
+            if (!geminiApiKey) {
+                return res.status(400).json({ success: false, error: 'GEMINI_API_KEY 환경변수가 설정되지 않았습니다.' });
+            }
+
+            const limitVal = parseInt(req.body.limit || '20', 10);
+            
+            // Vercel Serverless Function 타임아웃 방지를 위해 백그라운드로 스레드 분리 실행
+            runBackgroundAssetBatch(base, key, geminiApiKey, limitVal);
+
+            return res.status(200).json({
+                success: true,
+                message: `🚀 [11번 알리미] 357종 템플릿 기반 대량 마케팅 에셋 공장(총 ${limitVal}종 대상)이 서버 백그라운드에서 성공적으로 가동을 시작했습니다. 약 1~2분 뒤 DB 적재 상태를 확인해 주세요.`
             });
-        } else {
+        }
+        
+        else {
             return res.status(400).json({ success: false, error: '유효하지 않은 action 구분값입니다.' });
         }
 
