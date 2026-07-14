@@ -3528,9 +3528,10 @@ window.ctrlStartSimByIndex = async function ctrlStartSimByIndex(index) {
     window._ctrl_selectedAsset = null; // 초기화
 
     // 백엔드 API를 통해 RLS 우회하여 해당 도서의 진짜 에셋 조회 (ISBN 기준)
-    if (book.isbn13) {
+    const isbnVal = book.isbn || book.isbn13 || book.isbn_13;
+    if (isbnVal) {
         try {
-            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + book.isbn13));
+            const res = await fetch(ctrlApiUrl('/api/reprint-candidates?isbn=' + isbnVal));
             if (res.ok) {
                 const apiRes = await res.json();
                 if (apiRes.success && apiRes.asset) {
@@ -4253,6 +4254,7 @@ function renderVideoTab(book) {
 
                 <!-- 실물 비디오 레이어 (z-index: 2로 오버레이 아래 위치) -->
                 <video id="shortform-video-player" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; display: none;" muted playsinline></video>
+                <iframe id="shortform-youtube-player" style="position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: 2; display: none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 
                 <!-- 상단 채널 정보 overlay -->
                 <div style="position: absolute; top: 12px; left: 10px; z-index: 5; display: flex; align-items: center; gap: 4px;">
@@ -4387,19 +4389,36 @@ function renderVideoTab(book) {
         window._shortformBgm.currentTime = 0;
         window._shortformBgm.play().catch(e => console.log('[BGM 자동재생 차단]', e));
 
-        // 진짜 비디오 자산이 존재할 시 HTML5 비디오 직접 플레이 바인딩
+        // 진짜 비디오 자산이 존재할 시 HTML5 비디오 또는 유튜브 Iframe 바인딩
+        const youtubeEl = document.getElementById('shortform-youtube-player');
         if (videoEl) {
             if (hasRealVideo) {
-                videoEl.src = asset.shorts_video_url;
-                videoEl.style.display = 'block';
-                videoEl.loop = true; // 단일 비디오 루프 상영
-                videoEl.play().catch(e => console.warn(e));
+                const videoUrl = asset.shorts_video_url;
+                if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                    // 유튜브 쇼츠 주소인 경우 iframe 엠베드로 바인딩
+                    const match = videoUrl.match(/(?:shorts\/|v=|be\/|embed\/)([^?&#]+)/);
+                    const vid = match ? match[1] : 'QDrpvRK_1gc';
+                    if (youtubeEl) {
+                        youtubeEl.src = `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&loop=1&playlist=${vid}&controls=0&modestbranding=1&rel=0`;
+                        youtubeEl.style.display = 'block';
+                    }
+                    videoEl.style.display = 'none';
+                } else {
+                    // 일반 미디어 주소인 경우 원래대로 HTML5 video 재생
+                    if (youtubeEl) youtubeEl.style.display = 'none';
+                    videoEl.src = videoUrl;
+                    videoEl.style.display = 'block';
+                    videoEl.loop = true;
+                    videoEl.play().catch(e => console.warn(e));
+                }
             } else if (isMaryeo) {
+                if (youtubeEl) youtubeEl.style.display = 'none';
                 videoEl.src = scene1;
                 videoEl.style.display = 'block';
                 videoEl.loop = false;
                 videoEl.play().catch(e => console.warn(e));
             } else {
+                if (youtubeEl) youtubeEl.style.display = 'none';
                 videoEl.style.display = 'none';
             }
         }
