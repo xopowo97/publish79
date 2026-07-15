@@ -340,6 +340,9 @@ async function main() {
         fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    // 🔒 메모리 가드: 이번 프로그램 구동 중에 실패한 도서들의 ISBN을 임시 기억하여 중복 뺑뺑이를 차단합니다.
+    const failedIsbnsInRun = new Set();
+
     try {
         let loopCount = 1;
         while (true) {
@@ -368,8 +371,8 @@ async function main() {
             if (!candRes.ok) throw new Error(`reprint_candidates 테이블 조회 실패: ${candRes.statusText}`);
             const allBooks = await candRes.json();
 
-            // 이미 성공한 에셋이 있는 도서는 필터링해서 제외
-            const targetBooks = allBooks.filter(book => !successIsbns.has(book.isbn)).slice(0, BATCH_LIMIT);
+            // 이미 성공한 에셋 및 이번 가동 중 실패했던 도서는 필터링해서 제외
+            const targetBooks = allBooks.filter(book => !successIsbns.has(book.isbn) && !failedIsbnsInRun.has(book.isbn)).slice(0, BATCH_LIMIT);
 
             if (targetBooks.length === 0) {
                 console.log("🟢 [완료] 더 이상 마케팅 에셋 생성이 필요한 도서가 없습니다. 자율 루프를 안전하게 종료합니다.");
@@ -388,9 +391,11 @@ async function main() {
                 } catch (bookErr) {
                     console.error(`❌ [오류 발생] ISBN: ${book.isbn}:`, bookErr);
                     failCount++;
+                    // 이번 가동 중에 실패한 도서의 ISBN을 메모리에 등록해 당일 뺑뺑이를 차단합니다.
+                    failedIsbnsInRun.add(book.isbn);
                 }
-                // Gemini API Limit 방지를 위한 대기 (300ms)
-                await new Promise(r => setTimeout(r, 300));
+                // Gemini API Limit 방지를 위한 안전 대기 시간 (300ms -> 4000ms(4초)로 증가)
+                await new Promise(r => setTimeout(r, 4000));
             }
 
             console.log(`\n============================================================`);
