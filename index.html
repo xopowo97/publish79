@@ -164,31 +164,31 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="pt-32 pb-20 hero-gradient text-white overflow-hidden relative">
+    <header class="pt-36 pb-20 hero-gradient text-white overflow-hidden relative">
         <div class="absolute inset-0 opacity-20"
             style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-12 relative z-10">
-            <div class="flex-1 space-y-8">
+        <div class="max-w-4xl mx-auto px-6 text-center relative z-10 space-y-8">
+            <div class="space-y-6">
                 <div
                     class="inline-flex items-center gap-2 bg-sky-500/20 border border-sky-500/30 px-4 py-2 rounded-full text-sky-400 text-xs font-black tracking-widest uppercase">
                     <span class="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></span>
                     Antigrafiti POD Technology
                 </div>
-                <h1 class="text-5xl md:text-7xl font-black font-outfit leading-[1.1] tracking-tight">
+                <h1 class="text-4xl md:text-6xl font-black font-outfit leading-[1.15] tracking-tight">
                     세상에서 사라진<br><span class="text-sky-400">명작을 다시</span> 깨우다.
                 </h1>
-                <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
-                    출판친구의 안티그래비티 기술은 절판된 도서를 단 한 권부터 완벽하게 복원합니다.
-                    더 이상 구하기 힘든 책을 중고 시장에서 헤매지 마세요.
+                <p class="text-sm md:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
+                    출판친구의 안티그래비티 기술은 절판된 도서를 단 한 권부터 완벽하게 복원합니다.<br>
+                    찾으시는 도서가 있으신가요? 검색하거나 아래 제안하기를 이용해 보세요.
                 </p>
                 <!-- Large Search Bar and 12 Category Tags -->
-                <div class="space-y-4 max-w-xl">
-                    <div class="relative">
-                        <i data-lucide="search" class="absolute left-4 top-4 w-5 h-5 text-slate-400"></i>
+                <div class="space-y-4 max-w-2xl mx-auto pt-4">
+                    <div class="relative shadow-2xl rounded-2xl overflow-hidden border border-white/10">
+                        <i data-lucide="search" class="absolute left-5 top-5 w-5 h-5 text-slate-400"></i>
                         <input type="text" id="hero-search-input" oninput="handleHeroSearch()" placeholder="다시 읽고 싶은 도서명이나 저자를 검색해보세요..."
-                            class="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 text-white rounded-2xl text-sm font-bold focus:ring-2 focus:ring-sky-500 transition-all outline-none backdrop-blur-md placeholder-slate-400">
+                            class="w-full pl-14 pr-5 py-4.5 bg-slate-900/90 text-white rounded-2xl text-base font-bold focus:ring-2 focus:ring-sky-500 transition-all outline-none placeholder-slate-400">
                     </div>
-                    <div class="flex flex-wrap gap-1.5 text-[11px] items-center">
+                    <div class="flex flex-wrap gap-1.5 text-[11px] items-center justify-center pt-2">
                         <span class="font-bold text-slate-400 mr-1">추천 태그:</span>
                         <button onclick="filterByCategory('all')" class="px-2.5 py-1 bg-sky-500 text-white font-bold rounded-full transition-all hover:bg-sky-400">전체</button>
                         <button onclick="filterByCategory('소설')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">소설</button>
@@ -205,7 +205,7 @@
                         <button onclick="filterByCategory('청소년')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">청소년</button>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-4 pt-2">
+                <div class="flex flex-wrap gap-4 justify-center pt-2">
                     <button onclick="openProposalModal()"
                         class="bg-sky-500 hover:bg-sky-400 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-xl shadow-sky-900/40 flex items-center gap-2">
                         <i data-lucide="plus-circle" class="w-4 h-4"></i>
@@ -216,19 +216,6 @@
                         <i data-lucide="bookmark" class="w-4 h-4"></i>
                         <span>나의 복간 도서관</span>
                     </button>
-                </div>
-            </div>
-            <div class="flex-1 flex justify-center relative">
-                <div class="absolute inset-0 bg-sky-500/20 blur-[120px] rounded-full"></div>
-                <!-- Book Showcase 1 -->
-                <div class="relative w-64 md:w-80 h-96 md:h-[480px] book-card rotate-[-5deg] z-20">
-                    <img id="hero-img-1" src="book1.png" alt="Restored Book 1"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
-                </div>
-                <!-- Book Showcase 2 -->
-                <div class="absolute -bottom-10 -right-10 w-48 md:w-64 h-72 md:h-96 book-card rotate-[8deg] z-30">
-                    <img id="hero-img-2" src="book2.png" alt="Restored Book 2"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
                 </div>
             </div>
         </div>
@@ -361,18 +348,6 @@
                         <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Secure Delivery</div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Section: Request -->
-        <section class="text-center space-y-6 max-w-2xl mx-auto">
-            <h2 class="text-3xl font-black font-outfit tracking-tight">아직 찾으시는 책이 없나요?</h2>
-            <p class="text-slate-500">독자님들이 가장 많이 요청하는 책부터 우선적으로 복간을 진행합니다. <br>보고 싶은 절판 도서의 제목을 알려주세요.</p>
-            <div class="flex gap-2">
-                <input type="text" placeholder="도서 제목 또는 저자명"
-                    class="flex-1 px-6 py-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500 transition-all font-bold">
-                <button
-                    class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 transition-all">요청하기</button>
             </div>
         </section>
 
@@ -1961,6 +1936,40 @@
                                     (p.author && p.author.toLowerCase().includes(currentSearchQuery)) ||
                                     (p.pubName && p.pubName.toLowerCase().includes(currentSearchQuery)));
                 return matchCategory && matchQuery;
+            });
+
+            // 펀딩 달성률 및 투표율 높은 순서대로 내림차순 자동 정렬 (실시간 랭킹 정렬 효과)
+            filtered.sort((a, b) => {
+                const aIsFunding = a.is_funding_active || (a.status === 'funding') || ((a.votes_current || 0) >= (a.votes_target || 10));
+                const bIsFunding = b.is_funding_active || (b.status === 'funding') || ((b.votes_current || 0) >= (b.votes_target || 10));
+                
+                const aIsRestored = a.status === 'restored';
+                const bIsRestored = b.status === 'restored';
+
+                const aIsVote = !aIsFunding && !aIsRestored;
+                const bIsVote = !bIsFunding && !bIsRestored;
+
+                // 1순위 펀딩 진행, 2순위 투표 대기, 3순위 복간 완료
+                if (aIsFunding && !bIsFunding) return -1;
+                if (!aIsFunding && bIsFunding) return 1;
+                if (aIsVote && bIsRestored) return -1;
+                if (aIsRestored && bIsVote) return 1;
+
+                // 같은 펀딩 도서 간 정렬: 달성률 높은 순
+                if (aIsFunding && bIsFunding) {
+                    const aPercent = (a.funding_current || 0) / (a.funding_target || 50);
+                    const bPercent = (b.funding_current || 0) / (b.funding_target || 50);
+                    return bPercent - aPercent;
+                }
+
+                // 같은 투표 도서 간 정렬: 투표율 높은 순
+                if (aIsVote && bIsVote) {
+                    const aPercent = (a.votes_current || 0) / (a.votes_target || 10);
+                    const bPercent = (b.votes_current || 0) / (b.votes_target || 10);
+                    return bPercent - aPercent;
+                }
+
+                return 0;
             });
 
             if (filtered.length === 0) {
