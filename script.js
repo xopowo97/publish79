@@ -1,0 +1,8438 @@
+// ============================================================
+// [1번 살피미 에이전트] 국립중앙도서관 딥서치 클라이언트 모듈
+// ============================================================
+// ⚠️ 중요: 이 함수는 절대 국립중앙도서관 API를 직접 호출하지 않습니다.
+//   API Key 노출(보안) 및 CORS 문제를 방지하기 위해 반드시
+//   서버리스 프록시 /api/library 를 경유하여 호출합니다.
+// 방어 루프: [클라이언트 호출] → [api/library.js 프록시]
+//            → [12번 보안관 키워드 스캔] → [국립중앙도서관 API]
+//            → (에러 발생 시) [9번 실장 포착] → [12번 보안관 DANGER 판정]
+// ============================================================
+
+// 프록시 API 엔드포인트 (로컬/Vercel 환경 자동 분기)
+const LIBRARY_PROXY_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'https://publish79.vercel.app/api/library'
+    : '/api/library';
+
+/**
+ * [1번 살피미 에이전트] 국립중앙도서관 도서 검색 함수
+ * @param {string} keyword - 검색할 도서 키워드 (예: '절판 도서', '출판')
+ * @returns {Promise<Object>} - 검색 결과 객체 { success, totalCount, results, proxyLog, securityLog }
+ */
+async function fetchLibraryData(keyword) {
+    console.log(`[Proxy Test] 🔍 1번 살피미 에이전트 → 검색 시작: "${keyword}"`);
+
+    try {
+        const res = await fetch(`${LIBRARY_PROXY_ENDPOINT}?keyword=${encodeURIComponent(keyword)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            // ✅ 통신 성공 — 결과 콘솔 출력
+            console.log(`[Proxy Test] ✅ Success`);
+            console.log(`  └ 키워드: "${keyword}" | 총 ${data.totalCount}건 수신`);
+            console.log(`  └ 보안 로그: ${data.securityLog}`);
+            // ✅ [타입 안전성] Array.isArray로 배열 여부 확인 후 안전하게 slice
+            //   배열이면: 그대로 slice(0, 3)
+            //   객체이면: [객체]로 감싸서 slice 가능하게 강제 변환
+            //   비어있으면: []로 방어 (시스템 전체 멈춤 방지)
+            const rawResults = data.results;
+            const safeResults = Array.isArray(rawResults)
+                ? rawResults
+                : (rawResults !== null && rawResults !== undefined ? [rawResults] : []);
+            console.log('  └ 검색 결과 (상위 3건):', safeResults.slice(0, 3));
+
+            return data;
+        } else {
+            // ❌ 서버 응답은 받았으나 에러 상태 (400, 502 등)
+            // → 9번 실장이 이미 api/library.js 내에서 에러를 포착하여 보고함
+            console.error(`[Proxy Test] ❌ 9번→12번 방어 작동`);
+            console.error(`  └ 에러: ${data.error || '알 수 없는 오류'}`);
+            console.error(`  └ 프록시 로그: ${data.proxyLog || '-'}`);
+            console.error(`  └ 보안 로그: ${data.securityLog || '-'}`);
+            return null;
+        }
+    } catch (networkError) {
+        // 네트워크 단절 등 fetch 자체 실패 시 9번 실장에 직접 보고
+        const errMsg = `[1번 살피미] 프록시 통신 실패 (네트워크 예외): ${networkError.message}`;
+        console.error(`[Proxy Test] ❌ 9번→12번 방어 작동: ${errMsg}`);
+
+        // 9번 기술행정지원 실장 에러 파이프라인 직접 연동
+        reportSystemError({
+            message: errMsg,
+            filename: 'api/library.js (proxy)',
+            lineno: 0,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'system_agent_01',
+            userRole: sessionStorage.getItem('userRole') || 'agent'
+        });
+        return null;
+    }
+}
+
+// ============================================================
+// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (정상 + 강제 에러)
+// 테스트가 완료된 후에는 이 블록을 주석 처리하거나 제거하세요.
+// ============================================================
+window.addEventListener('load', async () => {
+    // --- 테스트 1: 정상 통신 검증 ---
+    console.log('');
+    console.log('============================================================');
+    console.log('[Proxy Test] 🚀 1번 살피미 에이전트 검증 테스트 시작');
+    console.log('============================================================');
+    await fetchLibraryData('출판');
+
+    // --- 테스트 2: 9번→12번 방어 루프 강제 작동 검증 ---
+    // XSS 악성 키워드를 주입하여 12번 보안관이 DANGER 판정을 내리는지 확인
+    console.log('');
+    console.log('[Proxy Test] ⚔️  보안 방어 루프 강제 테스트 시작 (XSS 키워드 주입)...');
+    await fetchLibraryData('<script>alert("공격")</script>');
+
+    console.log('');
+    console.log('[Proxy Test] ✅ 검증 테스트 완료. 위 로그에서 Success / 9번→12번 방어 작동 확인.');
+    console.log('============================================================');
+});
+
+// --- 실시간 에러 모니터링 시스템 (GEM 09) ---
+// Vercel Serverless Function 프록시 API 경로 정의
+const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+    ? 'https://publish79.vercel.app/api/send-error' 
+    : '/api/send-error';
+
+async function reportSystemError(errorData) {
+    try {
+        const payload = {
+            message: errorData.message,
+            filename: errorData.filename || '알 수 없음',
+            lineno: errorData.lineno || 0,
+            colno: errorData.colno || 0,
+            userId: errorData.userId || sessionStorage.getItem('userId') || 'system_agent_01',
+            userRole: errorData.userRole || sessionStorage.getItem('userRole') || 'agent',
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(ERROR_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok && typeof triggerSelfHealingPipeline === 'function') {
+            triggerSelfHealingPipeline(payload);
+        }
+    } catch (e) {
+        console.error("에러 모니터링 API 전송 실패:", e);
+    }
+}
+
+
+const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '기업등급'];
+
+// 전역 안전 권한/세션 조회기 (전역 변수 참조 에러 원천 차단)
+Object.defineProperty(window, 'currentUserRole', {
+    get: function() { return sessionStorage.getItem('userRole') || 'admin'; }
+});
+
+// --- [로그인 버그 수정] DOMContentLoaded: 세션 복원만 처리 ---
+// handleLogin/enterApp/logout은 MASTER 선언 이후에 정의됨 (TDZ 원천 차단)
+document.addEventListener('DOMContentLoaded', () => {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (isLoggedIn) {
+        const role = sessionStorage.getItem('userRole');
+        const overlay = document.getElementById('login-overlay');
+        const appContainer = document.getElementById('app-container');
+        if (overlay) overlay.style.display = 'none';
+        if (appContainer) appContainer.classList.remove('hidden');
+        if (typeof switchRole === 'function') {
+            setTimeout(() => switchRole(role), 100);
+        }
+    }
+
+    // 로그인 버튼 클릭 시 handleLogin() 호출 연결
+    const loginBtn = document.querySelector('#login-overlay button, .btn-primary');
+    if (loginBtn) {
+        loginBtn.onclick = null; // 인라인 onclick 제거하여 중복 호출 방지
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window._isLoggingIn = true;
+            if (typeof handleLogin === 'function') {
+                handleLogin();
+            }
+        });
+    }
+
+    // AI 헬퍼 (영업이) send 버튼 클릭 이벤트 및 Enter 키 연동
+    const sendBtnErp = document.getElementById('ai-send-btn-erp');
+    const aiInputErp = document.getElementById('ai-input-erp');
+    
+    if (sendBtnErp) {
+        sendBtnErp.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+        
+        const clientMaskPII = (text) => {
+            if (!text || typeof text !== 'string') return text;
+            let masked = text;
+            masked = masked.replace(/([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})/g, '[개인정보 보호 마스킹]');
+            masked = masked.replace(/(01[016789])[-. ]?(\d{3,4})[-. ]?(\d{4})/g, '[개인정보 보호 마스킹]');
+            masked = masked.replace(/\b(\d{3,6})[- ]?(\d{2,4})[- ]?(\d{5,8})\b/g, '[개인정보 보호 마스킹]');
+            return masked;
+        };
+
+        const handleSendErp = async () => {
+            if (!aiInputErp || !aiInputErp.value.trim()) return;
+            const rawMessage = aiInputErp.value.trim();
+            const message = clientMaskPII(rawMessage);
+            const chatContent = document.getElementById('ai-chat-content-erp');
+            if (!chatContent) return;
+
+            // 1. 사용자 말풍선 추가 및 입력창 비우기/비활성화
+            const userMsg = document.createElement('div');
+            userMsg.className = 'ai-msg ai-msg-user';
+            userMsg.style.cssText = 'align-self:flex-end; max-width:85%;';
+            userMsg.textContent = message;
+            chatContent.appendChild(userMsg);
+
+            aiInputErp.value = '';
+            aiInputErp.disabled = true;
+            sendBtnErp.disabled = true;
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            // 2. 히스토리에 사용자 메시지 추가
+            _erpChatHistory.push({ role: 'user', parts: [{ text: message }] });
+
+            // 3. 로딩 애니메이션 말풍선 추가
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'ai-msg ai-msg-bot loading-bubble';
+            loadingMsg.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="ctrl-dot ctrl-dot-green pulse" style="display:inline-block; margin-right:4px;"></span>
+                    <span>17번 CS_상담이가 생각하는 중...</span>
+                </div>
+            `;
+            chatContent.appendChild(loadingMsg);
+            setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+
+            try {
+                // 4. API 송신
+                const getApiUrl = (path) => {
+                    const isLocal = window.location.hostname === 'localhost' ||
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.hostname === '' ||
+                        window.location.protocol === 'file:';
+                    return isLocal ? `https://publish79.vercel.app${path}` : path;
+                };
+
+                const response = await fetch(getApiUrl('/api/chat'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_type: 'ERP_STORE',
+                        contents: _erpChatHistory,
+                        userId: sessionStorage.getItem('userId') || 'guest_user',
+                        userRole: sessionStorage.getItem('userRole') || 'guest',
+                        logId: _erpChatLogId
+                    })
+                });
+
+                // 5. 로딩 말풍선 제거
+                loadingMsg.remove();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const replyText = data.responseText;
+                    
+                    // 세션 유지를 위해 logId 보존
+                    if (data.logId) {
+                        _erpChatLogId = data.logId;
+                    }
+
+                    // 히스토리에 모델 응답 추가
+                    _erpChatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+
+                    // 봇 말풍선 추가
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.innerHTML = parseErpChatMarkdown(replyText);
+                    chatContent.appendChild(botMsg);
+
+                } else {
+                    const errText = await response.text();
+                    const errObj = JSON.parse(errText || '{}');
+                    const botMsg = document.createElement('div');
+                    botMsg.className = 'ai-msg ai-msg-bot';
+                    botMsg.style.color = '#ef4444';
+                    botMsg.textContent = `❌ 오류가 발생했습니다: ${errObj.message || errObj.error || 'Gemini API 호출에 실패했습니다.'}`;
+                    chatContent.appendChild(botMsg);
+                }
+            } catch (err) {
+                loadingMsg.remove();
+                const botMsg = document.createElement('div');
+                botMsg.className = 'ai-msg ai-msg-bot';
+                botMsg.style.color = '#ef4444';
+                botMsg.textContent = `❌ 네트워크 오류: ${err.message}`;
+                chatContent.appendChild(botMsg);
+            } finally {
+                aiInputErp.disabled = false;
+                sendBtnErp.disabled = false;
+                aiInputErp.focus();
+                setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+            }
+        };
+
+        sendBtnErp.onclick = handleSendErp;
+
+        if (aiInputErp) {
+            aiInputErp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendBtnErp.click();
+                }
+            });
+        }
+    }
+});
+// -----------------------
+
+// 초기 기본 단가 데이터를 생성하는 함수
+function getBasePriceData() {
+    const sheetSpecs = [
+        { id: 1, n: '36판(103x182)', bw: 0, cl: 0, face: 0 }, { id: 2, n: '국반판(105x148)', bw: 0, cl: 0, face: 0 },
+        { id: 3, n: '30절판(125x205)', bw: 0, cl: 0, face: 0 }, { id: 4, n: 'B6(128x182)', bw: 0, cl: 0, face: 0 },
+        { id: 5, n: '46판(128x188)', bw: 0, cl: 0, face: 0 }, { id: 6, n: '다찌판(128x210)', bw: 0, cl: 0, face: 0 },
+        { id: 7, n: 'A5국판(148x210)', bw: 0, cl: 0, face: 0 }, { id: 8, n: '크라운판(176x248)', bw: 0, cl: 0, face: 0 },
+        { id: 9, n: 'B5(182x257)', bw: 0, cl: 0, face: 0 }, { id: 10, n: '46배판(188x257)', bw: 0, cl: 0, face: 0 },
+        { id: 11, n: '국배판(210x297)', bw: 0, cl: 0, face: 0 }
+    ];
+    const rollSpecs = [
+        { id: 101, n: '36판(103x182)', ivs: [] }, { id: 102, n: '국반판(105x148)', ivs: [] }, { id: 103, n: '30절판(125x205)', ivs: [] },
+        { id: 104, n: 'B6(128x182)', ivs: [] }, { id: 105, n: '46판(128x188)', ivs: [] }, { id: 106, n: '다찌판(128x210)', ivs: [] },
+        { id: 107, n: 'A5국판(148x210)', ivs: [] }, { id: 108, n: '신국판(152x225)', ivs: [] }, { id: 109, n: '크라운판(176x248)', ivs: [] },
+        { id: 110, n: 'B5(182x257)', ivs: [] }, { id: 111, n: '46배판(188x257)', ivs: [] }, { id: 112, n: '국배판(210x297)', ivs: [] }
+    ];
+    const commons = [
+        { id: 201, n: '표지날개있음(권당)', v: 0 }, { id: 202, n: '표지날개없음(권당)', v: 0 },
+        { id: 203, n: '표지흑백단면인쇄(권당)', v: 0 }, { id: 204, n: '표지컬러양면인쇄(권당)', v: 0 },
+        { id: 207, n: '표지흑백양면인쇄(권당)', v: 0 }, { id: 208, n: '표지컬러단면인쇄(권당)', v: 0 },
+        { id: 205, n: '100g용지할증(Page당)', v: 0 }, { id: 206, n: '120g용지할증(Page당)', v: 0 },
+        { id: 209, n: '단면할증', v: 0 }
+    ];
+
+    const DEFAULT_IVS_A = [
+        { s: 50, e: 100, bw: 0, cl: 0, wo: 0, wx: 0 },
+        { s: 101, e: 200, bw: 0, cl: 0, wo: 0, wx: 0 },
+        { s: 201, e: 300, bw: 0, cl: 0, wo: 0, wx: 0 }
+    ];
+    const DEFAULT_IVS_B = [
+        { s: 50, e: 100, bw: 0, cl: 0, wo: 0, wx: 0 },
+        { s: 101, e: 200, bw: 0, cl: 0, wo: 0, wx: 0 },
+        { s: 201, e: 300, bw: 0, cl: 0, wo: 0, wx: 0 }
+    ];
+
+    rollSpecs.forEach(rs => {
+        if (rs.id >= 109) rs.ivs = JSON.parse(JSON.stringify(DEFAULT_IVS_B));
+        else rs.ivs = JSON.parse(JSON.stringify(DEFAULT_IVS_A));
+    });
+
+    return { sheetSpecs, rollSpecs, commons };
+}
+
+// --- Supabase 초기화 설정 ---
+// ⚠️ [12번 보안관 마스킹 조치 완료] 하드코딩된 Supabase Key는 제거되었습니다.
+// 실제 키는 Vercel 환경변수 SUPABASE_KEY 로 관리하며, 클라이언트에서는 아래 설정을 사용합니다.
+const SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let MASTER = {
+    grades: [...DEFAULT_GRADES],
+    currentGrade: '일반등급(표준)',
+    pricesByGrade: {}, // 각 등급별 단가 저장소
+    coverPapers: ['스노우지 200g', '스노우지 250g', '아트지 200g', '아트지 250g', '랑데뷰 내츄럴 210g', '랑데뷰 내츄럴 240g', '랑데뷰 울트라화이트 210g', '랑데뷰 울트라화이트 240g'],
+    innerPapers: ['백모조80g', '백모조100g', '백모조120g', '미색모조80g', '미색모조100g'],
+    facePapers: ['없음', '매직칼라 옥색 120g', '매직칼라 노랑색 120g', '매직칼라 연분홍색 120g', '매직칼라 연두색 120g', '밍크지 군청색 120g', '밍크지 연청색 120g', '밍크지 적색 120g'],
+    coating: ['무광', '유광'], binding: ['무선제본', '중철제본'], wing: ['날개 있음', '날개 없음'],
+    coverPrinting: ['표지-흑백단면', '표지-흑백양면', '표지-컬러단면', '표지-컬러양면'],
+    innerPrinting: ['내지-흑백단면', '내지-흑백양면', '내지-컬러단면', '내지-컬러양면', '내지-부분컬러', '내지-부분컬러양면', '내지-부분컬러단면'],
+    faceInsert: ['없음', '면지있음(앞뒤1장)4P', '면지있음(앞뒤2장)8P'],
+    customGroups: [],
+    partners: [],
+    orderPersistence: {
+        sheet: {},
+        roll: {}
+    },
+    orders: [],
+    printers: [
+        {
+            id: 'printer_master', name: '기본인쇄소', bizNum: '',
+            addr: '', addrDetail: '', ceoName: '', bizType: '',
+            managers: [
+                { name: '愿由ъ옄', tel: '', email: '', subPw: '1234', perms: ['prod', 'settle'] }
+            ]
+        }
+    ],
+    products: [],
+    auth: {
+        admin: { id: 'admin', pw: '1234' },
+        publisher: { id: 'pub', pw: '1234' },
+        printer: { id: 'print', pw: '1234' }
+    }
+};
+
+// ✅ [로그인 버그 완전 수정] MASTER 선언 이후에 배치 → TDZ 원천 차단
+// handleLogin이 MASTER를 참조할 때 항상 초기화된 상태 보장
+function handleLogin() {
+    window._isLoggingIn = true;
+    const id = document.getElementById('login-id').value.trim();
+    const pw = document.getElementById('login-pw').value.trim();
+
+    if (!MASTER.auth) {
+        MASTER.auth = {
+            admin: { id: 'admin', pw: '1234' },
+            publisher: { id: 'pub', pw: '1234' },
+            printer: { id: 'print', pw: '1234' }
+        };
+    }
+
+    if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id); return; }
+    if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) { enterApp('admin', id); return; }
+    if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) { enterApp('publisher', id); return; }
+    if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) { enterApp('printer', id); return; }
+
+    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
+    if (partner) {
+        if (partner.password === pw || (!partner.password && pw === '1234')) { enterApp('publisher', partner.id); return; }
+    }
+
+    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
+    if (printer) {
+        if (printer.password === pw || (!printer.password && pw === '1234')) { enterApp('printer', printer.id); return; }
+        if (printer.managers && printer.managers.length > 0) {
+            const manager = printer.managers.find(m => m.subPw === pw);
+            if (manager) {
+                const isSettle = manager.perms && manager.perms.includes('settle');
+                enterApp(isSettle ? 'printer' : 'printer_worker', printer.id);
+                return;
+            }
+        }
+    }
+
+    window._isLoggingIn = false;
+    alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+}
+
+function enterApp(role, userId) {
+    window._isLoggingIn = true;
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', role);
+    if (userId) sessionStorage.setItem('userId', userId);
+
+    if (role === 'judge') {
+        window.location.href = 'control.html';
+        return;
+    }
+
+    const overlay = document.getElementById('login-overlay');
+    if (overlay) overlay.style.opacity = '0';
+    setTimeout(() => {
+        try {
+            if (overlay) overlay.style.display = 'none';
+            const appContainer = document.getElementById('app-container');
+            if (appContainer) appContainer.classList.remove('hidden');
+            if (typeof switchRole === 'function') switchRole(role);
+        } catch (e) {
+            console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
+        } finally {
+            setTimeout(() => { window._isLoggingIn = false; }, 2000);
+        }
+    }, 500);
+}
+
+function logout() {
+    sessionStorage.clear();
+    location.reload();
+}
+
+let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
+let agentControlPollingIntervalId = null; // 에이전트 통제실 실시간 폴링 타이머 ID
+
+// 초기 등급 데이터 세팅
+function ensureGradeData() {
+    if (!MASTER.pricesByGrade) MASTER.pricesByGrade = {};
+    if (!MASTER.grades || MASTER.grades.length === 0) MASTER.grades = [...DEFAULT_GRADES];
+    
+    MASTER.grades.forEach(g => {
+        if (!MASTER.pricesByGrade[g]) {
+            const base = getBasePriceData();
+            MASTER.pricesByGrade[g] = {
+                commons: base.commons,
+                sheetSpecs: base.sheetSpecs,
+                rollSpecs: base.rollSpecs,
+                sheetCommons: {},
+                rollCommons: {}
+            };
+        } else {
+            const base = getBasePriceData();
+            if (!MASTER.pricesByGrade[g].commons) MASTER.pricesByGrade[g].commons = base.commons;
+            if (!MASTER.pricesByGrade[g].sheetSpecs) MASTER.pricesByGrade[g].sheetSpecs = base.sheetSpecs;
+            if (!MASTER.pricesByGrade[g].rollSpecs) MASTER.pricesByGrade[g].rollSpecs = base.rollSpecs;
+            if (!MASTER.pricesByGrade[g].sheetCommons) MASTER.pricesByGrade[g].sheetCommons = {};
+            if (!MASTER.pricesByGrade[g].rollCommons) MASTER.pricesByGrade[g].rollCommons = {};
+        }
+    });
+
+    if (!MASTER.pricesByGrade['인쇄소 협약단가']) {
+        const base = getBasePriceData();
+        MASTER.pricesByGrade['인쇄소 협약단가'] = {
+            commons: base.commons,
+            sheetSpecs: base.sheetSpecs,
+            rollSpecs: base.rollSpecs,
+            sheetCommons: {},
+            rollCommons: {}
+        };
+    }
+}
+
+ensureGradeData();
+
+// 초기 데이터 로딩 (Supabase 연동)
+async function initMaster() {
+    // DB 연결 상태 표시 초기화
+    const statusBadge = document.getElementById('db-status-badge');
+    const loginStatusBadge = document.getElementById('db-status-badge-login');
+    const updateStatus = (status, msg, errorMsg = '') => {
+        const badges = [statusBadge, loginStatusBadge].filter(Boolean);
+        badges.forEach(badge => {
+            const isLogin = (badge.id === 'db-status-badge-login');
+            if (status === 'loading') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-400 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700 text-[10px] font-black text-slate-400 mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div><span class="status-text">ONLINE DB 연동 대기중</span>`;
+            } else if (status === 'success') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-[10px] font-black text-emerald-700 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 shadow-sm mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></div><span class="status-text">ONLINE DB 연결됨</span>`;
+            } else if (status === 'offline') {
+                badge.className = isLogin
+                    ? 'flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-[10px] font-black text-amber-700 mt-4 shadow-sm'
+                    : 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 mb-6';
+                badge.innerHTML = `<div class="status-dot w-1.5 h-1.5 rounded-full bg-amber-500"></div><span class="status-text">로컬 모드 (서버 데이터 없음)</span>`;
+            } else {
+                badge.className = isLogin
+                    ? 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 mt-4 shadow-sm'
+                    : 'flex flex-col gap-1 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 mb-6';
+                badge.innerHTML = `
+                    <div class="flex items-center ${isLogin ? 'justify-center' : ''} gap-2">
+                        <div class="status-dot w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                        <span class="status-text text-[10px] font-black ${isLogin ? 'text-rose-700' : 'text-rose-400'}">DB 연결 오류 (로컬 모드 전환)</span>
+                    </div>
+                    <div class="text-[9px] ${isLogin ? 'text-rose-600/80' : 'text-rose-300/70'} font-medium leading-tight mt-0.5 ${isLogin ? 'text-center' : ''}">
+                        ${errorMsg ? `Reason: ${errorMsg}` : '알 수 없는 연결 오류'}
+                    </div>
+                `;
+            }
+        });
+    };
+
+    updateStatus('loading');
+
+    try {
+        // 1. 공통 설정(사양, 단가) 불러오기
+        const { data: configData, error: configError } = await _supabase.from('master_config').select('data').eq('id', 'config').maybeSingle();
+
+        // 테이블이 없거나 권한 문제 등으로 아예 로딩 실패한 경우
+        if (configError) {
+            console.error("Config Loading Error:", configError);
+            throw new Error(`설정 데이터 로드 실패 (${configError.message || configError.code})`);
+        }
+
+        if (configData?.data) {
+            const d = configData.data;
+            MASTER.grades = d.grades || MASTER.grades;
+            MASTER.pricesByGrade = d.pricesByGrade || MASTER.pricesByGrade;
+            MASTER.coverPapers = d.coverPapers || MASTER.coverPapers;
+            MASTER.innerPapers = d.innerPapers || MASTER.innerPapers;
+            MASTER.facePapers = d.facePapers || MASTER.facePapers;
+            MASTER.coating = d.coating || MASTER.coating;
+            MASTER.binding = d.binding || MASTER.binding;
+            MASTER.wing = d.wing || MASTER.wing;
+            MASTER.coverPrinting = d.coverPrinting || MASTER.coverPrinting;
+            MASTER.innerPrinting = d.innerPrinting || MASTER.innerPrinting;
+            MASTER.faceInsert = d.faceInsert || MASTER.faceInsert;
+            MASTER.customGroups = d.customGroups || [];
+            MASTER.auth = d.auth || MASTER.auth;
+
+            // 세부 커스텀 카테고리 배열 복원
+            (MASTER.customGroups || []).forEach(g => {
+                if (d[g.name]) {
+                    MASTER[g.name] = d[g.name];
+                } else if (!MASTER[g.name]) {
+                    MASTER[g.name] = [];
+                }
+            });
+
+            // 자가 치유(Self-Healing) 로직: 불러온 온라인 설정에 필수 항목 누락 시 자동 복구 및 백업
+            let needsHealing = false;
+            if (!MASTER.innerPrinting.includes('내지-부분컬러양면')) { MASTER.innerPrinting.push('내지-부분컬러양면'); needsHealing = true; }
+            if (!MASTER.innerPrinting.includes('내지-부분컬러단면')) { MASTER.innerPrinting.push('내지-부분컬러단면'); needsHealing = true; }
+
+            if (!MASTER.customGroups.some(g => g.name === '용지할증')) {
+                MASTER.customGroups.push({ name: '용지할증', type: 'page', isVisible: false });
+                MASTER['용지할증'] = ['100g용지할증', '120g용지할증'];
+                needsHealing = true;
+            }
+            if (!MASTER.customGroups.some(g => g.name === '단면할증')) {
+                MASTER.customGroups.push({ name: '단면할증', type: 'book', isVisible: false });
+                MASTER['단면할증'] = ['단면할증기본'];
+                needsHealing = true;
+            }
+
+            // [보정] 필수 할증 항목은 항상 주문서 노출을 끔 (isVisible: false)
+            MASTER.customGroups.forEach(g => {
+                if (g.name === '용지할증' || g.name === '단면할증') {
+                    if (g.isVisible !== false) {
+                        g.isVisible = false;
+                        needsHealing = true;
+                    }
+                }
+            });
+
+            if (needsHealing) {
+                setTimeout(() => saveMasterDataSilent(), 1000);
+            }
+        } else {
+            console.log("기존 설정 데이터가 없습니다. 기본 설정을 사용합니다.");
+        }
+
+        // 온라인 DB로부터 쿼리가 성공적으로 이루어졌으므로 로드 상태를 true로 설정 (네트워크 에러 시 false 유지)
+        isConfigLoaded = true;
+
+        // 2. 각 테이블 병렬 로딩 (독립적 처리)
+        const [ordersRes, partnersRes, printersRes, productsRes] = await Promise.all([
+            _supabase.from('orders').select('*').order('created_at', { ascending: false }),
+            _supabase.from('partners').select('*'),
+            _supabase.from('printers').select('*'),
+            _supabase.from('products').select('*')
+        ]);
+
+        // 개별 테이블 로딩 실패 시 로그만 남기고 중단하지 않음 (데이터가 하나도 없을 수도 있으므로)
+        let loadFailures = [];
+        if (ordersRes.error) loadFailures.push(`주문(${ordersRes.error.code})`);
+        if (partnersRes.error) loadFailures.push(`파트너(${partnersRes.error.code})`);
+        if (printersRes.error) loadFailures.push(`인쇄소(${printersRes.error.code})`);
+        if (productsRes.error) loadFailures.push(`도서(${productsRes.error.code})`);
+
+        if (loadFailures.length > 0) {
+            console.warn("일부 테이블 데이터 로딩 실패:", loadFailures.join(', '));
+            // 만약 모든 테이블이 로딩 실패했다면 진짜 오류로 간주할 수도 있지만, 
+            // 여기서는 일단 성공한 데이터만이라도 반영함
+        }
+
+        // 데이터 반영 및 배송 정보 복원 (data 주머니에서 꺼내기)
+        if (ordersRes.data) {
+            MASTER.orders = ordersRes.data.map(o => {
+                if (o.data && o.data.shippingCost !== undefined) {
+                    o.shippingCost = o.data.shippingCost;
+                    o.finalTotalPrice = o.data.finalTotalPrice;
+                }
+                return o;
+            });
+        }
+        if (partnersRes.data) {
+            MASTER.partners = partnersRes.data.map(p => ({
+                ...p,
+                password: p.pw || p.password || '1234'
+            }));
+
+            // 로컬에서 이전에 저장된 비밀번호가 있으면 복원
+            try {
+                const storedMaster = JSON.parse(localStorage.getItem('MASTER_DATA') || 'null');
+                if (storedMaster?.partners?.length) {
+                    storedMaster.partners.forEach(storedPartner => {
+                        if (!storedPartner || !storedPartner.id) return;
+                        const target = MASTER.partners.find(p => p.id === storedPartner.id);
+                        if (target && storedPartner.password) {
+                            target.password = storedPartner.password;
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn('로컬 비밀번호 복원 실패:', err);
+            }
+        }
+        if (printersRes.data) {
+            MASTER.printers = printersRes.data.map(p => ({
+                ...p,
+                password: p.pw || p.password || '1234'
+            }));
+        }
+        if (productsRes.data) MASTER.products = productsRes.data;
+
+        // 성공적으로 통신이 완료되었으나 데이터가 아예 없는 경우 'offline' 상태와 비슷하게 취급하거나 그냥 성공 표시
+        if (!configData && loadFailures.length === 0 && MASTER.orders.length === 0) {
+            updateStatus('offline');
+        } else {
+            updateStatus('success');
+        }
+
+        console.log("온라인 DB 데이터 동기화 완료");
+        ensureGradeData();
+        renderAll();
+
+    } catch (e) {
+        console.error("Critical DB Error:", e);
+        // 사용자에게 친숙한 오류 메시지로 변환
+        let friendlyMsg = e.message;
+        if (e.message.includes('42P01')) friendlyMsg = "데이터베이스 테이블이 생성되지 않았습니다.";
+        if (e.message.includes('Failed to fetch')) friendlyMsg = "네트워크 연결이 원활하지 않습니다.";
+
+        updateStatus('error', 'Critical Error', friendlyMsg);
+
+        // 오프라인/통신 지연 시에는 빈 데이터 상태에서 자가 치유 엔진이 작동하도록 로컬 폴백 제거 (충돌 방지)
+        ensureGradeData();
+        renderAll();
+    }
+}
+
+
+// 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
+function renderAll() {
+    const activeBtn = document.querySelector('.sidebar-item.active');
+    if (activeBtn) {
+        const pageId = activeBtn.id.replace('btn-', '');
+        if (typeof showPage === 'function') {
+            showPage(pageId);
+        }
+    } else {
+        if (typeof showPage === 'function') {
+            showPage('spec');
+        }
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+initMaster();
+
+// 데이터 통합 저장 함수 (Supabase + Local Backup)
+async function saveData() {
+    // 자가 치유 및 오프라인 상태에서 빈(0원) 데이터를 DB에 덮어쓰지 않도록 원천 차단
+    if (!isConfigLoaded) {
+        console.warn("DB 데이터가 아직 성공적으로 로드되지 않았거나 에러 상태이므로, 빈 데이터로 Supabase를 덮어쓰지 않고 저장을 방지합니다.");
+        return false;
+    }
+
+    try {
+        // 1. 공통 설정 저장
+        const configToSave = {
+            grades: MASTER.grades,
+            currentGrade: MASTER.currentGrade,
+            pricesByGrade: MASTER.pricesByGrade,
+            coverPapers: MASTER.coverPapers,
+            innerPapers: MASTER.innerPapers,
+            facePapers: MASTER.facePapers,
+            coating: MASTER.coating,
+            binding: MASTER.binding,
+            wing: MASTER.wing,
+            coverPrinting: MASTER.coverPrinting,
+            innerPrinting: MASTER.innerPrinting,
+            faceInsert: MASTER.faceInsert,
+            customGroups: MASTER.customGroups,
+            auth: MASTER.auth
+            // products는 별도 테이블로 관리하므로 config에서는 제외 (동기화 이슈 방지)
+        };
+
+        // 세부 커스텀 카테고리 배열 추가 전송
+        (MASTER.customGroups || []).forEach(g => {
+            configToSave[g.name] = MASTER[g.name] || [];
+        });
+
+        const { error } = await _supabase.from('master_config').upsert({ id: 'config', data: configToSave });
+        if (error) throw error;
+
+        // 2. 로컬 백업 (네트워크 불안정 대비)
+        localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
+
+        console.log("데이터가 온라인 DB에 안전하게 저장되었습니다.");
+        return true;
+    } catch (e) {
+        console.error("저장 중 오류:", e);
+        return false;
+    }
+}
+
+async function saveMasterData() {
+    const success = await saveData();
+    if (success) {
+        alert("모든 설정 정보가 온라인 DB에 성공적으로 저장되었습니다.");
+    } else {
+        alert("❌ 온라인 저장에 실패했습니다. 네트워크 상태를 확인해주세요.");
+    }
+}
+
+async function saveMasterDataSilent() {
+    await saveData();
+}
+
+let mode = 'sheet';
+let editingOrderId = null;
+let settlementChart = null; // 차트 인스턴스 저장용
+let partnerCurrentPage = 1;
+const partnerItemsPerPage = 5;
+
+// ---------------------------------------------------------
+// 1. 등급 관리 기능 (고정 등급 삭제 방어 로직 포함)
+// ---------------------------------------------------------
+function addGrade() {
+    const name = document.getElementById('newGradeName').value.trim();
+    if (!name) return alert("등급명을 입력하세요.");
+    if (MASTER.grades.includes(name)) return alert("이미 존재하는 등급입니다.");
+
+    MASTER.grades.push(name);
+    // 신규등급의 단가를 그대로 복사
+    MASTER.pricesByGrade[name] = JSON.parse(JSON.stringify(MASTER.pricesByGrade['신규등급']));
+
+    document.getElementById('newGradeName').value = "";
+    renderGradeTabs();
+}
+
+// 등급 삭제 기능 (표준 5단계는 삭제 불가)
+function removeGrade(name, event) {
+    event.stopPropagation(); // 탭 클릭 이벤트 방지
+    if (DEFAULT_GRADES.includes(name)) {
+        alert("표준 등급(신규/일반/우수/최우수/특수)은 삭제할 수 없습니다.");
+        return;
+    }
+    if (!confirm(`[${name}] 등급을 삭제하시겠습니까?`)) return;
+
+    MASTER.grades = MASTER.grades.filter(g => g !== name);
+    if (MASTER.currentGrade === name) MASTER.currentGrade = '일반등급(표준)';
+    renderGradeTabs();
+    renderPrice();
+}
+
+function setGrade(name) {
+    MASTER.currentGrade = name;
+
+    // 인쇄소 협약단가 선택 시 등급 추가/출판사 검색 도구 숨김
+    const tools = document.getElementById('price-tools');
+    if (tools) {
+        if (name === '인쇄소 협약단가') {
+            tools.innerHTML = `
+                <div class="flex items-center gap-2 text-emerald-700 font-bold text-sm px-4">
+                    <i data-lucide="info" class="w-4 h-4"></i> 
+                    인쇄소 협약단가는 모든 인쇄소에 공통 적용되는 매입 원가 기준입니다. (등급 무관)
+                </div>
+                <div class="ml-auto">
+                    <button onclick="saveMasterData()" class="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-sm flex items-center gap-1.5">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i> [원가데이터저장]
+                    </button>
+                </div>
+            `;
+            lucide.createIcons();
+        } else {
+            // 기본 도구 메뉴 복구
+            tools.innerHTML = `
+                <div class="flex items-center gap-1">
+                    <input type="text" id="newGradeName" placeholder="등급명 입력" class="input-pptx w-40">
+                    <button onclick="addGrade()" class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">+ 등급추가</button>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div class="flex items-center gap-1">
+                    <input type="text" id="pubSearchInput" placeholder="출판사명 검색" class="input-pptx w-40">
+                    <button onclick="searchPublisher()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">검색</button>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <button onclick="saveMasterData()" class="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="save" class="w-3.5 h-3.5"></i> [데이터저장]
+                </button>
+            `;
+            lucide.createIcons();
+        }
+    }
+
+    renderGradeTabs();
+    renderPrice();
+}
+
+function renderGradeTabs() {
+    const container = document.getElementById('grade-tabs-container');
+    if (!container) return;
+
+    let html = MASTER.grades.map(g => {
+        const isDefault = DEFAULT_GRADES.includes(g);
+        return `
+        <div class="relative group">
+            <button onclick="setGrade('${g}')" 
+                class="px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${MASTER.currentGrade === g ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 bg-white hover:bg-slate-50'}">
+                ${g}
+                ${!isDefault ? `<span onclick="removeGrade('${g}', event)" class="hover:text-red-500 opacity-50 hover:opacity-100"><i data-lucide="x" class="w-3 h-3"></i></span>` : ''}
+            </button>
+        </div>
+        `;
+    }).join('');
+
+    // 인쇄소 협약단가 탭 추가
+    html += `
+        <div class="w-px h-6 bg-slate-200 mx-2 self-center"></div>
+        <button onclick="setGrade('인쇄소 협약단가')" 
+            class="px-6 py-2 rounded-lg font-black text-sm flex items-center gap-2 transition-all ${MASTER.currentGrade === '인쇄소 협약단가' ? 'bg-emerald-600 text-white shadow-md' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}">
+            <i data-lucide="factory" class="w-4 h-4"></i> 인쇄소 협약단가 (통합매입원가)
+        </button>
+    `;
+
+    container.innerHTML = html;
+
+    // 파트너사 관리 모듈의 등급 선택 드롭박스(select) 동적 업데이트
+    const gradeSelect = document.getElementById('gradeSearch');
+    if (gradeSelect) {
+        const currentVal = gradeSelect.value;
+        gradeSelect.innerHTML = MASTER.grades.map(g => `<option value="${g}">${g}</option>`).join('');
+        if (currentVal) gradeSelect.value = currentVal;
+    }
+
+    lucide.createIcons();
+}
+
+// ---------------------------------------------------------
+// 2. 출판사 검색 기능
+// ---------------------------------------------------------
+function searchPublisher() {
+    const keyword = document.getElementById('pubSearchInput').value.trim();
+    if (!keyword) return alert("출판사명을 입력하세요.");
+
+    const partner = MASTER.partners.find(p => p.name.includes(keyword));
+    if (partner) {
+        setGrade(partner.grade);
+        document.getElementById('order-pub-name').value = partner.name;
+        alert(`[${partner.name}] 파트너사가 검색되었습니다. 지정된 [${partner.grade}]으로 단가가 자동 적용됩니다.`);
+    } else {
+        alert("검색된 파트너사가 없습니다. [파트너사 관리]에서 먼저 등록해주세요.");
+    }
+}
+
+// ---------------------------------------------------------
+// 3. 유동엔진 (로직 보존)
+// ---------------------------------------------------------
+function removeCustomGroup(groupName) {
+    if (!confirm(`[${groupName}] 그룹을 삭제하시겠습니까?`)) return;
+    delete MASTER[groupName];
+    MASTER.customGroups = MASTER.customGroups.filter(g => g.name !== groupName);
+    renderSpec();
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function addCustomGroup() {
+    const input = document.getElementById('customGroupNameInput');
+    const groupName = input.value.trim();
+    if (!groupName) { alert("항목 명칭을 입력하세요."); return; }
+
+    // Check for duplicates
+    if (MASTER.customGroups.some(g => g.name === groupName) || MASTER[groupName]) {
+        alert("이미 존재하는 항목 이름입니다."); return;
+    }
+
+    const type = document.querySelector('input[name="extraType"]:checked')?.value || 'book';
+    const isVisibleEl = document.getElementById('customGroupVisibleInput');
+    const isVisible = isVisibleEl ? isVisibleEl.checked : true;
+
+    MASTER.customGroups.push({ name: groupName, type: type, isVisible: isVisible });
+    MASTER[groupName] = [];
+    input.value = "";
+    if (isVisibleEl) isVisibleEl.checked = true;
+
+    renderSpec();
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function syncCommonData(mode, groupTitle, key, value) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const storageKey = groupTitle + "_" + key;
+    if (mode === 'sheet') {
+        priceData.sheetCommons[storageKey] = parseFloat(value) || 0;
+    } else {
+        priceData.rollCommons[storageKey] = parseFloat(value) || 0;
+    }
+    sync();
+}
+
+function syncData(type, id, field, value) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const list = ['sheetSpecs', 'rollSpecs', 'commons'].includes(type) ? priceData[type] : MASTER[type];
+
+    if (typeof list[0] === 'object') {
+        const item = list.find(x => String(x.id) === String(id));
+        if (item) {
+            if (field.includes('.')) {
+                const parts = field.split('.');
+                if (parts.length === 3) {
+                    item[parts[0]][parts[1]][parts[2]] = parseFloat(value) || 0;
+                } else {
+                    item[parts[0]][parts[1]] = parseFloat(value) || 0;
+                }
+            } else {
+                item[field] = field === 'n' ? value : parseFloat(value) || 0;
+            }
+        }
+    } else {
+        list[id] = value;
+    }
+    sync();
+}
+
+function addItem(type) {
+    const newId = Date.now();
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+
+    if (type === 'sheetSpecs') priceData[type].push({ id: newId, n: '새 규격', bw: 0, cl: 0, face: 0 });
+    else if (type === 'rollSpecs') {
+        // Find existing rollSpec to copy IVS structure, or use default
+        const ivs = priceData.rollSpecs.length > 0 ? JSON.parse(JSON.stringify(priceData.rollSpecs[0].ivs)) : [];
+        priceData[type].push({ id: newId, n: '새 규격', ivs: ivs });
+    }
+    else if (type === 'commons') priceData[type].push({ id: newId, n: '새 항목', v: 0 });
+    else if (MASTER.customGroups.some(g => g.name === type)) MASTER[type].push('새 항목');
+    else MASTER[type].push('새 항목');
+
+    renderSpec();
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function removeItem(type, id) {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const target = ['sheetSpecs', 'rollSpecs', 'commons'].includes(type) ? priceData : MASTER;
+
+    if (typeof target[type][0] === 'object') {
+        target[type] = target[type].filter(x => String(x.id) !== String(id));
+    } else {
+        target[type].splice(id, 1);
+    }
+    renderSpec();
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function moveItem(type, id, direction) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const list = ['sheetSpecs', 'rollSpecs', 'commons'].includes(type) ? priceData[type] : MASTER[type];
+
+    let idx;
+    if (typeof list[0] === 'object') {
+        idx = list.findIndex(x => String(x.id) === String(id));
+    } else {
+        idx = parseInt(id);
+    }
+
+    if (idx === -1 || isNaN(idx)) return;
+
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+
+    // Swap
+    [list[idx], list[targetIdx]] = [list[targetIdx], list[idx]];
+
+    renderSpec();
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function renderSpec() {
+    if (!MASTER.pricesByGrade[MASTER.currentGrade]) {
+        ensureGradeData();
+    }
+    const draw = (cid, type) => {
+        const container = document.getElementById(cid);
+        if (!container) return;
+        const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+        const list = ['sheetSpecs', 'rollSpecs'].includes(type) ? priceData[type] : MASTER[type];
+
+        container.innerHTML = (list || []).map((it, idx) => {
+            const isObj = typeof it === 'object';
+            const val = isObj ? it.n : it;
+            const id = isObj ? it.id : idx;
+            return `
+                <div class="flex gap-1 items-center bg-white p-1.5 rounded-lg border border-slate-200">
+                    <input class="input-pptx border-none text-[12px] h-7" value="${val}" oninput="syncData('${type}', ${id}, '${isObj ? 'n' : idx}', this.value)">
+                    <div class="flex flex-col gap-0.5">
+                        <button onclick="moveItem('${type}', '${id}', -1)" class="text-slate-300 hover:text-sky-500"><i data-lucide="chevron-up" class="w-2.5 h-2.5"></i></button>
+                        <button onclick="moveItem('${type}', '${id}', 1)" class="text-slate-300 hover:text-sky-500"><i data-lucide="chevron-down" class="w-2.5 h-2.5"></i></button>
+                    </div>
+                    <button onclick="removeItem('${type}', ${id})" class="text-slate-300 hover:text-red-500 ml-1"><i data-lucide="x" class="w-3 h-3"></i></button>
+                </div>`;
+        }).join('');
+    };
+
+    ['sheetSpecs', 'rollSpecs', 'coverPapers', 'innerPapers', 'facePapers', 'coating', 'binding', 'wing', 'coverPrinting', 'innerPrinting', 'faceInsert'].forEach(t => draw('list-' + t, t));
+
+    const customContainer = document.getElementById('custom-groups-container');
+    if (customContainer) {
+        customContainer.innerHTML = (MASTER.customGroups || []).map(group => `
+            <div class="card-common bg-slate-100 border-slate-200">
+                <div class="section-title">
+                    <span class="flex items-center gap-1">${group.name} <span class="${group.type === 'page' ? 'text-emerald-500' : (group.type === 'sheet' ? 'text-amber-500' : 'text-sky-500')} text-[10px] font-normal">(${group.type === 'page' ? 'Page당' : (group.type === 'sheet' ? '장당' : '권당')})</span></span>
+                    <div class="ml-auto flex gap-2">
+                        <button onclick="addItem('${group.name}')" class="text-[10px] text-slate-400 hover:text-slate-600">+ 추가</button>
+                        <button onclick="removeCustomGroup('${group.name}')" class="text-[10px] text-red-300 hover:text-red-500">삭제</button>
+                    </div>
+                </div>
+                <div id="list-${group.name}" class="space-y-1"></div>
+            </div>
+        `).join('');
+
+        (MASTER.customGroups || []).forEach(group => draw('list-' + group.name, group.name));
+    }
+    lucide.createIcons();
+}
+
+function renderPrice() {
+    if (!MASTER.pricesByGrade[MASTER.currentGrade]) {
+        ensureGradeData();
+    }
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade] || { sheetSpecs: [], rollSpecs: [], commons: [], sheetCommons: {}, rollCommons: {} };
+
+    // Toggle adjuster panels based on current grade
+    const sheetAdjuster = document.getElementById('sheet-adjuster-panel');
+    const rollAdjuster = document.getElementById('roll-adjuster-panel');
+    if (MASTER.currentGrade === '일반등급(표준)') {
+        if (sheetAdjuster) sheetAdjuster.style.display = 'none';
+        if (rollAdjuster) rollAdjuster.style.display = 'none';
+    } else {
+        if (sheetAdjuster) sheetAdjuster.style.display = 'flex';
+        if (rollAdjuster) rollAdjuster.style.display = 'flex';
+    }
+
+    const sheetGrid = document.getElementById('price-sheet-grid');
+    if (sheetGrid) {
+        sheetGrid.innerHTML = (priceData.sheetSpecs || []).map(s => `
+            <div class="price-card-slim">
+                <div class="text-[11px] font-bold w-24 truncate text-slate-500">${s.n}</div>
+                <div class="flex gap-3 items-center ml-auto">
+                    <div class="flex items-center gap-1"><span class="text-[9px] text-slate-400">흑</span><input class="price-input-small" value="${s.bw}" oninput="syncData('sheetSpecs',${s.id},'bw',this.value)"></div>
+                    <div class="flex items-center gap-1"><span class="text-[9px] text-sky-400">컬</span><input class="price-input-small text-sky-600" value="${s.cl}" oninput="syncData('sheetSpecs',${s.id},'cl',this.value)"></div>
+                    <div class="flex items-center gap-1"><span class="text-[9px] text-emerald-400">면</span><input class="price-input-small text-emerald-600" value="${s.face}" oninput="syncData('sheetSpecs',${s.id},'face',this.value)"></div>
+                </div>
+                <button onclick="removeItem('sheetSpecs', ${s.id})" class="text-slate-300 ml-2"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+            </div>`).join('');
+    }
+
+    const renderCommonGrid = (containerId, mode) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const targetMap = mode === 'sheet' ? (priceData.sheetCommons || {}) : (priceData.rollCommons || {});
+        const groups = [
+            { title: '표지인쇄', items: MASTER.coverPrinting },
+            { title: '코팅방식', items: MASTER.coating },
+            { title: '표지날개', items: MASTER.wing },
+            { title: '제본방식', items: MASTER.binding },
+            { title: '내지인쇄', items: MASTER.innerPrinting },
+            ...(MASTER.customGroups || []).map(g => ({ title: g.name, items: MASTER[g.name] || [] }))
+        ];
+
+        container.innerHTML = groups.map(g => `
+            <div class="bg-white p-3 border rounded-xl flex flex-col gap-2">
+                <div class="text-[11px] font-black text-sky-700 bg-sky-50 px-2 py-1 rounded-md w-fit">${g.title}</div>
+                <div class="space-y-1.5">
+                    ${(g.items || []).map(item => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-600 truncate mr-1">${item}</span>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <input class="price-input-small w-16 text-right font-bold text-emerald-600" value="${targetMap[g.title + '_' + item] || 0}" oninput="syncCommonData('${mode}', '${g.title}', '${item}', this.value)">
+                                <span class="text-[9px] text-slate-400">원</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    };
+    renderCommonGrid('price-sheet-common-grid', 'sheet');
+    renderCommonGrid('price-roll-common-grid', 'roll');
+
+    const rollContainers = document.getElementById('price-roll-containers');
+    if (rollContainers) {
+        rollContainers.innerHTML = (priceData.rollSpecs || []).map(rs => `
+            <div class="bg-white border rounded-2xl overflow-hidden">
+                <div class="bg-slate-50 px-4 py-2 border-b flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-700">${rs.n} 슬라이딩 단가 (${MASTER.currentGrade})</span>
+                    <button onclick="addRollInterval(${rs.id})" class="text-[10px] bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1 rounded-md font-bold transition-all shadow-sm flex items-center gap-1">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> 구간 추가
+                    </button>
+                </div>
+                <table class="w-full text-xs">
+                    <thead><tr class="bg-slate-50/50"><th>시작부수</th><th>종료부수</th><th>흑백(P)</th><th>컬러(P)</th><th>날개O</th><th>날개X</th><th class="w-12 text-center text-rose-500">삭제</th></tr></thead>
+                    <tbody>
+                        ${(rs.ivs || []).map((iv, ix) => `
+                        <tr class="border-t text-center hover:bg-slate-50/30">
+                            <td class="py-2"><input class="w-12 text-center border-b outline-none" value="${iv.s}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.s',this.value)"></td>
+                            <td><input class="w-12 text-center border-b outline-none" value="${iv.e}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.e',this.value)"></td>
+                            <td><input class="w-12 text-right border-b outline-none" value="${iv.bw}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.bw',this.value)"></td>
+                            <td><input class="w-12 text-right border-b outline-none text-amber-600 font-bold" value="${iv.cl}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.cl',this.value)"></td>
+                            <td><input class="w-12 text-right border-b outline-none" value="${iv.wo}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.wo',this.value)"></td>
+                            <td><input class="w-12 text-right border-b outline-none" value="${iv.wx}" oninput="syncData('rollSpecs',${rs.id},'ivs.${ix}.wx',this.value)"></td>
+                            <td class="py-1">
+                                <button onclick="removeRollInterval(${rs.id}, ${ix})" class="text-slate-300 hover:text-red-500 transition-all p-1">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5 mx-auto"></i>
+                                </button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`).join('');
+    }
+    lucide.createIcons();
+}
+
+function applySheetAdjustment() {
+    const baseGrade = '일반등급(표준)';
+    const currentGrade = MASTER.currentGrade;
+    if (currentGrade === baseGrade) return;
+
+    const bwEl = document.getElementById('adj-sheet-bw');
+    const clEl = document.getElementById('adj-sheet-cl');
+    const faceEl = document.getElementById('adj-sheet-face');
+    if (!bwEl || !clEl || !faceEl) return;
+
+    const adjBw = parseFloat(bwEl.value) || 0;
+    const adjCl = parseFloat(clEl.value) || 0;
+    const adjFace = parseFloat(faceEl.value) || 0;
+
+    const baseData = MASTER.pricesByGrade[baseGrade];
+    if (!baseData) return;
+
+    if (!MASTER.pricesByGrade[currentGrade]) {
+        MASTER.pricesByGrade[currentGrade] = {
+            commons: baseData.commons || [],
+            sheetSpecs: [],
+            rollSpecs: [],
+            sheetCommons: JSON.parse(JSON.stringify(baseData.sheetCommons || {})),
+            rollCommons: JSON.parse(JSON.stringify(baseData.rollCommons || {}))
+        };
+    }
+    const currentData = MASTER.pricesByGrade[currentGrade];
+
+    currentData.sheetSpecs = (baseData.sheetSpecs || []).map(baseSpec => {
+        return {
+            id: baseSpec.id,
+            n: baseSpec.n,
+            bw: Math.max(0, baseSpec.bw + adjBw),
+            cl: Math.max(0, baseSpec.cl + adjCl),
+            face: Math.max(0, baseSpec.face + adjFace)
+        };
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function applyRollAdjustment() {
+    const baseGrade = '일반등급(표준)';
+    const currentGrade = MASTER.currentGrade;
+    if (currentGrade === baseGrade) return;
+
+    const bwEl = document.getElementById('adj-roll-bw');
+    const clEl = document.getElementById('adj-roll-cl');
+    const woEl = document.getElementById('adj-roll-wo');
+    const wxEl = document.getElementById('adj-roll-wx');
+    if (!bwEl || !clEl || !woEl || !wxEl) return;
+
+    const adjBw = parseFloat(bwEl.value) || 0;
+    const adjCl = parseFloat(clEl.value) || 0;
+    const adjWo = parseFloat(woEl.value) || 0;
+    const adjWx = parseFloat(wxEl.value) || 0;
+
+    const baseData = MASTER.pricesByGrade[baseGrade];
+    if (!baseData) return;
+
+    if (!MASTER.pricesByGrade[currentGrade]) {
+        MASTER.pricesByGrade[currentGrade] = {
+            commons: baseData.commons || [],
+            sheetSpecs: [],
+            rollSpecs: [],
+            sheetCommons: JSON.parse(JSON.stringify(baseData.sheetCommons || {})),
+            rollCommons: JSON.parse(JSON.stringify(baseData.rollCommons || {}))
+        };
+    }
+    const currentData = MASTER.pricesByGrade[currentGrade];
+
+    currentData.rollSpecs = (baseData.rollSpecs || []).map(baseSpec => {
+        const ivs = (baseSpec.ivs || []).map(baseIv => {
+            return {
+                s: baseIv.s,
+                e: baseIv.e,
+                bw: Math.max(0, baseIv.bw + adjBw),
+                cl: Math.max(0, baseIv.cl + adjCl),
+                wo: Math.max(0, baseIv.wo + adjWo),
+                wx: Math.max(0, baseIv.wx + adjWx)
+            };
+        });
+        return {
+            id: baseSpec.id,
+            n: baseSpec.n,
+            ivs: ivs
+        };
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function addRollInterval(rsId) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    if (!priceData || !priceData.rollSpecs) return;
+
+    const spec = priceData.rollSpecs.find(r => r.id === rsId);
+    if (!spec) return;
+
+    if (!spec.ivs) spec.ivs = [];
+
+    // Determine the starting copy range based on the last interval
+    let lastEnd = 300;
+    if (spec.ivs.length > 0) {
+        lastEnd = parseInt(spec.ivs[spec.ivs.length - 1].e) || 300;
+    }
+
+    const nextStart = lastEnd + 1;
+    const nextEnd = nextStart + 100;
+
+    spec.ivs.push({
+        s: nextStart,
+        e: nextEnd,
+        bw: 0,
+        cl: 0,
+        wo: 0,
+        wx: 0
+    });
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+function removeRollInterval(rsId, index) {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    if (!priceData || !priceData.rollSpecs) return;
+
+    const spec = priceData.rollSpecs.find(r => r.id === rsId);
+    if (!spec) return;
+
+    if (!spec.ivs || spec.ivs.length <= 1) {
+        alert("최소 1개 이상의 슬라이딩 구간이 유지되어야 합니다.");
+        return;
+    }
+
+    if (!confirm("해당 슬라이딩 구간을 삭제하시겠습니까?")) return;
+
+    spec.ivs.splice(index, 1);
+
+    renderPrice();
+    saveMasterDataSilent();
+}
+
+
+// --- 권한별 메뉴 가시성 제어 (항상 실행되도록 분리) ---
+function updateMenuVisibility(role) {
+    const allMenuIds = [
+        'btn-spec', 'btn-price', 'btn-order', 'btn-settlement',
+        'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt',
+        'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'
+    ];
+
+    // 1. 모든 메뉴 일단 보이기 (초기화)
+    allMenuIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+    });
+
+    // 2. 출판사(publisher)인 경우 제어
+    if (role === 'publisher') {
+        // 숨길 메뉴: 제작사양, 단가관리, 인쇄소관리, 판매도서관리, 재고관리, 구인구직, 시스템설정
+        // 보일 메뉴: 주문하기, 정산, 파트너사관리, 생산진행관리, 용지구매
+        const toHide = ['btn-spec', 'btn-price', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-stock', 'btn-job', 'btn-system-settings'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+
+    // 3. 인쇄소(printer)인 경우 제어
+    if (role === 'printer' || role === 'printer_worker') {
+        // 숨길 메뉴: 정산, 정보관리, 생산진행관리 3개 빼고 다 숨김
+        const toHide = ['btn-spec', 'btn-price', 'btn-order', 'btn-partner', 'btn-store-mgmt', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+
+    // 4. 공모전 심사위원(judge)인 경우 제어
+    if (role === 'judge') {
+        // 숨길 메뉴: 제작사양, 단가관리, 재고관리, 용지구매, 구인구직, 시스템설정
+        const toHide = ['btn-spec', 'btn-price', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+        toHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+}
+
+function showPage(p, isEdit = false) {
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    updateMenuVisibility(role);
+
+    // 에이전트 통제실 실시간 폴링 타이머 초기화
+    if (agentControlPollingIntervalId) {
+        clearInterval(agentControlPollingIntervalId);
+        agentControlPollingIntervalId = null;
+    }
+
+    // 파트너사 정보 수정 중(파일 선택 등) 페이지 이탈 방지
+    if (currentBizFileData) {
+        if (!confirm("수정사항(사업자등록증 등)이 저장되지 않았습니다. 이대로 페이지를 이동하시겠습니까?")) {
+            return;
+        }
+        currentBizFileData = null; // 확인 후 이동 시 데이터 초기화
+    }
+
+    // 모든 콘텐츠 및 메뉴 활성 상태 초기화
+    document.querySelectorAll('.page-content, .sidebar-item').forEach(el => el.classList.remove('active'));
+
+    // 수정 모드 명시적 제어
+    if (!isEdit) {
+        editingOrderId = null;
+    }
+
+    // 페이지 제목 매핑
+    const titles = {
+        'agent-control': '🤖 에이전트 통제실',
+        'spec': '제작 사양 관리',
+        'price': '단가관리',
+        'order': '주문하기',
+        'settlement': '정산 및 주문관리',
+        'partner': '파트너사관리',
+        'printer-mgmt': '인쇄소관리',
+        'store-mgmt': '판매 도서 관리',
+        'production': '생산진행관리',
+        'stock': '재고관리',
+        'paper': '용지구매',
+        'job': '구인구직',
+        'system-settings': '시스템 보안 및 권한 설정'
+    };
+
+    // 제목 업데이트
+    const titleEl = document.getElementById('main-title');
+    if (titleEl && titles[p]) {
+        titleEl.innerText = titles[p];
+    }
+
+    const pageEl = document.getElementById('page-' + p);
+    const btnEl = document.getElementById('btn-' + p);
+
+    if (pageEl) pageEl.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+
+    const priceTools = document.getElementById('price-tools');
+    if (priceTools) {
+        priceTools.className = (p === 'price') ? 'mb-4 flex items-center gap-4 bg-slate-50 p-2 rounded-xl border' : 'hidden';
+    }
+
+    if (p === 'agent-control') {
+        // initAgentControlChart();
+        // loadAgentControlDashboard();
+        // agentControlPollingIntervalId = setInterval(loadAgentControlDashboard, 10000);
+    }
+    if (p === 'spec') renderSpec();
+    if (p === 'price') { renderGradeTabs(); renderPrice(); }
+    if (p === 'partner') {
+        const titleEl = document.getElementById('main-title');
+        if (role === 'publisher') {
+            const userId = sessionStorage.getItem('userId');
+            const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+            titleEl.innerHTML = `<span class="text-sky-600">${myPartner ? myPartner.name : '출판사'}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(기본정보관리)</span>`;
+
+            // 필수 정보 입력 유도 (금번 세션에서 정상 저장 완료한 경우 팝업 생략)
+            const currentBizNum = myPartner?.biz_num || myPartner?.bizNum;
+            const currentAddr = myPartner?.addr;
+            if ((!currentBizNum || !currentAddr) && sessionStorage.getItem('partnerInfoCompleted') !== 'true') {
+                setTimeout(() => {
+                    alert("📢 원활한 주문과 정산을 위해 사업자 정보 및 담당자 정보를 먼저 완성해주세요.");
+                }, 500);
+            }
+        } else {
+            // 관리자 모드일 경우 초기 상태 보정 (모든 잠금 해제)
+            document.getElementById('u_name').readOnly = false;
+            document.getElementById('gradeSearch').disabled = false;
+        }
+        renderPartners();
+    }
+    if (p === 'order') {
+        renderOrder();
+        // 버튼 문구 리셋 로직 추가: 수정 모드가 아니면 '제작', 수정 모드면 '수정'으로 표시
+        const submitBtn = document.getElementById('btn-submit-order');
+        if (submitBtn) {
+            const prefix = editingOrderId ? '수정' : '제작';
+            submitBtn.innerText = mode === 'sheet' ? `${prefix} 등록 완료(낱장)` : `${prefix} 등록 완료(연속지)`;
+        }
+
+        // 등록 도서 불러오기 옵션 렌더링
+        const loadSelect = document.getElementById('ord-load-product');
+        if (loadSelect) {
+            loadSelect.innerHTML = `<option value="">도서를 선택하면 사양이 자동으로 입력됩니다.</option>` +
+                MASTER.products.map(p => `<option value="${p.id}">${p.title} (${p.spec} / ${p.pages}P)</option>`).join('');
+        }
+    }
+    if (p === 'store-mgmt') renderStoreMgmt();
+    if (p === 'production') renderProductionBoard();
+    if (p === 'printer-mgmt') {
+        const titleEl = document.getElementById('main-title');
+        if (role === 'printer' || role === 'printer_worker') {
+            const myPrinter = MASTER.printers[0];
+            titleEl.innerHTML = `<span class="text-indigo-600">${myPrinter.name}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(인쇄소 정보관리)</span>`;
+            if (role === 'printer_worker') {
+                alert("작업자 계정은 정보관리 및 정산 메뉴 접근이 제한됩니다.");
+                showPage('production');
+                return;
+            }
+        }
+        renderPrintersMgmt();
+    }
+    if (p === 'settlement') {
+        if (role === 'printer_worker') {
+            alert("정산 및 주문관리 메뉴에 대한 접근 권한이 없습니다.");
+            showPage('production');
+            return;
+        }
+
+        renderSettlementTable();
+        if (document.getElementById('dashboard-section') && !document.getElementById('dashboard-section').classList.contains('hidden')) {
+            updateChart();
+        }
+    }
+
+    if (p === 'system-settings') renderSystemSettings();
+
+    // 페이지 전환 시 권한 뱃지 업데이트
+    renderRoleBadge(p);
+}
+
+function renderRoleBadge(p) {
+    const container = document.getElementById('role-badge-container');
+    if (!container) return;
+
+    // 생산진행관리(production) 페이지에서만 뱃지 노출
+    if (p !== 'production') {
+        container.innerHTML = '';
+        return;
+    }
+
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    let badgeHtml = '';
+
+    if (role === 'admin') {
+        badgeHtml = `<span class="bg-slate-800 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-tighter flex items-center gap-1 shadow-sm border border-slate-700">
+            <i data-lucide="shield-check" class="w-3 h-3 text-sky-400"></i> 권한: 플랫폼 관리자
+        </span>`;
+    } else if (role === 'printer') {
+        badgeHtml = `<span class="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-tighter flex items-center gap-1 shadow-sm border border-emerald-500">
+            <i data-lucide="factory" class="w-3 h-3"></i> 권한: 인쇄소 마스터
+        </span>`;
+    } else if (role === 'publisher') {
+        badgeHtml = `<span class="bg-sky-600 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-tighter flex items-center gap-1 shadow-sm border border-sky-500">
+            <i data-lucide="book-open" class="w-3 h-3"></i> 권한: 출판사(주문자)
+        </span>`;
+    }
+
+    container.innerHTML = badgeHtml;
+    if (window.lucide) lucide.createIcons();
+}
+
+function renderOrder() {
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const pubSearchBtn = document.getElementById('btn-order-pub-search');
+    const pubNameInput = document.getElementById('order-pub-name');
+
+    // 역할에 따른 검색 버튼 노출 제어
+    if (pubSearchBtn) {
+        pubSearchBtn.style.display = (role === 'admin' || role === 'printer') ? 'block' : 'none';
+    }
+
+    // 출판사 모드일 때 자동 설정 (로그인된 출판사 정보 사용)
+    if (role === 'publisher' && (pubNameInput.value === '테스트 출판사' || !pubNameInput.value)) {
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+        if (myPartner) {
+            pubNameInput.value = myPartner.name;
+            setGrade(myPartner.grade);
+        }
+    }
+
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const fill = (id, list) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = list.map(it => `<option value="${it.n || it}">${it.n || it}</option>`).join('');
+
+        // Restore saved value if exists
+        if (MASTER.orderPersistence && MASTER.orderPersistence[mode] && MASTER.orderPersistence[mode][id]) {
+            el.value = MASTER.orderPersistence[mode][id];
+        }
+    };
+    fill('ord-spec', mode === 'sheet' ? priceData.sheetSpecs : priceData.rollSpecs);
+    fill('ord-binding', MASTER.binding);
+    fill('ord-cover', MASTER.coverPapers);
+    fill('ord-coating', MASTER.coating);
+    fill('ord-printing', MASTER.coverPrinting);
+    fill('ord-wing', MASTER.wing);
+    fill('ord-inner', MASTER.innerPapers);
+    fill('ord-inner-print', MASTER.innerPrinting);
+    fill('ord-face', MASTER.facePapers);
+    fill('ord-face-insert', MASTER.faceInsert);
+
+    // 동적 커스텀 그룹(추가설정) 드롭다운 렌더링
+    const customContainer = document.getElementById('ord-custom-groups-container');
+    const orderCustomSection = document.getElementById('order-custom-settings-section');
+    if (customContainer && orderCustomSection) {
+        const visibleGroups = MASTER.customGroups.filter(g => g.isVisible !== false);
+
+        if (visibleGroups.length === 0) {
+            orderCustomSection.style.display = 'none';
+        } else {
+            orderCustomSection.style.display = 'block';
+            customContainer.innerHTML = visibleGroups.map(group => `
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 mb-1 block">${group.name}</label>
+                    <select id="ord-custom-${group.name}" class="input-pptx bg-white" onchange="sync()">
+                        <option value="">선택 안함</option>
+                        ${(MASTER[group.name] || []).map(item => `<option value="${item}">${item}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+
+            // Restore saved values
+            visibleGroups.forEach(group => {
+                const el = document.getElementById(`ord-custom-${group.name}`);
+                if (el && MASTER.orderPersistence && MASTER.orderPersistence[mode] && MASTER.orderPersistence[mode][`ord-custom-${group.name}`]) {
+                    el.value = MASTER.orderPersistence[mode][`ord-custom-${group.name}`];
+                }
+            });
+        }
+    }
+
+    // 담당자 목록 동적 생성 (선택된 출판사 기준)
+    const mgrSelect = document.getElementById('ord-manager');
+    const partner = MASTER.partners.find(p => p.name === pubNameInput.value);
+    if (mgrSelect) {
+        if (partner && partner.managers) {
+            mgrSelect.innerHTML = '<option value="">선택하세요</option>' +
+                partner.managers.map(m => `<option value="${m.name}">${m.name} (${m.dept})</option>`).join('');
+        } else {
+            mgrSelect.innerHTML = '<option value="">출판사를 먼저 검색하세요</option>';
+        }
+
+        if (MASTER.orderPersistence && MASTER.orderPersistence[mode] && MASTER.orderPersistence[mode]['ord-manager']) {
+            mgrSelect.value = MASTER.orderPersistence[mode]['ord-manager'];
+            updateManager(mgrSelect.value); // 연락처 및 이메일 정보 복구
+        }
+    }
+
+    // Restore non-select inputs
+    const inputsToRestore = ['ord-book-title', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp'];
+    MASTER.customGroups.forEach(g => inputsToRestore.push(`ord-custom-${g.name}`));
+    inputsToRestore.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && MASTER.orderPersistence && MASTER.orderPersistence[mode] && MASTER.orderPersistence[mode][id] !== undefined) {
+            el.value = MASTER.orderPersistence[mode][id];
+        }
+    });
+
+    // 배송지 초기화 (수정 모드일 경우 기존 데이터 로드, 아니면 최초 1회 빈 줄)
+    const container = document.getElementById('delivery-rows-container');
+    if (container) {
+        container.innerHTML = ''; // 초기화
+        const currentOrder = editingOrderId ? MASTER.orders.find(o => o.id === editingOrderId) : null;
+        if (currentOrder && currentOrder.deliveries && currentOrder.deliveries.length > 0) {
+            currentOrder.deliveries.forEach(d => addDeliveryRow(d));
+        } else {
+            addDeliveryRow();
+        }
+    }
+
+    sync();
+}
+
+// 출판사 검색 모달(심플) 열기
+function openOrderPubSearch() {
+    const names = MASTER.partners.map(p => p.name);
+    const choice = prompt("검색할 출판사명을 입력하거나 아래 목록에서 확인하세요:\n\n" + names.join(", "));
+    if (choice) {
+        const partner = MASTER.partners.find(p => p.name.includes(choice));
+        if (partner) {
+            selectOrderPublisher(partner.name);
+        } else {
+            alert("해당 출판사를 찾을 수 없습니다. [파트너사관리]에서 먼저 등록해주세요.");
+        }
+    }
+}
+
+function selectOrderPublisher(name) {
+    const partner = MASTER.partners.find(p => p.name === name);
+    if (!partner) return;
+
+    document.getElementById('order-pub-name').value = partner.name;
+
+    // 해당 출판사의 등급으로 단가 즉시 변경
+    setGrade(partner.grade);
+
+    // 담당자 목록 및 전체 화면 갱신
+    renderOrder();
+
+    // 담당자가 1명뿐일 경우 자동 선택
+    if (partner.managers && partner.managers.length === 1) {
+        const mgrName = partner.managers[0].name;
+        const mgrSelect = document.getElementById('ord-manager');
+        if (mgrSelect) {
+            mgrSelect.value = mgrName;
+            updateManager(mgrName);
+            // 데이터 영속성에도 즉시 반영
+            if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
+            MASTER.orderPersistence[mode]['ord-manager'] = mgrName;
+            saveMasterDataSilent();
+        }
+    }
+
+    alert(`[${partner.name}] 출판사가 선택되었습니다. [${partner.grade}] 단가가 자동 적용됩니다.`);
+}
+
+function updateManager(name) {
+    const pubName = document.getElementById('order-pub-name').value;
+    const partner = MASTER.partners.find(p => p.name === pubName);
+    const mgr = (partner && partner.managers) ? partner.managers.find(m => m.name === name) : null;
+
+    const data = mgr || { tel: "", email: "" };
+    const telInput = document.getElementById('ord-mgr-tel');
+    const emailInput = document.getElementById('ord-mgr-email');
+    if (telInput) telInput.value = data.tel || "";
+    if (emailInput) emailInput.value = data.email || "";
+}
+
+function setMode(m) {
+    mode = m;
+    const ms = document.getElementById('ms');
+    const mr = document.getElementById('mr');
+    if (ms) ms.className = m === 'sheet' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
+    if (mr) mr.className = m === 'roll' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
+
+    // Toggle Face Paper views
+    const sheetFace = document.getElementById('ord-face-sheet-view');
+    const rollFace = document.getElementById('ord-face-roll-view');
+    if (sheetFace) sheetFace.className = m === 'sheet' ? 'space-y-4' : 'hidden';
+    if (rollFace) rollFace.className = m === 'roll' ? 'space-y-1 text-[11px] font-bold leading-relaxed text-emerald-800 italic' : 'hidden';
+
+    // Update Submit Button Text (수정 모드 여부에 따라 문구 변경)
+    const submitBtn = document.getElementById('btn-submit-order');
+    if (submitBtn) {
+        const prefix = editingOrderId ? '수정' : '제작';
+        submitBtn.innerText = m === 'sheet' ? `${prefix} 등록 완료(낱장)` : `${prefix} 등록 완료(연속지)`;
+    }
+
+    renderOrder();
+}
+
+function calculatePages() {
+    const tpInput = document.getElementById('ord-tp');
+    const cpInput = document.getElementById('ord-cp');
+    const bpInput = document.getElementById('ord-bp');
+    const innerPrint = document.getElementById('ord-inner-print')?.value || '';
+
+    const tp = parseInt(tpInput.value) || 0;
+
+    // 내지 인쇄 방식에 따라 cp 자동 설정 (부분컬러 모드일 때는 사용자 입력 허용)
+    if (!innerPrint.includes('부분컬러')) {
+        if (innerPrint.includes('컬러')) {
+            cpInput.value = tp;
+        } else if (innerPrint.includes('흑백')) {
+            cpInput.value = 0;
+        }
+    }
+
+    const cp = parseInt(cpInput.value) || 0;
+    let bp = tp - cp;
+    if (bp < 0) bp = 0;
+    bpInput.value = bp;
+}
+
+function sync() {
+    const priceData = MASTER.pricesByGrade[MASTER.currentGrade];
+    const qty = parseInt(document.getElementById('ord-qty')?.value) || 0;
+    const tp = parseInt(document.getElementById('ord-tp')?.value) || 0;
+    const cp = parseInt(document.getElementById('ord-cp')?.value) || 0;
+    const bp = parseInt(document.getElementById('ord-bp')?.value) || 0;
+    const specName = document.getElementById('ord-spec')?.value || '';
+
+    let each = 0;
+    let logs = [];
+    const addLog = (label, amount) => {
+        if (amount > 0) {
+            logs.push(`<div class="text-slate-500">${label}</div><div class="text-right font-black text-sky-600">${Math.round(amount).toLocaleString()}원</div>`);
+        }
+    };
+
+    const findCommon = (n) => (priceData.commons.find(c => c.n.includes(n)) || { v: 0 }).v;
+
+    const innerPrint = document.getElementById('ord-inner-print')?.value || '';
+    const isSingleSided = innerPrint.includes('단면');
+    const physicalSheets = isSingleSided ? tp : (tp / 2);
+
+    if (mode === 'sheet') {
+        const spec = priceData.sheetSpecs.find(s => s.n === specName);
+        if (spec) {
+            let currentSpec = spec;
+            if (specName.includes('사용자규격') || specName.includes('변형')) {
+                const customSize = document.getElementById('ord-custom-size')?.value || '';
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    if (w <= 148) {
+                        currentSpec = priceData.sheetSpecs.find(s => s.n.includes('A5국판')) || spec;
+                    } else if (w <= 176) {
+                        currentSpec = priceData.sheetSpecs.find(s => s.n.includes('크라운판')) || spec;
+                    } else {
+                        currentSpec = priceData.sheetSpecs.find(s => s.n.includes('국배판')) || spec;
+                    }
+                }
+            }
+
+            // 1-2, 1-4, 1-5: 페이지 단가 (규격별 흑백/컬러 적용)
+            let innerPrintCost = (bp * currentSpec.bw) + (cp * currentSpec.cl);
+
+            if (isSingleSided) {
+                innerPrintCost = innerPrintCost / 2;
+                let surcharge = (tp / 2) * findCommon('단면할증');
+                each += surcharge;
+                addLog('내지 단면 할증', surcharge);
+            }
+            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            each += innerPrintCost;
+
+            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            const innerPaper = document.getElementById('ord-inner')?.value || '';
+            if (innerPaper.includes('100g')) {
+                let surcharge = tp * findCommon('100g용지할증');
+                each += surcharge;
+                addLog('내지 용지 할증 (100g)', surcharge);
+            } else if (innerPaper.includes('120g')) {
+                let surcharge = tp * findCommon('120g용지할증');
+                each += surcharge;
+                addLog('내지 용지 할증 (120g)', surcharge);
+            }
+
+            // [하이브리드 개편] 기존 5대 공통 그룹 합산
+            const groupMap = {
+                'ord-printing': '표지인쇄',
+                'ord-coating': '코팅방식',
+                'ord-wing': '표지날개',
+                'ord-binding': '제본방식',
+                'ord-inner-print': '내지인쇄'
+            };
+            const commonFields = ['ord-printing', 'ord-coating', 'ord-wing', 'ord-binding', 'ord-inner-print'];
+            commonFields.forEach(id => {
+                const val = document.getElementById(id)?.value;
+                const groupTitle = groupMap[id];
+                const storageKey = groupTitle + "_" + val;
+                if (val && val !== '선택 안함' && priceData.sheetCommons[storageKey] !== undefined) {
+                    let cost = priceData.sheetCommons[storageKey];
+                    each += cost;
+                    addLog(`${groupTitle} (${val})`, cost);
+                }
+            });
+
+            // [하이브리드 개편] 커스텀 카테고리 합산
+            MASTER.customGroups.forEach(group => {
+                const val = document.getElementById(`ord-custom-${group.name}`)?.value;
+                const storageKey = group.name + "_" + val;
+                if (val && val !== '선택 안함' && priceData.sheetCommons[storageKey] !== undefined) {
+                    let cost = priceData.sheetCommons[storageKey];
+                    if (group.type === 'page') cost = cost * tp;
+                    else if (group.type === 'sheet') cost = cost * (tp / 2);
+                    each += cost;
+                    addLog(`${group.name} (${val})`, cost);
+                }
+            });
+
+            // 1-10: 면지 설정
+            const facePaper = document.getElementById('ord-face')?.value;
+            const faceInsert = document.getElementById('ord-face-insert')?.value;
+
+            // 수정요청: 면지용지 없음 선택 시 할증 없음, 용지 선택 시 면지 단가 적용
+            if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                let multiplier = 0;
+                if (faceInsert.includes('4P')) multiplier = 4;
+                else if (faceInsert.includes('8P')) multiplier = 8;
+
+                let faceCost = (currentSpec.face || 0) * multiplier;
+                each += faceCost;
+                addLog(`면지 추가 (${faceInsert})`, faceCost);
+            }
+        }
+    } else {
+        // 디지털 연속지 인쇄 로직 (브라켓 방식 유지)
+        const spec = priceData.rollSpecs.find(r => r.n === specName);
+        if (spec) {
+            let bracket = spec.ivs.find(v => qty >= v.s && qty <= v.e) || spec.ivs[spec.ivs.length - 1];
+
+            if (specName.includes('사용자규격') || specName.includes('변형')) {
+                const customSize = document.getElementById('ord-custom-size')?.value || '';
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    let fallbackSpec;
+                    if (w <= 152) {
+                        fallbackSpec = priceData.rollSpecs.find(s => s.n.includes('신국판')) || spec;
+                    } else {
+                        fallbackSpec = priceData.rollSpecs.find(s => s.n.includes('크라운판')) || spec;
+                    }
+                    if (fallbackSpec && fallbackSpec.ivs) {
+                        bracket = fallbackSpec.ivs.find(v => qty >= v.s && qty <= v.e) || fallbackSpec.ivs[fallbackSpec.ivs.length - 1];
+                    }
+                }
+            }
+
+            // 2. 내지 관련 비용 (페이지 단가 + 용지 할증)
+            let innerPrintCost = (bp * bracket.bw) + (cp * bracket.cl);
+
+            if (isSingleSided) {
+                innerPrintCost = innerPrintCost / 2;
+                let surcharge = (tp / 2) * findCommon('단면할증');
+                each += surcharge;
+                addLog('내지 단면 할증', surcharge);
+            }
+            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            each += innerPrintCost;
+
+            // 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            const innerPaper = document.getElementById('ord-inner')?.value || '';
+            if (innerPaper.includes('100g')) {
+                let surcharge = tp * findCommon('100g용지할증');
+                each += surcharge;
+                addLog('내지 용지 할증 (100g)', surcharge);
+            } else if (innerPaper.includes('120g')) {
+                let surcharge = tp * findCommon('120g용지할증');
+                each += surcharge;
+                addLog('내지 용지 할증 (120g)', surcharge);
+            }
+
+            // 1. 표지 관련 비용 (날개 유무에 따른 연속지 슬라이딩 단가 유지 - Hybrid)
+            const wingVal = document.getElementById('ord-wing')?.value;
+            let coverCost = (wingVal === '날개 있음') ? bracket.wo : bracket.wx;
+            each += coverCost;
+            addLog(`표지 인쇄 (${wingVal})`, coverCost);
+
+            // [하이브리드 개편] 기존 5대 공통 그룹 합산 (디지털 연속지)
+            const groupMap = {
+                'ord-printing': '표지인쇄',
+                'ord-coating': '코팅방식',
+                'ord-wing': '표지날개',
+                'ord-binding': '제본방식',
+                'ord-inner-print': '내지인쇄'
+            };
+            const commonFields = ['ord-printing', 'ord-coating', 'ord-wing', 'ord-binding', 'ord-inner-print'];
+            commonFields.forEach(id => {
+                const val = document.getElementById(id)?.value;
+                const groupTitle = groupMap[id];
+                const storageKey = groupTitle + "_" + val;
+                if (val && val !== '선택 안함' && priceData.rollCommons[storageKey] !== undefined) {
+                    let cost = priceData.rollCommons[storageKey];
+                    each += cost;
+                    addLog(`${groupTitle} (${val})`, cost);
+                }
+            });
+
+            // [하이브리드 개편] 커스텀 카테고리 합산 (디지털 연속지)
+            MASTER.customGroups.forEach(group => {
+                const val = document.getElementById(`ord-custom-${group.name}`)?.value;
+                const storageKey = group.name + "_" + val;
+                if (val && val !== '선택 안함' && priceData.rollCommons[storageKey] !== undefined) {
+                    let cost = priceData.rollCommons[storageKey];
+                    if (group.type === 'page') cost = cost * tp;
+                    else if (group.type === 'sheet') cost = cost * (tp / 2);
+                    each += cost;
+                    addLog(`${group.name} (${val})`, cost);
+                }
+            });
+        }
+    }
+
+    // 계산 로그 화면에 출력
+    const logContainer = document.getElementById('price-log-content');
+    if (logContainer) {
+        if (logs.length > 0) {
+            logContainer.innerHTML = logs.join('');
+            logContainer.innerHTML += `<div class="col-span-2 border-t border-slate-700 mt-2 pt-2 text-right font-black text-sky-400 text-xs">총 권당 단가: ${Math.round(each).toLocaleString()}원</div>`;
+        } else {
+            logContainer.innerHTML = '<div class="col-span-2 text-slate-400 text-center py-2 italic">상세 내역이 없습니다. (규격 및 수량을 입력해주세요)</div>';
+        }
+    }
+
+    // 데이터 영속성 저장
+    if (!MASTER.orderPersistence) MASTER.orderPersistence = { sheet: {}, roll: {} };
+    if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
+
+    const ids = [
+        'order-pub-name', 'ord-manager', 'ord-book-title',
+        'ord-spec', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp',
+        'ord-cover', 'ord-printing', 'ord-coating', 'ord-wing', 'ord-binding',
+        'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert'
+    ];
+    MASTER.customGroups.forEach(g => ids.push(`ord-custom-${g.name}`));
+
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) MASTER.orderPersistence[mode][id] = el.value;
+    });
+    saveMasterDataSilent();
+
+    const rEach = document.getElementById('r-each');
+    const rTotal = document.getElementById('r-total');
+    if (rEach) rEach.innerText = Math.round(each).toLocaleString();
+    if (rTotal) rTotal.innerText = Math.round(each * qty).toLocaleString();
+}
+
+function renderProductionBoard() {
+    const board = document.getElementById('kanban-board');
+    if (!board) return;
+
+    const columns = [
+        { id: '접수대기', title: '접수대기', color: 'slate' },
+        { id: '인쇄/가공중', title: '인쇄/가공중', color: 'sky' },
+        { id: '포장대기', title: '포장대기', color: 'amber' },
+        { id: '출고완료', title: '출고완료', color: 'emerald' },
+        { id: '작업보류', title: '작업보류', color: 'rose' }
+    ];
+
+    board.innerHTML = columns.map(col => `
+        <div class="flex-shrink-0 w-[300px] kb-col-${col.color} rounded-2xl p-4 flex flex-col h-full border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4 px-1">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-${col.color}-500 shadow-sm"></div>
+                    <span class="font-black kb-header-${col.color} text-sm">${col.title}</span>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500 bg-white/80 px-2.5 py-1 rounded-full border border-slate-200/50">
+                    ${MASTER.orders.filter(o => (o.status || '접수대기') === col.id && !o.isDeleted).length}
+                </span>
+            </div>
+            <div class="flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar" id="col-${col.id}"></div>
+        </div>
+    `).join('');
+
+    MASTER.orders.filter(o => !o.isDeleted).forEach(order => {
+        if (!order.status) order.status = '접수대기';
+
+        const colContainer = document.getElementById(`col-${order.status}`);
+        if (!colContainer) return;
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all group";
+
+        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+
+        // 카드 하단 액션 버튼
+        let actionHtml = '';
+        if (role === 'admin' || role === 'printer' || role === 'printer_worker') {
+            if (order.status === '접수대기') {
+                actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="changeProdStatus('${order.id}', '인쇄/가공중')">인쇄시작</button>`;
+            } else if (order.status === '인쇄/가공중') {
+                actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="changeProdStatus('${order.id}', '포장대기')">가공완료</button>`;
+            } else if (order.status === '포장대기') {
+                actionHtml = `<button class="k-btn k-btn-primary flex-1" onclick="promptTracking('${order.id}')">송장입력/배송</button>`;
+            } else if (order.status === '작업보류') {
+                actionHtml = `
+                    ${role === 'admin' ? `
+                    <button class="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-100 transition-all border border-rose-100 flex items-center justify-center gap-1 text-xs font-bold flex-1" onclick="trashOrder('${order.id}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        완전삭제
+                    </button>` : ''}`;
+            }
+        } else if (role === 'publisher') {
+            if (order.status === '접수대기') {
+                actionHtml = `<button class="k-btn k-btn-outline flex-1" onclick="changeProdStatus('${order.id}', '작업보류')">보류</button>`;
+            } else if (order.status === '작업보류') {
+                actionHtml = `<button class="k-btn k-btn-outline flex-1" onclick="changeProdStatus('${order.id}', '접수대기')">보류해제</button>`;
+            }
+        }
+
+        const customSize = order.data['ord-custom-size'];
+        const isCustomSize = customSize && (order.data['ord-spec']?.includes('사용자규격') || order.data['ord-spec']?.includes('변형'));
+        const customBadgeHtml = isCustomSize ? `<div class="mt-1"><span class="bg-rose-50 text-rose-600 px-2 py-0.5 rounded text-[10px] font-black border border-rose-200">직접입력: ${customSize}</span></div>` : '';
+
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="openOrderDetails('${order.id}')">
+                <div class="text-[10px] font-black text-slate-400">ID: ${order.id.slice(-6)}</div>
+                <div class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-100">${order.mode === 'sheet' ? '낱장' : '연속지'}</div>
+            </div>
+            <div class="font-black text-slate-800 text-sm mb-1 leading-tight line-clamp-2 cursor-pointer" onclick="openOrderDetails('${order.id}')">${order.bookTitle}</div>
+            ${customBadgeHtml}
+            <div class="text-[11px] font-bold text-slate-500 ${order.status === '출고완료' ? 'mb-1' : 'mb-3'}">${order.pubName} / ${order.qty}부</div>
+            ${order.status === '출고완료' && order.deliveries ? `
+                <div class="space-y-1 mb-3">
+                    ${order.deliveries.map(d => `
+                        <div class="bg-emerald-50 text-emerald-700 text-[9px] font-black p-2 rounded-lg border border-emerald-100 flex flex-col gap-0.5 shadow-sm">
+                            <div class="flex justify-between">
+                                <span><i data-lucide="user" class="w-2.5 h-2.5 inline mr-1"></i>${d.recipient} (${d.qty}부)</span>
+                                <span class="text-[8px] opacity-70">${(d.address || '').slice(0, 12)}...</span>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-emerald-100 pt-1 mt-1">
+                                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <i data-lucide="truck" class="w-3 h-3"></i>
+                                    <span class="truncate">송장: ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => t.code).join(', ') : (d.trackingNum || '미입력')}</span>
+                                </div>
+                                ${(role === 'admin' || role === 'printer' || role === 'printer_worker') ? `<button onclick="promptTracking('${order.id}')" class="ml-1 text-[8px] bg-white px-1.5 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition-all">수정</button>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>` : ''}
+            
+            <div class="flex gap-2">
+                ${actionHtml}
+            </div>
+        `;
+        colContainer.appendChild(card);
+    });
+
+    if (window.lucide) lucide.createIcons();
+}
+
+async function changeProdStatus(id, newStatus) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+    order.status = newStatus;
+
+    // [중요] Supabase DB에 상태 업데이트 반영
+    const { error } = await _supabase.from('orders').update({ status: newStatus }).eq('id', id);
+    if (error) {
+        console.error("DB 상태 업데이트 실패:", error);
+        alert("상태 변경 저장 중 오류가 발생했습니다.");
+        return; // 오류 시 중단
+    }
+
+    saveMasterDataSilent();
+    renderProductionBoard();
+}
+
+function promptTracking(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const overlay = document.getElementById('tracking-modal-overlay');
+    const container = document.getElementById('tracking-input-container');
+    if (!overlay || !container) {
+        // Fallback to simple prompt if modal doesn't exist yet (though we should add it to HTML)
+        const num = prompt("송장번호를 입력해주세요:");
+        if (num) {
+            order.trackingNum = num; // Legacy fallback
+            order.status = '출고완료';
+            saveMasterDataSilent();
+            renderProductionBoard();
+        }
+        return;
+    }
+
+    // 모달 상단 텍스트 초기화 (재활용 대응)
+    const mainTitle = document.getElementById('tracking-modal-main-title');
+    const modalLabel = document.getElementById('tracking-modal-label');
+    if (mainTitle) mainTitle.innerText = "배송지별 송장 번호 입력";
+    if (modalLabel) {
+        modalLabel.innerText = "LOGISTICS MANAGEMENT";
+        modalLabel.className = "text-[10px] font-bold text-emerald-600 mb-1 uppercase tracking-widest";
+    }
+
+    document.getElementById('tracking-modal-order-id').innerText = order.id.slice(-6);
+    document.getElementById('tracking-modal-book-title').innerText = order.bookTitle;
+
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const saveBtn = document.getElementById('btn-save-tracking');
+    if (role === 'printer') {
+        saveBtn.innerText = "출고 처리 완료";
+        saveBtn.className = "flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all";
+        saveBtn.onclick = () => saveTrackingNumbers(id);
+        saveBtn.style.display = 'block';
+    } else {
+        saveBtn.style.display = 'none';
+    }
+
+    container.innerHTML = (order.deliveries || []).map((d, idx) => `
+        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <div class="flex justify-between items-start pb-3 border-b border-slate-50">
+                <div>
+                    <div class="text-xs font-black text-slate-800">${d.recipient} (${d.qty}부)</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${d.address} ${d.addressDetail || ''}</div>
+                </div>
+                ${role === 'printer' ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
+            </div>
+            <div id="tracking-rows-${idx}" class="space-y-2">
+                ${((d.trackingList && d.trackingList.length > 0) ? d.trackingList : [{ courier: 'CJ대한통운', code: d.trackingNum || '' }]).map((t, tIdx) => renderTrackingRow(idx, tIdx, t)).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    overlay.classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function renderTrackingRow(dIdx, tIdx, data) {
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const isPrinter = role === 'printer';
+
+    return `
+        <div class="flex gap-2 items-center tracking-row-item" data-didx="${dIdx}">
+            <select class="t-courier input-pptx py-1.5 text-[11px] w-24" ${!isPrinter ? 'disabled' : ''}>
+                <option value="CJ대한통운" ${data.courier === 'CJ대한통운' ? 'selected' : ''}>CJ대한통운</option>
+                <option value="로젠택배" ${data.courier === '로젠택배' ? 'selected' : ''}>로젠택배</option>
+                <option value="한진택배" ${data.courier === '한진택배' ? 'selected' : ''}>한진택배</option>
+                <option value="롯데택배" ${data.courier === '롯데택배' ? 'selected' : ''}>롯데택배</option>
+                <option value="우체국택배" ${data.courier === '우체국택배' ? 'selected' : ''}>우체국택배</option>
+                <option value="경동택배" ${data.courier === '경동택배' ? 'selected' : ''}>경동택배</option>
+                <option value="직접배송" ${data.courier === '직접배송' ? 'selected' : ''}>직접배송</option>
+            </select>
+            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="송장번호" ${!isPrinter ? 'readonly' : ''}>
+            <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isPrinter ? 'readonly' : ''}>
+            <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isPrinter ? 'readonly' : ''}>
+            ${isPrinter ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
+        </div>
+    `;
+}
+
+function addTrackingRow(dIdx) {
+    const container = document.getElementById(`tracking-rows-${dIdx}`);
+    if (!container) return;
+    const div = document.createElement('div');
+    div.innerHTML = renderTrackingRow(dIdx, Date.now(), { courier: 'CJ대한통운', code: '' });
+    container.appendChild(div.firstElementChild);
+    lucide.createIcons();
+}
+
+async function saveTrackingNumbers(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    let totalShippingCost = 0;
+
+    (order.deliveries || []).forEach((d, idx) => {
+        const rows = document.querySelectorAll(`.tracking-row-item[data-didx="${idx}"]`);
+        d.trackingList = Array.from(rows).map(row => {
+            const costVal = row.querySelector('.t-cost').value;
+            const cost = costVal ? parseInt(costVal) : 0;
+            totalShippingCost += cost;
+            return {
+                courier: row.querySelector('.t-courier').value,
+                code: row.querySelector('.t-code').value.trim(),
+                box: row.querySelector('.t-box').value.trim(),
+                cost: cost
+            };
+        }).filter(t => t.code !== '' || t.cost > 0 || t.box !== '');
+
+        // 하위 호환성을 위해 첫 번째 송장번호 저장
+        d.trackingNum = d.trackingList.length > 0 ? d.trackingList[0].code : '';
+    });
+
+    order.shippingCost = totalShippingCost;
+    order.finalTotalPrice = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) + totalShippingCost;
+
+    order.status = '출고완료';
+    
+    // [보완] DB 컬럼 부족 오류 방지를 위해 배송 정보를 'data' 주머니 안에 포함
+    if (!order.data) order.data = {};
+    order.data.shippingCost = totalShippingCost;
+    order.data.finalTotalPrice = order.finalTotalPrice;
+
+    // [중요] Supabase DB에 배송정보 및 상태 업데이트 반영
+    // (shippingCost, finalTotalPrice 컬럼 대신 data 컬럼 활용)
+    const { error } = await _supabase.from('orders').update({ 
+        status: '출고완료',
+        deliveries: order.deliveries,
+        data: order.data 
+    }).eq('id', id);
+
+    if (error) {
+        console.error("DB 배송 정보 업데이트 실패:", error);
+        alert("배송 정보 DB 저장 중 오류가 발생했습니다.");
+        return; // 오류 시 중단
+    }
+
+    saveMasterDataSilent();
+    closeTrackingModal();
+    renderProductionBoard();
+    alert("배송 정보 및 배송비가 저장되었습니다.");
+}
+
+function closeTrackingModal() {
+    const overlay = document.getElementById('tracking-modal-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+function trashOrder(id) {
+    if (!confirm("이 주문을 목록에서 영구적으로 삭제(휴지통)하시겠습니까?")) return;
+
+    // DB에서 즉시 삭제
+    _supabase.from('orders').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error("DB 삭제 오류:", error);
+    });
+
+    MASTER.orders = MASTER.orders.filter(o => o.id !== id);
+    renderProductionBoard();
+    alert("주문이 영구 삭제되었습니다.");
+}
+
+// 상세 정보 패널 열기
+function openOrderDetails(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+    const isPrinter = (role === 'printer' || role === 'printer_worker');
+    
+    const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
+    const computedTotal = computePurchaseCost(order);
+    const computedUnit = Math.round(computedTotal / rawQty);
+
+    const displayUnit = isPrinter ? computedUnit.toLocaleString() : (order.unitPrice || '0');
+    const displayTotal = isPrinter ? computedTotal.toLocaleString() : (order.totalPrice || '0');
+    const overlay = document.getElementById('order-details-overlay');
+    const panel = document.getElementById('order-details-panel');
+
+    const customSize = order.data['ord-custom-size'];
+    const isCustomSize = !!customSize || (order.data['ord-spec']?.includes('사용자규격') || order.data['ord-spec']?.includes('변형'));
+
+    let specHtml = renderSpecDetailItem('규격', order.data['ord-spec']);
+    if (customSize) {
+        specHtml = renderSpecDetailItem('규격', `${order.data['ord-spec']} <span class="text-rose-600 ml-1">[직접입력: ${customSize}]</span>`);
+    }
+
+    // 패널 내용 구성
+    panel.innerHTML = `
+        <!-- Print Header (Hidden on screen) -->
+        <div class="hidden print:block mb-3 border-b-2 border-black pb-2 px-2 pt-2">
+            <h2 class="text-xl font-black text-black">작업지시서 (Job Ticket)</h2>
+            <div class="text-xs mt-1 text-black">출력일시: ${new Date().toLocaleString()}</div>
+        </div>
+
+        <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-white print:hidden">
+            <div>
+                <div class="text-[10px] font-bold text-sky-600 mb-1">ORDER DETAILS</div>
+                <h3 class="text-lg font-black text-slate-800">주문 상세 명세</h3>
+            </div>
+            <button onclick="closeOrderDetails()" class="p-2 hover:bg-slate-100 rounded-full transition-all">
+                <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6 space-y-8 bg-white print:p-2 print:space-y-3 print:overflow-visible print:text-[11px]">
+            <!-- 기본 정보 -->
+            <div class="space-y-4 print:space-y-1.5">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3 print:pb-1 print:border-black">
+                    <span class="badge ${order.mode === 'sheet' ? 'badge-blue' : 'badge-outline'} print:border-black print:text-black print:bg-white print:text-[10px] print:py-0.5">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                    <span class="text-[11px] font-bold text-slate-400 print:text-black print:text-[10px]">${order.date}</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 leading-tight print:text-black print:text-base">${order.bookTitle}</div>
+                <div class="p-5 bg-white rounded-xl border border-slate-200 print:border-black print:rounded-none print:p-2.5">
+                    <div class="flex justify-between mb-2 print:mb-1"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">출판사</span><span class="text-sm font-black text-slate-800 print:text-black print:text-xs">${order.pubName}</span></div>
+                    <div class="flex justify-between mb-2 print:mb-1"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">담당자</span><span class="text-sm font-black text-slate-800 print:text-black print:text-xs">${order.managerName}</span></div>
+                    <div class="flex justify-between pt-3 mt-1 border-t border-slate-100 print:border-black print:pt-1.5"><span class="text-xs text-slate-500 font-bold print:text-black print:text-[10px]">제작부수</span><span class="text-base font-black text-sky-700 print:text-black print:text-xs">${parseInt(order.qty).toLocaleString()}부</span></div>
+                </div>
+            </div>
+
+            <!-- 제작 사양 요약 -->
+            <div>
+                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black print:mb-1 print:text-[11px]"><i data-lucide="settings-2" class="w-4 h-4 print:hidden"></i>제작 사양 요약</div>
+                <div class="grid grid-cols-1 gap-0 border-t border-slate-200 print:border-black">
+                    ${specHtml}
+                    ${renderSpecDetailItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
+                    ${renderSpecDetailItem('표지용지', order.data['ord-cover'])}
+                    ${renderSpecDetailItem('표지인쇄', order.data['ord-printing'])}
+                    ${renderSpecDetailItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
+                    ${renderSpecDetailItem('제본방식', order.data['ord-binding'])}
+                    ${renderSpecDetailItem('내지용지', order.data['ord-inner'])}
+                    ${renderSpecDetailItem('내지인쇄', order.data['ord-inner-print'])}
+                    ${order.mode === 'sheet' ? renderSpecDetailItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
+                </div>
+                ${isCustomSize ? `<div class="mt-4 p-4 bg-white border border-rose-200 rounded-xl text-rose-700 text-xs font-black flex items-center gap-2 print:border-black print:text-black print:rounded-none print:mt-1.5 print:p-1.5 print:text-[10px]"><i data-lucide="alert-triangle" class="w-4 h-4 print:hidden"></i> *주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+            </div>
+
+            <!-- 배송 정보 -->
+            <div>
+                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2 print:text-black print:mb-1 print:text-[11px]"><i data-lucide="truck" class="w-4 h-4 print:hidden"></i>배송 및 송장 정보</div>
+                <div class="space-y-3 print:space-y-1.5">
+                    ${(order.deliveries || []).map(d => `
+                        <div class="p-4 bg-white rounded-xl border border-slate-200 text-xs print:border-black print:rounded-none print:p-2">
+                            <div class="flex justify-between mb-2 border-b border-slate-100 pb-2 print:border-black print:mb-1 print:pb-1">
+                                <div class="font-black text-slate-800 text-sm print:text-black print:text-xs">${d.recipient} (${d.qty}부)</div>
+                                <div class="text-slate-500 font-bold print:text-black print:text-[10px]">${d.contact}</div>
+                            </div>
+                            <div class="text-slate-600 print:text-black leading-relaxed print:text-[10px]">${d.address} ${d.addressDetail || ''}</div>
+                            <div class="mt-3 space-y-2 print:mt-1.5 print:space-y-1">
+                                ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => `
+                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black print:px-1.5 print:py-0.5">
+                                        <span class="text-[10px] font-bold text-slate-500 print:text-black">${t.courier}</span>
+                                        <span class="font-black text-slate-700 print:text-black print:text-[10px]">${t.code}</span>
+                                    </div>
+                                `).join('') : (d.trackingNum ? `
+                                    <div class="bg-slate-50 px-3 py-2 rounded border border-slate-100 flex justify-between items-center print:bg-white print:border-black print:px-1.5 print:py-0.5">
+                                        <span class="text-[10px] font-bold text-slate-500 print:text-black">송장번호</span>
+                                        <span class="font-black text-slate-700 print:text-black print:text-[10px]">${d.trackingNum}</span>
+                                    </div>
+                                ` : '<div class="text-[10px] text-slate-400 italic print:text-black">송장 미입력</div>')}
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${(!order.deliveries || order.deliveries.length === 0) ? '<div class="text-xs text-slate-400 italic p-4 bg-white rounded-xl border border-dashed border-slate-300 print:border-black print:rounded-none print:text-black print:p-2 text-[10px]">배송 정보가 없습니다.</div>' : ''}
+                </div>
+            </div>
+
+            <!-- 금액 정보 -->
+            ${role === 'printer_worker' ? `
+                <div class="p-6 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center min-h-[90px] print:hidden">
+                    <i data-lucide="lock" class="w-5 h-5 text-slate-200"></i>
+                </div>
+            ` : `
+                <div class="p-6 bg-sky-50 rounded-xl text-sky-900 border border-sky-200 shadow-sm print:bg-white print:border-black print:rounded-none print:shadow-none print:p-2.5">
+                    <div class="flex justify-between items-center mb-4 border-b border-sky-200 pb-4 print:border-black print:mb-1.5 print:pb-1.5">
+                        <span class="text-xs font-bold text-sky-700 print:text-black print:text-[10px]">권당 제작 단가</span>
+                        <span class="text-lg font-black text-sky-800 print:text-black print:text-xs">₩ ${displayUnit}원</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold print:text-black print:text-xs">총 주문 합계</span>
+                        <span class="text-2xl font-black text-sky-700 print:text-black print:text-sm">₩ ${displayTotal}원</span>
+                    </div>
+                    <div class="text-[10px] text-sky-600 font-bold text-right mt-2 print:text-black print:mt-1">* VAT 별도</div>
+                </div>
+            `}
+
+            <!-- 작업 파일 관리 (다운로드 및 출력) -->
+            <div class="mt-8 pt-6 border-t border-slate-200 space-y-4 print:hidden">
+                <div class="text-[12px] font-black text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="file-down" class="w-4 h-4"></i>인쇄용 데이터 및 지시서</div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="downloadOrderFile('${order.id}', '내지')" 
+                        class="flex items-center justify-center gap-2 py-3.5 rounded-xl border ${order.innerFile ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-300 pointer-events-none'} transition-all text-xs font-bold">
+                        <i data-lucide="download" class="w-4 h-4"></i> 내지 다운로드
+                    </button>
+                    <button onclick="downloadOrderFile('${order.id}', '표지')" 
+                        class="flex items-center justify-center gap-2 py-3.5 rounded-xl border ${order.coverFile ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-300 pointer-events-none'} transition-all text-xs font-bold">
+                        <i data-lucide="download" class="w-4 h-4"></i> 표지 다운로드
+                    </button>
+                </div>
+                <button onclick="printJobTicket('${order.id}')" 
+                    class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
+                    <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 border-t border-slate-200 bg-white flex gap-3 print:hidden">
+            ${order.status === '대기' && (role === 'admin' || role === 'publisher') ? `
+                <button onclick="deleteOrder('${order.id}')" class="flex-1 bg-white border border-rose-200 py-3.5 rounded-xl font-bold text-rose-600 text-sm hover:bg-rose-50 transition-all shadow-sm">주문 취소</button>
+            ` : ''}
+            <button onclick="closeOrderDetails()" class="flex-1 bg-slate-100 border border-slate-200 py-3.5 rounded-xl font-black text-slate-700 text-sm hover:bg-slate-200 transition-all shadow-sm">닫기</button>
+        </div>
+    `;
+
+    overlay.classList.remove('hidden');
+    setTimeout(() => {
+        panel.classList.remove('translate-x-full');
+    }, 10);
+    lucide.createIcons();
+}
+
+function closeOrderDetails() {
+    const overlay = document.getElementById('order-details-overlay');
+    const panel = document.getElementById('order-details-panel');
+    if (!overlay || !panel) return;
+
+    panel.classList.add('translate-x-full');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+    }, 300);
+}
+
+function renderSpecDetailItem(label, value) {
+    return `
+        <div class="flex justify-between py-2.5 border-b border-slate-100 text-xs print:border-black print:py-1.5">
+            <span class="text-slate-500 font-bold print:text-black">${label}</span>
+            <span class="text-slate-800 font-black print:text-black">${value || '-'}</span>
+        </div>
+    `;
+}
+
+// [하이브리드 개편] 작업지시서 전용 가상 인쇄 엔진 고도화 (완벽 격리 팝업창 방식)
+function printJobTicket(orderId) {
+    const order = MASTER.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const customSize = order.data['ord-custom-size'];
+    const isCustomSize = !!customSize || (order.data['ord-spec']?.includes('사용자규격') || order.data['ord-spec']?.includes('변형'));
+
+    const rItem = (lbl, val) => `
+        <div class="v-row">
+            <span class="v-row-lbl">${lbl}</span>
+            <span class="v-row-val">${val || '-'}</span>
+        </div>
+    `;
+
+    let deliveryHtml = (order.deliveries || []).map(d => `
+        <div class="v-box" style="margin-top:4px;">
+            <div style="display:flex; justify-content:space-between; font-weight:900; border-bottom:1px solid #ddd; padding-bottom:2px; margin-bottom:3px;">
+                <span>${d.recipient} (${d.qty}부)</span>
+                <span>${d.contact}</span>
+            </div>
+            <div style="font-size:9.5px; margin-bottom:4px;">${d.address} ${d.addressDetail || ''}</div>
+            ${d.trackingList && d.trackingList.length > 0 ? d.trackingList.map(t => `
+                <div style="display:flex; justify-content:space-between; font-size:9.5px; border-top:1px dashed #eee; padding-top:2px;">
+                    <span>${t.courier}</span><span style="font-weight:900">${t.code}</span>
+                </div>
+            `).join('') : (d.trackingNum ? `
+                <div style="display:flex; justify-content:space-between; font-size:9.5px; border-top:1px dashed #eee; padding-top:2px;">
+                    <span>송장번호</span><span style="font-weight:900">${d.trackingNum}</span>
+                </div>
+            ` : '<div style="font-size:9px; font-style:italic">송장 미입력</div>')}
+        </div>
+    `).join('');
+
+    if (!deliveryHtml) deliveryHtml = '<div style="font-size:9.5px; font-style:italic; padding:4px;">배송 정보가 없습니다.</div>';
+
+    const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+
+    // 1. 기존에 생성된 투명 프레임이 있다면 제거 (항상 깨끗한 새 프레임 보장)
+    let oldFrame = document.getElementById('hidden-print-frame');
+    if (oldFrame) oldFrame.remove();
+
+    // 2. 보이지 않는 투명 iframe 생성 및 DOM 부착
+    const iframe = document.createElement('iframe');
+    iframe.id = 'hidden-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    // 3. iframe 내부 문서에 성공한 1장 압축 명세서 HTML 주입
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>작업지시서 - ${order.bookTitle}</title>
+            <style>
+                body {
+                    background: white !important;
+                    color: black !important;
+                    font-family: sans-serif !important;
+                    font-size: 11px !important;
+                    line-height: 1.4 !important;
+                    margin: 0 !important;
+                    padding: 12px !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                @page {
+                    size: A4 portrait;
+                    margin: 10mm;
+                }
+                * {
+                    color: black !important;
+                    border-color: black !important;
+                    box-sizing: border-box !important;
+                }
+                .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
+                .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+                .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
+                .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+                .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
+                .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
+                .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
+                .v-row:last-child { border-bottom: none; }
+                .v-row-lbl { font-weight: bold; }
+                .v-row-val { font-weight: 900; }
+                .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="v-header">
+                <div class="v-title">작업지시서 (Job Ticket)</div>
+                <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
+            </div>
+
+            <div class="v-badge-row">
+                <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
+            </div>
+
+            <div class="v-book-title">${order.bookTitle}</div>
+
+            <div class="v-box">
+                ${rItem('출판사', order.pubName)}
+                ${rItem('담당자', order.managerName)}
+                <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                    <span class="v-row-lbl">제작부수</span>
+                    <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
+                </div>
+            </div>
+
+            <div class="v-sec-title">제작 사양 요약</div>
+            <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
+                ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
+                ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
+                ${rItem('표지용지', order.data['ord-cover'])}
+                ${rItem('표지인쇄', order.data['ord-printing'])}
+                ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
+                ${rItem('제본방식', order.data['ord-binding'])}
+                ${rItem('내지용지', order.data['ord-inner'])}
+                ${rItem('내지인쇄', order.data['ord-inner-print'])}
+                ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
+            </div>
+            ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+
+            <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
+            <div style="border:1px solid black; padding:6px; font-size:10px;">
+                <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
+                <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
+            </div>
+
+            <div class="v-sec-title">배송 및 송장 정보</div>
+            ${deliveryHtml}
+
+            ${role !== 'printer_worker' ? `
+                <div class="v-box" style="margin-top:8px; border-width:2px;">
+                    ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                    <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                        <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
+                        <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                    </div>
+                </div>
+            ` : ''}
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    // 투명 프레임 렌더링 완료 후 조용히 인쇄 호출
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+        iframe.contentWindow.print();
+    }, 250);
+}
+
+
+let deliveryIdx = 0;
+function addDeliveryRow(data = null) {
+    deliveryIdx++;
+    const container = document.getElementById('delivery-rows-container');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.id = `delivery-row-${deliveryIdx}`;
+    row.className = 'delivery-row bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3 relative';
+    row.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">수령인</label><input type="text" class="input-pptx d-recipient" placeholder="이름" value="${data ? data.recipient : ''}"></div>
+            <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">연락처</label><input type="text" class="input-pptx d-contact" placeholder="010-0000" value="${data ? data.contact : ''}"></div>
+        </div>
+        <div>
+            <label class="text-[10px] font-bold text-slate-400 mb-1 block">배송지 주소 (기본)</label>
+            <div class="flex gap-1">
+                <input type="text" id="ord-address-${deliveryIdx}" class="input-pptx d-address flex-1 bg-white" placeholder="주소 검색" readonly value="${data ? data.address : ''}">
+                <button onclick="execDaumPostcode(${deliveryIdx})" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-bold shrink-0">검색</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 items-end">
+            <div class="col-span-3">
+                <label class="text-[10px] font-bold text-slate-400 mb-1 block">상세 주소</label>
+                <input type="text" id="ord-address-detail-${deliveryIdx}" class="input-pptx d-address-detail w-full bg-white" placeholder="나머지 상세 주소 입력" value="${data ? (data.addressDetail || '') : ''}">
+            </div>
+            <div class="col-span-1">
+                <label class="text-[10px] font-bold text-slate-400 mb-1 block">수량</label>
+                <div class="flex gap-1 items-center">
+                    <input type="number" class="input-pptx d-qty" placeholder="부수" value="${data ? data.qty : ''}">
+                    ${container.children.length > 0 ? `<button onclick="removeDeliveryRow(${deliveryIdx})" class="text-red-300 hover:text-red-500 transition-colors p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '<div class="w-6"></div>'}
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(row);
+    if (window.lucide) lucide.createIcons();
+}
+
+function removeDeliveryRow(id) {
+    const row = document.getElementById(`delivery-row-${id}`);
+    if (row) row.remove();
+}
+
+function execDaumPostcode(idx) {
+    if (typeof daum === 'undefined') {
+        return alert("주소 서비스 스크립트가 로드되지 않았습니다. 인터넷 연결을 확인해 주세요.");
+    }
+    new daum.Postcode({
+        oncomplete: function (data) {
+            let addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress;
+            let extraAddr = '';
+            if (data.userSelectedType === 'R') {
+                if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) extraAddr += data.bname;
+                if (data.buildingName !== '' && data.apartment === 'Y') extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                if (extraAddr !== '') extraAddr = ' (' + extraAddr + ')';
+            }
+            const target = document.getElementById(`ord-address-${idx}`);
+            if (target) target.value = addr + extraAddr;
+
+            // 상세주소 입력창으로 포커스 이동
+            const detailTarget = document.getElementById(`ord-address-detail-${idx}`);
+            if (detailTarget) detailTarget.focus();
+        }
+    }).open();
+}
+
+async function submitOrderSheet() {
+    // 1. 데이터 수집
+    const today = new Date().toISOString().split('T')[0];
+    const pubName = document.getElementById('order-pub-name')?.value || '테스트 출판사';
+    const bookTitle = document.getElementById('ord-book-title')?.value || '제목 없음';
+    const managerName = document.getElementById('ord-manager')?.value;
+
+    if (!managerName || managerName === '선택하세요' || managerName === '') {
+        alert("담당자를 선택해주세요. 파트너사 등록 시 등록된 담당자가 리스트에 나타납니다.");
+        return;
+    }
+
+    const unitPrice = document.getElementById('r-each')?.innerText || '0';
+    const qty = document.getElementById('ord-qty')?.value || '0';
+    const totalPrice = document.getElementById('r-total')?.innerText || '0';
+
+    const isEdit = !!editingOrderId;
+    const orderId = isEdit ? editingOrderId : 'ORDER_' + Date.now();
+
+    // 배송 정보 수집
+    const deliveryRows = document.querySelectorAll('.delivery-row');
+    const deliveries = Array.from(deliveryRows).map(row => ({
+        recipient: row.querySelector('.d-recipient').value,
+        contact: row.querySelector('.d-contact').value,
+        address: row.querySelector('.d-address').value,
+        addressDetail: row.querySelector('.d-address-detail').value,
+        qty: row.querySelector('.d-qty').value,
+        trackingList: [] // 다중 송장 구조로 초기화
+    }));
+
+    // 주문 상세 데이터 스냅샷 저장
+    const orderData = {
+        id: orderId,
+        date: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).date : today,
+        mode: mode,
+        pubName: pubName,
+        bookTitle: bookTitle,
+        managerName: managerName,
+        unitPrice: unitPrice,
+        qty: qty,
+        totalPrice: totalPrice,
+        grade: MASTER.currentGrade,
+        deliveries: deliveries,
+        innerFile: currentFiles.inner,
+        coverFile: currentFiles.cover,
+        data: JSON.parse(JSON.stringify(MASTER.orderPersistence[mode])),
+        status: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).status : '접수대기'
+    };
+
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('orders').upsert(orderData);
+
+    if (error) {
+        alert("온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
+    try {
+        // 동일 출판사의 동일 도서명이 있는지 확인
+        const { data: existingProds } = await _supabase
+            .from('products')
+            .select('id, image')
+            .eq('pubName', pubName)
+            .eq('title', bookTitle)
+            .maybeSingle();
+
+        const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
+        const persistence = MASTER.orderPersistence[mode];
+
+        const productData = {
+            id: prodId,
+            title: bookTitle,
+            pubName: pubName,
+            manager: managerName,
+            mode: mode, // 낱장/연속지 구분 정보 추가
+            spec: persistence['ord-spec'] || '',
+            pages: persistence['ord-tp'] || '0',
+            customSize: persistence['ord-custom-size'] || '',
+            image: existingProds ? existingProds.image : null, // 기존 이미지가 있으면 유지
+            details: {
+                innerPaper: persistence['ord-inner'] || '',
+                innerPrint: persistence['ord-inner-print'] || '',
+                partialColor: persistence['ord-cp'] || '0',
+                coverPaper: persistence['ord-cover'] || '',
+                coverPrint: persistence['ord-printing'] || '',
+                coating: persistence['ord-coating'] || '',
+                binding: persistence['ord-binding'] || '',
+                wing: persistence['ord-wing'] || '',
+                facePaper: persistence['ord-face'] || '없음',
+                faceInsert: persistence['ord-face-insert'] || '없음'
+            },
+            date: today
+        };
+
+        // products 테이블에 사양 정보만 저장 (파일은 제외)
+        await _supabase.from('products').upsert(productData);
+        
+        // 메모리 데이터 즉시 반영 (중복 제거 후 최상단 추가)
+        if (!MASTER.products) MASTER.products = [];
+        MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
+        MASTER.products.unshift(productData);
+        
+        console.log("도서 사양이 라이브러리에 자동 등록/갱신되었습니다.");
+    } catch (prodErr) {
+        console.warn("도서 라이브러리 자동 등록 중 오류 (주문은 정상 처리됨):", prodErr);
+    }
+
+    // 메모리 갱신
+    if (isEdit) {
+        const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
+        if (idx !== -1) MASTER.orders[idx] = orderData;
+        editingOrderId = null;
+    } else {
+        MASTER.orders.unshift(orderData);
+    }
+
+    renderSettlementTable();
+    updateSettlementStats();
+
+    alert(isEdit ? "주문 수정이 완료되었습니다." : "제작 등록 신청이 완료되었습니다.");
+
+    // 파일 상태 초기화
+    currentFiles = { inner: null, cover: null };
+    resetFileUI();
+
+    showPage('settlement');
+}
+
+const STORAGE_BUCKET = 'print_files';
+let currentFiles = { inner: null, cover: null };
+
+async function handleFileSelect(type, input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // 1. 용량 제한 체크 (Supabase 무료 티어 기준: 50MB)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 50MB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 50MB를 초과하는 파일은 압축(.zip)하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
+            input.value = '';
+            return;
+        }
+
+        const area = document.getElementById(`file-${type}-area`);
+        const status = document.getElementById(`${type}-file-status`);
+        
+        if (area && status) {
+            // 업로드 준비 상태 UI (프로그레스 바 포함 프리미엄 감성)
+            area.classList.remove('bg-slate-50', 'bg-emerald-50', 'border-emerald-200');
+            area.classList.add('bg-sky-50/50', 'border-sky-300');
+            
+            // 기존 내부 버튼 및 라벨 유지하면서 진행률 표시 컨테이너 추가
+            status.innerHTML = `
+                <div class="flex flex-col gap-1 w-full mt-2">
+                    <div class="flex justify-between items-center text-[10px] font-bold text-sky-700">
+                        <span class="truncate">업로드 중... (${file.name})</span>
+                        <span id="${type}-progress-txt">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div id="${type}-progress-bar" class="bg-sky-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            status.classList.remove('text-slate-400', 'italic');
+        }
+
+        // 안전한 파일명 생성 (특수문자 및 한글 처리 해결 전략)
+        // 1. 저장용 경로는 공백/대괄호가 없는 순수 영문/숫자 중심의 고유 키 생성 (Storage 에러 방지)
+        const fileExt = file.name.split('.').pop();
+        const safeName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `orders/${safeName}`;
+
+        // 부드러운 진행률 애니메이션 (UX WOW 효과)
+        let progress = 0;
+        const pBar = document.getElementById(`${type}-progress-bar`);
+        const pTxt = document.getElementById(`${type}-progress-txt`);
+        
+        const interval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.floor(Math.random() * 10) + 5;
+                if (progress > 90) progress = 90;
+                if (pBar) pBar.style.width = `${progress}%`;
+                if (pTxt) pTxt.textContent = `${progress}%`;
+            }
+        }, 200);
+
+        try {
+            // Supabase Storage 업로드 API 호출
+            const { data, error } = await _supabase.storage
+                .from(STORAGE_BUCKET)
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            clearInterval(interval);
+
+            if (error) {
+                throw error;
+            }
+
+            // 업로드 성공 시 100% 달성 및 데이터 구성
+            if (pBar) pBar.style.width = '100%';
+            if (pTxt) pTxt.textContent = '100%';
+
+            // 공개 다운로드 URL 획득
+            const { data: urlData } = _supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+            const publicUrl = urlData?.publicUrl || '';
+
+            currentFiles[type] = {
+                name: file.name,
+                size: file.size,
+                path: filePath,
+                url: publicUrl,
+                time: new Date().toLocaleString()
+            };
+
+            setTimeout(() => {
+                if (area && status) {
+                    area.classList.remove('bg-sky-50/50', 'border-sky-300');
+                    area.classList.add('bg-emerald-50', 'border-emerald-200');
+                    status.innerHTML = `
+                        <div class="flex items-center justify-center gap-1.5 text-emerald-600 font-bold text-[11px] mt-1">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                            <span class="truncate">${file.name}</span>
+                            <span class="text-[9px] font-normal text-slate-400">(${(file.size / (1024 * 1024)).toFixed(1)}MB)</span>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                }
+            }, 500);
+
+        } catch (err) {
+            clearInterval(interval);
+            console.error("Storage Upload Error:", err);
+            
+            // --- AI Helper 연동 ---
+            if (window.triggerAIError) {
+                window.triggerAIError(err.message || 'Storage Upload Failed');
+            }
+            
+            // 버킷 미생성 또는 권한 오류 시 자가 복구/안내 모드
+            if (area && status) {
+                area.classList.remove('bg-sky-50/50', 'border-sky-300');
+                area.classList.add('bg-amber-50', 'border-amber-200');
+                status.innerHTML = `
+                    <div class="text-amber-600 font-bold text-[10px] mt-1 leading-tight">
+                        ⚠️ 스토리지 연동 지연 (로컬 모드 대체)<br>
+                        <span class="text-slate-400 font-normal text-[9px]">${file.name}</span>
+                    </div>
+                `;
+            }
+
+            // 오프라인/로컬 대체로 파일 정보는 세션에 유지하여 주문이 실패하지 않도록 보호
+            currentFiles[type] = {
+                name: file.name,
+                size: file.size,
+                path: 'local_cache/' + file.name,
+                url: '',
+                time: new Date().toLocaleString(),
+                isLocal: true
+            };
+        }
+    }
+}
+
+function resetFileUI() {
+    ['inner', 'cover'].forEach(type => {
+        const area = document.getElementById(`file-${type}-area`);
+        const status = document.getElementById(`${type}-file-status`);
+        const input = document.getElementById(`${type}-file-input`);
+        if (area && status) {
+            area.classList.remove('bg-emerald-50', 'border-emerald-200', 'bg-sky-50/50', 'border-sky-300', 'bg-amber-50', 'border-amber-200');
+            area.classList.add('bg-slate-50');
+            status.textContent = `선택된 파일 없음`;
+            status.classList.add('text-slate-400', 'italic');
+            status.classList.remove('text-emerald-600', 'font-bold');
+        }
+        if (input) input.value = '';
+    });
+}
+
+function downloadOrderFile(orderId, type) {
+    const order = MASTER.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const file = type === '내지' ? order.innerFile : order.coverFile;
+    if (!file) {
+        alert("첨부된 파일이 없습니다.");
+        return;
+    }
+
+    if (file.url) {
+        // 프리미엄 다운로드 피드백
+        const toast = document.createElement('div');
+        toast.className = "fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce text-xs font-bold";
+        toast.innerHTML = `<i data-lucide="cloud-download" class="w-4 h-4 text-sky-400"></i> <span>원본 파일명으로 안전하게 다운로드합니다.</span>`;
+        document.body.appendChild(toast);
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => toast.remove(), 3000);
+
+        // [수정] 크로스 도메인에서도 원본 파일명으로 다운로드되도록 Fetch/Blob 방식 적용
+        fetch(file.url)
+            .then(response => {
+                if (!response.ok) throw new Error('네트워크 응답이 올바르지 않습니다.');
+                return response.blob();
+            })
+            .then(blob => {
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = file.name; // 원래 한글 파일명 강제 지정
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+            })
+            .catch(err => {
+                console.error("Download Error:", err);
+                // 실패 시 차선책으로 새 탭에서 열기 (기존 방식)
+                const link = document.createElement('a');
+                link.href = file.url;
+                link.target = '_blank';
+                link.click();
+            });
+    } else {
+        alert(`[로컬 파일 또는 스토리지 링크 없음]\n구분: ${type} 데이터\n파일명: ${file.name}\n업로드 시간: ${file.time}\n\n* 스토리지 버킷 연동 전에 등록된 파일이거나 캐시된 파일입니다.`);
+    }
+}
+
+let settlementCurrentPage = 1;
+const settlementItemsPerPage = 10;
+
+function getFilteredOrders() {
+    const startDate = document.getElementById('search-start-date')?.value;
+    const endDate = document.getElementById('search-end-date')?.value;
+    const pubSearch = document.getElementById('filter-publisher-name')?.value.toLowerCase() || "";
+    const managerSearch = document.getElementById('filter-manager-name')?.value.toLowerCase() || "";
+
+    const role = sessionStorage.getItem('userRole');
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+
+    return MASTER.orders.filter(o => {
+        if (role === 'publisher' && myPartner) {
+            if (o.pubName !== myPartner.name) return false;
+        }
+        if (startDate && o.date < startDate) return false;
+        if (endDate && o.date > endDate) return false;
+        if (pubSearch && !o.pubName.toLowerCase().includes(pubSearch)) return false;
+        if (managerSearch && !o.managerName.toLowerCase().includes(managerSearch)) return false;
+        return true;
+    });
+}
+
+function renderSettlementTable() {
+    const tableBody = document.getElementById('settlement-data-rows');
+    if (!tableBody) return;
+
+    // 조건에 맞는 주문 필터링
+    const filtered = getFilteredOrders();
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / settlementItemsPerPage);
+
+    // 현재 페이지 범위 계산
+    if (settlementCurrentPage > totalPages && totalPages > 0) settlementCurrentPage = totalPages;
+    const start = (settlementCurrentPage - 1) * settlementItemsPerPage;
+    const end = start + settlementItemsPerPage;
+    const pageItems = filtered.slice(start, end);
+
+    tableBody.innerHTML = pageItems.map(o => {
+        const isSheet = (o.mode === 'sheet');
+        const badgeClass = isSheet ? 'badge badge-blue' : 'badge badge-outline';
+        const badgeText = isSheet ? '디지털 낱장' : '디지털 연속지';
+        const finalizedBadge = o.isFinalized ? '<span class="badge" style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0;">🔒 정산확정</span>' : '';
+
+        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+        const isPrinter = (role === 'printer' || role === 'printer_worker');
+        const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
+        const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
+
+        const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
+        const computedCost = computePurchaseCost(o);
+
+        const displayUnitPrice = isPrinter 
+            ? Math.round(computedCost / rawQty) 
+            : (parseInt(String(o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const displayTotalPrice = isPrinter 
+            ? computedCost 
+            : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const displayFinalPrice = isPrinter 
+            ? (computedCost + (o.shippingCost || 0)) 
+            : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
+
+        return `
+            <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
+                <td class="td-style">${o.date}</td>
+                <td class="td-style font-bold">${o.pubName}</td>
+                <td class="td-style">
+                    <div class="flex items-center gap-2">
+                        <span class="${badgeClass}">${badgeText}</span>
+                        ${finalizedBadge}
+                    </div>
+                    <div class="book-title">${o.bookTitle}</div>
+                </td>
+                <td class="td-style">${o.managerName}</td>
+                <td class="td-style text-right">${displayUnitPrice.toLocaleString()}원</td>
+                <td class="td-style text-right">${o.qty}부</td>
+                <td class="td-style text-right">${displayTotalPrice.toLocaleString()}원</td>
+                <td class="td-style text-right text-emerald-600">${o.shippingCost ? o.shippingCost.toLocaleString() + '원' : '-'}</td>
+                <td class="td-style text-right font-black text-sky-600">${displayFinalPrice.toLocaleString()}원</td>
+                <td class="td-style text-center">
+                    <div class="btn-group">
+                        ${editBtn}
+                        <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                        ${deleteBtn}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    updateSettlementStats(filtered);
+    renderSettlementPagination(totalItems);
+}
+
+function renderSettlementPagination(totalItems) {
+    const container = document.getElementById('settlement-pagination');
+    if (!container) return;
+
+    const totalPages = Math.ceil(totalItems / settlementItemsPerPage);
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `<button class="pg-btn" onclick="changeSettlementPage(${settlementCurrentPage - 1})" ${settlementCurrentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
+
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="pg-btn ${i === settlementCurrentPage ? 'active' : ''}" onclick="changeSettlementPage(${i})">${i}</button>`;
+    }
+
+    html += `<button class="pg-btn" onclick="changeSettlementPage(${settlementCurrentPage + 1})" ${settlementCurrentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
+
+    container.innerHTML = html;
+}
+
+function changeSettlementPage(p) {
+    settlementCurrentPage = p;
+    renderSettlementTable();
+}
+
+// 정산 관리 통계 실시간 업데이트 함수
+function updateSettlementStats(filteredOrders) {
+    // 인자가 없으면 현재 테이블의 가시적 데이터를 기반으로 처리 (기존 호환성 유지)
+    const orders = filteredOrders || MASTER.orders;
+
+    let totalCount = orders.length;
+    let totalQty = orders.reduce((sum, o) => sum + (parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 0), 0);
+    let totalAmount = orders.reduce((sum, o) => {
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        return sum + finalPrice;
+    }, 0);
+
+    const countEl = document.getElementById('stat-count');
+    const qtyEl = document.getElementById('stat-qty');
+    const totalEl = document.getElementById('stat-total');
+
+    if (countEl) countEl.innerText = totalCount.toLocaleString();
+    if (qtyEl) qtyEl.innerText = totalQty.toLocaleString();
+    if (totalEl) totalEl.innerText = totalAmount.toLocaleString();
+
+    // 역할에 따른 대시보드 카드 동적 렌더링
+    renderRoleDashboard(totalCount, totalQty, totalAmount, orders);
+
+    // 대시보드 섹션이 열려있는 경우 차트 실시간 연동
+    const dashSection = document.getElementById('dashboard-section');
+    if (dashSection && !dashSection.classList.contains('hidden')) {
+        const activeTab = document.querySelector('.chart-tab-btn.active');
+        const currentRange = activeTab ? activeTab.id.replace('btn-chart-', '') : 'week';
+        updateChart(currentRange);
+    }
+}
+
+function renderRoleDashboard(count, qty, sales, filteredOrders) {
+    const container = document.getElementById('dash-summary-cards');
+    if (!container) return;
+
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const ordersToCalculate = filteredOrders || MASTER.orders;
+    let html = '';
+
+    if (role === 'admin') {
+        const purchase = computeTotalPurchase(ordersToCalculate);
+        const margin = sales - purchase;
+        const marginRate = sales > 0 ? ((margin / sales) * 100).toFixed(1) : 0;
+
+        // 목표 매출 달성률 (사용자 설정 목표값 사용)
+        const monthlyGoal = MASTER.monthlyGoal || 50000000;
+        const achievementRate = Math.min(((sales / monthlyGoal) * 100), 100).toFixed(1);
+
+        html = `
+            <div class="summary-card">
+                <span class="summary-label">조회 건수</span>
+                <div class="summary-value">${count.toLocaleString()}<small>건</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-blue">총 매출액 (출판사 청구액)</span>
+                <div class="summary-value text-blue">${sales.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-amber">총 매입액 (인쇄소 정산액)</span>
+                <div class="summary-value text-amber">${purchase.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card highlight">
+                <span class="summary-label">영업이익 / 수익률</span>
+                <div class="summary-value">${margin.toLocaleString()}<small>원 (${marginRate}%)</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">목표 달성률 (월 ${(monthlyGoal / 10000).toLocaleString()}만 기준)</span>
+                <div class="summary-value text-emerald">${achievementRate}<small>%</small></div>
+                <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-emerald-500 h-full" style="width: ${achievementRate}%"></div>
+                </div>
+            </div>
+        `;
+    } else if (role === 'publisher') {
+        html = `
+            <div class="summary-card">
+                <span class="summary-label">조회 건수</span>
+                <div class="summary-value">${count.toLocaleString()}<small>건</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">총 제작부수</span>
+                <div class="summary-value">${qty.toLocaleString()}<small>부</small></div>
+            </div>
+            <div class="summary-card highlight">
+                <span class="summary-label">총 제작 지출액 (VAT 별도)</span>
+                <div class="summary-value">${sales.toLocaleString()}<small>원</small></div>
+            </div>
+        `;
+    } else if (role === 'printer') {
+        const purchase = computeTotalPurchase(ordersToCalculate);
+        html = `
+            <div class="summary-card">
+                <span class="summary-label">조회 건수</span>
+                <div class="summary-value">${count.toLocaleString()}<small>건</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">총 작업부수</span>
+                <div class="summary-value">${qty.toLocaleString()}<small>부</small></div>
+            </div>
+            <div class="summary-card highlight">
+                <span class="summary-label">총 하청 매출액 (정산예정액)</span>
+                <div class="summary-value">${purchase.toLocaleString()}<small>원</small></div>
+            </div>
+        `;
+    } else if (role === 'judge') {
+        const purchase = computeTotalPurchase(ordersToCalculate);
+        const margin = sales - purchase;
+        const marginRate = sales > 0 ? ((margin / sales) * 100).toFixed(1) : 0;
+        const monthlyGoal = MASTER.monthlyGoal || 50000000;
+        const achievementRate = Math.min(((sales / monthlyGoal) * 100), 100).toFixed(1);
+
+        html = `
+            <div class="summary-card">
+                <span class="summary-label">조회 건수</span>
+                <div class="summary-value">${count.toLocaleString()}<small>건</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-blue">총 매출액 (출판사 청구액)</span>
+                <div class="summary-value text-blue">${sales.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label text-amber">총 매입액 (인쇄소 정산액)</span>
+                <div class="summary-value text-amber">${purchase.toLocaleString()}<small>원</small></div>
+            </div>
+            <div class="summary-card highlight">
+                <span class="summary-label">영업이익 / 수익률</span>
+                <div class="summary-value">${margin.toLocaleString()}<small>원 (${marginRate}%)</small></div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">목표 달성률 (월 ${(monthlyGoal / 10000).toLocaleString()}만 기준)</span>
+                <div class="summary-value text-emerald">${achievementRate}<small>%</small></div>
+                <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-emerald-500 h-full" style="width: ${achievementRate}%"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+    container.style.gridTemplateColumns = `repeat(${(role === 'admin' || role === 'judge') ? 5 : 3}, 1fr)`;
+}
+
+function computeTotalPurchase(orders) {
+    return orders.reduce((sum, o) => sum + (computePurchaseCost(o) || 0), 0);
+}
+
+function computePurchaseCost(order) {
+    const costData = MASTER.pricesByGrade['인쇄소 협약단가'];
+    if (!costData || !order.data) return 0;
+
+    const qty = parseInt(order.qty) || 0;
+    const tp = parseInt(order.data['ord-tp']) || 0;
+    const cp = parseInt(order.data['ord-cp']) || 0;
+    const bp = tp - cp;
+    const specName = order.data['ord-spec'];
+
+    let cost = 0;
+    const getC = (n) => {
+        const found = (costData.commons || []).find(c => String(c.n).includes(n));
+        return found ? found.v : 0;
+    };
+    const getSC = (group, val) => costData.sheetCommons ? (costData.sheetCommons[group + '_' + val] || 0) : 0;
+
+    const innerType = String(order.data['ord-inner-print'] || '');
+    const hasPartColor = innerType.includes('부분컬러');
+    const innerPaper = String(order.data['ord-inner'] || '');
+
+    if (order.mode === 'sheet') {
+        const baseSpec = costData.sheetSpecs.find(s => s.n === specName);
+        if (baseSpec) {
+            let targetSpec = baseSpec;
+            if (String(specName || '').includes('사용자규격') || String(specName || '').includes('변형')) {
+                const customSize = String(order.data['ord-custom-size'] || '');
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    if (w <= 148) {
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('A5국판')) || baseSpec;
+                    } else if (w <= 176) {
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('크라운판')) || baseSpec;
+                    } else {
+                        targetSpec = costData.sheetSpecs.find(s => String(s.n).includes('국배판')) || baseSpec;
+                    }
+                }
+            }
+
+            let coverUnit = 0;
+            coverUnit += getSC('표지날개', order.data['ord-wing']);
+            coverUnit += getSC('표지인쇄', order.data['ord-printing']);
+            coverUnit += getSC('코팅방식', order.data['ord-coating']);
+            coverUnit += getSC('제본방식', order.data['ord-binding']);
+
+            let innerUnit1 = 0;
+            let innerUnit2 = 0;
+
+            if (hasPartColor) {
+                innerUnit1 = cp * (targetSpec.cl || 0);
+                innerUnit2 = bp * (targetSpec.bw || 0);
+            } else {
+                innerUnit1 = (bp * (targetSpec.bw || 0)) + (cp * (targetSpec.cl || 0));
+            }
+
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+            }
+
+            let paperSur = 0;
+            if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
+            else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
+
+            innerUnit1 += getSC('내지인쇄', innerType);
+
+            cost = coverUnit + innerUnit1 + innerUnit2;
+
+            const facePaper = order.data['ord-face'];
+            const faceInsert = order.data['ord-face-insert'];
+            if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                let mult = String(faceInsert).includes('4P') ? 4 : (String(faceInsert).includes('8P') ? 8 : 0);
+                cost += (targetSpec.face || 0) * mult;
+            }
+        }
+    } else {
+        const rollSpec = costData.rollSpecs.find(r => r.n === specName);
+        if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
+            let targetSpec = rollSpec;
+            if (String(specName || '').includes('사용자규격') || String(specName || '').includes('변형')) {
+                const customSize = String(order.data['ord-custom-size'] || '');
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    let fallbackSpec;
+                    if (w <= 152) {
+                        fallbackSpec = costData.rollSpecs.find(s => String(s.n).includes('신국판')) || rollSpec;
+                    } else {
+                        fallbackSpec = costData.rollSpecs.find(s => String(s.n).includes('크라운판')) || rollSpec;
+                    }
+                    if (fallbackSpec) targetSpec = fallbackSpec;
+                }
+            }
+            const bracket = targetSpec.ivs.find(v => qty >= v.s && qty <= v.e) || targetSpec.ivs[targetSpec.ivs.length - 1];
+            if (bracket) {
+                let coverUnit = (order.data['ord-wing'] === '날개 있음') ? bracket.wo : bracket.wx;
+                let bracketBw = bracket.bw || 0;
+                let bracketCl = bracket.cl || 0;
+                let innerUnit1 = 0;
+                let innerUnit2 = 0;
+
+                if (hasPartColor) {
+                    innerUnit1 = (cp * bracketCl);
+                    innerUnit2 = (bp * bracketBw);
+                } else {
+                    innerUnit1 = (bp * bracketBw) + (cp * bracketCl);
+                }
+
+                if (innerType.includes('단면')) {
+                    innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                    if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+                }
+
+                let paperSur = 0;
+                if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
+                else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+
+                innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+                if (hasPartColor) innerUnit2 += (bp * paperSur);
+
+                const innerPrintKey = '내지인쇄_' + innerType;
+                if (costData.rollCommons && costData.rollCommons[innerPrintKey] !== undefined) {
+                    innerUnit1 += costData.rollCommons[innerPrintKey];
+                }
+
+                cost = coverUnit + innerUnit1 + innerUnit2;
+            }
+        }
+    }
+    return cost * qty;
+}
+
+// ---------------------------------------------------------
+// 대시보드 및 차트 로직
+// ---------------------------------------------------------
+function toggleDashboard() {
+    const section = document.getElementById('dashboard-section');
+    const text = document.getElementById('dash-toggle-text');
+    if (section.classList.contains('hidden')) {
+        section.classList.remove('hidden');
+        text.innerText = '닫기';
+        updateChart('week'); // 기본 일주일 보기
+    } else {
+        section.classList.add('hidden');
+        text.innerText = '보기';
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function updateChart(range = 'week') {
+    document.querySelectorAll('.chart-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-chart-' + range).classList.add('active');
+
+    const ctx = document.getElementById('settlementChart').getContext('2d');
+    const filteredOrders = getFilteredOrders();
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+
+    const labels = [];
+    const salesData = [];
+    const purchaseData = [];
+    const now = new Date();
+
+    const getPoints = (dateStr) => {
+        const dayOrders = filteredOrders.filter(o => o.date === dateStr);
+        const sales = dayOrders.reduce((sum, o) => sum + parseInt(o.totalPrice.replace(/,/g, '')), 0);
+        const purchase = dayOrders.reduce((sum, o) => sum + (computePurchaseCost(o) || 0), 0);
+        return { sales, purchase };
+    };
+
+    const getMonthPoints = (monthStr) => {
+        const monthOrders = filteredOrders.filter(o => o.date.startsWith(monthStr));
+        const sales = monthOrders.reduce((sum, o) => sum + parseInt(o.totalPrice.replace(/,/g, '')), 0);
+        const purchase = monthOrders.reduce((sum, o) => sum + (computePurchaseCost(o) || 0), 0);
+        return { sales, purchase };
+    };
+
+    if (range === 'week') {
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(); d.setDate(now.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            labels.push(dateStr.slice(5));
+            const p = getPoints(dateStr);
+            salesData.push(p.sales);
+            purchaseData.push(p.purchase);
+        }
+    } else if (range === 'month') {
+        for (let i = 29; i >= 0; i -= 3) {
+            const d = new Date(); d.setDate(now.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            labels.push(dateStr.slice(5));
+            const p = getPoints(dateStr);
+            salesData.push(p.sales);
+            purchaseData.push(p.purchase);
+        }
+    } else { // year
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(); d.setMonth(now.getMonth() - i);
+            const monthStr = d.toISOString().slice(0, 7);
+            labels.push(monthStr);
+            const p = getMonthPoints(monthStr);
+            salesData.push(p.sales);
+            purchaseData.push(p.purchase);
+        }
+    }
+
+    if (settlementChart) settlementChart.destroy();
+
+    const datasets = [];
+    if (role === 'admin' || role === 'publisher') {
+        datasets.push({
+            label: role === 'admin' ? '매출액(출판사청구)' : '제작비용',
+            data: salesData,
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+            borderWidth: 3, fill: true, tension: 0.4, pointRadius: 4
+        });
+    }
+    if (role === 'admin' || role === 'printer') {
+        datasets.push({
+            label: role === 'admin' ? '매입액(인쇄소정산)' : '정산예정액(수입)',
+            data: purchaseData,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            borderWidth: 3, fill: role === 'admin' ? false : true, tension: 0.4, pointRadius: 4
+        });
+    }
+
+    settlementChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10, weight: 'bold' } } } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() + '원', font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+            }
+        }
+    });
+}
+let currentUserRole = 'admin'; // 'admin', 'printer', 'publisher' 중 설정 가능
+
+// 역할 전환 및 사이드바 가시성 제어 로직
+function switchRole(newRole) {
+    currentUserRole = newRole;
+    applyRoleVisibility();
+
+    // 현재 활성화된 페이지가 있으면 해당 페이지의 역할 관련 UI 갱신
+    const activePageId = document.querySelector('.page-content.active')?.id?.replace('page-', '');
+    if (activePageId) {
+        showPage(activePageId);
+    }
+
+    // 출판사 모드로 전환 시, 첫 번째 파트너(또는 로그인된 파트너) 자동 로드
+    if (newRole === 'publisher') {
+        const myPartner = MASTER.partners[0]; // 실무에선 로그인 ID 매칭
+        if (myPartner) selectPartner(myPartner.id);
+    }
+}
+
+function applyRoleVisibility() {
+    const role = currentUserRole;
+
+    // 1. 사이드바 메뉴 노출 매핑 (재고관리, 용지구매, 구인구직 추가하여 권한 제어)
+    const menuVisibility = {
+        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
+        publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job'],
+        printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
+        printer_worker: ['btn-production'],
+        judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 심사위원은 재고/용지/구인구직/사양/단가/설정 노출 제외
+    };
+
+    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+    const allowed = menuVisibility[role] || allMenus;
+
+    // 2. 사이드바 엘리먼트 노출 제어 및 명칭 치환
+    allMenus.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = allowed.includes(id) ? 'flex' : 'none';
+
+            if (id === 'btn-partner') {
+                if (role === 'publisher') {
+                    const userId = sessionStorage.getItem('userId');
+                    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+                    el.innerHTML = `<i data-lucide="user-cog" class="w-4 h-4 mr-3"></i>${myPartner ? myPartner.name : '출판사'} 정보관리`;
+                } else {
+                    el.innerHTML = `<i data-lucide="users" class="w-4 h-4 mr-3"></i>파트너사관리`;
+                }
+            }
+            if (id === 'btn-printer-mgmt') {
+                if (role === 'printer' || role === 'printer_worker') {
+                    const userId = sessionStorage.getItem('userId');
+                    const myPrinter = MASTER.printers.find(p => p.id === userId) || MASTER.printers[0];
+                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${myPrinter ? myPrinter.name : '인쇄소'} 정보관리`;
+                } else {
+                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>인쇄소관리`;
+                }
+            }
+        }
+    });
+
+    if (window.lucide) lucide.createIcons();
+
+    // 3. 헤더 테스트 버튼 스타일 업데이트
+    ['admin', 'publisher', 'printer', 'printer-worker'].forEach(r => {
+        const btn = document.getElementById('role-btn-' + r);
+        if (btn) {
+            if ((r === 'printer-worker' && role === 'printer_worker') || r === role) {
+                btn.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-white shadow-md';
+            } else {
+                btn.className = 'px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-500 hover:bg-white hover:text-slate-800 transition-all';
+            }
+        }
+    });
+
+    // 4. 현재 페이지 접근 권한 체크
+    const activeSidebarItem = document.querySelector('.sidebar-item.active');
+    if (activeSidebarItem && activeSidebarItem.style.display === 'none') {
+        const firstVisibleMenuId = allowed[0];
+        if (firstVisibleMenuId) {
+            showPage(firstVisibleMenuId.replace('btn-', ''));
+        }
+    }
+
+    // 5. 관리자 전용 기능 제어
+    const goalBtn = document.getElementById('btn-set-goal');
+    if (goalBtn) {
+        goalBtn.style.display = (role === 'admin') ? 'inline-flex' : 'none';
+    }
+
+    const adminFilter = document.getElementById('admin-only-filter');
+    if (adminFilter) {
+        adminFilter.style.display = (role === 'admin') ? 'block' : 'none';
+    }
+
+    const priceLogBtn = document.getElementById('btn-show-price-log');
+    if (priceLogBtn) {
+        priceLogBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
+    }
+
+}
+
+function liveFilterTable() {
+    renderSettlementTable();
+}
+
+function loadSettlementData() {
+    renderSettlementTable();
+}
+
+function editOrder(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    if (order.isFinalized) {
+        alert("이미 정산 마감된 주문은 수정할 수 없습니다.");
+        return;
+    }
+
+    if (confirm('해당 주문 사양을 수정하시겠습니까? 주문하기 페이지로 이동합니다.')) {
+        mode = order.mode;
+        // 해당 모드의 영속성 데이터를 주문 데이터로 덮어쓰기
+        MASTER.orderPersistence[mode] = JSON.parse(JSON.stringify(order.data));
+        
+        // 기존 주문 데이터에 ord-book-title 누락 시 최상위 도서명으로 자동 보정 복원
+        if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
+        MASTER.orderPersistence[mode]['ord-book-title'] = order.bookTitle;
+
+        // --- 새로 추가되는 복원 로직 ---
+        // 1. 출판사 찾기 및 강제 지정
+        const partner = MASTER.partners.find(p => p.name === order.pubName);
+        if (partner) {
+            document.getElementById('order-pub-name').value = partner.name;
+            setGrade(partner.grade);
+            renderOrder();
+
+            // 2. 담당자 복원 및 연락처 갱신
+            const mgrSelect = document.getElementById('ord-manager');
+            if (mgrSelect) {
+                mgrSelect.value = order.managerName;
+                updateManager(order.managerName);
+
+                // 데이터 영속성에도 세팅
+                if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
+                MASTER.orderPersistence[mode]['ord-manager'] = order.managerName;
+            }
+        }
+
+        // 3. 첨부파일 복원 및 UI 반영
+        currentFiles.inner = order.innerFile || null;
+        currentFiles.cover = order.coverFile || null;
+
+        ['inner', 'cover'].forEach(type => {
+            const fileData = currentFiles[type];
+            const area = document.getElementById(`file-${type}-area`);
+            const status = document.getElementById(`${type}-file-status`);
+            if (area && status) {
+                if (fileData) {
+                    area.classList.remove('bg-slate-50');
+                    area.classList.add('bg-emerald-50', 'border-emerald-200');
+                    status.textContent = `기존 파일 유지됨: ${fileData.name}`;
+                    status.classList.remove('text-slate-400');
+                    status.classList.add('text-emerald-600', 'font-bold');
+                } else {
+                    area.classList.remove('bg-emerald-50', 'border-emerald-200');
+                    area.classList.add('bg-slate-50');
+                    status.textContent = '선택된 파일 없음';
+                    status.classList.remove('text-emerald-600', 'font-bold');
+                    status.classList.add('text-slate-400');
+                }
+            }
+        });
+
+        // 페이지 이동 (isEdit=true 전달하여 editingOrderId 유지)
+        showPage('order', true);
+        editingOrderId = id; // showPage 이후에 다시 설정
+        setMode(mode);
+    }
+}
+
+async function downloadExcel(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return alert('주문 데이터를 찾을 수 없습니다.');
+
+    try {
+        // [발주서 템플릿 Base64 데이터 내장]
+        const b64Data = "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";
+        const bin = atob(b64Data);
+        const arrayBuffer = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) {
+            arrayBuffer[i] = bin.charCodeAt(i);
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer.buffer);
+        const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
+        if (!worksheet) throw new Error('엑셀 파일 내 시트를 찾을 수 없습니다.');
+
+        const d = order.data || {};
+        const tp = parseInt(d['ord-tp']) || 0;
+        const cp = parseInt(d['ord-cp']) || 0;
+        const bp = tp - cp;
+        const qty = parseInt(order.qty.toString().replace(/[^0-9]/g, '')) || 0;
+
+        // [파트너사 및 단가 데이터 안전하게 가져오기]
+        const pub = MASTER.partners.find(p => p.name === order.pubName) || {};
+        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+        const isPrinter = (role === 'printer' || role === 'printer_worker');
+        const gradeName = isPrinter
+            ? '인쇄소 협약단가'
+            : (order.grade || pub.grade || MASTER.currentGrade || '일반등급(표준)');
+        const priceData = MASTER.pricesByGrade[gradeName] || MASTER.pricesByGrade[MASTER.currentGrade] || { commons: [], sheetSpecs: [], sheetCommons: {} };
+        let spec = (priceData.sheetSpecs || []).find(s => s.n === d['ord-spec']);
+        if (!spec && d['ord-spec']) {
+            spec = (priceData.sheetSpecs || []).find(s => d['ord-spec'].includes(s.n));
+        }
+        if (!spec) spec = { bw: 0, cl: 0, face: 0 };
+
+        const getC = (n) => {
+            const found = (priceData.commons || []).find(c => c.n && c.n.includes(n));
+            return found ? found.v : 0;
+        };
+
+        if (d['ord-spec'] && (String(d['ord-spec']).includes('사용자규격') || String(d['ord-spec']).includes('변형'))) {
+            const customSize = String(d['ord-custom-size'] || '');
+            const [w] = customSize.split(/x|\*/i).map(Number);
+            if (w && !isNaN(w)) {
+                if (w <= 148) {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('A5국판')) || spec;
+                } else if (w <= 176) {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('크라운판')) || spec;
+                } else {
+                    spec = (priceData.sheetSpecs || []).find(s => String(s.n).includes('국배판')) || spec;
+                }
+            }
+        }
+        const getSC = (group, val) => priceData.sheetCommons[group + '_' + val] || 0;
+
+        // 1. [상단 정보 매칭]
+        worksheet.getCell('C4').value = order.date;
+        worksheet.getCell('F4').value = pub.biz_num || pub.bizNum || '';
+        worksheet.getCell('C5').value = order.managerName;
+        worksheet.getCell('F5').value = pub.name || order.pubName;
+        worksheet.getCell('J5').value = pub.ceo_name || pub.ceoName || '';
+        worksheet.getCell('C6').value = order.qty;
+        worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
+        const customSize = d['ord-custom-size'];
+        worksheet.getCell('C7').value = customSize ? `${d['ord-spec']} [정사이즈: ${customSize}]` : (d['ord-spec'] || '');
+        const storedBizTypeStr = pub.biz_type || pub.bizType || '';
+        const bizTypeParts = storedBizTypeStr.split('/');
+        worksheet.getCell('F7').value = bizTypeParts[0] || '';
+        worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+
+        const innerType = d['ord-inner-print'] || '';
+        worksheet.getCell('C8').value = `${tp}P(${innerType}${cp}P/흑백페이지${bp}P)`;
+
+        // 2. [제작 사양 및 금액 계산]
+        // [표지 - 14행]
+        const coverDetail = `${d['ord-cover'] || ''}/${d['ord-printing'] || ''}/${d['ord-wing'] || ''}/${d['ord-coating'] || ''}/${d['ord-binding'] || ''}`;
+        worksheet.getCell('C14').value = coverDetail;
+        let coverUnit = 0;
+        let innerUnit1 = 0;
+        let innerUnit2 = 0;
+        const hasPartColor = innerType.includes('부분컬러');
+
+        if (order.mode === 'roll') {
+            const specName = d['ord-spec'] || '';
+            const wingVal = d['ord-wing'] || '';
+            const rollSpec = (priceData.rollSpecs || []).find(r => r.n === specName);
+            let bracketBw = 0;
+            let bracketCl = 0;
+            
+            if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
+                let targetSpec = rollSpec;
+                if (specName.includes('사용자규격') || specName.includes('변형')) {
+                    const customSize = d['ord-custom-size'] || '';
+                    const [w] = customSize.split(/x|\*/i).map(Number);
+                    if (w && !isNaN(w)) {
+                        let fallbackSpec;
+                        if (w <= 152) {
+                            fallbackSpec = (priceData.rollSpecs || []).find(s => s.n.includes('신국판')) || rollSpec;
+                        } else {
+                            fallbackSpec = (priceData.rollSpecs || []).find(s => s.n.includes('크라운판')) || rollSpec;
+                        }
+                        if (fallbackSpec) targetSpec = fallbackSpec;
+                    }
+                }
+                const bracket = targetSpec.ivs.find(v => qty >= v.s && qty <= v.e) || targetSpec.ivs[targetSpec.ivs.length - 1];
+                if (bracket) {
+                    coverUnit = (wingVal === '날개 있음') ? bracket.wo : bracket.wx;
+                    bracketBw = bracket.bw || 0;
+                    bracketCl = bracket.cl || 0;
+                }
+            }
+
+            if (hasPartColor) {
+                innerUnit1 = (cp * bracketCl);
+                innerUnit2 = (bp * bracketBw);
+            } else {
+                innerUnit1 = (bp * bracketBw) + (cp * bracketCl);
+            }
+
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+            }
+            
+            let paperSur = 0;
+            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
+            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
+            
+            const innerPrintKey = '내지인쇄_' + innerType;
+            if (priceData.rollCommons && priceData.rollCommons[innerPrintKey] !== undefined) {
+                innerUnit1 += priceData.rollCommons[innerPrintKey];
+            }
+            
+        } else {
+            coverUnit += getSC('표지날개', d['ord-wing']);
+            coverUnit += getSC('표지인쇄', d['ord-printing']);
+            coverUnit += getSC('코팅방식', d['ord-coating']);
+            coverUnit += getSC('제본방식', d['ord-binding']);
+
+            let targetSheetSpec = spec;
+            if ((d['ord-spec'] || '').includes('사용자규격') || (d['ord-spec'] || '').includes('변형')) {
+                const customSize = d['ord-custom-size'] || '';
+                const [w] = customSize.split(/x|\*/i).map(Number);
+                if (w && !isNaN(w)) {
+                    if (w <= 148) {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('A5국판')) || spec;
+                    } else if (w <= 176) {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('크라운판')) || spec;
+                    } else {
+                        targetSheetSpec = (priceData.sheetSpecs || []).find(s => s.n.includes('국배판')) || spec;
+                    }
+                }
+            }
+
+            if (hasPartColor) {
+                innerUnit1 = cp * (targetSheetSpec.cl || 0);
+                innerUnit2 = bp * (targetSheetSpec.bw || 0);
+            } else {
+                innerUnit1 = (bp * (targetSheetSpec.bw || 0)) + (cp * (targetSheetSpec.cl || 0));
+            }
+
+            if (innerType.includes('단면')) {
+                innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
+                if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
+            }
+            
+            let paperSur = 0;
+            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
+            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            
+            innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
+            if (hasPartColor) innerUnit2 += (bp * paperSur);
+            
+            innerUnit1 += getSC('내지인쇄', innerType);
+        }
+
+        const coverSupply = coverUnit * qty;
+        const coverVat = Math.floor(coverSupply / 10);
+        worksheet.getCell('D14').value = coverUnit;
+        worksheet.getCell('F14').value = qty;
+        worksheet.getCell('G14').value = coverSupply;
+        worksheet.getCell('I14').value = coverVat;
+        worksheet.getCell('K14').value = coverSupply + coverVat;
+
+        // [내지1 - 15행]
+        const innerDetail1 = hasPartColor ? `${d['ord-inner'] || ''}/내지-부분컬러/용지할증` : `${d['ord-inner'] || ''}/${innerType}/용지할증`;
+        worksheet.getCell('C15').value = innerDetail1;
+
+        const innerSupply1 = innerUnit1 * qty;
+        const innerVat1 = Math.floor(innerSupply1 / 10);
+        worksheet.getCell('D15').value = innerUnit1;
+        worksheet.getCell('F15').value = qty;
+        worksheet.getCell('G15').value = innerSupply1;
+        worksheet.getCell('I15').value = innerVat1;
+        worksheet.getCell('K15').value = innerSupply1 + innerVat1;
+
+        // [내지2 - 16행 (부분컬러 시 흑백 처리)]
+        let innerSupply2 = 0;
+        let innerVat2 = 0;
+        if (hasPartColor) {
+            worksheet.getCell('C16').value = `${d['ord-inner'] || ''}/내지-흑백(부분)/용지할증`;
+            
+            innerSupply2 = innerUnit2 * qty;
+            innerVat2 = Math.floor(innerSupply2 / 10);
+            worksheet.getCell('D16').value = innerUnit2;
+            worksheet.getCell('F16').value = qty;
+            worksheet.getCell('G16').value = innerSupply2;
+            worksheet.getCell('I16').value = innerVat2;
+            worksheet.getCell('K16').value = innerSupply2 + innerVat2;
+        } else {
+            worksheet.getCell('C16').value = '';
+            worksheet.getCell('D16').value = '';
+            worksheet.getCell('F16').value = '';
+            worksheet.getCell('G16').value = '';
+            worksheet.getCell('I16').value = '';
+            worksheet.getCell('K16').value = '';
+        }
+
+        // [면지 - 17행]
+        const facePaper = d['ord-face'] || '';
+        const faceInsert = d['ord-face-insert'] || '';
+        if (facePaper && facePaper !== '없음') {
+            let faceUnit = 0;
+            let faceSupply = 0;
+            let faceVat = 0;
+
+            if (faceInsert && faceInsert !== '없음') {
+                const mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
+                faceUnit = (spec.face || 0) * mult;
+                faceSupply = faceUnit * qty;
+                faceVat = Math.floor(faceSupply / 10);
+            }
+
+            worksheet.getCell('C17').value = `${facePaper}(${faceInsert || '없음'})`;
+            worksheet.getCell('D17').value = faceUnit;
+            worksheet.getCell('F17').value = qty;
+            worksheet.getCell('G17').value = faceSupply;
+            worksheet.getCell('I17').value = faceVat;
+            worksheet.getCell('K17').value = faceSupply + faceVat;
+        }
+
+        // [배송비 - 18행]
+        let totalBoxes = 0;
+        (order.deliveries || []).forEach(d => {
+            (d.trackingList || []).forEach(t => {
+                totalBoxes += (parseInt(t.box) || 0);
+            });
+        });
+        if (totalBoxes === 0) totalBoxes = 1; 
+
+        const shipSupply = parseInt(order.shippingCost || 0) || 0;
+        const shipUnit = Math.floor(shipSupply / totalBoxes); 
+        const shipVat = Math.floor(shipSupply / 10);
+
+        worksheet.getCell('D18').value = shipUnit;
+        worksheet.getCell('F18').value = totalBoxes;
+        worksheet.getCell('G18').value = shipSupply;
+        worksheet.getCell('I18').value = shipVat;
+        worksheet.getCell('K18').value = shipSupply + shipVat;
+
+        // [총 합계 - 19행]
+        const totalSupply = (Number(worksheet.getCell('G14').value) || 0) + (Number(worksheet.getCell('G15').value) || 0) + (Number(worksheet.getCell('G16').value) || 0) + (Number(worksheet.getCell('G17').value) || 0) + (Number(worksheet.getCell('G18').value) || 0);
+        const totalVat = (Number(worksheet.getCell('I14').value) || 0) + (Number(worksheet.getCell('I15').value) || 0) + (Number(worksheet.getCell('I16').value) || 0) + (Number(worksheet.getCell('I17').value) || 0) + (Number(worksheet.getCell('I18').value) || 0);
+        const grandTotal = totalSupply + totalVat;
+
+        worksheet.getCell('G19').value = totalSupply;
+        worksheet.getCell('I19').value = totalVat;
+        worksheet.getCell('K19').value = grandTotal;
+        worksheet.getCell('C10').value = grandTotal;
+
+        // 3. [배송지 정보 - 22행부터]
+        if (order.deliveries && order.deliveries.length > 0) {
+            order.deliveries.forEach((dl, idx) => {
+                const row = 22 + idx;
+                worksheet.getCell(`B${row}`).value = `${dl.address || ''} ${dl.addressDetail || ''}`;
+                worksheet.getCell(`E${row}`).value = dl.recipient || '';
+                worksheet.getCell(`G${row}`).value = dl.contact || dl.tel || '';
+                
+                // 송장번호 포맷 개선: 중복된 택배사 이름 제거, 번호만 줄바꿈으로 표시
+                const trackingText = (dl.trackingList || []).length > 0 
+                    ? dl.trackingList.map(t => t.code).join('\n') 
+                    : (dl.trackingNum || '');
+                
+                const trackingCell = worksheet.getCell(`I${row}`);
+                trackingCell.value = trackingText;
+                // 자동 줄바꿈 및 중앙 정렬 설정
+                trackingCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+                
+                // 택배사 정보 (중복 제거하여 K열에 통합 표시)
+                const uniqueCouriers = [...new Set((dl.trackingList || []).map(t => t.courier))].join(', ');
+                worksheet.getCell(`K${row}`).value = uniqueCouriers || dl.courier || '';
+                
+                // 해당 배송지의 총 박스 수량 계산
+                const dBoxSum = (dl.trackingList || []).reduce((sum, t) => sum + (parseInt(t.box) || 0), 0);
+                worksheet.getCell(`L${row}`).value = dBoxSum || dl.boxCount || '';
+            });
+        }
+
+        // 4. 저장 (파일명 특수문자 제거)
+        const safeTitle = (order.bookTitle || '발주서').replace(/[\\/:*?"<>|]/g, '_');
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `발주서_${safeTitle}_${order.date}.xlsx`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Purchase Order Export Error:', error);
+        alert('발주서 생성 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+
+function deleteOrder(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (order && order.isFinalized) {
+        alert("이미 정산 마감된 주문은 삭제할 수 없습니다.");
+        return;
+    }
+
+    if (confirm('해당 주문을 삭제하시겠습니까?')) {
+        // DB에서 즉시 삭제
+        _supabase.from('orders').delete().eq('id', id).then(({ error }) => {
+            if (error) console.error("DB 삭제 실패:", error);
+        });
+
+        MASTER.orders = MASTER.orders.filter(o => o.id !== id);
+        renderSettlementTable();
+        if (settlementChart) updateChart(); // 삭제 시 차트 반영
+        alert('주문이 삭제되었습니다.');
+    }
+}
+
+function executeMonthlyClosing() {
+    const filtered = getFilteredOrders();
+    if (filtered.length === 0) return alert("마감할 주문 내역이 없습니다.");
+
+    if (!confirm(`조회된 ${filtered.length}건의 데이터를 마감하고 확정하시겠습니까?\n마감 후에는 주문 수정 및 삭제가 불가능합니다.`)) return;
+
+    // 조회된 주문들 모두 확정 상태로 변경
+    filtered.forEach(o => {
+        o.isFinalized = true;
+    });
+
+    const count = document.getElementById('stat-count')?.innerText || '0';
+    const total = document.getElementById('stat-total')?.innerText || '0';
+
+    alert(`[마감 완료] 총 ${count}건, ${total}원이 최종 정산 확정되었습니다.\n세금계산서 발행 리스트로 전송되었습니다.`);
+    saveMasterDataSilent();
+    renderSettlementTable();
+}
+
+function setMonthlyGoal() {
+    const current = MASTER.monthlyGoal || 50000000;
+    const input = prompt("월 목표 매출액을 설정하세요 (원 단위, 숫자만 입력):", current);
+    if (input !== null) {
+        const val = parseInt(input.replace(/,/g, ''));
+        if (!isNaN(val) && val > 0) {
+            MASTER.monthlyGoal = val;
+            saveMasterDataSilent();
+            renderSettlementTable();
+            alert(`월 목표 매출액이 ${(val / 10000).toLocaleString()}만원으로 설정되었습니다.`);
+        } else {
+            alert("유효한 숫자를 입력해주세요.");
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 파트너사 관리 모듈 로직
+// ---------------------------------------------------------
+// 사업자등록증 파일 처리 함수
+let currentBizFileData = null; // 현재 선택된 파일 데이터 (Base64)
+
+function handleBizFileSelect(input) {
+    const file = input.files[0];
+    const status = document.getElementById('biz-file-status');
+    const preview = document.getElementById('biz-preview-content');
+    const downloadBtn = document.getElementById('btn-biz-download');
+
+    if (!file) return;
+
+    status.innerText = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        currentBizFileData = e.target.result;
+
+        if (file.type.startsWith('image/')) {
+            preview.innerHTML = `<img src="${currentBizFileData}" class="max-h-[100px] rounded shadow-sm object-contain animate-in fade-in zoom-in duration-300">`;
+        } else if (file.type === 'application/pdf') {
+            preview.innerHTML = `<div class="flex flex-col items-center gap-2 text-rose-500 font-bold"><i data-lucide="file-text" class="w-8 h-8"></i>PDF 문서</div>`;
+            if (window.lucide) lucide.createIcons();
+        } else {
+            preview.innerHTML = `<div class="flex flex-col items-center gap-2 text-slate-500 font-bold"><i data-lucide="file" class="w-8 h-8"></i>기타 문서</div>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // 업로드 시 다운로드 버튼 숨김 (저장 전까지는 로컬 데이터이므로)
+        if (downloadBtn) downloadBtn.classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function downloadBizFile() {
+    const id = document.getElementById('u_id').value;
+    const partner = MASTER.partners.find(p => p.id === id);
+    const storedBizFile = partner?.biz_file || partner?.bizFile;
+    if (!partner || !storedBizFile) return alert("등록된 사업자등록증이 없습니다.");
+
+    // 실제 환경에서는 서버 URL로 다운로드 하겠으나, 여기서는 가상 시뮬레이션
+    const link = document.createElement('a');
+    link.href = storedBizFile.data;
+    link.download = storedBizFile.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    alert(`[${storedBizFile.name}] 파일 다운로드를 시작합니다.`);
+}
+
+function addManagerRow() {
+    const tbody = document.querySelector('#managerTable tbody');
+    if (!tbody) return;
+    const newRow = document.createElement('tr');
+    newRow.className = 'ani-in-partner';
+    newRow.innerHTML = `
+        <td><input type="text" class="input-partner" placeholder="성함"></td>
+        <td><input type="text" class="input-partner" placeholder="부서"></td>
+        <td><input type="text" class="input-partner" placeholder="연락처"></td>
+        <td><input type="text" class="input-partner" placeholder="이메일"></td>
+        <td style="text-align:center;"><button type="button" onclick="this.closest('tr').remove()" style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:bold;">×</button></td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+// 파트너사 목록 동적 렌더링 (페이지네이션 적용)
+function renderPartners() {
+    const listContainer = document.getElementById('partnerList');
+    const paginationContainer = document.getElementById('partnerPagination');
+    if (!listContainer) return;
+
+    // 검색어 필터링 적용 (필요 시)
+    const searchInput = document.getElementById('partnerSearch');
+    const keyword = searchInput ? searchInput.value.toLowerCase() : '';
+    const filtered = MASTER.partners.filter(p => p.name.toLowerCase().includes(keyword));
+
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / partnerItemsPerPage);
+
+    // 현재 페이지가 전체 페이지보다 크면 조정
+    if (partnerCurrentPage > totalPages && totalPages > 0) partnerCurrentPage = totalPages;
+    if (partnerCurrentPage < 1) partnerCurrentPage = 1;
+
+    const start = (partnerCurrentPage - 1) * partnerItemsPerPage;
+    const end = start + partnerItemsPerPage;
+    const pageItems = filtered.slice(start, end);
+
+    const listSide = document.querySelector('.partner-list-side');
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+
+    // 출판사 모드일 경우 리스트 숨김 처리 및 본인 정보 자동 로드
+    if (role === 'publisher') {
+        if (listSide) listSide.style.display = 'none';
+        document.querySelector('.admin-container').style.gridTemplateColumns = '1fr';
+
+        // 본인 데이터가 로드되지 않았다면 강제 로드
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+        if (myPartner && document.getElementById('u_id').value !== myPartner.id) {
+            selectPartner(myPartner.id);
+        }
+        return;
+    } else {
+        if (listSide) listSide.style.display = 'flex';
+        document.querySelector('.admin-container').style.gridTemplateColumns = '350px 1fr';
+    }
+
+    listContainer.innerHTML = pageItems.map(p => `
+        <div class="partner-item ${p.id === (document.getElementById('u_id').value) ? 'active' : ''}" data-id="${p.id}" onclick="selectPartner('${p.id}')">
+            <div class="name">
+                ${p.name} <span class="badge-partner">${p.grade}</span>
+            </div>
+            <div class="info">ID: ${p.id} | 담당자: ${(p.managers || []).length}명</div>
+            <div class="btn-del-partner" onclick="deletePartner('${p.id}', event)">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </div>
+        </div>
+    `).join('');
+
+    // 페이지네이션 번호 생성
+    if (paginationContainer) {
+        // 사용자 요청: 5개 이상 만들어 지면 페이지네이션 표시
+        if (totalItems < 5) {
+            paginationContainer.style.display = 'none';
+        } else {
+            paginationContainer.style.display = 'flex';
+            let html = `<button class="pg-btn" onclick="changePartnerPage(${partnerCurrentPage - 1})" ${partnerCurrentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="pg-btn ${i === partnerCurrentPage ? 'active' : ''}" onclick="changePartnerPage(${i})">${i}</button>`;
+            }
+            html += `<button class="pg-btn" onclick="changePartnerPage(${partnerCurrentPage + 1})" ${partnerCurrentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
+            paginationContainer.innerHTML = html;
+        }
+    }
+
+    if (window.lucide) lucide.createIcons();
+}
+
+function changePartnerPage(page) {
+    partnerCurrentPage = page;
+    renderPartners();
+}
+
+function deletePartner(id, event) {
+    if (event) event.stopPropagation(); // 카드 클릭 이벤트 방지
+    const partner = MASTER.partners.find(p => p.id === id);
+    if (!partner) return;
+
+    if (confirm(`[${partner.name}] 파트너사를 삭제(탈퇴)하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) {
+        // DB에서 즉시 삭제
+        _supabase.from('partners').delete().eq('id', id).then(({ error }) => {
+            if (error) console.error("DB 파트너 삭제 실패:", error);
+        });
+
+        MASTER.partners = MASTER.partners.filter(p => p.id !== id);
+        renderPartners();
+        clearPartnerFields();
+        alert(`[${partner.name}] 파트너사가 정상적으로 삭제되었습니다.`);
+    }
+}
+
+function clearPartnerFields() {
+    document.getElementById('u_id').value = '';
+    document.getElementById('u_id').readOnly = false;
+    document.getElementById('u_name').value = '';
+    document.getElementById('gradeSearch').value = '일반등급(표준)';
+    document.getElementById('gradeSearch').disabled = false;
+    document.getElementById('u_bizNum').value = '';
+    document.getElementById('u_ceoName').value = '';
+    document.getElementById('u_bizType').value = '';
+    document.getElementById('u_bizItem').value = '';
+    document.getElementById('u_addr').value = '';
+    document.getElementById('u_addrDetail').value = '';
+    document.querySelector('#managerTable tbody').innerHTML = '';
+    document.querySelectorAll('.partner-item').forEach(item => item.classList.remove('active'));
+
+    // 파일 관련 필드 초기화
+    document.getElementById('biz-file-input').value = '';
+    document.getElementById('biz-file-status').innerText = '선택된 파일 없음';
+    document.getElementById('biz-preview-content').innerHTML = `<i data-lucide="image" class="w-8 h-8 opacity-20"></i>이미지 미리보기`;
+    const downloadBtn = document.getElementById('btn-biz-download');
+    if (downloadBtn) downloadBtn.classList.add('hidden');
+    currentBizFileData = null;
+    if (window.lucide) lucide.createIcons();
+}
+
+function selectPartner(id) {
+    // 다른 파트너 선택 시 수정사항 미저장 알림
+    if (currentBizFileData) {
+        if (document.getElementById('u_id').value !== id) {
+            if (!confirm("수정사항(사업자등록증 등)이 저장되지 않았습니다. 다른 업체 정보를 보시겠습니까?")) {
+                return;
+            }
+            currentBizFileData = null;
+        }
+    }
+
+    const partner = MASTER.partners.find(p => p.id === id);
+    if (!partner) return;
+
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const isPublisher = (role === 'publisher');
+
+    document.getElementById('u_id').readOnly = true;
+    document.getElementById('u_name').readOnly = isPublisher;
+    document.getElementById('gradeSearch').disabled = isPublisher;
+
+    document.querySelectorAll('.partner-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.id === id);
+    });
+
+    document.getElementById('u_name').value = partner.name;
+    document.getElementById('u_id').value = partner.id;
+    if (document.getElementById('u_id_pub')) document.getElementById('u_id_pub').value = partner.id;
+    document.getElementById('gradeSearch').value = partner.grade;
+    document.getElementById('u_bizNum').value = partner.biz_num || partner.bizNum || '';
+    document.getElementById('u_ceoName').value = partner.ceo_name || partner.ceoName || '';
+    const storedBizType = partner.biz_type || partner.bizType || '';
+    const parts = storedBizType.split('/');
+    document.getElementById('u_bizType').value = parts[0] || '';
+    document.getElementById('u_bizItem').value = partner.biz_item || partner.bizItem || (parts.length > 1 ? parts.slice(1).join('/') : '');
+    document.getElementById('u_addr').value = partner.addr || '';
+    document.getElementById('u_addrDetail').value = partner.addr_detail || partner.addrDetail || '';
+
+    // 등급/단가 확인 섹션 추가 (출판사 전용)
+    const detailSide = document.querySelector('.partner-detail-side');
+    let contractSection = document.getElementById('contract-verification-section');
+    if (!contractSection) {
+        contractSection = document.createElement('div');
+        contractSection.id = 'contract-verification-section';
+        detailSide.insertBefore(contractSection, detailSide.firstChild);
+    }
+
+    if (isPublisher) {
+        contractSection.innerHTML = `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-8 flex items-center justify-between shadow-sm">
+                <div>
+                    <div class="text-emerald-700 font-black text-lg mb-1">🤝 계약 및 적용 단가 확인</div>
+                    <p class="text-emerald-600 text-xs opacity-80">인쇄소와 합의된 현재 적용 단가 명세서를 실시간으로 확인하실 수 있습니다.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openPriceTableModal('${partner.grade}')" class="bg-emerald-600 text-white px-5 py-3 rounded-xl text-xs font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2">
+                        <i data-lucide="table" class="w-4 h-4"></i> 현재 적용 단가표 확인하기
+                    </button>
+                </div>
+            </div>
+        `;
+        // 출판사 모드일 때 등급 설정 숨기고 비번 변경 노출
+        if (document.getElementById('partner-grade-container')) document.getElementById('partner-grade-container').classList.add('hidden');
+        if (document.getElementById('partner-pw-reset-container')) document.getElementById('partner-pw-reset-container').classList.add('hidden');
+        if (document.getElementById('partner-pw-change-container')) document.getElementById('partner-pw-change-container').classList.remove('hidden');
+    } else {
+        contractSection.innerHTML = '';
+        // 관리자 모드일 때 등급 설정 노출하고 비번 변경 숨김
+        if (document.getElementById('partner-grade-container')) document.getElementById('partner-grade-container').classList.remove('hidden');
+        if (document.getElementById('partner-pw-reset-container')) document.getElementById('partner-pw-reset-container').classList.remove('hidden');
+        if (document.getElementById('partner-pw-change-container')) document.getElementById('partner-pw-change-container').classList.add('hidden');
+    }
+
+    // 담당자 테이블 초기화 후 렌더링
+    const tbody = document.querySelector('#managerTable tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        (partner.managers || []).forEach(m => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="input-partner" value="${m.name}"></td>
+                <td><input type="text" class="input-partner" value="${m.dept}"></td>
+                <td><input type="text" class="input-partner" value="${m.tel}"></td>
+                <td><input type="text" class="input-partner" value="${m.email}"></td>
+                <td style="text-align:center;"><button type="button" onclick="this.closest('tr').remove()" style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:bold;">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 사업자등록증 정보 로드
+    const bizStatus = document.getElementById('biz-file-status');
+    const bizPreview = document.getElementById('biz-preview-content');
+    const bizDownloadBtn = document.getElementById('btn-biz-download');
+
+    const storedBizFile = partner.biz_file || partner.bizFile;
+    if (storedBizFile) {
+        bizStatus.innerText = `${storedBizFile.name} (등록됨)`;
+        if (storedBizFile.type && storedBizFile.type.startsWith('image/')) {
+            bizPreview.innerHTML = `<img src="${storedBizFile.data}" class="max-h-[100px] rounded shadow-sm object-contain">`;
+        } else {
+            bizPreview.innerHTML = `<div class="flex flex-col items-center gap-2 text-slate-400 font-bold"><i data-lucide="file-check" class="w-8 h-8"></i>파일 등록됨</div>`;
+        }
+        if (bizDownloadBtn) bizDownloadBtn.classList.remove('hidden');
+    } else {
+        bizStatus.innerText = '선택된 파일 없음';
+        bizPreview.innerHTML = `<i data-lucide="image" class="w-8 h-8 opacity-20"></i>이미지 미리보기`;
+        if (bizDownloadBtn) bizDownloadBtn.classList.add('hidden');
+    }
+
+    if (window.lucide) lucide.createIcons();
+}
+
+async function savePartnerData() {
+    const id = document.getElementById('u_id').value;
+    const name = document.getElementById('u_name').value;
+    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const existingPartner = MASTER.partners.find(p => p.id === id);
+    const grade = (role === 'publisher') ? (existingPartner?.grade || '일반등급(표준)') : document.getElementById('gradeSearch').value;
+    const bizNum = document.getElementById('u_bizNum').value;
+    const ceoName = document.getElementById('u_ceoName').value;
+    const bizType = document.getElementById('u_bizType').value;
+    const bizItem = document.getElementById('u_bizItem').value;
+    const addr = document.getElementById('u_addr').value;
+    const addrDetail = document.getElementById('u_addrDetail').value;
+
+    if (!id || !name) return alert('아이디와 업체명은 필수입니다.');
+    if (!MASTER.grades.includes(grade)) return alert('존재하지 않는 등급입니다. 단가 관리에서 먼저 등급을 생성해주세요.');
+
+    const mgrRows = document.querySelectorAll('#managerTable tbody tr');
+    const managers = Array.from(mgrRows).map(row => {
+        const inputs = row.querySelectorAll('input');
+        return { name: inputs[0].value, dept: inputs[1].value, tel: inputs[2].value, email: inputs[3].value };
+    });
+
+    const partnerData = {
+        id: id,
+        name: name,
+        grade: grade,
+        biz_num: bizNum,
+        ceo_name: ceoName,
+        biz_type: bizType,
+        biz_item: bizItem,
+        addr: addr,
+        addr_detail: addrDetail,
+        managers: managers,
+        password: (existingPartner?.password || '1234'),
+        biz_file: currentBizFileData ? {
+            name: document.getElementById('biz-file-input').files[0].name,
+            type: document.getElementById('biz-file-input').files[0].type,
+            data: currentBizFileData
+        } : (existingPartner?.biz_file || null)
+    };
+
+    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
+    const { password, biz_item, ...dbPartnerData } = partnerData;
+    dbPartnerData.pw = password;
+    dbPartnerData.biz_type = bizType + (bizItem ? '/' + bizItem : '');
+    const { error } = await _supabase.from('partners').upsert(dbPartnerData);
+
+    if (error) {
+        alert("파트너 정보 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
+    const idx = MASTER.partners.findIndex(p => p.id === id);
+    if (idx !== -1) {
+        MASTER.partners[idx] = partnerData;
+    } else {
+        MASTER.partners.push(partnerData);
+    }
+
+    renderPartners();
+    currentBizFileData = null;
+    if (currentUserRole === 'publisher') {
+        sessionStorage.setItem('partnerInfoCompleted', 'true');
+        applyRoleVisibility();
+        showPage('partner');
+    }
+    alert(`[${name}] 파트너 정보가 안전하게 저장되었습니다.`);
+}
+
+function clearPrinterMgmtFields() {
+    document.getElementById('pr_id').value = '';
+    document.getElementById('pr_id').readOnly = false;
+    document.getElementById('pr_name').value = '';
+    document.getElementById('pr_bizNum').value = '';
+    document.getElementById('pr_ceoName').value = '';
+    document.getElementById('pr_bizType').value = '';
+    document.getElementById('pr_bizItem').value = '';
+    document.getElementById('pr_addr').value = '';
+    document.getElementById('pr_addrDetail').value = '';
+    document.getElementById('printerManagerTable').querySelector('tbody').innerHTML = '';
+    document.querySelectorAll('.partner-item').forEach(item => item.classList.remove('active'));
+
+    document.getElementById('pr-biz-file-input').value = '';
+    document.getElementById('pr-biz-file-status').innerText = '없음';
+    document.getElementById('pr-biz-preview-content').innerHTML = `<i data-lucide="image" class="w-8 h-8 opacity-20"></i> 미리보기`;
+    if (window.lucide) lucide.createIcons();
+}
+
+function renderPrintersMgmt() {
+    const listContainer = document.getElementById('printerList');
+    if (!listContainer) return;
+
+    const role = currentUserRole;
+    const listSide = document.querySelector('#page-printer-mgmt .partner-list-side');
+
+    if (role === 'printer' || role === 'printer_worker') {
+        if (listSide) listSide.style.display = 'none';
+        const adminContainer = document.querySelector('#page-printer-mgmt .admin-container');
+        if (adminContainer) adminContainer.style.gridTemplateColumns = '1fr';
+        const myPrinter = MASTER.printers[0];
+        if (myPrinter) selectPrinterMgmt(myPrinter.id);
+        return;
+    } else {
+        if (listSide) listSide.style.display = 'flex';
+        document.querySelector('#page-printer-mgmt .admin-container').style.gridTemplateColumns = '350px 1fr';
+    }
+
+    const keyword = document.getElementById('printerSearch').value.toLowerCase();
+    const filtered = MASTER.printers.filter(p => p.name.toLowerCase().includes(keyword));
+
+    listContainer.innerHTML = filtered.map(p => `
+        <div class="partner-item relative group" data-id="${p.id}" onclick="selectPrinterMgmt('${p.id}')">
+            <div class="name">${p.name}</div>
+            <div class="info">ID: ${p.id} | 담당자: ${(p.managers || []).length}명</div>
+            ${role === 'admin' ? `<div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onclick="deletePrinter('${p.id}', event)" class="p-1.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>` : ''}
+        </div>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+}
+
+function selectPrinterMgmt(id) {
+    const printer = MASTER.printers.find(p => p.id === id);
+    if (!printer) return;
+
+    const role = currentUserRole;
+    const isMaster = (role === 'printer');
+
+    // 계정 설정 UI 분기
+    const pwReset = document.getElementById('printer-pw-reset-container');
+    const pwChange = document.getElementById('printer-pw-change-container');
+
+    if (role === 'admin') {
+        pwReset.classList.remove('hidden');
+        pwChange.classList.add('hidden');
+        document.getElementById('pr_id').value = printer.id;
+    } else {
+        pwReset.classList.add('hidden');
+        pwChange.classList.remove('hidden');
+        document.getElementById('pr_id_view').value = printer.id;
+    }
+
+    document.getElementById('pr_id').readOnly = true;
+    document.getElementById('pr_name').value = printer.name;
+    document.getElementById('pr_bizNum').value = printer.biz_num || printer.bizNum || '';
+    document.getElementById('pr_ceoName').value = printer.ceo_name || printer.ceoName || '';
+    const storedPrBizType = printer.biz_type || printer.bizType || '';
+    const prParts = storedPrBizType.split('/');
+    document.getElementById('pr_bizType').value = prParts[0] || '';
+    document.getElementById('pr_bizItem').value = printer.biz_item || printer.bizItem || (prParts.length > 1 ? prParts.slice(1).join('/') : '');
+    document.getElementById('pr_addr').value = printer.addr || '';
+    document.getElementById('pr_addrDetail').value = printer.addr_detail || printer.addrDetail || '';
+
+    // 계약 단가 확인 섹션
+    const contractArea = document.getElementById('printer-contract-section');
+    if (role === 'printer') {
+        contractArea.innerHTML = `
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
+                <div>
+                    <div class="text-indigo-700 font-black text-lg mb-1">🤝 계약 및 협약 단가 확인</div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" title="체결된 계약 문서가 존재하지 않습니다." disabled class="bg-gray-100 text-gray-400 border border-gray-200 px-4 py-2.5 rounded-xl text-xs font-black cursor-not-allowed">계약 문서 확인</button>
+                    <button type="button" onclick="openPrinterPriceModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-indigo-100">현재 협약 단가표</button>
+                </div>
+            </div>
+        `;
+    } else {
+        contractArea.innerHTML = '';
+    }
+
+    // 파일 정보 동기화
+    if (printer.bizFile) {
+        document.getElementById('pr-biz-file-status').innerText = printer.bizFile.name;
+        document.getElementById('btn-pr-biz-download').classList.remove('hidden');
+        if (printer.bizFile.name.match(/\.(jpg|jpeg|png|gif)$/i)) {
+            document.getElementById('pr-biz-preview-content').innerHTML = `<img src="https://via.placeholder.com/150?text=Biz+License" class="max-h-full object-contain">`;
+        }
+    } else {
+        document.getElementById('pr-biz-file-status').innerText = '선택된 파일 없음';
+        document.getElementById('btn-pr-biz-download').classList.add('hidden');
+        document.getElementById('pr-biz-preview-content').innerHTML = `<i data-lucide="image" class="w-8 h-8 opacity-20"></i> 이미지 미리보기`;
+    }
+
+    // 담당자 테이블
+    const tbody = document.getElementById('printerManagerTable').querySelector('tbody');
+    tbody.innerHTML = '';
+    (printer.managers || []).forEach((m, idx) => {
+        const tr = document.createElement('tr');
+        const isSettle = m.perms && m.perms.includes('settle');
+        const isProd = m.perms && m.perms.includes('prod');
+        tr.innerHTML = `
+            <td><input type="text" class="input-partner" value="${m.name}"></td>
+            <td><input type="text" class="input-partner" value="${m.tel}"></td>
+            <td><input type="text" class="input-partner" value="${m.email}"></td>
+            <td><input type="password" class="input-partner" value="${m.subPw || ''}" placeholder="서브비번"></td>
+            <td>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-1 text-[10px] font-bold"><input type="checkbox" ${isProd ? 'checked' : ''} class="perm-prod"> 생산관리</label>
+                    <label class="flex items-center gap-1 text-[10px] font-bold"><input type="checkbox" ${isSettle ? 'checked' : ''} class="perm-settle"> 정산관리</label>
+                </div>
+            </td>
+            <td style="text-align:center;"><button type="button" onclick="this.closest('tr').remove()" class="text-rose-500 font-bold">×</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+function addPrinterManagerRow() {
+    const tbody = document.getElementById('printerManagerTable').querySelector('tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" class="input-partner" placeholder="성함"></td>
+        <td><input type="text" class="input-partner" placeholder="연락처"></td>
+        <td><input type="text" class="input-partner" placeholder="이메일"></td>
+        <td><input type="password" class="input-partner" placeholder="서브비번"></td>
+        <td>
+            <div class="flex gap-4">
+                <label class="flex items-center gap-1 text-[10px] font-bold"><input type="checkbox" class="perm-prod" checked> 생산관리</label>
+                <label class="flex items-center gap-1 text-[10px] font-bold"><input type="checkbox" class="perm-settle"> 정산관리</label>
+            </div>
+        </td>
+        <td style="text-align:center;"><button type="button" onclick="this.closest('tr').remove()" class="text-rose-500 font-bold">×</button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+async function savePrinterMgmtData() {
+    const id = document.getElementById('pr_id').value || document.getElementById('pr_id_view').value;
+    const name = document.getElementById('pr_name').value;
+    if (!id || !name) return alert("아이디와 업체명은 필수입니다.");
+
+    const mgrRows = document.querySelectorAll('#printerManagerTable tbody tr');
+    const managers = Array.from(mgrRows).map(row => {
+        const inputs = row.querySelectorAll('input');
+        const perms = [];
+        if (row.querySelector('.perm-prod').checked) perms.push('prod');
+        if (row.querySelector('.perm-settle').checked) perms.push('settle');
+        return {
+            name: inputs[0].value, tel: inputs[1].value, email: inputs[2].value,
+            subPw: inputs[3].value, perms: perms
+        };
+    });
+
+    const existingPrinter = MASTER.printers.find(p => p.id === id);
+    const prBizTypeVal = document.getElementById('pr_bizType').value;
+    const prBizItemVal = document.getElementById('pr_bizItem').value;
+
+    const printerData = {
+        id: id,
+        name: name,
+        biz_num: document.getElementById('pr_bizNum').value,
+        ceo_name: document.getElementById('pr_ceoName').value,
+        biz_type: prBizTypeVal,
+        biz_item: prBizItemVal,
+        addr: document.getElementById('pr_addr').value,
+        addr_detail: document.getElementById('pr_addrDetail').value,
+        managers: managers,
+        password: (existingPrinter?.password || '1234'),
+        biz_file: currentPrinterBizFileData ? {
+            name: document.getElementById('pr-biz-file-input').files[0].name,
+            type: document.getElementById('pr-biz-file-input').files[0].type,
+            data: currentPrinterBizFileData
+        } : (existingPrinter?.biz_file || null)
+    };
+
+    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
+    const { password, biz_item, ...dbPrinterData } = printerData;
+    dbPrinterData.pw = password;
+    dbPrinterData.biz_type = prBizTypeVal + (prBizItemVal ? '/' + prBizItemVal : '');
+    const { error } = await _supabase.from('printers').upsert(dbPrinterData);
+
+    if (error) {
+        alert("인쇄소 정보 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
+    const idx = MASTER.printers.findIndex(p => p.id === id);
+    if (idx !== -1) {
+        MASTER.printers[idx] = printerData;
+    } else {
+        MASTER.printers.push(printerData);
+    }
+
+    renderPrintersMgmt();
+    currentPrinterBizFileData = null;
+    alert(`[${name}] 인쇄소 마스터 정보가 온라인 DB에 안전하게 저장되었습니다.`);
+}
+
+async function deletePrinter(id, event) {
+    if (event) event.stopPropagation();
+    const printer = MASTER.printers.find(p => p.id === id);
+    if (!printer) return;
+
+    if (!confirm(`[${printer.name}] 인쇄소를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+    // Supabase 삭제
+    const { error } = await _supabase.from('printers').delete().eq('id', id);
+    if (error) {
+        alert("온라인 DB 삭제 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 갱신
+    MASTER.printers = MASTER.printers.filter(p => p.id !== id);
+    renderPrintersMgmt();
+    alert(`[${printer.name}] 인쇄소가 정상적으로 삭제되었습니다.`);
+}
+
+async function openPrinterPriceModal() {
+    try {
+        // 실시간성 보장을 위해 최신 단가 데이터 즉시 Supabase DB 동기화
+        const { data: d, error: fetchError } = await _supabase.from('master_config').select('*').eq('id', 'config').single();
+        if (fetchError) throw fetchError;
+
+        if (d && d.data) {
+            MASTER.pricesByGrade = d.data.pricesByGrade || MASTER.pricesByGrade;
+        }
+
+        const priceData = MASTER.pricesByGrade['인쇄소 협약단가'];
+        if (!priceData) {
+            alert("인쇄소 협약단가 데이터를 찾을 수 없습니다.");
+            return;
+        }
+
+        const overlay = document.getElementById('tracking-modal-overlay');
+        const container = document.getElementById('tracking-input-container');
+        if (!overlay || !container) return;
+
+        const mainTitle = document.getElementById('tracking-modal-main-title');
+        const modalLabel = document.getElementById('tracking-modal-label');
+        if (mainTitle) mainTitle.innerText = "인쇄 협약 매입 단가표";
+        if (modalLabel) {
+            modalLabel.innerText = "PRINTER BUYING PRICE";
+            modalLabel.className = "text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-widest";
+        }
+
+        document.getElementById('tracking-modal-order-id').innerText = "INTERNAL";
+        document.getElementById('tracking-modal-book-title').innerText = "공정별 인쇄 매입 원가 명세";
+
+        const saveBtn = document.getElementById('btn-save-tracking');
+        saveBtn.innerText = "단가표 닫기";
+        saveBtn.className = "flex-1 bg-indigo-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all";
+        saveBtn.onclick = closeTrackingModal;
+
+        const today = new Date().toLocaleDateString();
+        
+        // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
+        const commons = priceData.sheetCommons || {};
+        const getCommonVal = (key) => commons[key] || 0;
+        
+        const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
+        const baseBinding = getCommonVal('제본방식_무선제본') || 0;
+        const wingYes = getCommonVal('표지날개_날개 있음') || getCommonVal('표지날개_날개있음') || 0;
+        const wingNo = getCommonVal('표지날개_날개 없음') || getCommonVal('표지날개_날개없음') || 0;
+
+        const coverWithWing = baseCoating + baseBinding + wingYes;
+        const coverWithoutWing = baseCoating + baseBinding + wingNo;
+
+        // 출판사 단가표와 동일한 프리미엄 스크롤 레이아웃 렌더링
+        container.innerHTML = `
+            <div class="relative overflow-hidden p-6 bg-white rounded-2xl border">
+                <!-- 내부 보안 워터마크 -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-[-30deg] select-none" style="font-size: 40px; font-weight: 900; white-space: nowrap;">
+                    INTERNAL USE ONLY - ${today}
+                </div>
+                
+                <div class="text-[10px] font-bold text-slate-400 mb-4 flex justify-between">
+                    <span>매입 등급: 인쇄소 협약단가</span>
+                    <span>조회일시: ${new Date().toLocaleString()}</span>
+                </div>
+
+                <!-- 1. [디지털 낱장] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 낱장]</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-[10px] border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-y">
+                                <th class="py-2 px-1 text-left">규격명</th>
+                                <th class="text-right px-1">흑백(P)</th>
+                                <th class="text-right px-1">컬러(P)</th>
+                                <th class="text-right px-1">면지(P)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(priceData.sheetSpecs || []).map(s => `
+                                <tr class="border-b">
+                                    <td class="py-1.5 px-1 font-bold text-slate-600">${s.n}</td>
+                                    <td class="text-right px-1">${s.bw}원</td>
+                                    <td class="text-right px-1 text-sky-600">${s.cl}원</td>
+                                    <td class="text-right px-1 text-emerald-600">${s.face}원</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 2. [공통단가] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통단가]</h4>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                        <div class="text-[9px] font-bold text-indigo-600 mb-1">표지 제작비 (날개 있음)</div>
+                        <div class="text-sm font-black text-indigo-800">${coverWithWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div class="text-[9px] font-bold text-slate-500 mb-1">표지 제작비 (날개 없음)</div>
+                        <div class="text-sm font-black text-slate-800">${coverWithoutWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. [공통 추가 할증] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통 추가 할증]</h4>
+                <div class="grid grid-cols-3 gap-2 mb-6">
+                    <!-- 표지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
+                        ${[
+                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 용지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
+                        ${[
+                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                            { key: '용지할증_백모조120g', label: '백모조120g' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 단면할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
+                        ${[
+                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 4. [디지털 연속지] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 연속지]</h4>
+                <div class="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                    ${(priceData.rollSpecs || []).map(rs => `
+                        <div class="border rounded-xl p-3 bg-slate-50/50">
+                            <div class="text-[10px] font-bold text-indigo-700 mb-2">${rs.n}</div>
+                            <table class="w-full text-[9px] border-collapse">
+                                <thead><tr class="border-b text-slate-400"><th class="text-left">부수</th><th class="text-right">흑백</th><th class="text-right">컬러</th><th class="text-right">날개(O)</th><th class="text-right">날개(X)</th></tr></thead>
+                                <tbody>
+                                    ${(rs.ivs || []).slice(0, 3).map(t => `
+                                        <tr class="text-right border-b border-white">
+                                            <td class="text-left py-1">${t.s}~${t.e}</td>
+                                            <td class="font-bold">${t.bw}원</td>
+                                            <td class="text-indigo-600 font-bold">${t.cl}원</td>
+                                            <td>${t.wo}원</td>
+                                            <td>${t.wx}원</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="text-[9px] text-rose-500 font-bold mt-6">* 위 단가는 인쇄소 마스터와 합의된 최종 매입 확정 단가입니다. (부가세 별도)</div>
+            </div>
+        `;
+
+        overlay.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("인쇄소 단가표 로드 에러:", err);
+        alert("인쇄소 단가표를 불러오는 중 오류가 발생했습니다: " + err.message);
+    }
+}
+
+// ---------------------------------------------------------
+// 인쇄소 파일 핸들러
+// ---------------------------------------------------------
+let currentPrinterBizFileData = null;
+
+function handlePrinterBizFileSelect(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            currentPrinterBizFileData = {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: e.target.result, // base64
+                lastModified: file.lastModified
+            };
+
+            const bizStatus = document.getElementById('pr-biz-file-status');
+            const bizPreview = document.getElementById('pr-biz-preview-content');
+
+            bizStatus.innerText = `${file.name} (대기중)`;
+            bizStatus.classList.add('text-sky-600', 'font-bold');
+
+            if (file.type.startsWith('image/')) {
+                bizPreview.innerHTML = `<img src="${e.target.result}" class="max-h-[100px] rounded shadow-sm object-contain animate-in fade-in duration-300">`;
+            } else {
+                bizPreview.innerHTML = `<div class="flex flex-col items-center gap-2 text-sky-600 font-bold animate-in zoom-in duration-300"><i data-lucide="file-check" class="w-8 h-8"></i>파일 준비됨</div>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+function initPartnerSearch() {
+    const searchInput = document.getElementById('partnerSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function (e) {
+            partnerCurrentPage = 1; // 검색 시 1페이지로 리셋
+            renderPartners();
+        });
+    }
+}
+
+// 기존 window.onload에 initPartnerSearch 및 renderPartners 추가
+window.onload = () => {
+    // 모든 모듈 초기 렌더링
+    renderSpec();
+    renderPrice();
+    renderSettlementTable();
+    renderPartners();
+
+    // 이벤트 바인딩
+    initPartnerSearch();
+
+    // 아이콘 생성
+    if (window.lucide) lucide.createIcons();
+
+    // 초기 역할 가시성 적용 (사이드바 메뉴 및 필터 제어)
+    applyRoleVisibility();
+};
+
+async function openPriceTableModal(grade) {
+    try {
+        // 실시간성 보장을 위해 최신 단가 데이터 즉시 동기화
+        const { data: d, error: fetchError } = await _supabase.from('master_config').select('*').eq('id', 'config').single();
+        if (fetchError) throw fetchError;
+
+        if (d && d.data) {
+            MASTER.pricesByGrade = d.data.pricesByGrade || MASTER.pricesByGrade;
+        }
+
+        const priceData = MASTER.pricesByGrade[grade];
+        if (!priceData) {
+            alert("해당 등급(" + grade + ")의 단가 정보를 찾을 수 없습니다. 관리자 메뉴에서 단가를 먼저 설정해 주세요.");
+            return;
+        }
+
+        const overlay = document.getElementById('tracking-modal-overlay');
+        const container = document.getElementById('tracking-input-container');
+        if (!overlay || !container) return;
+
+        const mainTitle = document.getElementById('tracking-modal-main-title');
+        const modalLabel = document.getElementById('tracking-modal-label');
+        if (mainTitle) mainTitle.innerText = "제작 단가표";
+        if (modalLabel) {
+            modalLabel.innerText = "OFFICIAL PRICE LIST";
+            modalLabel.className = "text-[10px] font-bold text-emerald-600 mb-1 uppercase tracking-widest";
+        }
+
+        document.getElementById('tracking-modal-order-id').innerText = "CONFIDENTIAL";
+        document.getElementById('tracking-modal-book-title').innerText = "인쇄 내지 및 공통 가공 단가 요약표";
+
+        const saveBtn = document.getElementById('btn-save-tracking');
+        saveBtn.innerText = "단가표 닫기";
+        saveBtn.className = "flex-1 bg-slate-800 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-slate-100 hover:bg-slate-900 transition-all";
+        saveBtn.onclick = closeTrackingModal;
+
+        const today = new Date().toLocaleDateString();
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+
+        // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
+        const commons = priceData.sheetCommons || {};
+        const getCommonVal = (key) => commons[key] || 0;
+        
+        // 날개 옵션의 텍스트가 정확한지 확인 (기본 데이터: '날개 있음', '날개 없음')
+        const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
+        const baseBinding = getCommonVal('제본방식_무선제본') || 0;
+        const wingYes = getCommonVal('표지날개_날개 있음') || getCommonVal('표지날개_날개있음') || 0;
+        const wingNo = getCommonVal('표지날개_날개 없음') || getCommonVal('표지날개_날개없음') || 0;
+
+        const coverWithWing = baseCoating + baseBinding + wingYes;
+        const coverWithoutWing = baseCoating + baseBinding + wingNo;
+
+        // 공통 추가 할증 찾기 헬퍼 (기존 호환성 유지)
+        const findCommonValByTitle = (title) => {
+            const found = (priceData.commons || []).find(c => c.n.replace(/\s+/g, '') === title.replace(/\s+/g, ''));
+            return found ? found.v : 0;
+        };
+
+        container.innerHTML = `
+            <div class="relative overflow-hidden p-6 bg-white rounded-2xl border">
+                <!-- 워터마크 -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-[-30deg] select-none" style="font-size: 40px; font-weight: 900; white-space: nowrap;">
+                    CONFIDENTIAL - ${myPartner ? myPartner.name : 'GUEST'} - ${today}
+                </div>
+                
+                <div class="text-[10px] font-bold text-slate-400 mb-4 flex justify-between">
+                    <span>계약 대상: ${myPartner ? myPartner.name : '알수없음'}</span>
+                    <span>조회일시: ${new Date().toLocaleString()}</span>
+                </div>
+
+                <!-- 1. [디지털 낱장] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 낱장]</h4>
+                <table class="w-full text-[10px] border-collapse mb-6">
+                    <thead>
+                        <tr class="bg-slate-50 border-y">
+                            <th class="py-2 px-1 text-left">규격명</th>
+                            <th class="text-right px-1">흑백(P)</th>
+                            <th class="text-right px-1">컬러(P)</th>
+                            <th class="text-right px-1">면지(P)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(priceData.sheetSpecs || []).map(s => `
+                            <tr class="border-b">
+                                <td class="py-1.5 px-1 font-bold text-slate-600">${s.n}</td>
+                                <td class="text-right px-1">${s.bw}원</td>
+                                <td class="text-right px-1 text-sky-600">${s.cl}원</td>
+                                <td class="text-right px-1 text-emerald-600">${s.face}원</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <!-- 2. [공통단가] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통단가]</h4>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                        <div class="text-[9px] font-bold text-emerald-600 mb-1">표지 제작비 (날개 있음)</div>
+                        <div class="text-sm font-black text-emerald-800">${coverWithWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div class="text-[9px] font-bold text-slate-500 mb-1">표지 제작비 (날개 없음)</div>
+                        <div class="text-sm font-black text-slate-800">${coverWithoutWing.toLocaleString()}원 <span class="text-[10px] font-normal opacity-60">/ 권당</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. [공통 추가 할증] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[공통 추가 할증]</h4>
+                <div class="grid grid-cols-3 gap-2 mb-6">
+                    <!-- 표지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
+                        ${[
+                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 용지할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
+                        ${[
+                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                            { key: '용지할증_백모조120g', label: '백모조120g' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- 단면할증 -->
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
+                        ${[
+                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+                        ].map(item => `
+                            <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
+                                <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 4. [디지털 연속지] -->
+                <h4 class="text-xs font-black text-slate-800 mb-2">[디지털 연속지]</h4>
+                <div class="grid grid-cols-1 gap-4">
+                    ${(priceData.rollSpecs || []).map(rs => `
+                        <div class="border rounded-xl p-3 bg-slate-50/50">
+                            <div class="text-[10px] font-bold text-sky-700 mb-2">${rs.n}</div>
+                            <table class="w-full text-[9px] border-collapse">
+                                <thead><tr class="border-b text-slate-400"><th class="text-left">부수</th><th class="text-right">흑백</th><th class="text-right">컬러</th><th class="text-right">날개(O)</th><th class="text-right">날개(X)</th></tr></thead>
+                                <tbody>
+                                    ${(rs.ivs || []).map(t => `
+                                        <tr class="text-right border-b border-white">
+                                            <td class="text-left py-1">${t.s}~${t.e}</td>
+                                            <td class="font-bold">${t.bw}원</td>
+                                            <td class="text-sky-600 font-bold">${t.cl}원</td>
+                                            <td>${t.wo}원</td>
+                                            <td>${t.wx}원</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="text-[9px] text-rose-500 font-bold mt-6">* 모든 단가는 합의된 계약에 따른 부가세(VAT) 별도 기준입니다.</div>
+            </div>
+        `;
+
+        overlay.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("단가표 로드 에러:", err);
+        alert("단가표를 불러오는 중 오류가 발생했습니다: " + err.message);
+    }
+}
+
+async function resetPassword() {
+    const id = document.getElementById('u_id').value;
+    const partner = MASTER.partners.find(p => p.id === id);
+    if (!partner) return alert("선택된 파트너가 없습니다.");
+
+    if (confirm(`[${partner.name}] 업체의 비밀번호를 초기값 '1234'로 변경하시겠습니까?`)) {
+        partner.password = '1234';
+        
+        const { error } = await _supabase
+            .from('partners')
+            .update({ pw: '1234' })
+            .eq('id', id);
+
+        if (error) {
+            alert("비밀번호 온라인 초기화 실패: " + error.message);
+            return;
+        }
+
+        saveMasterDataSilent();
+        alert("비밀번호가 '1234'로 초기화되었습니다. 해당 업체에 안내해 주세요.");
+    }
+}
+
+function openChangePasswordModal() {
+    const overlay = document.getElementById('tracking-modal-overlay');
+    const container = document.getElementById('tracking-input-container');
+
+    // 모달 상단 텍스트 변경
+    const mainTitle = document.getElementById('tracking-modal-main-title');
+    const modalLabel = document.getElementById('tracking-modal-label');
+    if (mainTitle) mainTitle.innerText = "비밀번호 변경";
+    if (modalLabel) {
+        modalLabel.innerText = "ACCOUNT SECURITY";
+        modalLabel.className = "text-[10px] font-bold text-rose-600 mb-1 uppercase tracking-widest";
+    }
+
+    document.getElementById('tracking-modal-order-id').innerText = "Security";
+    document.getElementById('tracking-modal-book-title').innerText = "계정 보안 설정";
+
+    const saveBtn = document.getElementById('btn-save-tracking');
+    saveBtn.innerText = "비밀번호 저장";
+    saveBtn.className = "flex-1 bg-rose-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all";
+    saveBtn.onclick = saveNewPassword;
+
+    container.innerHTML = `
+        <div class="p-6 space-y-4">
+            <div class="form-group-pptx">
+                <label class="label-pptx">현재 비밀번호</label>
+                <input type="password" id="pw-current" class="input-pptx" placeholder="••••">
+            </div>
+            <div class="w-full h-px bg-slate-100"></div>
+            <div class="form-group-pptx">
+                <label class="label-pptx">신규 비밀번호</label>
+                <input type="password" id="pw-new" class="input-pptx" placeholder="신규 비밀번호">
+            </div>
+            <div class="form-group-pptx">
+                <label class="label-pptx">신규 비밀번호 확인</label>
+                <input type="password" id="pw-confirm" class="input-pptx" placeholder="다시 한번 입력">
+            </div>
+            <p class="text-[10px] text-slate-400 font-bold">* 보안을 위해 8자 이상의 영문, 숫자 조합을 권장합니다.</p>
+        </div>
+    `;
+
+    overlay.classList.remove('hidden');
+}
+
+async function saveNewPassword() {
+    const current = document.getElementById('pw-current').value;
+    const newPw = document.getElementById('pw-new').value;
+    const confirmPw = document.getElementById('pw-confirm').value;
+
+    const role = currentUserRole;
+    let myAccount = null;
+    let tableName = '';
+
+    if (role === 'publisher') {
+        const partnerId = sessionStorage.getItem('userId');
+        myAccount = MASTER.partners.find(p => p.id === partnerId);
+        tableName = 'partners';
+    } else if (role === 'printer') {
+        const printerId = sessionStorage.getItem('userId');
+        myAccount = MASTER.printers.find(p => p.id === printerId);
+        tableName = 'printers';
+    }
+
+    if (!myAccount) {
+        const partnerIdField = document.getElementById('u_id');
+        if (partnerIdField && partnerIdField.value) {
+            myAccount = MASTER.partners.find(p => p.id === partnerIdField.value);
+            tableName = 'partners';
+        }
+    }
+
+    if (!myAccount) {
+        const partnerIdField = document.getElementById('u_id');
+        const partnerId = partnerIdField ? partnerIdField.value : sessionStorage.getItem('userId');
+        myAccount = MASTER.partners.find(p => p.id === partnerId) || MASTER.partners[0];
+        tableName = 'partners';
+    }
+
+    if (!myAccount) return;
+
+    // 기존 비밀번호 확인 (기본값 1234)
+    const storedPw = myAccount.password || '1234';
+    if (current !== storedPw) {
+        alert("현재 비밀번호가 일치하지 않습니다.");
+        return;
+    }
+
+    if (!newPw) {
+        alert("신규 비밀번호를 입력해주세요.");
+        return;
+    }
+
+    if (newPw !== confirmPw) {
+        alert("신규 비밀번호와 확인 입력이 일치하지 않습니다.");
+        return;
+    }
+
+    myAccount.password = newPw;
+    localStorage.setItem('MASTER_DATA', JSON.stringify(MASTER));
+
+    // Supabase DB에 직접 비밀번호 업데이트
+    const { error } = await _supabase
+        .from(tableName)
+        .update({ pw: newPw })
+        .eq('id', myAccount.id);
+
+    if (error) {
+        alert("비밀번호 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    saveMasterDataSilent();
+    alert("비밀번호가 성공적으로 변경되었습니다. 다음 로그인부터 적용됩니다.");
+    closeTrackingModal();
+}
+
+function execDaumPostcodePartner() {
+    if (typeof daum === 'undefined') {
+        return alert("주소 서비스 스크립트가 로드되지 않았습니다. 인터넷 연결을 확인해 주세요.");
+    }
+    new daum.Postcode({
+        oncomplete: function (data) {
+            let addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress;
+            let extraAddr = '';
+            if (data.userSelectedType === 'R') {
+                if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) extraAddr += data.bname;
+                if (data.buildingName !== '' && data.apartment === 'Y') extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                if (extraAddr !== '') extraAddr = ' (' + extraAddr + ')';
+            }
+            const target = document.getElementById('u_addr');
+            if (target) target.value = addr + extraAddr;
+            const detailTarget = document.getElementById('u_addrDetail');
+            if (detailTarget) detailTarget.focus();
+        }
+    }).open();
+}
+
+function execDaumPostcodePrinterMgmt() {
+    if (typeof daum === 'undefined') return alert("주소 서비스 스크립트가 로드되지 않았습니다.");
+    new daum.Postcode({
+        oncomplete: function (data) {
+            let addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress;
+            const target = document.getElementById('pr_addr');
+            if (target) target.value = addr;
+            const detailTarget = document.getElementById('pr_addrDetail');
+            if (detailTarget) detailTarget.focus();
+        }
+    }).open();
+}
+
+function downloadPrinterBizFile() {
+    alert("인쇄소 사업자등록증 파일을 다운로드합니다.");
+}
+
+function resetPrinterPassword() {
+    if (confirm("인쇄소 마스터 비밀번호를 '1234'로 초기화하시겠습니까?")) {
+        alert("비밀번호가 초기화되었습니다.");
+    }
+}
+
+// 브라우저 종료/새로고침 시 미저장 알림
+window.addEventListener('beforeunload', (e) => {
+    if (currentBizFileData) {
+        e.preventDefault();
+        e.returnValue = ''; // 브라우저 표준 메시지 출력
+    }
+});
+
+// --- 엑셀 다운로드 기능 ---
+async function downloadTransactionStatementExcel() {
+    if (typeof ExcelJS === 'undefined') {
+        alert('엑셀 라이브러리가 로드되지 않았습니다.');
+        return;
+    }
+
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('거래명세서');
+
+    // Filter data
+    const filteredData = getFilteredOrders();
+    if (filteredData.length === 0) {
+        alert('다운로드할 데이터가 없습니다.');
+        return;
+    }
+
+    // Add Header
+    worksheet.mergeCells('A1:I2');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = '거 래 명 세 서 (Transaction Statement)';
+    titleCell.font = { name: 'Malgun Gothic', size: 18, bold: true };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    worksheet.mergeCells('A3:I3');
+    worksheet.getCell('A3').value = `출력일시: ${new Date().toLocaleString()}`;
+    worksheet.getCell('A3').alignment = { horizontal: 'right' };
+
+    // Add columns header
+    const headerRow = worksheet.addRow(['일자', '출판사명', '도서명', '담당자', '단가(원)', '수량(부)', '공급가액(원)', '세액(원)', '합계금액(원)']);
+    headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        cell.font = { bold: true };
+        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Add data rows
+    let totalSupply = 0;
+    filteredData.forEach(item => {
+        const supply = item.totalPrice || 0;
+        const tax = Math.floor(supply * 0.1);
+        const total = supply + tax;
+
+        const row = worksheet.addRow([
+            item.date,
+            item.pubName,
+            item.bookTitle,
+            item.managerName,
+            item.unitPrice,
+            item.qty,
+            supply,
+            tax,
+            total
+        ]);
+        totalSupply += supply;
+        row.eachCell((cell, colNumber) => {
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            if (colNumber >= 5 && colNumber <= 9) {
+                cell.numFmt = '#,##0';
+            }
+        });
+    });
+
+    // Add totals row
+    const totalTax = Math.floor(totalSupply * 0.1);
+    const grandTotal = totalSupply + totalTax;
+    const totalRow = worksheet.addRow(['합계', '', '', '', '', '', totalSupply, totalTax, grandTotal]);
+    worksheet.mergeCells(`A${totalRow.number}:F${totalRow.number}`);
+    totalRow.getCell(1).alignment = { horizontal: 'center' };
+    totalRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FF0369A1' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+        cell.border = { top: { style: 'double' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        if (colNumber >= 7) cell.numFmt = '#,##0';
+    });
+
+    // Columns width
+    worksheet.columns = [
+        { width: 12 }, { width: 20 }, { width: 30 }, { width: 15 },
+        { width: 15 }, { width: 10 }, { width: 15 }, { width: 15 }, { width: 15 }
+    ];
+
+    // Download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `거래명세서_${new Date().getTime()}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------
+// 판매 도서 관리 (스토어 진열장) 로직
+// ---------------------------------------------------------
+let currentProductImage = null;
+let editingProductId = null;
+
+function renderStoreMgmt() {
+    renderProductList();
+}
+
+function openProductModal(id = null) {
+    document.getElementById('product-modal-overlay').classList.remove('hidden');
+    editingProductId = id;
+
+    // 규격 및 사양 셀렉트 박스 초기화
+    const specSelect = document.getElementById('prod-spec');
+    if (specSelect) specSelect.innerHTML = MASTER.pricesByGrade['일반등급(표준)'].sheetSpecs.map(s => `<option value="${s.n}">${s.n}</option>`).join('');
+
+    const populate = (selId, options) => {
+        const el = document.getElementById(selId);
+        if (el) el.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+    };
+    populate('prod-inner-paper', MASTER.innerPapers);
+    populate('prod-inner-print', MASTER.innerPrinting);
+    populate('prod-cover-paper', MASTER.coverPapers);
+    populate('prod-cover-print', MASTER.coverPrinting);
+    populate('prod-coating', MASTER.coating);
+    populate('prod-binding', MASTER.binding);
+    populate('prod-wing', MASTER.wing);
+    populate('prod-face-paper', MASTER.facePapers);
+    populate('prod-face-insert', MASTER.faceInsert);
+
+    // 담당자 셀렉트 박스 초기화
+    const mgrSelect = document.getElementById('prod-manager');
+    if (mgrSelect) {
+        if (currentUserRole === 'publisher') {
+            const userId = sessionStorage.getItem('userId');
+            const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+            mgrSelect.innerHTML = (myPartner && myPartner.managers || []).map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+        } else {
+            mgrSelect.innerHTML = `<option value="관리자">관리자</option>`;
+        }
+    }
+
+    const modalTitle = document.getElementById('prod-modal-title');
+    const saveBtn = document.getElementById('btn-save-product');
+
+    if (id) {
+        const prod = MASTER.products.find(p => p.id === id);
+        if (prod) {
+            if (modalTitle) modalTitle.innerText = '판매 도서 수정';
+            if (saveBtn) saveBtn.innerText = '도서 정보 수정하기';
+
+            document.getElementById('prod-title').value = prod.title;
+            document.getElementById('prod-category').value = prod.category;
+            document.getElementById('prod-manager').value = prod.manager || '';
+            document.getElementById('prod-spec').value = prod.spec;
+            document.getElementById('prod-pages').value = prod.pages;
+            document.getElementById('prod-price').value = prod.price;
+            document.getElementById('prod-desc').value = prod.desc || '';
+            document.getElementById('prod-custom-size').value = prod.customSize || '';
+
+            if (prod.details) {
+                document.getElementById('prod-inner-paper').value = prod.details.innerPaper;
+                document.getElementById('prod-inner-print').value = prod.details.innerPrint;
+                document.getElementById('prod-partial-color').value = prod.details.partialColor || '0';
+                document.getElementById('prod-cover-paper').value = prod.details.coverPaper;
+                document.getElementById('prod-cover-print').value = prod.details.coverPrint;
+                document.getElementById('prod-coating').value = prod.details.coating;
+                document.getElementById('prod-binding').value = prod.details.binding;
+                document.getElementById('prod-wing').value = prod.details.wing;
+                document.getElementById('prod-face-paper').value = prod.details.facePaper || '선택 안함';
+                document.getElementById('prod-face-insert').value = prod.details.faceInsert || '선택 안함';
+            }
+
+            currentProductImage = prod.image;
+            const preview = document.getElementById('prod-preview-content');
+            if (currentProductImage) {
+                preview.innerHTML = `<img src="${currentProductImage}" class="w-full h-full object-cover">`;
+            } else {
+                preview.innerHTML = `
+                    <div class="flex flex-col items-center p-4">
+                        <i data-lucide="file-text" class="w-16 h-16 text-rose-500 mb-2"></i>
+                        <span class="text-xs font-bold text-slate-700">PDF 원본 저장됨</span>
+                    </div>
+                `;
+            }
+        }
+    } else {
+        if (modalTitle) modalTitle.innerText = '신규 판매 도서 등록';
+        if (saveBtn) saveBtn.innerText = '스토어에 도서 등록하기';
+
+        // 필드 초기화
+        document.getElementById('prod-title').value = '';
+        document.getElementById('prod-pages').value = '200';
+        document.getElementById('prod-partial-color').value = '0';
+        document.getElementById('prod-price').value = '';
+        document.getElementById('prod-desc').value = '';
+        document.getElementById('prod-preview-content').innerHTML = `
+            <i data-lucide="image" class="w-12 h-12 mb-2 opacity-20"></i>
+            <p class="text-[11px] font-bold">표지 이미지 업로드<br>(JPG, PNG, PDF)</p>
+            <p class="text-[9px] text-slate-400 mt-1">* PDF 업로드 시 첫 페이지만 미리보기로 저장됩니다.</p>
+        `;
+        currentProductImage = null;
+    }
+
+    if (window.lucide) lucide.createIcons();
+    calcProductUnitCost();
+}
+
+function calcProductUnitCost() {
+    let grade = '일반등급(표준)';
+    if (currentUserRole === 'publisher') {
+        grade = MASTER.partners[0].grade;
+    } else {
+        grade = MASTER.currentGrade;
+    }
+    const priceData = MASTER.pricesByGrade[grade];
+    if (!priceData) return;
+
+    const specName = document.getElementById('prod-spec')?.value || '';
+    const tp = parseInt(document.getElementById('prod-pages')?.value) || 0;
+
+    // 사용자 규격 노출 여부 제어
+    const customSizeView = document.getElementById('prod-custom-size-view');
+    if (customSizeView) {
+        if (specName.includes('사용자규격') || specName.includes('변형')) {
+            customSizeView.classList.remove('hidden');
+        } else {
+            customSizeView.classList.add('hidden');
+        }
+    }
+
+    const innerPrint = document.getElementById('prod-inner-print')?.value || '';
+    let cp = parseInt(document.getElementById('prod-partial-color')?.value) || 0;
+    if (!innerPrint.includes('부분컬러')) {
+        if (innerPrint.includes('컬러')) cp = tp;
+        else if (innerPrint.includes('흑백')) cp = 0;
+    }
+    document.getElementById('prod-partial-color').value = cp;
+    let bp = tp - cp;
+    if (bp < 0) bp = 0;
+
+    let each = 0;
+    const findCommon = (n) => (priceData.commons.find(c => c.n.includes(n)) || { v: 0 }).v;
+
+    const isSingleSided = innerPrint.includes('단면');
+    const physicalSheets = isSingleSided ? tp : (tp / 2);
+
+    let spec = priceData.sheetSpecs.find(s => s.n === specName);
+    if (specName.includes('사용자규격') || specName.includes('변형')) {
+        const customSize = document.getElementById('prod-custom-size')?.value || '';
+        const [w] = customSize.split(/x|\*/i).map(Number);
+        if (w && !isNaN(w)) {
+            if (w <= 148) {
+                spec = priceData.sheetSpecs.find(s => s.n.includes('A5국판')) || spec;
+            } else if (w <= 176) {
+                spec = priceData.sheetSpecs.find(s => s.n.includes('크라운판')) || spec;
+            } else {
+                spec = priceData.sheetSpecs.find(s => s.n.includes('국배판')) || spec;
+            }
+        }
+    }
+
+    if (spec) {
+        let innerPrintCost = (bp * spec.bw) + (cp * spec.cl);
+        if (isSingleSided) {
+            innerPrintCost = innerPrintCost / 2;
+            each += (tp / 2) * findCommon('단면할증');
+        }
+        each += innerPrintCost;
+
+        const innerPaper = document.getElementById('prod-inner-paper')?.value || '';
+        if (innerPaper.includes('100g')) each += physicalSheets * findCommon('100g용지할증');
+        else if (innerPaper.includes('120g')) each += physicalSheets * findCommon('120g용지할증');
+
+        const commonMappings = [
+            { id: 'prod-cover-print', group: '표지인쇄' },
+            { id: 'prod-coating', group: '코팅방식' },
+            { id: 'prod-wing', group: '표지날개' },
+            { id: 'prod-binding', group: '제본방식' },
+            { id: 'prod-inner-print', group: '내지인쇄' }
+        ];
+
+        commonMappings.forEach(mapping => {
+            const val = document.getElementById(mapping.id)?.value;
+            const storageKey = mapping.group + "_" + val;
+            if (val && val !== '선택 안함' && priceData.sheetCommons[storageKey] !== undefined) {
+                each += priceData.sheetCommons[storageKey];
+            }
+        });
+
+        // 면지 단가 합산 로직 수정 (주문 페이지의 sync() 로직과 일치시킴)
+        const facePaper = document.getElementById('prod-face-paper')?.value;
+        const faceInsert = document.getElementById('prod-face-insert')?.value;
+
+        if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+            let multiplier = 0;
+            if (faceInsert.includes('4P')) multiplier = 4;
+            else if (faceInsert.includes('8P')) multiplier = 8;
+
+            each += (spec.face || 0) * multiplier;
+        }
+    }
+
+    document.getElementById('prod-calc-cost').innerText = Math.floor(each).toLocaleString();
+}
+
+function closeProductModal() {
+    document.getElementById('product-modal-overlay').classList.add('hidden');
+    editingProductId = null;
+}
+
+function handleProductImageSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // PDF 썸네일 생성 로직은 서버 단이나 pdf.js가 필요하므로 임시로 아이콘 대체
+    if (file.type === 'application/pdf') {
+        currentProductImage = null; // PDF 원본은 서버로 전송한다고 가정
+        const preview = document.getElementById('prod-preview-content');
+        preview.innerHTML = `
+            <div class="flex flex-col items-center p-4">
+                <i data-lucide="file-text" class="w-16 h-16 text-rose-500 mb-2"></i>
+                <span class="text-xs font-bold text-slate-700">${file.name}</span>
+                <span class="text-[10px] text-slate-400 mt-1">PDF 자동 썸네일 변환 대기중</span>
+            </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        currentProductImage = e.target.result;
+        const preview = document.getElementById('prod-preview-content');
+        preview.innerHTML = `<img src="${currentProductImage}" class="w-full h-full object-cover">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+// --- 기존 saveProductData 중복 제거 (하단 async 버전으로 통합됨) ---
+
+
+function loadProductToOrder() {
+    const prodId = document.getElementById('ord-load-product').value;
+    if (!prodId) return alert("불러올 도서를 선택해주세요.");
+
+    const prod = MASTER.products.find(p => p.id === prodId);
+    if (!prod) return;
+
+    // [추가] 도서 모드(낱장/연속지)에 맞춰 자동으로 탭 전환
+    if (prod.mode && prod.mode !== mode) {
+        setMode(prod.mode);
+        // 탭 전환 후 드롭다운 값이 초기화될 수 있으므로 다시 할당
+        document.getElementById('ord-load-product').value = prodId;
+    }
+
+    // 기본 정보 매핑
+    document.getElementById('ord-book-title').value = prod.title;
+    const pubName = document.getElementById('order-pub-name').value;
+    // 만약 관리자 모드에서 다른 출판사를 선택한 상태라면 그대로 둠, 아니라면 제품의 출판사로 셋팅
+    if (!pubName || pubName === '기본출판사') {
+        document.getElementById('order-pub-name').value = prod.pubName;
+        // 담당자 리스트 업데이트 로직 필요 시 추가
+    }
+    document.getElementById('ord-manager').value = prod.manager;
+
+    // 사양 매핑
+    document.getElementById('ord-spec').value = prod.spec;
+    const customSizeInput = document.getElementById('ord-custom-size');
+    if (customSizeInput) customSizeInput.value = prod.customSize || '';
+
+    document.getElementById('ord-tp').value = prod.pages;
+    document.getElementById('ord-cp').value = prod.details.partialColor;
+
+    document.getElementById('ord-inner').value = prod.details.innerPaper;
+    document.getElementById('ord-inner-print').value = prod.details.innerPrint;
+
+    document.getElementById('ord-cover').value = prod.details.coverPaper;
+    document.getElementById('ord-printing').value = prod.details.coverPrint;
+    document.getElementById('ord-coating').value = prod.details.coating;
+    document.getElementById('ord-binding').value = prod.details.binding;
+    document.getElementById('ord-wing').value = prod.details.wing;
+
+    const sheetFaceView = document.getElementById('ord-face-sheet-view');
+    if (sheetFaceView) {
+        const faceSelects = sheetFaceView.querySelectorAll('select');
+        if (faceSelects[0]) faceSelects[0].value = prod.details.facePaper;
+        if (faceSelects[1]) faceSelects[1].value = prod.details.faceInsert;
+    }
+
+    calculatePages();
+    sync();
+
+    alert(`[${prod.title}] 도서의 제작 사양을 성공적으로 불러왔습니다.`);
+}
+
+function renderProductList() {
+    const container = document.getElementById('product-list-container');
+    if (!container) return;
+
+    // 데이터 무결성 검사: 유효한 데이터만 렌더링
+    const validProducts = (MASTER.products || []).filter(p => p && p.title);
+
+    if (validProducts.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-4 py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                <i data-lucide="info" class="w-12 h-12 text-slate-200 mx-auto mb-4"></i>
+                <p class="text-slate-400 font-bold">등록된 판매 도서가 없습니다.<br>신규 도서를 등록하여 스토어를 채워주세요.</p>
+            </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = validProducts.map(p => `
+        <div class="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
+            <div class="aspect-[3/4] bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<div class="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-300"><i data-lucide="file-text" class="w-12 h-12 text-rose-300 mb-2"></i><span class="text-[10px] font-bold text-slate-400">PDF 원본</span></div>`}
+                <div class="absolute top-3 left-3 bg-sky-500 text-white text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest">RESTORED</div>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="flex justify-between items-center">
+                    <div class="text-[10px] font-black text-sky-600 uppercase tracking-widest">${p.category || ''}</div>
+                    <div class="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">${p.manager || ''}</div>
+                </div>
+                <h3 class="font-black text-slate-800 leading-tight h-10 overflow-hidden">${p.title}</h3>
+                <div class="flex justify-between items-center pt-2 border-t border-slate-50">
+                    <div class="text-xs text-slate-400 font-bold">${p.spec || ''} / ${p.pages || 0}P</div>
+                    <div class="text-lg font-black text-slate-900">${(p.price || 0).toLocaleString()}원</div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="editProduct('${p.id}')" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all">수정</button>
+                    <button onclick="deleteProduct('${p.id}')" class="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+}
+
+async function deleteProduct(id) {
+    if (!confirm("정말 이 도서를 스토어에서 삭제하시겠습니까?")) return;
+
+    // DB에서 즉시 삭제
+    const { error } = await _supabase.from('products').delete().eq('id', id);
+    if (error) {
+        alert("온라인 DB 삭제 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 데이터 필터링
+    MASTER.products = MASTER.products.filter(p => p && p.id !== id);
+
+    // UI 갱신
+    renderProductList();
+    alert("도서가 정상적으로 삭제되었습니다.");
+}
+
+function editProduct(id) {
+    openProductModal(id);
+}
+
+async function saveProductData() {
+    const getValue = (id) => document.getElementById(id)?.value || '';
+    const getInt = (id) => parseInt(document.getElementById(id)?.value) || 0;
+
+    const title = getValue('prod-title').trim();
+    if (!title) return alert("도서명을 입력해주세요.");
+
+    const isEditMode = !!editingProductId;
+    const productId = isEditMode ? editingProductId : 'PROD_' + Date.now();
+
+    const productData = {
+        id: productId,
+        title,
+        category: getValue('prod-category'),
+        manager: getValue('prod-manager'),
+        spec: getValue('prod-spec'),
+        pages: getValue('prod-pages'),
+        price: getInt('prod-price'),
+        desc: getValue('prod-desc').trim(),
+        customSize: getValue('prod-custom-size').trim(),
+        image: currentProductImage,
+        details: {
+            innerPaper: getValue('prod-inner-paper'),
+            innerPrint: getValue('prod-inner-print'),
+            partialColor: getValue('prod-partial-color'),
+            coverPaper: getValue('prod-cover-paper'),
+            coverPrint: getValue('prod-cover-print'),
+            coating: getValue('prod-coating'),
+            binding: getValue('prod-binding'),
+            wing: getValue('prod-wing'),
+            facePaper: getValue('prod-face-paper'),
+            faceInsert: getValue('prod-face-insert')
+        },
+        pubName: isEditMode ? (MASTER.products.find(p => p.id === editingProductId)?.pubName) : ((typeof currentUserRole !== 'undefined' && currentUserRole === 'publisher') ? (MASTER.partners[0]?.name || '출판사') : '관리자 등록'),
+        date: isEditMode ? (MASTER.products.find(p => p.id === editingProductId)?.date) : new Date().toISOString().split('T')[0]
+    };
+
+    // Supabase 직접 저장
+    const { error } = await _supabase.from('products').upsert(productData);
+
+    if (error) {
+        alert("도서 정보 온라인 저장 실패: " + error.message);
+        return;
+    }
+
+    // 메모리 데이터 즉시 반영
+    if (isEditMode) {
+        const index = MASTER.products.findIndex(p => p.id === editingProductId);
+        if (index > -1) {
+            MASTER.products[index] = productData;
+        }
+        editingProductId = null;
+    } else {
+        MASTER.products.unshift(productData);
+    }
+
+    // UI 갱신
+    closeProductModal();
+    renderProductList();
+
+    alert(isEditMode ? "도서 정보가 성공적으로 수정되어 온라인 DB에 반영되었습니다." : "도서가 성공적으로 스토어에 등록되었습니다.");
+}
+
+// ---------------------------------------------------------
+// 시스템 설정 및 권한 정보 관리
+// ---------------------------------------------------------
+function renderSystemSettings() {
+    if (!MASTER.auth) {
+        MASTER.auth = {
+            admin: { id: 'admin', pw: '1234' },
+            publisher: { id: 'pub', pw: '1234' },
+            printer: { id: 'print', pw: '1234' }
+        };
+    }
+
+    document.getElementById('set-auth-admin-id').value = MASTER.auth.admin.id;
+    document.getElementById('set-auth-admin-pw').value = MASTER.auth.admin.pw;
+    document.getElementById('set-auth-pub-id').value = MASTER.auth.publisher.id;
+    document.getElementById('set-auth-pub-pw').value = MASTER.auth.publisher.pw;
+    document.getElementById('set-auth-print-id').value = MASTER.auth.printer.id;
+    document.getElementById('set-auth-print-pw').value = MASTER.auth.printer.pw;
+}
+
+function saveAuthSettings() {
+    if (!MASTER.auth) {
+        MASTER.auth = { admin: {}, publisher: {}, printer: {} };
+    }
+
+    MASTER.auth.admin.id = document.getElementById('set-auth-admin-id').value;
+    MASTER.auth.admin.pw = document.getElementById('set-auth-admin-pw').value;
+    MASTER.auth.publisher.id = document.getElementById('set-auth-pub-id').value;
+    MASTER.auth.publisher.pw = document.getElementById('set-auth-pub-pw').value;
+    MASTER.auth.printer.id = document.getElementById('set-auth-print-id').value;
+    MASTER.auth.printer.pw = document.getElementById('set-auth-print-pw').value;
+
+    saveMasterDataSilent().then(() => {
+        alert("계정 및 권한 설정이 안전하게 저장되었습니다.");
+    });
+}
+
+// ============================================================
+// ⚠️ 비활성화(이식 완료): 아래 AI 헬퍼 및 자가치유 관련 기능은 독립 에이전트 통제실(control.js)로 이식 완료되어 비활성화되었습니다.
+// ============================================================
+/*
+// --- AI Helper (Antigravity) Functions Merged to Top ---
+
+// [수정] simulateFix: 폴링에서 null 이벤트로 호출될 때도 정상 작동
+window.simulateFix = function(eventOrNull, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    // 🟢 조치 완료 카드 생성
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeIn 0.4s ease; align-self:flex-start; max-width:100%; width:100%;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 자동화 배포 관리자] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+    chatContent.appendChild(doneCard);
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+};
+
+// --- 10번 자가치유 코딩 에이전트 파이프라인 가동 함수 ---
+async function triggerSelfHealingPipeline(payload) {
+    const HEAL_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+        ? 'https://publish79.vercel.app/api/self-heal' 
+        : '/api/self-heal';
+
+    const agentAction = document.getElementById('ai-agent-action');
+    if (!agentAction) return;
+
+    // UI 활성화 및 로딩 상태 표시
+    agentAction.classList.remove('hidden');
+    agentAction.innerHTML = `
+        <div class="ai-msg ai-msg-bot">
+            🚨 **시스템 에러 감지!**<br>
+            9번 기술행정지원 실장이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 자가치유 코딩 에이전트를 긴급 호출합니다.
+        </div>
+        <div class="ai-action-card">
+            <div class="ai-status-pulse">
+                <div class="pulse-dot"></div>
+                <span id="self-heal-status-text">10번 자가치유(Self-Healing) 코딩 엔진 가동 중...</span>
+            </div>
+            <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
+                // 분석 컨텍스트 격리 수행 중...<br>
+                // 오류 분석 및 치료 패치 생성 대기...
+            </div>
+            <button id="self-heal-submit-btn" disabled
+                class="w-full py-3 bg-slate-400 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed">
+                배포 승인 대기 중
+            </button>
+        </div>
+    `;
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+
+    try {
+        const res = await fetch(HEAL_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const codeBlock = document.getElementById('self-heal-code-block');
+        const statusText = document.getElementById('self-heal-status-text');
+        const btn = document.getElementById('self-heal-submit-btn');
+
+        if (res.ok) {
+            const data = await res.json();
+            
+            // 성공 상태로 UI 업데이트
+            statusText.innerText = "10번 자가치유 코드 보정 완료 (12번 보안관 통과)";
+            
+            let logHtml = `// 🛠️ [10번 자가치유 에이전트 수정 내역]\n`;
+            logHtml += `// 설명: ${data.explanation}\n\n`;
+            logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
+            logHtml += `// [Git CLI 로그]\n`;
+            data.gitLog.forEach(log => {
+                logHtml += `> ${log}\n`;
+            });
+            logHtml += `\n🔗 PR Link: ${data.prUrl}`;
+
+            codeBlock.innerHTML = logHtml;
+            
+            // 11번 자동화 배포 관리자: 모바일 승인 여부 폴링 시작 (거버넌스 락)
+            btn.className = "w-full py-3 bg-amber-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center gap-2";
+            btn.innerText = "⏳ 대표님 모바일 승인 대기 중 (거버넌스 락)";
+            btn.disabled = true;
+
+            const STATUS_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+                ? 'https://publish79.vercel.app/api/deploy-status' 
+                : '/api/deploy-status';
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`${STATUS_API_ENDPOINT}?pr=${data.prBranch}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'APPROVED') {
+                            clearInterval(pollInterval);
+                            
+                            // 승인 처리 완료
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.style.color = "#10b981";
+                            
+                            btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
+                            
+                            // 자동 배포 완료 애니메이션 실행
+                            simulateFix(null, data.prUrl);
+                        } else if (statusData.status === 'REJECTED') {
+                            clearInterval(pollInterval);
+                            
+                            // 반려 처리 완료
+                            statusText.innerText = "11번 배포 관리자: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.style.color = "#ef4444";
+                            
+                            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
+                            
+                            codeBlock.style.background = "#fff5f5";
+                            codeBlock.style.color = "#991b1b";
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 자가치유 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("배포 상태 폴링 오류:", err);
+                }
+            }, 2000); // 2초마다 체크
+
+        } else {
+            const errorData = await res.json();
+            // 차단 또는 실패 상태로 UI 업데이트
+            statusText.innerText = "❌ 12번 AI 보안관 검증 반려 (배포 중단)";
+            statusText.style.color = "#ef4444";
+            
+            codeBlock.style.background = "#fff5f5";
+            codeBlock.style.color = "#991b1b";
+            codeBlock.style.borderColor = "#fecaca";
+            codeBlock.innerText = `[보안 감사 로그]\n${errorData.message || '패치 생성 과정에 오류가 발생했습니다.'}`;
+            
+            btn.innerText = "보안 규격 미달로 배포 승인 차단됨";
+            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+        }
+    } catch (e) {
+        console.error("자가치유 엔진 호출 실패:", e);
+    }
+}
+
+// --- 12번 실시간 AI 보안관 2차 스캔 엔진 트리거 (30초 주기) ---
+function showSecurityAlertUI(message, modifiedFiles) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const alertMsg = document.createElement('div');
+    alertMsg.className = 'ai-msg ai-msg-bot';
+    alertMsg.style.borderLeft = '4px solid #ef4444';
+    alertMsg.style.background = '#fff5f5';
+    
+    let detailsHtml = '';
+    if (modifiedFiles && modifiedFiles.length > 0) {
+        detailsHtml = '<div class="ai-code-block" style="border-color: #fecaca; background: #fff; color: #991b1b; font-family: monospace; font-size: 11px; margin-top: 8px; padding: 10px; border-radius: 8px; line-height: 1.4; border: 1px solid #fee2e2;">';
+        modifiedFiles.forEach(fileInfo => {
+            detailsHtml += `📁 파일: <b>${fileInfo.file}</b><br>`;
+            fileInfo.leaks.forEach(leak => {
+                detailsHtml += `⚠️ 라인 ${leak.line}: 하드코딩된 <b>${leak.ruleName}</b> 노출 감지<br>`;
+                detailsHtml += `➔ <code>process.env</code> 치환 및 안전지대 대피 완료<br>`;
+            });
+        });
+        detailsHtml += '</div>';
+    }
+
+    alertMsg.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 900; margin-bottom: 6px;">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
+            <span>🚨 [12번 AI 보안관] 보안 차단 및 즉시 조치 보고</span>
+        </div>
+        <p style="font-size: 12px; line-height: 1.5; color: #374151;">${message}</p>
+        ${detailsHtml}
+    `;
+    
+    chatContent.appendChild(alertMsg);
+    if (window.lucide) lucide.createIcons();
+    
+    setTimeout(() => {
+        chatContent.scrollTop = chatContent.scrollHeight;
+    }, 100);
+}
+
+function startSecuritySheriffWatchdog() {
+    const SCAN_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
+        ? 'https://publish79.vercel.app/api/scan-secrets' 
+        : '/api/scan-secrets';
+
+    // 30초 주기 상시 스캔 데몬 가동
+    setInterval(async () => {
+        try {
+            console.log("[12번 AI 보안관] 30초 주기 소스코드 보안성 전수 스캔 수행 중...");
+            const res = await fetch(SCAN_API_ENDPOINT);
+            if (res.ok) {
+                const data = await res.json();
+                console.log("[12번 AI 보안관 스캔 판정]:", data.message);
+                if (data.status === 'DANGER') {
+                    showSecurityAlertUI(data.message, data.modifiedFiles);
+                }
+            }
+        } catch (e) {
+            console.warn("[12번 AI 보안관] 스캔 API 통신 오류:", e);
+        }
+    }, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 12번 보안관 상시 감시 스레드 실행
+    startSecuritySheriffWatchdog();
+});
+*/
+
+// ============================================================
+// 🤖 에이전트 통제실 — 차트 & 실시간 로그 시뮬레이션
+// ============================================================
+
+let acTrendChartInstance = null;
+
+function initAgentControlChart() {
+    const canvas = document.getElementById('ac-trend-chart');
+    if (!canvas) return;
+
+    // 기존 차트 인스턴스 파괴 (페이지 재진입 시 중복 방지)
+    if (acTrendChartInstance) {
+        acTrendChartInstance.destroy();
+        acTrendChartInstance = null;
+    }
+
+    const labels = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+    }
+    const data = [58, 65, 72, 69, 81, 88, 94];
+
+    acTrendChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: '복간 수요 지수',
+                data,
+                borderColor: '#0284c7',
+                backgroundColor: 'rgba(2, 132, 199, 0.08)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#0284c7',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                borderWidth: 2.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0f172a',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f1f5f9',
+                    padding: 10,
+                    cornerRadius: 10
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10, weight: '700' }, color: '#94a3b8' }
+                },
+                y: {
+                    min: 40,
+                    max: 100,
+                    grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                    ticks: { font: { size: 10, weight: '700' }, color: '#94a3b8', stepSize: 20 }
+                }
+            }
+        }
+    });
+
+    // 실시간 로그 스트림 — DB 연동 우선, 폴백 시 시뮬레이션
+    startAgentLogStream();
+}
+
+const AC_LOG_POOL = [
+    { type: 'success', agent: '[살피미]',       msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
+    { type: 'info',    agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
+    { type: 'warn',    agent: '[다듬이]',        msg: '절판 도서 {n}건 필터링 처리 중' },
+    { type: 'success', agent: '[눈치왕]',        msg: '에러 감지 0건 · 시스템 정상 운영 중' },
+    { type: 'info',    agent: '[알림이]',        msg: '복간 후보 보고서 초안 생성 완료' },
+    { type: 'success', agent: '[보안관]',        msg: '비정상 API 호출 0건 · 보안 이상 없음' },
+    { type: 'info',    agent: '[지킴이]',        msg: 'SQL Injection 스캔 완료 · 위협 없음' },
+];
+
+let acLogIntervalId = null;
+
+// agent_audit_logs 마지막 조회 시점 추적 (실시간 폴링용)
+let _lastAuditLogId = 0;
+
+function startAgentLogStream() {
+    // 중복 실행 방지
+    if (acLogIntervalId) clearInterval(acLogIntervalId);
+
+    // 첫 실행 즉시 DB 로그 로드
+    _fetchAndRenderAuditLogs();
+
+    acLogIntervalId = setInterval(() => {
+        const el = document.getElementById('ac-log-stream');
+        if (!el || !el.closest('.page-content.active')) {
+            clearInterval(acLogIntervalId);
+            acLogIntervalId = null;
+            return;
+        }
+        _fetchAndRenderAuditLogs();
+    }, 5000); // 5초 주기 실제 DB 폴링
+}
+
+async function _fetchAndRenderAuditLogs() {
+    const el = document.getElementById('ac-log-stream');
+    if (!el) return;
+
+    try {
+        // Supabase에서 최신 감사 로그 조회 (최근 15건)
+        let logs = [];
+        const { data, error } = await _supabase
+            .from('agent_audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(15);
+
+        if (!error && data && data.length > 0) {
+            logs = data;
+        } else {
+            // DB 미연동 시 시뮬레이션 폴백
+            _appendSimulatedLog(el);
+            return;
+        }
+
+        // 새 로그만 필터 (id 기준)
+        const newLogs = logs.filter(l => l.id > _lastAuditLogId);
+        if (newLogs.length === 0) return;
+
+        // 최신 id 업데이트
+        _lastAuditLogId = Math.max(...logs.map(l => l.id));
+
+        // 새 로그를 최상단에 삽입 (최신순)
+        newLogs.forEach(log => {
+            const levelMap = { success: 'success', error: 'error', warn: 'warn', info: 'info' };
+            const level = levelMap[log.log_level] || 'info';
+            const dt = new Date(log.created_at);
+            const time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+
+            const div = document.createElement('div');
+            div.className = `ac-log-entry ac-log-${level}`;
+            div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">[${log.agent_name}]</span><span>${log.message}</span>`;
+            el.prepend(div);
+        });
+
+        // 최대 20개 유지
+        while (el.children.length > 20) el.removeChild(el.lastChild);
+
+    } catch (err) {
+        // 예외 시 시뮬레이션 폴백
+        _appendSimulatedLog(el);
+    }
+}
+
+function _appendSimulatedLog(el) {
+    if (!el) return;
+    const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
+    const n = Math.floor(Math.random() * 50) + 50;
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const div = document.createElement('div');
+    div.className = `ac-log-entry ac-log-${pool.type}`;
+    div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
+    el.prepend(div);
+    while (el.children.length > 20) el.removeChild(el.lastChild);
+}
+
+// ============================================================
+// 🤖 에이전트 통제실 실시간 데이터 연동 및 렌더링 엔진
+// ============================================================
+
+async function loadAgentControlDashboard() {
+    // 1. 에이전트 조직도 연동
+    try {
+        let agents = [];
+        // Supabase 클라이언트에서 agents 테이블 직접 조회 시도 (1순위)
+        const { data, error } = await _supabase.from('agents').select('*').order('id', { ascending: true });
+        if (!error && data && data.length > 0) {
+            agents = data;
+        } else {
+            // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
+            const res = await fetch('/api/agents');
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    agents = apiRes.data;
+                }
+            }
+        }
+
+        if (agents && agents.length > 0) {
+            renderDynamicAgentOrgTree(agents);
+        }
+    } catch (err) {
+        console.warn("에이전트 조직도 연동 실패 (로컬 모드 유지):", err);
+    }
+
+    // 2. 복간 추천 TOP 3 및 실시간 수집 피드 연동
+    try {
+        let candidates = [];
+        let latestCandidates = [];
+        // Supabase 클라이언트 직접 조회 시도 (1순위)
+        const [top3Res, latestRes] = await Promise.all([
+            _supabase.from('reprint_candidates').select('*').order('reprint_score', { ascending: false }).limit(3),
+            _supabase.from('reprint_candidates').select('*').order('created_at', { ascending: false }).limit(8)
+        ]);
+
+        if (!top3Res.error && top3Res.data && top3Res.data.length > 0 &&
+            !latestRes.error && latestRes.data) {
+            candidates = top3Res.data;
+            latestCandidates = latestRes.data;
+        } else {
+            // 실패 시 Vercel API 백엔드 폴백 호출 (2순위)
+            const res = await fetch('/api/reprint-candidates');
+            if (res.ok) {
+                const apiRes = await res.json();
+                if (apiRes.success) {
+                    candidates = apiRes.top3 || apiRes.data || [];
+                    latestCandidates = apiRes.latest || [];
+                }
+            }
+        }
+
+        renderDynamicReprintCandidates(candidates);
+        renderDynamicReprintFeed(latestCandidates);
+    } catch (err) {
+        console.warn("복간 추천 및 실시간 피드 연동 실패:", err);
+    }
+}
+
+function renderDynamicAgentOrgTree(agents) {
+    const container = document.getElementById('ac-org-tree');
+    if (!container) return;
+
+    const deptMapping = {
+        'Front':    '📡 가치 창출 및 자율 서비스 본부',
+        'Back':     '⚙️ 인프라 엔진 및 행정 지원 본부',
+        'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
+    };
+
+    const tagMapping = {
+        1: '딥서치', 2: '정제', 3: '분석', 4: '조판', 5: '검수',
+        6: '디자인', 7: '영업', 8: '마케팅', 9: '감시', 10: '자가치유',
+        11: '배포', 12: '보안', 13: '지휘'
+    };
+
+    // 그루핑
+    const grouped = {};
+    agents.forEach(agent => {
+        const dept = agent.department || 'Etc';
+        if (!grouped[dept]) grouped[dept] = [];
+        grouped[dept].push(agent);
+    });
+
+    const deptOrder = ['Front', 'Back', 'Security', 'Etc'];
+    let html = '';
+
+    deptOrder.forEach(deptKey => {
+        const list = grouped[deptKey];
+        if (!list || list.length === 0) return;
+
+        const deptTitle = deptMapping[deptKey] || `${deptKey} 부서`;
+        const isOrchestratorDept = list.some(a => a.id === 13);
+
+        html += `
+        <div class="ac-dept ${isOrchestratorDept ? 'ac-dept-orchestrator' : ''}">
+            <div class="ac-dept-title">${deptTitle}</div>
+        `;
+
+        list.forEach(agent => {
+            let statusClass = 'ac-agent-idle';
+            let dotClass = 'ac-dot-slate';
+
+            if (agent.status === 'active' || agent.status === 'success') {
+                statusClass = 'ac-agent-active';
+                dotClass = agent.id === 13 ? 'ac-dot-purple' : 'ac-dot-green';
+            } else if (agent.status === 'running' || agent.status === 'processing') {
+                statusClass = 'ac-agent-running';
+                dotClass = 'ac-dot-amber';
+            } else if (agent.status === 'error' || agent.status === 'danger') {
+                statusClass = 'ac-agent-error';
+                dotClass = 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)] animate-pulse';
+            }
+
+            let taskText = '대기중';
+            if (agent.status === 'running' || agent.status === 'processing') {
+                taskText = agent.role || '작동중';
+            } else if (agent.status === 'active' || agent.status === 'success') {
+                taskText = agent.role || '조치 완료';
+            } else if (agent.status === 'error' || agent.status === 'danger') {
+                taskText = '⚠️ 오류 발생';
+            }
+
+            const tagText = tagMapping[agent.id] || '에이전트';
+            const isPurpleTag = agent.id === 13;
+
+            html += `
+            <div class="ac-agent-row ${statusClass}">
+                <span class="ac-dot ${dotClass}"></span>
+                <span class="ac-agent-name">${agent.id}번 ${agent.name}</span>
+                <span class="ac-agent-task truncate" style="margin-left: 8px;">${taskText}</span>
+                <span class="ac-agent-tag ${isPurpleTag ? 'ac-tag-purple' : ''}">${tagText}</span>
+            </div>
+            `;
+        });
+
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderDynamicReprintCandidates(candidates) {
+    const container = document.getElementById('ac-top3-list');
+    if (!container) return;
+
+    window._currentCandidates = candidates || [];
+
+    if (!candidates || candidates.length === 0) {
+        container.innerHTML = `
+        <div class="py-12 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <div class="text-slate-300 mx-auto mb-3" style="display: flex; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            </div>
+            <p class="text-xs text-slate-400 font-bold">후보 도서 분석 대기 중</p>
+            <p class="text-[10px] text-slate-400 mt-1">1번 살피미가 수집하고 2번 다듬이가 정제한<br>복간 대상 도서가 실시간으로 이곳에 표시됩니다.</p>
+        </div>
+        `;
+        return;
+    }
+
+    const rankEmojis = ['🥇', '🥈', '🥉'];
+
+    container.innerHTML = candidates.slice(0, 3).map((c, index) => {
+        const rankEmoji = rankEmojis[index] || '•';
+        const rankClass = `ac-rank-${index + 1}`;
+        const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
+        const loansText = c.library_loans ? c.library_loans.toLocaleString() : '0';
+        const simulatedBadge = c.is_simulated
+            ? `<span class="inline-block bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 font-black animate-pulse align-middle shadow-sm">통계 보정 중</span>`
+            : '';
+
+        // 수요 온도 연산 및 라벨 매핑 (TailwindCSS 클래스 적용)
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'bg-sky-50 text-sky-600 border border-sky-100';
+        let tempEmoji = '🔵';
+        let tempLabel = '미온';
+        if (temp >= 90) {
+            tempClass = 'bg-rose-50 text-rose-600 border border-rose-200 animate-pulse';
+            tempEmoji = '🔴';
+            tempLabel = '끓는점';
+        } else if (temp >= 70) {
+            tempClass = 'bg-orange-50 text-orange-600 border border-orange-100';
+            tempEmoji = '🟠';
+            tempLabel = '고온';
+        } else if (temp >= 50) {
+            tempClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
+            tempEmoji = '🟡';
+            tempLabel = '온열';
+        }
+
+        return `
+        <div class="ac-book-card ${rankClass} cursor-pointer hover:scale-[1.02] hover:shadow-md transition-all duration-200" onclick="startBookSimulationByIndex(${index})">
+            <div class="ac-rank-badge">${rankEmoji} ${index + 1}위</div>
+            <div class="ac-book-info">
+                <div class="ac-book-title">${c.title} (${c.author})${simulatedBadge}</div>
+                <div class="ac-book-meta flex items-center gap-1.5 flex-wrap mt-1">
+                    <span class="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded border ${tempClass}">${tempEmoji} ${temp}℃ ${tempLabel}</span>
+                    <span class="text-[10px] text-slate-400 font-medium">${c.is_out_of_print ? '절판' : '일반'} · ${pubYearText} · 대출 <strong class="text-sky-600 font-bold">${loansText}</strong>건</span>
+                </div>
+            </div>
+            <div class="ac-reprint-score">${c.reprint_score || 0}<span>점</span></div>
+        </div>
+        `;
+    }).join('');
+}
+
+function renderDynamicReprintFeed(latestCandidates) {
+    const container = document.getElementById('ac-feed-list');
+    if (!container) return;
+
+    if (!latestCandidates || latestCandidates.length === 0) {
+        container.innerHTML = `
+        <div class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 w-full">
+            <p class="text-[10px] text-slate-400 font-bold">실시간 도서 수집 대기 중...</p>
+        </div>
+        `;
+        return;
+    }
+
+    const categoryStyles = {
+        '소설': 'bg-rose-50 text-rose-600 border border-rose-100',
+        '에세이': 'bg-pink-50 text-pink-600 border border-pink-100',
+        '인문학': 'bg-violet-50 text-violet-600 border border-violet-100',
+        '사회과학': 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+        '역사': 'bg-amber-50 text-amber-700 border border-amber-100',
+        '과학': 'bg-cyan-50 text-cyan-600 border border-cyan-100',
+        '예술': 'bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100',
+        '경제경영': 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+        '자기계발': 'bg-sky-50 text-sky-600 border border-sky-100',
+        '종교': 'bg-teal-50 text-teal-600 border border-teal-100',
+        '어린이': 'bg-yellow-50 text-yellow-600 border border-yellow-100',
+        '청소년': 'bg-orange-50 text-orange-600 border border-orange-100',
+        '미분류': 'bg-slate-50 text-slate-500 border border-slate-200'
+    };
+
+    container.innerHTML = latestCandidates.map(c => {
+        const title = (c.title || '').replace(/<\/?[^>]+(>|$)/g, "");
+        const author = (c.author || '미상').replace(/<\/?[^>]+(>|$)/g, "");
+        const category = c.category || '미분류';
+        const catClass = categoryStyles[category] || 'bg-slate-50 text-slate-500 border border-slate-200';
+        
+        const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
+        const publisher = c.publisher || '출판사 미상';
+        const score = c.reprint_score || 0;
+        
+        const simulatedBadge = c.is_simulated
+            ? `<span class="inline-block bg-amber-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black animate-pulse align-middle shadow-sm ml-1.5">통계 보정 중</span>`
+            : '';
+
+        // 수요 온도 연산 및 라벨 매핑 (TailwindCSS 클래스 적용)
+        const temp = c.demand_temperature !== undefined ? c.demand_temperature : Math.min(100, Math.round(((c.library_loans || 0) / 650) * 100));
+        let tempClass = 'bg-sky-50 text-sky-600 border border-sky-100';
+        let tempEmoji = '🔵';
+        if (temp >= 90) {
+            tempClass = 'bg-rose-50 text-rose-600 border border-rose-200 animate-pulse';
+            tempEmoji = '🔴';
+        } else if (temp >= 70) {
+            tempClass = 'bg-orange-50 text-orange-600 border border-orange-100';
+            tempEmoji = '🟠';
+        } else if (temp >= 50) {
+            tempClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
+            tempEmoji = '🟡';
+        }
+
+        return `
+        <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-sky-300 hover:shadow-sm cursor-pointer transition-all duration-200 w-full min-w-0"
+             onclick="startBookSimulationByFeedIsbn('${c.isbn}')">
+            <div class="flex flex-col gap-1 min-w-0 flex-1 pr-3">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${catClass}">${category}</span>
+                    <span class="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.2 rounded border ${tempClass}">${tempEmoji} ${temp}℃</span>
+                    ${simulatedBadge}
+                </div>
+                <div class="text-[11px] font-extrabold text-slate-800 truncate">${title} (${author})</div>
+                <div class="text-[9px] text-slate-400 font-medium truncate">${pubYearText} · ${publisher}</div>
+            </div>
+            <div class="flex flex-col items-end justify-center shrink-0">
+                <span class="text-[9px] text-slate-400 font-bold">복간지수</span>
+                <span class="text-xs font-black text-sky-600">${score}점</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    window._latestFeedCandidates = latestCandidates;
+}
+
+window.startBookSimulationByFeedIsbn = function(isbn) {
+    const book = window._latestFeedCandidates?.find(b => b.isbn === isbn);
+    if (book) {
+        window.startBookSimulationByBook(book);
+    }
+};
+
+// ============================================================
+// ⚡ 플래시 라이트 모드 — 시스템 과부하 방어 기제 시연 엔진
+// ============================================================
+
+let _flashlightModeActive = false;
+let _flashlightTimerId    = null;
+
+window.toggleFlashlightMode = function() {
+    const pageEl = document.getElementById('page-agent-control');
+    const btn    = document.getElementById('btn-flashlight-mode');
+
+    _flashlightModeActive = !_flashlightModeActive;
+
+    if (_flashlightModeActive) {
+        if (pageEl) pageEl.classList.add('ac-flashlight-active');
+        if (btn) { btn.textContent = '⚡ 플래시 라이트 ON — 클릭 시 해제'; btn.classList.add('btn-flashlight-on'); }
+
+        const msgEl   = document.getElementById('orchestrator-msg');
+        const scoreEl = document.getElementById('orchestrator-score');
+        if (msgEl)   msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
+        if (scoreEl) scoreEl.innerHTML = '67<span>%</span>';
+
+        _insertWarningLogs();
+
+        let countdown = 5;
+        _flashlightTimerId = setInterval(() => {
+            countdown--;
+            const m = document.getElementById('orchestrator-msg');
+            if (m) m.textContent = `⚡ 과부하 방어 기제 작동 중... 시스템 안정화까지 ${countdown}초`;
+            if (countdown <= 0) { clearInterval(_flashlightTimerId); _autoRecoverFromFlashlight(); }
+        }, 1000);
+    } else {
+        _autoRecoverFromFlashlight();
+    }
+};
+
+function _insertWarningLogs() {
+    const logEl = document.getElementById('ac-log-stream');
+    if (!logEl) return;
+    const warnings = [
+        { l: 'error',   a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
+        { l: 'warn',    a: '[살피미]',         m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
+        { l: 'warn',    a: '[보안관]',         m: '과부하 대응 2단계 방어 루틴 가동 완료' },
+        { l: 'success', a: '[눈치왕]',         m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
+    ];
+    warnings.forEach(w => {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = `ac-log-entry ac-log-${w.l}`;
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">${w.a}</span><span>${w.m}</span>`;
+        logEl.prepend(div);
+    });
+    while (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
+}
+
+function _autoRecoverFromFlashlight() {
+    if (_flashlightTimerId) { clearInterval(_flashlightTimerId); _flashlightTimerId = null; }
+    _flashlightModeActive = false;
+    const pageEl = document.getElementById('page-agent-control');
+    const btn    = document.getElementById('btn-flashlight-mode');
+    if (pageEl) pageEl.classList.remove('ac-flashlight-active');
+    if (btn) { btn.textContent = '⚡ 플래시 라이트 모드 시연'; btn.classList.remove('btn-flashlight-on'); }
+
+    const msgEl   = document.getElementById('orchestrator-msg');
+    const scoreEl = document.getElementById('orchestrator-score');
+    if (msgEl)   msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
+    if (scoreEl) scoreEl.innerHTML = '95<span>%</span>';
+
+    const logEl = document.getElementById('ac-log-stream');
+    if (logEl) {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = 'ac-log-entry ac-log-success';
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>✅ 시스템 안정화 완료 — 전 에이전트 정상 운영 상태 복귀</span>`;
+        logEl.prepend(div);
+    }
+}
+
+// ============================================================
+// 🚀 파이프라인 수동 트리거 — 대시보드 버튼 연동
+// ============================================================
+
+window.triggerPipeline = async function() {
+    const pipeBtn  = document.getElementById('btn-trigger-pipeline');
+    const statusEl = document.getElementById('pipeline-status-text');
+    const kwInput  = document.getElementById('pipeline-keyword-input');
+    const kw       = kwInput?.value?.trim() || '절판 도서';
+
+    if (pipeBtn) { pipeBtn.disabled = true; pipeBtn.textContent = '⏳ 실행 중...'; }
+    if (statusEl) { statusEl.textContent = `🔄 "${kw}" 검색 → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = '#f59e0b'; }
+
+    try {
+        const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'https://publish79.vercel.app/api/pipeline'
+            : '/api/pipeline';
+
+        const res  = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (statusEl) {
+                statusEl.textContent = `✅ 완료! ${data.totalCollected || 0}건 수집 → ${data.inserted || 0}건 DB 적재`;
+                statusEl.style.color = '#10b981';
+            }
+            setTimeout(async () => {
+                await loadAgentControlDashboard();
+                _lastAuditLogId = 0;
+                // 파이프라인 수집 완료 후 자동으로 상위 1위 도서 시뮬레이션 개시
+                if (window._currentCandidates && window._currentCandidates.length > 0) {
+                    setTimeout(() => {
+                        window.startBookSimulationByIndex(0);
+                    }, 1200);
+                }
+            }, 1500);
+        } else {
+            if (statusEl) {
+                const detailMsg = data.detail ? ` (${data.detail})` : '';
+                statusEl.textContent = `❌ 오류: ${data.error || '알 수 없는 오류'}${detailMsg}`;
+                statusEl.style.color = '#ef4444';
+            }
+        }
+    } catch (err) {
+        if (statusEl) { statusEl.textContent = `❌ 네트워크 오류: ${err.message}`; statusEl.style.color = '#ef4444'; }
+    } finally {
+        if (pipeBtn) { pipeBtn.disabled = false; pipeBtn.textContent = '🚀 파이프라인 실행'; }
+    }
+};
+
+// ============================================================
+// 🟢 모바일 디스코드 승인 → 대시보드 '조치 완료' 전환 연출 엔진
+// ============================================================
+
+let _approvalCheckInterval = null;
+
+window.startApprovalWatchdog = function(prId) {
+    if (_approvalCheckInterval) clearInterval(_approvalCheckInterval);
+    const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'https://publish79.vercel.app/api/deploy-status'
+        : '/api/deploy-status';
+
+    _approvalCheckInterval = setInterval(async () => {
+        try {
+            const res  = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'APPROVED') {
+                clearInterval(_approvalCheckInterval);
+                _approvalCheckInterval = null;
+                _triggerApprovalCompleteAnimation();
+            }
+        } catch (_) {}
+    }, 3000);
+};
+
+function _triggerApprovalCompleteAnimation() {
+    const msgEl   = document.getElementById('orchestrator-msg');
+    const scoreEl = document.getElementById('orchestrator-score');
+    if (msgEl)   msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
+    if (scoreEl) scoreEl.innerHTML = '100<span>%</span>';
+
+    document.querySelectorAll('.ac-agent-row').forEach((row, i) => {
+        setTimeout(() => {
+            row.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error');
+            row.classList.add('ac-agent-active');
+            const dot     = row.querySelector('.ac-dot');
+            const taskEl  = row.querySelector('.ac-agent-task');
+            if (dot && !dot.classList.contains('ac-dot-purple')) dot.className = 'ac-dot ac-dot-green';
+            if (taskEl && (taskEl.textContent.includes('대기') || taskEl.textContent.includes('처리'))) {
+                taskEl.textContent = '🟢 조치 완료';
+            }
+        }, i * 150);
+    });
+
+    const logEl = document.getElementById('ac-log-stream');
+    if (logEl) {
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const div = document.createElement('div');
+        div.className = 'ac-log-entry ac-log-success';
+        div.style.fontWeight = '900';
+        div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>🟢 대표님 모바일 승인 완료 — 전 에이전트 조치 완료 상태로 전환</span>`;
+        logEl.prepend(div);
+    }
+}
+
+// ============================================================
+// 🤖 1~8단계 자율 출판 에이전트 파이프라인 시뮬레이터 연동 소스
+// ============================================================
+
+// pdf-lib 및 fontkit 라이브러리 동적 로드 함수
+async function ensurePDFLibLoaded() {
+    if (window.PDFLib && window.fontkit) return window.PDFLib;
+    
+    const loadFontkit = () => new Promise((resolve, reject) => {
+        if (window.fontkit) return resolve();
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(new Error('fontkit 로드 실패: ' + e.message));
+        document.head.appendChild(script);
+    });
+
+    const loadPDFLib = () => new Promise((resolve, reject) => {
+        if (window.PDFLib) return resolve(window.PDFLib);
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+        script.onload = () => resolve(window.PDFLib);
+        script.onerror = (e) => reject(new Error('PDFLib 로드 실패: ' + e.message));
+        document.head.appendChild(script);
+    });
+
+    await Promise.all([loadFontkit(), loadPDFLib()]);
+    return window.PDFLib;
+}
+
+// Supabase 실시간 적재용 에이전트 상태 업데이트 (UAT용)
+async function updateAgentStatusInDB(agentId, status, role) {
+    try {
+        await _supabase
+            .from('agents')
+            .update({ status: status, role: role, updated_at: new Date().toISOString() })
+            .eq('id', agentId);
+    } catch (e) {
+        console.warn("DB 에이전트 상태 업데이트 오류:", e.message);
+    }
+}
+
+// Supabase 실시간 적재용 감사 로그 기록 (UAT용)
+async function writeAuditLogInDB(agentId, agentName, logLevel, message, metadata) {
+    try {
+        await _supabase
+            .from('agent_audit_logs')
+            .insert({
+                agent_id: agentId,
+                agent_name: agentName,
+                log_level: logLevel,
+                message: message,
+                metadata: metadata ? JSON.stringify(metadata) : null,
+                created_at: new Date().toISOString()
+            });
+    } catch (e) {
+        console.warn("DB 감사 로그 기록 오류:", e.message);
+    }
+}
+
+// 에이전트 조직도 실시간 네온 등 상태 업데이트 (로컬 UI 전용 빠른 업데이트)
+function updateLocalAgentStatus(agentId, status, role) {
+    const container = document.getElementById('ac-org-tree');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('.ac-agent-row');
+    rows.forEach(r => {
+        if (r.textContent.includes(`${agentId}번`)) {
+            r.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error', 'ac-agent-active');
+            const dot = r.querySelector('.ac-dot');
+            const task = r.querySelector('.ac-agent-task');
+            
+            if (status === 'running') {
+                r.classList.add('ac-agent-running');
+                if (dot) dot.className = 'ac-dot ac-dot-amber';
+            } else if (status === 'success' || status === 'active') {
+                r.classList.add('ac-agent-active');
+                if (dot) dot.className = agentId === 13 ? 'ac-dot-purple' : 'ac-dot-green';
+            } else if (status === 'error') {
+                r.classList.add('ac-agent-error');
+                if (dot) dot.className = 'ac-dot bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)] animate-pulse';
+            } else {
+                r.classList.add('ac-agent-idle');
+                if (dot) dot.className = 'ac-dot ac-dot-slate';
+            }
+            if (task) task.textContent = role;
+        }
+    });
+}
+
+// 복간 후보 책선택 시뮬레이션 개시 메인 진입점
+window.startBookSimulationByIndex = async function(index) {
+    const book = window._currentCandidates[index];
+    if (!book) return;
+    return window.startBookSimulationByBook(book);
+};
+
+window.startBookSimulationByBook = async function(book) {
+    if (!book) return;
+
+    // Clean title and author of any HTML tags (e.g. search highlight span tags from API)
+    if (book.title) {
+        book.title = book.title.replace(/<\/?[^>]+(>|$)/g, "");
+    }
+    if (book.author) {
+        book.author = book.author.replace(/<\/?[^>]+(>|$)/g, "");
+    }
+
+    // Save book globally to prevent quote escaping bugs in inline HTML event handlers
+    window._currentSimBook = book;
+
+    // 모달이 기존에 있으면 제거
+    const oldModal = document.getElementById('simulation-modal');
+    if (oldModal) oldModal.remove();
+
+    // 1. 모달 엘리먼트 생성 및 추가
+    const processTitle = book._a5Recommended ? 'B2B 출판사 제안 프로세스' : '자체 콘텐츠 제작 프로세스';
+    const qtyText = book._a5Recommended ? '소량 30부 제작 기준' : '초판 500부 제작 기준';
+    const modalHtml = `
+    <div id="simulation-modal" class="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div class="bg-white border border-slate-200/50 w-full max-w-4xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+                <div>
+                   <div class="text-[10px] font-bold text-sky-600 uppercase tracking-widest flex items-center gap-1.5">
+                       <span class="relative flex h-2 w-2">
+                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                         <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                       </span>
+                       GEM 13. 자율 의사결정 파이프라인
+                   </div>
+                   <h3 class="text-xl font-black text-slate-800 mt-1">${processTitle}</h3>
+                </div>
+                <button onclick="closeSimulationModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto p-8 space-y-8" id="simulation-body">
+                <!-- Book Info Summary -->
+                <div class="bg-sky-50/70 border border-sky-100/50 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] text-sky-600 font-extrabold tracking-wider uppercase">복간 대상 도서</span>
+                        <h4 class="text-lg font-black text-slate-800 mt-1" id="sim-book-title">${book.title}</h4>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5" id="sim-book-author">저자: ${book.author || '미상'} | 출판사: ${book.publisher || '미상'} | 발행연도: ${book.pub_year ? book.pub_year + '년' : '미상'}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase block">복간 타당성 점수</span>
+                        <span class="text-3xl font-mono font-black text-sky-600 tracking-tight" id="sim-book-score">${book.reprint_score || 0}<span class="text-xs font-bold text-sky-400 ml-0.5">점</span></span>
+                    </div>
+                </div>
+
+                <!-- Pipeline Progress Steps Visualizer -->
+                <div class="grid grid-cols-6 gap-3 border-y border-slate-100 py-6 text-center" id="sim-steps-visualizer">
+                    <div class="sim-step" id="step-node-1">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100">1</div>
+                        <div class="text-[10px] font-black text-slate-600 mt-2">1. 딥서치 수집</div>
+                        <div class="text-[8px] text-emerald-600 font-bold mt-0.5">완료 (🟢)</div>
+                    </div>
+                    <div class="sim-step" id="step-node-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100">2</div>
+                        <div class="text-[10px] font-black text-slate-600 mt-2">2. 데이터 정제</div>
+                        <div class="text-[8px] text-emerald-600 font-bold mt-0.5">완료 (🟢)</div>
+                    </div>
+                    <div class="sim-step" id="step-node-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-3-icon">3</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-3-text">3. 1차 가상조판</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-3-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-4">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-4-icon">4</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-4-text">4. 수익성 검토</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-4-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-5">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-5-icon">5</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-5-text">5. 대표님 승인</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-5-status">대기</div>
+                    </div>
+                    <div class="sim-step" id="step-node-6">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center font-bold mx-auto text-xs" id="step-node-6-icon">6</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-2" id="step-node-6-text">6. 최종조판/디자인</div>
+                        <div class="text-[8px] text-slate-400 font-bold mt-0.5" id="step-node-6-status">대기</div>
+                    </div>
+                </div>
+
+                <!-- Simulation Console / Screen -->
+                <div class="bg-slate-955 text-sky-400 font-mono rounded-2xl p-6 text-[11px] leading-relaxed space-y-1.5 shadow-inner h-48 overflow-y-auto custom-scrollbar border border-slate-800" id="sim-console" style="background-color: #030712;">
+                    <!-- Realtime logs stream here -->
+                </div>
+
+                <!-- Decision Card Area -->
+                <div id="sim-decision-area" class="hidden space-y-5 animate-in slide-in-from-bottom duration-500">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h4 class="text-md font-black text-slate-800 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-sky-600 rounded-full"></span>
+                            📊 의사결정 카드 (4대 표준 판형 수익성 분석 보고)
+                        </h4>
+                        <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-200/50">${qtyText}</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-4" id="sim-decision-grid">
+                        <!-- 4 layout options dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- Compilation Progress Area -->
+                <div id="sim-compilation-area" class="hidden space-y-4 bg-slate-50 border border-slate-200/50 rounded-2xl p-6 animate-in slide-in-from-bottom duration-500">
+                    <h4 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-600"></span>
+                        </span>
+                        <span>4번 VDP_조판사: 2차 최종 조판 및 PDF/X-4 인쇄용 파일 빌드 중...</span>
+                    </h4>
+                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                        <div class="bg-sky-600 h-full w-0 transition-all duration-300" id="sim-compilation-progress"></div>
+                    </div>
+                    <p class="text-xs font-bold text-slate-500 text-right" id="sim-compilation-status">0%</p>
+                    <div class="hidden flex gap-3 pt-2" id="sim-compilation-download">
+                        <!-- Download buttons for PDF and cover -->
+                    </div>
+                </div>
+
+                <!-- Creative Cover Designer Area -->
+                <div id="sim-cover-area" class="hidden space-y-6 bg-slate-50 border border-slate-200/50 rounded-2xl p-6 animate-in slide-in-from-bottom duration-500">
+                    <h4 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+                        <span>6번 수석 크리에이티브 디자이너: 책등 두께 정밀 정합 북 커버 전개도 디자인 출력 완료</span>
+                    </h4>
+                    <div class="flex flex-col items-center justify-center gap-5">
+                        <canvas id="sim-cover-canvas" width="650" height="280" class="border border-slate-200 rounded-2xl bg-white max-w-full shadow-inner"></canvas>
+                        <button onclick="downloadCoverPDF()" class="bg-pink-600 hover:bg-pink-700 text-white font-black px-6 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-pink-100 transition-all active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            북 커버 펼침면 PDF 다운로드
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center shrink-0" id="sim-footer">
+                <div class="text-[10px] text-slate-400 font-bold">* 이 파이프라인은 실시간으로 Supabase DB 데이터 상태에 영구 기록됩니다.</div>
+                <button onclick="closeSimulationModal()" class="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl text-xs font-black hover:bg-slate-100 transition-all active:scale-95">시뮬레이션 중단 및 닫기</button>
+            </div>
+        </div>
+    </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Lucide 아이콘 재생성
+    if (window.lucide) lucide.createIcons();
+
+    // 콘솔 출력 헬퍼
+    const consoleEl = document.getElementById('sim-console');
+    const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
+        const time = new Date().toTimeString().split(' ')[0];
+        const colorMap = {
+            info: 'text-sky-400',
+            success: 'text-emerald-400 font-bold',
+            warn: 'text-amber-400',
+            error: 'text-rose-400 font-bold'
+        };
+        const color = colorMap[type] || 'text-slate-300';
+        
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
+        consoleEl.appendChild(line);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+
+        // 실시간 Supabase DB 적재 (UAT 상시 기록)
+        if (agentId && agentName) {
+            writeAuditLogInDB(agentId, agentName, type, message, { bookTitle: book.title });
+        }
+    };
+
+    // 2. 파이프라인 상태 시뮬레이션 시작
+    logConsole(`[오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '오케스트레이터');
+    
+    // Step 1 & 2 완료 상태로 리셋
+    await updateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
+    await updateAgentStatusInDB(1, 'success', '도서관 API 데이터 수집 완료');
+    await updateAgentStatusInDB(2, 'success', '도서 데이터 정제 완료');
+    await updateAgentStatusInDB(3, 'idle', '대기중');
+    await updateAgentStatusInDB(4, 'idle', '대기중');
+    await updateAgentStatusInDB(6, 'idle', '대기중');
+    loadAgentControlDashboard(); // 메인 대시보드 강제 리로드하여 불빛 갱신
+
+    // ==========================================
+    // STEP 3: 4번 VDP_조판사 (1차 가상 조판)
+    // ==========================================
+    setTimeout(async () => {
+        // UI 변경 (Step 3 활성화 - 옐로우)
+        const step3Icon = document.getElementById('step-node-3-icon');
+        const step3Text = document.getElementById('step-node-3-text');
+        const step3Status = document.getElementById('step-node-3-status');
+        
+        if (step3Icon) {
+            step3Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+            step3Status.textContent = '진행중 (🟡)';
+            step3Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+            step3Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+        }
+
+        updateLocalAgentStatus(4, 'running', '1차 가상 조판 시뮬레이션 중');
+        logConsole(`[VDP_조판사] 4대 표준 판형에 얹었을 때 물리 스펙(페이지수, 책등 두께) 가상 계산 개시.`, 'info', 4, 'VDP_조판사');
+
+        // 가상 조판 API 호출
+        try {
+            const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'https://publish79.vercel.app/api/typeset'
+                : '/api/typeset';
+                
+            // 글자수를 도서마다 다르게 시뮬레이션 (수요지수 기반으로 비례 계산해서 10만자 ~ 22만자)
+            const simulatedChars = Math.floor((book.reprint_score || 50) * 1500 + 80000);
+            
+            const typesetRes = await fetch(typesetEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'simulate',
+                    title: book.title,
+                    author: book.author,
+                    charsCount: simulatedChars,
+                    innerPaper: '미색모조80g'
+                })
+            });
+
+            if (!typesetRes.ok) throw new Error('조판 시뮬레이션 API 호출 실패');
+            const typesetData = await typesetRes.json();
+            const sims = typesetData.simulations;
+
+            // 로깅용 딜레이 연출
+            for (let i = 0; i < sims.length; i++) {
+                await new Promise(r => setTimeout(r, 400));
+                const s = sims[i];
+                logConsole(`[VDP_조판사] ${s.specName} 판형 가상 레이아웃 완료 ➔ 예상 페이지: ${s.pages}p, 계산된 책등 두께: ${s.spineMm}mm`, 'info', 4, 'VDP_조판사');
+            }
+
+            // Step 3 완료 처리
+            if (step3Icon) {
+                step3Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                step3Status.textContent = '완료 (🟢)';
+                step3Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+            }
+            updateLocalAgentStatus(4, 'success', '1차 가상 조판 완료');
+            logConsole(`[VDP_조판사] 4대 판형 1차 물리 스펙 산출 완료. 3번 분석 팀장에게 데이터 전송.`, 'success', 4, 'VDP_조판사');
+
+            // ==========================================
+            // STEP 4: 3번 수익성·타당성 분석 팀장 (수익성 검토)
+            // ==========================================
+            setTimeout(async () => {
+                const step4Icon = document.getElementById('step-node-4-icon');
+                const step4Text = document.getElementById('step-node-4-text');
+                const step4Status = document.getElementById('step-node-4-status');
+                
+                if (step4Icon) {
+                    step4Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+                    step4Status.textContent = '진행중 (🟡)';
+                    step4Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+                    step4Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+                }
+
+                // B2B 최적화 제안 시 30부 소량, 자체 콘텐츠 복간 시 500부 대량 가동
+                const qty = book._a5Recommended ? 30 : 500;
+                logConsole(`[수익성 분석 팀장] 제작 부수: ${qty}부 기준 실시간 요율 매핑 개시.`, 'info', 3, '수익성·타당성 분석 팀장');
+
+                // 로드된 실서버 일반등급 단가 불러오기
+                const gradeData = MASTER.pricesByGrade?.['일반등급(표준)'];
+                if (gradeData) {
+                    logConsole(`[수익성 분석 팀장] 실서버 '일반등급(표준)' 원격 단가 테이블 매핑 성공.`, 'success', 3, '수익성·타당성 분석 팀장');
+                }
+
+                const calculatedSpecs = sims.map(s => {
+                    let pageCost = 15; // 기본 폴백 단가 (면당)
+                    const isSheetfed = qty < 50; // 50부 미만 시 낱장(Sheet-fed) 인쇄 강제
+
+                    if (isSheetfed) {
+                        // 1. 디지털 낱장 단가 매핑
+                        if (s.specName.includes('A5국판')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('A5국판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 8; // A5 4판걸이 요율 (기본 8원)
+                        } else if (s.specName.includes('신국판')) {
+                            // 신국판은 낱장 규격에 없으므로 2판거리 패널티 요율 12원 고정 적용
+                            pageCost = 12;
+                        } else if (s.specName.includes('46배판형')) {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && x.n.includes('46배판'));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        } else {
+                            const match = gradeData?.sheetSpecs?.find(x => x.n && s.specName.includes(x.n.split('(')[0]));
+                            pageCost = (match && typeof match.bw === 'number') ? match.bw : 15;
+                        }
+                    } else {
+                        // 2. 디지털 연속지 단가 매핑 (50부 이상)
+                        let rollSpecName = '신국판';
+                        if (s.specName.includes('A5국판')) rollSpecName = 'A5국판';
+                        else if (s.specName.includes('46배판형')) rollSpecName = '46배판';
+                        else if (s.specName.includes('국배판')) rollSpecName = '국배판';
+                        
+                        const match = gradeData?.rollSpecs?.find(x => x.n && x.n.includes(rollSpecName));
+                        if (match && match.ivs) {
+                            const interval = match.ivs.find(iv => qty >= iv.s && qty <= iv.e);
+                            pageCost = (interval && typeof interval.bw === 'number') ? interval.bw : 8; // 연속지 요율 (기본 8원)
+                        } else {
+                            pageCost = s.specName.includes('국배판') ? 12 : s.specName.includes('46배판형') ? 10 : 8;
+                        }
+                    }
+
+                    // 공통 단가 매핑 (표지, 코팅, 제본)
+                    const coverPrintCost = gradeData?.commons?.find(x => x.n && x.n.includes('표지컬러단면'))?.v || 1200;
+                    const coatingCost = gradeData?.commons?.find(x => x.n && x.n.includes('코팅'))?.v || 300;
+                    const bindingCost = 1600; // 제본비 기본
+
+                    const totalInnerCost = s.pages * qty * pageCost;
+                    const totalCoverCost = qty * coverPrintCost;
+                    const totalCoatingCost = qty * coatingCost;
+                    const totalBindingCost = qty * bindingCost;
+
+                    const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
+                    const unitCost  = Math.round(totalCost / qty);
+
+                    let retailPrice = 15000;
+                    if (s.specName.includes('국배판'))  retailPrice = 24000;
+                    else if (s.specName.includes('46배판형')) retailPrice = 21000;
+                    else if (s.specName.includes('신국판')) retailPrice = 18500;
+                    else if (s.specName.includes('A5국판'))  retailPrice = 16800;
+                    else retailPrice = 14800;
+
+                    const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
+                    // B2B 최적화 시에는 A5국판을 BEST로 제안하고, 자체 복간 시에는 신국판을 BEST로 추천
+                    const isRecommended = book._a5Recommended ? s.specName.includes('A5국판') : s.specName.includes('신국판');
+                    const recommendationText = isRecommended ? '최적 마진 추천 🔥' : (marginRate >= 60 ? '적합도 우수' : marginRate < 50 ? '적합도 낮음' : '적합도 보통');
+
+                    return { ...s, unitCost, retailPrice, marginRate, isRecommended, recommendationText };
+                });
+
+                // 계산 로깅 딜레이 연출
+                for (let i = 0; i < calculatedSpecs.length; i++) {
+                    await new Promise(r => setTimeout(r, 400));
+                    const s = calculatedSpecs[i];
+                    logConsole(`[수익성 분석 팀장] ${s.specName} 권당 제작 단가: ₩${s.unitCost.toLocaleString()} | 권장 정가: ₩${s.retailPrice.toLocaleString()} (예상 마진율: ${s.marginRate}%) ➔ ${s.recommendationText}`, 'info', 3, '수익성·타당성 분석 팀장');
+                }
+
+                if (step4Icon) {
+                    step4Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                    step4Status.textContent = '완료 (🟢)';
+                    step4Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+                }
+                updateLocalAgentStatus(3, 'success', '수익성 검토 완료');
+                logConsole(`[수익성 분석 팀장] 4개 판형별 제작 원가 및 마진율 최종 산출 완료. 13번 대표 보고용 카드 전달.`, 'success', 3, '수익성·타당성 분석 팀장');
+
+                // ==========================================
+                // STEP 5: 13번 오케스트레이터 (대표 보고 - 의사결정 카드 활성화)
+                // ==========================================
+                setTimeout(async () => {
+                    const step5Icon = document.getElementById('step-node-5-icon');
+                    const step5Text = document.getElementById('step-node-5-text');
+                    const step5Status = document.getElementById('step-node-5-status');
+                    
+                    if (step5Icon) {
+                        step5Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+                        step5Status.textContent = '대기중 (🟡)';
+                        step5Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+                        step5Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+                    }
+
+                    updateLocalAgentStatus(13, 'active', '의사결정 카드 보고 중');
+                    logConsole(`[오케스트레이터] 대표님 대시보드 락 해제 및 '의사결정 카드(4대 판형 비교)' 팝업 전송. 최종 결정 승인 대기.`, 'warn', 13, '오케스트레이터');
+
+                    // 의사결정 카드 UI 렌더링 및 노출
+                    const decisionArea = document.getElementById('sim-decision-area');
+                    const decisionGrid = document.getElementById('sim-decision-grid');
+                    if (decisionArea && decisionGrid) {
+                        decisionArea.classList.remove('hidden');
+                        
+                        // Save calculated specs globally to prevent quote escaping bugs
+                        window._currentCalculatedSpecs = calculatedSpecs;
+
+                        decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => {
+                            const recommendBadge = s.isRecommended 
+                                ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest shadow-md border border-sky-400">BEST RECOMMEND</span>`
+                                : '';
+                            const borderClass = s.isRecommended
+                                ? 'border-sky-500 shadow-xl shadow-sky-500/5 ring-2 ring-sky-500/20 bg-sky-50/10'
+                                : 'border-slate-200 hover:border-slate-300';
+                            
+                            return `
+                            <div class="relative bg-white border ${borderClass} rounded-2xl p-5 flex flex-col justify-between h-72 transition-all duration-300 hover:-translate-y-1">
+                                ${recommendBadge}
+                                <div>
+                                    <div class="text-center font-black text-slate-800 text-sm tracking-tight">${s.specName}</div>
+                                    <div class="text-center text-[10px] text-slate-400 font-bold mt-1">용지: 미색모조80g</div>
+                                    <div class="h-px bg-slate-100 my-3"></div>
+                                    
+                                    <div class="space-y-1.5 text-xs">
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>페이지 수</span>
+                                            <span class="font-bold text-slate-700">${s.pages}p</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>책등(세네카)</span>
+                                            <span class="font-bold text-slate-700">${s.spineMm}mm</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>제작 원가(권)</span>
+                                            <span class="font-bold text-slate-700">₩${s.unitCost.toLocaleString()}</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>권장 판매가</span>
+                                            <span class="font-bold text-slate-700 text-sky-600">₩${s.retailPrice.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex items-center justify-between bg-slate-50 rounded-xl p-2.5 mb-3 border border-slate-100">
+                                        <span class="text-[10px] text-slate-400 font-bold">예상 마진율</span>
+                                        <span class="text-base font-black text-sky-600">${s.marginRate}%</span>
+                                    </div>
+                                    <button onclick="approveBookSpec(${idx})" 
+                                            class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-sky-600 transition-all shadow-md tracking-wider">
+                                        이 판형으로 최종 승인
+                                    </button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('');
+
+                        // 모달 스크롤 유도
+                        const body = document.getElementById('simulation-body');
+                        if (body) {
+                            setTimeout(() => {
+                                body.scrollTo({
+                                    top: decisionArea.offsetTop - 20,
+                                    behavior: 'smooth'
+                                });
+                            }, 300);
+                        }
+                    }
+                }, 1000);
+            }, 1000);
+        } catch (e) {
+            logConsole(`[VDP_조판사] 오류 발생: ${e.message}`, 'error', 4, 'VDP_조판사');
+        }
+    }, 1200);
+};
+
+// ==========================================
+// STEP 6: CEO (대표님 승인 및 PDF/커버 렌더링)
+// ==========================================
+window.approveBookSpec = async function(specIndex) {
+    let title, specName, pages, spineMm, unitCost, retailPrice, marginRate;
+    
+    if (typeof specIndex === 'number' || !isNaN(specIndex)) {
+        const book = window._currentSimBook;
+        const spec = window._currentCalculatedSpecs[specIndex];
+        if (!book || !spec) {
+            console.error("Missing book or spec data for index:", specIndex);
+            return;
+        }
+        window._approvedSpec = spec;
+        
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+        unitCost = spec.unitCost;
+        retailPrice = spec.retailPrice;
+        marginRate = spec.marginRate;
+    } else {
+        // Fallback for direct argument calls (legacy compatibility)
+        title = arguments[0];
+        specName = arguments[1];
+        pages = arguments[2];
+        spineMm = arguments[3];
+        unitCost = arguments[4];
+        retailPrice = arguments[5];
+        marginRate = arguments[6];
+        
+        window._approvedSpec = {
+            specName,
+            pages,
+            spineMm,
+            unitCost,
+            retailPrice,
+            marginRate
+        };
+    }
+
+    const consoleEl = document.getElementById('sim-console');
+    const logConsole = (message, type = 'info', agentId = null, agentName = null) => {
+        const time = new Date().toTimeString().split(' ')[0];
+        const colorMap = {
+            info: 'text-sky-400',
+            success: 'text-emerald-400 font-bold',
+            warn: 'text-amber-400',
+            error: 'text-rose-400 font-bold'
+        };
+        const color = colorMap[type] || 'text-slate-300';
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
+        consoleEl.appendChild(line);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        if (agentId && agentName) {
+            writeAuditLogInDB(agentId, agentName, type, message, { bookTitle: title, approvedSpec: specName });
+        }
+    };
+
+    // UI 비활성화 처리 (더블 클릭 방지 및 승인된 카드 강조)
+    const buttons = document.querySelectorAll('#sim-decision-grid button');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.className = 'w-full py-2.5 bg-slate-200 text-slate-400 rounded-xl text-[10px] font-black cursor-not-allowed';
+    });
+
+    logConsole(`[CEO] 대표 승인 서명 입력 확인. 규격: '${specName}', 책등: ${spineMm}mm 최종 승인.`, 'success', 13, '오케스트레이터');
+
+    // 1. Supabase ceo_decision_logs 테이블 적재
+    try {
+        const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'https://publish79.vercel.app/api/decision'
+            : '/api/decision';
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proposalType: 'REPRINT_SPEC',
+                decision: 'APPROVED',
+                contextData: {
+                    title: title,
+                    selectedSpec: specName,
+                    pages: pages,
+                    spineMm: spineMm,
+                    unitCost: unitCost,
+                    retailPrice: retailPrice,
+                    marginRate: marginRate
+                }
+            })
+        });
+
+        if (res.ok) {
+            logConsole(`[CEO] Supabase 의사결정 영구 로그 적재 완료 (APPROVED).`, 'success', 13, '오케스트레이터');
+        } else {
+            console.warn("의사결정 로그 DB 적재 실패 (네트워크 무시)");
+        }
+    } catch (e) {
+        console.warn("의사결정 로그 전송 예외 (시뮬레이션 유지):", e.message);
+    }
+
+    // Step 5 대표님 승인 노드 완료 처리
+    const step5Icon = document.getElementById('step-node-5-icon');
+    const step5Status = document.getElementById('step-node-5-status');
+    if (step5Icon) {
+        step5Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+        step5Status.textContent = '승인 완료 (🟢)';
+        step5Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+    }
+
+    // ==========================================
+    // STEP 7: 4번 VDP_조판사 (2차 최종 조판)
+    // ==========================================
+    const step6Icon = document.getElementById('step-node-6-icon');
+    const step6Text = document.getElementById('step-node-6-text');
+    const step6Status = document.getElementById('step-node-6-status');
+    
+    if (step6Icon) {
+        step6Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
+        step6Status.textContent = '조판 중 (🟡)';
+        step6Status.className = 'text-[8px] text-amber-500 font-bold mt-0.5';
+        step6Text.className = 'text-[10px] font-black text-slate-800 mt-2';
+    }
+
+    updateLocalAgentStatus(4, 'running', `최종 판형 '${specName}' 맞춤 인쇄 표준 PDF/X-4 컴파일 중`);
+    logConsole(`[VDP_조판사] 승인 신호 수령 완료. 2차 최종 조판 개시 (도련 3mm, Gutter 여백 반영)...`, 'info', 4, 'VDP_조판사');
+
+    // 컴파일 프로그레스 영역 노출
+    const compArea = document.getElementById('sim-compilation-area');
+    const compProgress = document.getElementById('sim-compilation-progress');
+    const compStatus = document.getElementById('sim-compilation-status');
+    
+    if (compArea) {
+        compArea.classList.remove('hidden');
+        
+        // 스크롤 이동
+        const body = document.getElementById('simulation-body');
+        if (body) {
+            setTimeout(() => {
+                body.scrollTo({
+                    top: compArea.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+            }, 300);
+        }
+
+        // 게이지 업 애니메이션 시뮬레이션
+        let progress = 0;
+        const interval = setInterval(async () => {
+            progress += 10;
+            compProgress.style.width = `${progress}%`;
+            compStatus.textContent = `${progress}%`;
+
+            if (progress === 30) {
+                logConsole(`[VDP_조판사] 사방 도련(Bleed 3mm) 기준선 레이아웃 격자 적용 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress === 60) {
+                logConsole(`[VDP_조판사] 양면 제침 홀짝 여백(Gutter) 좌우 변위 자동 정합 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress === 80) {
+                logConsole(`[VDP_조판사] 쪽번호 및 머리말 폰트 아웃라인 컴파일 및 CMYK 색상 보정 중...`, 'info', 4, 'VDP_조판사');
+            } else if (progress >= 100) {
+                clearInterval(interval);
+                
+                // 조판 API 최종 통보
+                try {
+                    const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'https://publish79.vercel.app/api/typeset'
+                        : '/api/typeset';
+                        
+                    await fetch(typesetEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'compile',
+                            title: title,
+                            selectedSpec: specName
+                        })
+                    });
+                } catch (_) {}
+
+                logConsole(`[VDP_조판사] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, 'VDP_조판사');
+                updateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${specName})`);
+
+                // PDF-Lib을 활용한 실시간 고해상도 PDF 생성 및 다운로드 노출
+                const downloadContainer = document.getElementById('sim-compilation-download');
+                if (downloadContainer) {
+                    downloadContainer.classList.remove('hidden');
+                    downloadContainer.innerHTML = `
+                    <button onclick="generateAndDownloadReprintPDF()" 
+                            class="bg-slate-900 hover:bg-sky-600 text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        📄 최종 인쇄용 PDF/X-4 다운로드
+                    </button>
+                    `;
+                }
+
+                // ==========================================
+                // STEP 8: 6번 수석 크리에이티브 디자이너 (표지 디자인)
+                // ==========================================
+                setTimeout(async () => {
+                    updateLocalAgentStatus(6, 'running', `세네카 연동 북 커버 디자인 제작 중 (두께: ${spineMm}mm)`);
+                    logConsole(`[디자이너] 6번 디자이너 가동. 승인된 세네카 두께 ${spineMm}mm에 비례 정합하는 커버 펼침면 제작 개시.`, 'info', 6, '디자이너');
+
+                    const coverArea = document.getElementById('sim-cover-area');
+                    if (coverArea) {
+                        coverArea.classList.remove('hidden');
+                        
+                        // 스크롤 이동
+                        const body = document.getElementById('simulation-body');
+                        if (body) {
+                            setTimeout(() => {
+                                body.scrollTo({
+                                    top: coverArea.offsetTop - 20,
+                                    behavior: 'smooth'
+                                    });
+                            }, 300);
+                        }
+
+                        // Canvas 기반 북 커버 실시간 드로잉
+                        drawBookCoverCanvas(title, specName, spineMm);
+                        logConsole(`[디자이너] 책등 폭 ${spineMm}mm를 포함하는 북 커버 전개도(앞표지 + 책등 + 뒤표지) 디자인 최종 렌더링 완료.`, 'success', 6, '디자이너');
+                        
+                        // Step 6 최종 조판/디자인 완료 처리
+                        if (step6Icon) {
+                            step6Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
+                            step6Status.textContent = '완공 완료 (🟢)';
+                            step6Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
+                        }
+                        updateLocalAgentStatus(6, 'success', '표지 디자인 완료');
+                        
+                        // 13번 오케스트레이터 완료 처리
+                        updateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
+                        logConsole(`[오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '오케스트레이터');
+                        loadAgentControlDashboard(); // 메인 조직도에 녹색등(🟢) 반영
+
+                        // 최종 완료 푸터로 교체 (스토어 등록 및 모달 닫기 버튼 배치)
+                        const footer = document.getElementById('sim-footer');
+                        if (footer) {
+                            footer.innerHTML = `
+                            <div class="text-xs text-sky-600 font-bold">✨ 에이전트 파이프라인 완공! 마스터 DB에 도서 등록 대기 중</div>
+                            <div class="flex gap-2">
+                                <button onclick="closeSimulationModal()" class="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-black hover:bg-slate-100 transition-all">그냥 닫기</button>
+                                <button onclick="autoRegisterProductToMASTER()" 
+                                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95">
+                                    🛒 카탈로그 마스터 DB 최종 등록
+                                </button>
+                            </div>
+                            `;
+                        }
+                    }
+                }, 1000);
+            }
+        }, 150);
+    }
+};
+
+// ==========================================
+// Canvas 기반 책등 비례 북 커버 드로잉 엔진 (Step 8)
+// ==========================================
+function drawBookCoverCanvas(title, specName, spineMm) {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // 픽셀 단위 스케일 계산 (날개 100mm, 앞/뒤표지, 세네카 두께 시각화)
+    const wingWidth = 100; // 양쪽 날개 가로 픽셀
+    const baseWidth = 200; // 앞표지/뒤표지 각각의 가로 픽셀
+    const spineWidth = Math.max(spineMm * 3.5, 12); // 책등 두께 픽셀화 (최소 12px)
+    const totalWidth = wingWidth * 2 + baseWidth * 2 + spineWidth;
+    const height = 240; // 세로 픽셀
+
+    // 캔버스 크기 조정
+    canvas.width = totalWidth + 40; // 여백 포함
+    canvas.height = height + 40;
+
+    // 전체 배경 지우기
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const xLeftWing = 20 + wingWidth;
+    const xSpineLeft = 20 + wingWidth + baseWidth;
+    const xSpineRight = 20 + wingWidth + baseWidth + spineWidth;
+    const xRightWing = 20 + wingWidth + baseWidth * 2 + spineWidth;
+
+    // 1. 인쇄 표준 재단 표시선(Crop Marks / 톰보) 드로잉 - 금융오디세이 실무 도면 스타일
+    ctx.strokeStyle = '#64748b'; // 차분한 슬레이트 회색선
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([]); // 실선
+    
+    // 네 모퉁이 재단선 (Trim 경계 표시)
+    // Top-Left (20, 20)
+    ctx.beginPath(); ctx.moveTo(20, 3); ctx.lineTo(20, 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3, 20); ctx.lineTo(15, 20); ctx.stroke();
+    
+    // Top-Right (20 + totalWidth, 20)
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth, 3); ctx.lineTo(20 + totalWidth, 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20); ctx.lineTo(20 + totalWidth + 17, 20); ctx.stroke();
+    
+    // Bottom-Left (20, 20 + height)
+    ctx.beginPath(); ctx.moveTo(20, 20 + height + 5); ctx.lineTo(20, 20 + height + 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3, 20 + height); ctx.lineTo(15, 20 + height); ctx.stroke();
+    
+    // Bottom-Right (20 + totalWidth, 20 + height)
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth, 20 + height + 5); ctx.lineTo(20 + totalWidth, 20 + height + 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20 + height); ctx.lineTo(20 + totalWidth + 17, 20 + height); ctx.stroke();
+
+    // 접지 가이드 톰보 표시선 (세네카 및 책날개 접는선 지시용 바깥쪽 틱마크)
+    const foldLinesX = [xLeftWing, xSpineLeft, xSpineRight, xRightWing];
+    foldLinesX.forEach(x => {
+        // 상단 가이드 틱
+        ctx.beginPath(); ctx.moveTo(x, 5); ctx.lineTo(x, 15); ctx.stroke();
+        // 하단 가이드 틱
+        ctx.beginPath(); ctx.moveTo(x, 20 + height + 5); ctx.lineTo(x, 20 + height + 15); ctx.stroke();
+    });
+
+    // 2. 표지 전개도 배경 (고급스러운 그라디언트 적용 - 5단 날개 포함 전개도 전체 칠하기)
+    const gradient = ctx.createLinearGradient(20, 20, totalWidth + 20, 20);
+    gradient.addColorStop(0, '#0f172a');     // 뒤날개 어두운 슬레이트
+    gradient.addColorStop(0.2, '#1e293b');    // 뒤표지 경계
+    gradient.addColorStop(0.48, '#0f172a');
+    gradient.addColorStop(0.5, '#38bdf8');     // 책등 포인터 (스카이블루)
+    gradient.addColorStop(0.52, '#0f172a');
+    gradient.addColorStop(0.8, '#0284c7');    // 앞표지 푸른 톤
+    gradient.addColorStop(1, '#0c4a6e');      // 앞날개 어두운 톤
+    ctx.fillStyle = gradient;
+    ctx.fillRect(20, 20, totalWidth, height);
+    ctx.setLineDash([]); // 대시 리셋
+
+    // 3. 접지선(Fold Line) 드로잉 (얇은 백색 점선으로 접는 영역 표시)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+
+    // 접지선 1: 뒤날개 - 뒤표지 경계
+    ctx.beginPath(); ctx.moveTo(xLeftWing, 20); ctx.lineTo(xLeftWing, height + 20); ctx.stroke();
+    // 접지선 2: 뒤표지 - 책등 경계
+    ctx.beginPath(); ctx.moveTo(xSpineLeft, 20); ctx.lineTo(xSpineLeft, height + 20); ctx.stroke();
+    // 접지선 3: 책등 - 앞표지 경계
+    ctx.beginPath(); ctx.moveTo(xSpineRight, 20); ctx.lineTo(xSpineRight, height + 20); ctx.stroke();
+    // 접지선 4: 앞표지 - 앞날개 경계
+    ctx.beginPath(); ctx.moveTo(xRightWing, 20); ctx.lineTo(xRightWing, height + 20); ctx.stroke();
+    
+    ctx.setLineDash([]); // 대시 리셋
+
+    // 텍스트 랩핑 헬퍼 함수
+    function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+        const characters = text.split('');
+        let line = '';
+        let currentY = y;
+        for (let i = 0; i < characters.length; i++) {
+            let testLine = line + characters[i];
+            let metrics = context.measureText(testLine);
+            if (metrics.width > maxWidth && i > 0) {
+                context.fillText(line, x, currentY);
+                line = characters[i];
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, currentY);
+    }
+
+    // 4. [뒤날개] (왼쪽 끝)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '800 8px sans-serif';
+    ctx.fillText('복간 기획배경', 30, 45);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '500 6.5px sans-serif';
+    const introText = '소중한 문학 유산을 오래 기억하기 위해 출판친구의 자율 오케스트레이션 에이전트가 데이터 정제 및 최종 조판 과정을 거쳐 복원한 도서입니다. 독자의 서재에서 다시 깨어납니다.';
+    drawWrappedText(ctx, introText, 30, 60, wingWidth - 20, 10);
+
+    // 5. [뒤표지] (왼쪽 중간)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '700 8px sans-serif';
+    ctx.fillText('출판친구 복간 프로젝트 v1.2', xLeftWing + 20, 45);
+    
+    // 바코드 모의 드로잉
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(xLeftWing + 20, height - 50, 60, 35);
+    ctx.fillStyle = '#000000';
+    for (let x = xLeftWing + 25; x < xLeftWing + 75; x += 3) {
+        const w = Math.random() > 0.4 ? 1.5 : 0.5;
+        ctx.fillRect(x, height - 47, w, 24);
+    }
+    ctx.font = '5px monospace';
+    ctx.fillText('9791192839401', xLeftWing + 27, height - 18);
+
+    // 6. [책등] (중앙 세로쓰기)
+    ctx.save();
+    ctx.translate(xSpineLeft + spineWidth / 2, height / 2 + 20);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    
+    if (spineMm >= 10) {
+        ctx.font = '700 9px sans-serif';
+        ctx.fillText(title.substring(0, 15), 0, 3);
+    } else {
+        // 책등이 얇으면 실선 가이드만 표시
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke();
+    }
+    ctx.restore();
+
+    // 7. [앞표지] (오른쪽 중간)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.arc(xSpineRight + baseWidth / 2, height / 2 + 20, 45, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(title.substring(0, 14), xSpineRight + 20, height / 2 - 10);
+    if (title.length > 14) {
+        ctx.fillText(title.substring(14, 28), xSpineRight + 20, height / 2 + 8);
+    }
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '900 8px sans-serif';
+    ctx.fillText('ANTI-GRAVITY REPRINT', xSpineRight + 20, 45);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '500 8px sans-serif';
+    ctx.fillText('출판친구 자율 출판 총괄 도서', xSpineRight + 20, height - 30);
+
+    // 8. [앞날개] (오른쪽 끝)
+    const author = window._currentSimBook?.author || '미상';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '800 8px sans-serif';
+    ctx.fillText('저자 소개', xRightWing + 15, 45);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '500 6.5px sans-serif';
+    const authorIntro = `저자: ${author}\n시대를 대표하는 고전 작품으로, 출판친구의 디지털 연속지 인쇄 가공 및 가상 조판 공정을 거쳐 재탄생했습니다.`;
+    drawWrappedText(ctx, authorIntro, xRightWing + 15, 60, wingWidth - 25, 10);
+
+    // 9. [자 하단 mm 치수 표시선] (책등 아래)
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(xSpineLeft, height + 28);
+    ctx.lineTo(xSpineRight, height + 28);
+    ctx.stroke();
+    
+    // 치수 보조선
+    ctx.beginPath();
+    ctx.moveTo(xSpineLeft, height + 24); ctx.lineTo(xSpineLeft, height + 32);
+    ctx.moveTo(xSpineRight, height + 24); ctx.lineTo(xSpineRight, height + 32);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0284c7';
+    ctx.font = '800 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${spineMm}mm (세네카)`, xSpineLeft + spineWidth / 2, height + 38);
+}
+
+// 북 커버 이미지 다운로드 (하위 호환성 유지)
+window.downloadCoverImage = function() {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = `북커버_펼침면_디자인.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+};
+
+// 북 커버 펼침면 PDF 다운로드 (Step 8)
+window.downloadCoverPDF = async function() {
+    const canvas = document.getElementById('sim-cover-canvas');
+    if (!canvas) return;
+    
+    try {
+        const PDFLib = await ensurePDFLibLoaded();
+        const pdfDoc = await PDFLib.PDFDocument.create();
+        
+        // 캔버스 실시간 디자인 이미지를 PNG 데이터로 변환하여 임베딩
+        const imgDataUrl = canvas.toDataURL('image/png');
+        const pngImage = await pdfDoc.embedPng(imgDataUrl);
+        
+        // 캔버스 비율/해상도를 1:1로 보존하여 펼침면 단일 페이지 PDF 생성
+        const width = canvas.width;
+        const height = canvas.height;
+        const page = pdfDoc.addPage([width, height]);
+        
+        page.drawImage(pngImage, {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height
+        });
+        
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        const title = (window._currentSimBook?.title || '북커버').replace(/[\/\\?%*:|"<>\s]/g, '_');
+        link.href = URL.createObjectURL(blob);
+        link.download = `[인쇄용_표지]_${title}_펼침면.pdf`;
+        link.click();
+    } catch (err) {
+        alert('표지 PDF 생성 오류: ' + err.message);
+    }
+};
+
+// ==========================================
+// pdf-lib 기반 고해상도 PDF 다운로드 컴파일러 (Step 7)
+// ==========================================
+window.generateAndDownloadReprintPDF = async function(title, specName, pages, spineMm) {
+    if (!title) {
+        const book = window._currentSimBook;
+        const spec = window._approvedSpec;
+        if (!book || !spec) return;
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+    }
+    try {
+        const PDFLib = await ensurePDFLibLoaded();
+        const pdfDoc = await PDFLib.PDFDocument.create();
+        
+        // fontkit 등록 (TTF 폰트 파일 파싱 및 임베딩에 반드시 필요)
+        if (window.fontkit) {
+            pdfDoc.registerFontkit(window.fontkit);
+        }
+        
+        // 나눔명조/나눔고딕 한글 폰트 동적 로딩 루프 (CORS 및 로딩 속도 최적화, fallback 방지)
+        let customFont;
+        let useFallback = false;
+        
+        const fontUrls = [
+            './NanumMyeongjo.ttf', // 1순위: 로컬 호스팅 (CORS 및 CSP 블로킹 우회 및 초고속 로딩)
+            'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
+            'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf',
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
+        ];
+        
+        for (const url of fontUrls) {
+            try {
+                console.log(`[PDF] 한글 폰트 로드 시도: ${url}`);
+                const fontBytes = await fetch(url).then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.arrayBuffer();
+                });
+                customFont = await pdfDoc.embedFont(fontBytes);
+                console.log(`[PDF] 한글 폰트 임베딩 완료: ${url}`);
+                break;
+            } catch (e) {
+                console.warn(`[PDF] 한글 폰트 로드 실패 (${url}):`, e.message);
+            }
+        }
+        
+        if (!customFont) {
+            console.warn("[PDF] 모든 한글 폰트 로드 실패, ASCII 대체 모드로 전환합니다.");
+            useFallback = true;
+        }
+
+        // 안전한 텍스트 드로잉 헬퍼 (인코딩 크래시 방지 및 폰트 바인딩)
+        const drawTextSafely = (page, text, x, y, size, colorHex = '#1f2937') => {
+            const hex = colorHex.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16) / 255;
+            const g = parseInt(hex.substring(2, 4), 16) / 255;
+            const b = parseInt(hex.substring(4, 6), 16) / 255;
+            
+            const options = {
+                x: x,
+                y: y,
+                size: size,
+                color: PDFLib.rgb(r, g, b)
+            };
+            
+            if (useFallback || !customFont) {
+                const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
+                page.drawText(asciiText, options);
+            } else {
+                try {
+                    page.drawText(String(text), { ...options, font: customFont });
+                } catch (fontErr) {
+                    console.warn(`Font encoding error for text "${text}":`, fontErr.message);
+                    // 폰트 미지원 문자 인코딩 예외 발생 시 ASCII로 치환하여 크래시 방지
+                    const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
+                    page.drawText(asciiText, options);
+                }
+            }
+        };
+
+        // 판형별 mm 규격 정의 및 PDF 포인트 변환
+        const specDimensions = {
+            'A5국판': { w: 148, h: 210 },
+            '신국판': { w: 152, h: 225 },
+            '46판': { w: 128, h: 188 },
+            '국배판': { w: 210, h: 297 }
+        };
+        
+        let trimWidthMm = 152;
+        let trimHeightMm = 225;
+        
+        for (const key in specDimensions) {
+            if (specName.includes(key)) {
+                trimWidthMm = specDimensions[key].w;
+                trimHeightMm = specDimensions[key].h;
+                break;
+            }
+        }
+        
+        const mmToPt = 72 / 25.4;
+        const trimWidth = trimWidthMm * mmToPt;
+        const trimHeight = trimHeightMm * mmToPt;
+        
+        const pageW = 595.275; // A4 가로 (pt)
+        const pageH = 841.889; // A4 세로 (pt)
+        
+        const xOffset = (pageW - trimWidth) / 2;
+        const yOffset = (pageH - trimHeight) / 2;
+        
+        // 십자형 재단선 드로잉 헬퍼
+        const drawCropMarkAtCorner = (page, cx, cy) => {
+            // 가로선
+            page.drawLine({
+                start: { x: cx - 15, y: cy },
+                end: { x: cx - 3, y: cy },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            page.drawLine({
+                start: { x: cx + 3, y: cy },
+                end: { x: cx + 15, y: cy },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            // 세로선
+            page.drawLine({
+                start: { x: cx, y: cy - 15 },
+                end: { x: cx, y: cy - 3 },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+            page.drawLine({
+                start: { x: cx, y: cy + 3 },
+                end: { x: cx, y: cy + 15 },
+                thickness: 0.5,
+                color: PDFLib.rgb(0.39, 0.45, 0.55),
+            });
+        };
+        
+        const applyPageLayoutAndDielines = (page) => {
+            // 1. 실제 재단 영역 (Trim Box: 회색 점선)
+            page.drawRectangle({
+                x: xOffset,
+                y: yOffset,
+                width: trimWidth,
+                height: trimHeight,
+                borderWidth: 0.5,
+                borderColor: PDFLib.rgb(0.5, 0.5, 0.5),
+                borderDashArray: [2, 2]
+            });
+
+            // 2. 도련 영역 (Bleed Box: 빨간색 실선)
+            // 3mm = 8.5039 pt
+            const bleedPt = 3 * mmToPt;
+            page.drawRectangle({
+                x: xOffset - bleedPt,
+                y: yOffset - bleedPt,
+                width: trimWidth + bleedPt * 2,
+                height: trimHeight + bleedPt * 2,
+                borderWidth: 0.75,
+                borderColor: PDFLib.rgb(0.9, 0.2, 0.2),
+            });
+
+            // 3. 네 모퉁이 십자형 재단 마크
+            drawCropMarkAtCorner(page, xOffset, yOffset); // Bottom-Left
+            drawCropMarkAtCorner(page, xOffset + trimWidth, yOffset); // Bottom-Right
+            drawCropMarkAtCorner(page, xOffset, yOffset + trimHeight); // Top-Left
+            drawCropMarkAtCorner(page, xOffset + trimWidth, yOffset + trimHeight); // Top-Right
+        };
+
+        // --- 1페이지 (실제 본문 샘플 페이지 - 선택 판형 내부로 컨텐츠 가두기) ---
+        const page1 = pdfDoc.addPage([pageW, pageH]);
+        applyPageLayoutAndDielines(page1);
+
+        // 본문 텍스트가 Centered Trim Box 내부로 가도록 위치 자동 계산
+        const page1ContentX = xOffset + 30;
+        const page1ContentY = yOffset + trimHeight - 60;
+        
+        drawTextSafely(page1, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
+        drawTextSafely(page1, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page1ContentX, page1ContentY, 11, '#475569');
+        drawTextSafely(page1, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page1ContentX, page1ContentY - 30, 9, '#64748b');
+
+        // PDF 다운로드 링크 생성
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `[인쇄용_최종조판]_${title}_${specName}.pdf`;
+        link.click();
+        
+    } catch (err) {
+        alert('PDF 생성 오류: ' + err.message);
+    }
+};
+
+// ==========================================
+// 마스터 도서 리스트 최종 적재 및 모달 닫기
+// ==========================================
+window.autoRegisterProductToMASTER = async function(title, specName, pages, spineMm, unitCost, retailPrice) {
+    if (!title) {
+        const book = window._currentSimBook;
+        const spec = window._approvedSpec;
+        if (!book || !spec) return;
+        title = book.title;
+        specName = spec.specName;
+        pages = spec.pages;
+        spineMm = spec.spineMm;
+        unitCost = spec.unitCost;
+        retailPrice = spec.retailPrice;
+    }
+    // 1. 중복 검사
+    const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
+    
+    // 앞표지만 크롭하여 고도로 최적화된 저용량 JPEG 썸네일 이미지 생성 (웹 로딩 속도 최적화)
+    let frontCoverImage = '';
+    const mainCanvas = document.getElementById('sim-cover-canvas');
+    if (mainCanvas) {
+        try {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 300;
+            tempCanvas.height = 400;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 5단 전개도에서 앞표지의 정확한 좌표 및 너비/높이 산출
+            const wingWidth = 100;
+            const baseWidth = 200;
+            const spineWidth = Math.max(spineMm * 3.5, 12);
+            
+            const sourceX = 20 + wingWidth + baseWidth + spineWidth;
+            const sourceY = 20;
+            const sourceWidth = baseWidth;
+            const sourceHeight = 240;
+            
+            // 앞표지 영역 크롭 및 리사이징
+            tempCtx.drawImage(
+                mainCanvas, 
+                sourceX, sourceY, sourceWidth, sourceHeight, 
+                0, 0, 300, 400
+            );
+            
+            // 85% 품질의 가벼운 JPEG로 압축 변환 (평균 25~35KB 수준)
+            frontCoverImage = tempCanvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {
+            console.error("Failed to crop front cover image:", e);
+        }
+    }
+    
+    const productData = {
+        id: 'prod_' + Date.now(),
+        title: title,
+        spec: specName,
+        pages: pages,
+        spine: spineMm,
+        cost: unitCost,
+        price: retailPrice,
+        desc: `[자율 복간] 13번 오케스트레이션 파이프라인에 의해 4대 표준 규격 검토 후 대표님이 최종 승인한 복간 도서 '${title}'입니다. 책등 두께 ${spineMm}mm 및 100mm 책날개 정합 완공.`,
+        category: '소설/시/희곡',
+        manager: '오케스트레이터',
+        innerPaper: '백모조80g',
+        innerPrint: '내지-흑백양면',
+        partialColor: 0,
+        coverPaper: '스노우지 250g',
+        coverPrint: '표지-컬러단면',
+        coating: '무광',
+        binding: '무선제본',
+        wing: '날개 있음(100mm)',
+        facePaper: '없음',
+        faceInsert: '없음',
+        image: frontCoverImage || 'book1.png', // 크롭된 최적화 표지 이미지 삽입
+        created_at: new Date().toISOString()
+    };
+
+    if (exists) {
+        // 이미 있으면 덮어쓰기
+        MASTER.products = MASTER.products.map(p => (p.title === title && p.spec === specName) ? productData : p);
+    } else {
+        MASTER.products.unshift(productData);
+    }
+
+    // Supabase DB 저장 및 마스터 데이터 저장 동기화
+    try {
+        await _supabase.from('products').upsert({
+            title: title,
+            spec: specName,
+            pages: pages,
+            spine: spineMm,
+            cost: unitCost,
+            price: retailPrice,
+            desc: productData.desc,
+            category: productData.category,
+            manager: productData.manager,
+            inner_paper: productData.innerPaper,
+            inner_print: productData.innerPrint,
+            partial_color: productData.partialColor,
+            cover_paper: productData.coverPaper,
+            cover_print: productData.coverPrint,
+            coating: productData.coating,
+            binding: productData.binding,
+            wing: productData.wing,
+            face_paper: productData.facePaper,
+            face_insert: productData.faceInsert,
+            image: productData.image, // 온라인 Supabase DB에도 최적화된 표지 썸네일 업로드
+            created_at: productData.created_at
+        }, { onConflict: 'title,spec' }); // 복합 유니크 제약
+    } catch (e) {
+        console.warn("Supabase 도서 상품 적재 오류:", e.message);
+    }
+
+    // 마스터 데이터 세이브 및 UI 갱신
+    await saveMasterDataSilent();
+    closeSimulationModal();
+    
+    // 판매 도서 리스트를 띄우고 있는 경우 갱신
+    if (typeof renderProductList === 'function') renderProductList();
+
+    alert(`'${title}' (${specName}) 도서가 마스터 상품 카탈로그 DB에 성공적으로 등록되었습니다. 대형 온라인 서점 API 실시간 드롭쉬핑 연동 대기 상태입니다.`);
+};
+
+window.closeSimulationModal = function() {
+    const modal = document.getElementById('simulation-modal');
+    if (modal) {
+        modal.classList.add('fade-out');
+        setTimeout(() => modal.remove(), 300);
+    }
+};
+
+// --- 프론트엔드 전역 예외 탐지기 (15번 보안관 & 13번 자가치유 연동) ---
+window.addEventListener('error', (event) => {
+    if (!event.filename || !event.filename.includes('script.js')) return;
+    const errorData = {
+        message: event.message || event.error?.message || 'Unknown Error',
+        filename: event.filename.split('/').pop(),
+        lineno: event.lineno,
+        colno: event.colno,
+        userId: sessionStorage.getItem('userId') || 'guest_user',
+        userRole: sessionStorage.getItem('userRole') || 'guest'
+    };
+    reportSystemError(errorData);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    try {
+        const reason = event.reason;
+        const reasonMsg = reason ? (reason.message || String(reason)) : 'Unknown Rejection';
+        if (reasonMsg.includes('Failed to fetch') || reasonMsg.includes('NetworkError') || reasonMsg.includes('AbortError')) {
+            return;
+        }
+        if (reason && reason.stack && !reason.stack.includes('script.js')) {
+            return;
+        }
+        const errorData = {
+            message: 'Unhandled Rejection: ' + reasonMsg,
+            filename: 'Promise / Async Call (script.js)',
+            lineno: 0,
+            userId: sessionStorage.getItem('userId') || 'guest_user',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        };
+        reportSystemError(errorData);
+    } catch (e) {
+        console.error('[unhandledrejection handler] script.js 내부 오류:', e);
+    }
+});
+
+// --- AI 헬퍼 및 자가치유 시뮬레이터 연동 모듈 (script.js 버전) ---
+// ERP용 17번 CS_상담이 AI 헬퍼 글로벌 상태 및 마크다운 파서
+let _erpChatHistory = [
+    { role: 'model', parts: [{ text: "안녕하세요! 출판친구의 시스템 안내를 전담하는 **17번 CS_상담이**입니다. 메뉴 위치나 파일 업로드 등에 대해 편하게 물어보세요!" }] }
+];
+let _erpChatLogId = null;
+
+function parseErpChatMarkdown(text) {
+    if (!text) return '';
+    let html = text;
+    html = html
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.05); color:#0284c7; padding:2px 4px; border-radius:4px; font-family:monospace; font-size:11px;">$1</code>');
+    html = html.replace(/```(?:json|javascript|js)?\s*([\s\S]*?)\s*```/g, '<pre style="background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:10px; font-family:monospace; font-size:11px; overflow-x:auto; margin:8px 0; color:#0284c7; white-space:pre-wrap; word-break:break-all;">$1</pre>');
+    html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            return `<li style="margin-left: 12px; list-style-type: disc; font-size:12px; line-height:1.5; margin-bottom:4px;">${trimmed.substring(2)}</li>`;
+        }
+        return line;
+    }).join('\n');
+    html = html.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+    return html;
+}
+
+window.toggleAIPanelErp = function () {
+    const panel = document.getElementById('ai-panel-erp');
+    const fab = document.getElementById('ai-fab-erp');
+    if (!panel || !fab) return;
+
+    if (panel.style.display === 'none' || !panel.classList.contains('active')) {
+        panel.style.display = 'flex';
+        panel.classList.add('active');
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    } else {
+        panel.style.display = 'none';
+        panel.classList.remove('active');
+        fab.classList.remove('active');
+        fab.style.opacity = '1';
+        fab.style.pointerEvents = 'all';
+    }
+
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+};
+
+window.toggleAIPanel = window.toggleAIPanelErp;
+
+function showAIPanelOnError() {
+    const panel = document.getElementById('ai-panel');
+    const fab = document.getElementById('ai-fab');
+    const agentAction = document.getElementById('ai-agent-action');
+
+    if (panel) panel.classList.add('active');
+    if (fab) {
+        fab.classList.add('active');
+        fab.style.opacity = '0';
+        fab.style.pointerEvents = 'none';
+    }
+    if (agentAction) agentAction.classList.remove('hidden');
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+}
+
+window.triggerAIError = function (testName = 'Manual Demo') {
+    try {
+        console.log("테스트 에러를 인위적으로 발생시킵니다.");
+        const err = new Error(`[데모 테스트] ${testName} - 실시간 에러 감지 기능 작동 중!`);
+        reportSystemError({
+            message: err.message,
+            filename: 'script.js',
+            lineno: 105,
+            colno: 0,
+            userId: sessionStorage.getItem('userId') || 'guest_user',
+            userRole: sessionStorage.getItem('userRole') || 'guest'
+        });
+        showAIPanelOnError();
+    } catch (e) {
+        console.error('[triggerAIError] 내부 오류:', e);
+    }
+};
+
+window.simulateFix = function (eventOrNull, prUrl) {
+    const chatContent = document.getElementById('ai-chat-content');
+    if (!chatContent) return;
+
+    const doneCard = document.createElement('div');
+    doneCard.className = 'ai-msg ai-msg-bot';
+    doneCard.style.cssText = 'border-left: 4px solid #10b981; background: #f0fdf4; animation: fadeIn 0.4s ease; align-self:flex-start; max-width:100%; width:100%;';
+    doneCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#065f46; font-weight:900; margin-bottom:8px;">
+            <span style="font-size:20px;">🟢</span>
+            <span>[11번 배포_배달이] 조치 완료 보고</span>
+        </div>
+        <p style="font-size:12px; color:#374151; line-height:1.6; margin-bottom:8px;">
+            대표님의 모바일 디스코드 승인이 확인되었습니다.<br>
+            자가치유 패치가 Vercel Production 서버에 성공적으로 반영되었습니다. ✨
+        </p>
+        <div style="background:#fff; border:1px solid #d1fae5; border-radius:10px; padding:10px; font-size:11px; font-family:monospace; color:#065f46;">
+            ✅ 거버넌스 락 해제 완료<br>
+            ✅ GitHub PR 자동 머지 완료<br>
+            ✅ Vercel 자동 빌드 & 배포 완료<br>
+            🔗 <a href="${prUrl || '#'}" target="_blank" style="color:#0284c7; text-decoration:underline;">${prUrl ? 'PR 링크 확인' : '(PR URL 없음)'}</a>
+        </div>
+    `;
+    chatContent.appendChild(doneCard);
+    if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) { }
+    }
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 100);
+};
+
+async function triggerSelfHealingPipeline(payload) {
+    const agentAction = document.getElementById('ai-agent-action');
+    if (!agentAction) return;
+
+    agentAction.classList.remove('hidden');
+    agentAction.innerHTML = `
+        <div class="ai-msg ai-msg-bot">
+            🚨 **시스템 에러 감지!**<br>
+            9번 에러감지_눈치왕이 에러를 포착하여 분석 보고서를 작성했습니다. 10번 코드수정_닥터 에이전트를 긴급 호출합니다.
+        </div>
+        <div class="ai-action-card">
+            <div class="ai-status-pulse">
+                <div class="pulse-dot"></div>
+                <span id="self-heal-status-text">10번 코드수정_닥터(자가치유) 코딩 엔진 가동 중...</span>
+            </div>
+            <div class="ai-code-block" id="self-heal-code-block" style="font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                // 에러 파일: ${payload.filename} (라인: ${payload.lineno})<br>
+                // 분석 컨텍스트 격리 수행 중...<br>
+                // 오류 분석 및 치료 패치 생성 대기...
+            </div>
+            <button id="self-heal-submit-btn" disabled
+                class="w-full py-3 bg-slate-400 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed">
+                배포 승인 대기 중
+            </button>
+        </div>
+    `;
+
+    const chatContent = document.getElementById('ai-chat-content');
+    if (chatContent) {
+        setTimeout(() => {
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 100);
+    }
+
+    try {
+        const res = await fetch(ERROR_API_ENDPOINT.replace('send-error', 'self-heal'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const codeBlock = document.getElementById('self-heal-code-block');
+        const statusText = document.getElementById('self-heal-status-text');
+        const btn = document.getElementById('self-heal-submit-btn');
+
+        if (res.ok) {
+            const data = await res.json();
+            statusText.innerText = "10번 코드수정_닥터 코드 보정 완료 (12번 보안통제_보안관 통과)";
+
+            let logHtml = `// 🛠️ [10번 코드수정_닥터 에이전트 수정 내역]\n`;
+            logHtml += `// 설명: ${data.explanation}\n\n`;
+            logHtml += `// [수정된 코드 패치]\n${data.patch}\n\n`;
+            logHtml += `// [Git CLI 로그]\n`;
+            data.gitLog.forEach(log => {
+                logHtml += `> ${log}\n`;
+            });
+            logHtml += `\n🔗 PR Link: ${data.prUrl}`;
+
+            codeBlock.innerHTML = logHtml;
+            btn.className = "w-full py-3 bg-amber-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center gap-2";
+            btn.innerText = "⏳ 대표님 모바일 승인 대기 중 (거버넌스 락)";
+            btn.disabled = true;
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(ERROR_API_ENDPOINT.replace('send-error', `deploy-status?pr=${data.prBranch}`));
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'APPROVED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 승인 확인 (배포 개시)";
+                            statusText.style.color = "#10b981";
+                            btn.className = "w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "🟢 배포 승인 완료! Vercel Production 반영 성공";
+                            simulateFix(null, data.prUrl);
+                        } else if (statusData.status === 'REJECTED') {
+                            clearInterval(pollInterval);
+                            statusText.innerText = "11번 배포_배달이: 대표님 모바일 배포 반려 (배포 거부)";
+                            statusText.style.color = "#ef4444";
+                            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg";
+                            btn.innerText = "❌ 배포 반려됨 (소스코드 복구 완료)";
+                            codeBlock.style.background = "#fff5f5";
+                            codeBlock.style.color = "#991b1b";
+                            codeBlock.innerHTML = `// ❌ [배포 반려 알림]\n// 대표님이 모바일(디스코드 웹훅)에서 배포를 반려 처리하셨습니다.\n// 코드수정_닥터의 수정 코드는 무효화되었으며, 기존 운영 서버는 안전하게 롤백(Rollback) 상태를 유지합니다.`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("배포 상태 폴링 오류:", err);
+                }
+            }, 2000);
+
+        } else {
+            const errorData = await res.json();
+            statusText.innerText = "❌ 12번 보안통제_보안관 검증 반려 (배포 중단)";
+            statusText.style.color = "#ef4444";
+            codeBlock.style.background = "#fff5f5";
+            codeBlock.style.color = "#991b1b";
+            codeBlock.style.borderColor = "#fecaca";
+            codeBlock.innerText = `[보안 감사 로그]\n${errorData.message || '패치 생성 과정에 오류가 발생했습니다.'}`;
+            btn.innerText = "보안 규격 미달로 배포 승인 차단됨";
+            btn.className = "w-full py-3 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg cursor-not-allowed";
+        }
+    } catch (e) {
+        console.error("자가치유 엔진 호출 실패:", e);
+    }
+}

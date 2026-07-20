@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판친구 - 심사위원 전용 데모 허브</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Suit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Auto-login scripting -->
+    <script>
+        // 자동으로 심사위원 세션 수립
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userRole', 'judge');
+        sessionStorage.setItem('userId', 'culture');
+        console.log("[Contest Portal] 세션 로그인 처리 완료: userRole = judge");
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans KR', sans-serif;
+            background-color: #0b0f19;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glow-orange:hover {
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.15);
+            border-color: rgba(249, 115, 22, 0.3);
+        }
+        .glow-green:hover {
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col justify-between">
+    <!-- Header/Nav -->
+    <header class="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-slate-800/40">
+        <div class="flex items-center gap-3">
+            <span class="text-xl font-black italic tracking-wider text-slate-100">PUBLISH79</span>
+            <div class="h-4 w-px bg-slate-800"></div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">ADX Contest Portal</span>
+        </div>
+        <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1 rounded-full text-xs font-black">
+            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+            자동 로그인: 심사위원(culture)
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-6 py-12 flex flex-col justify-center items-center">
+        <!-- Title & Subtitle -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
+                신기술활용(ADX) 우수사례 심사위원 전용<br>
+                <span class="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">출판친구 실시간 라이브 데모 허브</span>
+            </h1>
+            <p class="text-slate-400 text-sm md:text-base max-w-2xl mx-auto font-medium">
+                본 페이지는 심사위원을 위해 비밀번호 입력 없이 보안 구역으로 바로 진입할 수 있는 비공개 접속 통로입니다. 출판사 및 대중에게는 완전히 격리되어 보안이 유지됩니다.
+            </p>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-12">
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800/80">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">복간 공정 생산성 혁신</div>
+                <div class="text-2xl font-extrabold text-orange-400 italic">240시간 ➡️ 48시간 이하</div>
+                <div class="text-[10px] text-slate-400 mt-1 font-medium">* 80% 이상의 행정 및 공정 조율 공수 절감 달성</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800/80">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">자율 에이전트 파이프라인</div>
+                <div class="text-2xl font-extrabold text-emerald-400 italic">17대 AI 에이전트 협업</div>
+                <div class="text-[10px] text-slate-400 mt-1 font-medium">* 수집, 정제, 분석, 의사결정, 발주, 정산 자율화</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800/80">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">실시간 인프라 연동</div>
+                <div class="text-2xl font-extrabold text-sky-400 italic">ONLINE DB & API</div>
+                <div class="text-[10px] text-slate-400 mt-1 font-medium">* Supabase 및 외부 도서관 API 데이터 실시간 바인딩</div>
+            </div>
+        </div>
+
+        <!-- Portals Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+            <!-- Portal 1: Reader Store -->
+            <a href="./index.html" class="group glass-panel rounded-[32px] p-6 glow-orange transition-all duration-300 flex flex-col justify-between min-h-[280px]">
+                <div class="space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform duration-300">
+                        <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2 group-hover:text-orange-400 transition-colors">
+                            🛒 출판친구 스토어
+                            <i data-lucide="arrow-up-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all"></i>
+                        </h3>
+                        <p class="text-slate-400 text-xs leading-relaxed font-medium">
+                            독자들이 절판 도서 복간 펀딩에 예약 참여하고, 복간 완료된 도서를 즉시 구매할 수 있는 독자 전용 B2C 웹 스토어입니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center gap-2 text-xs font-bold text-orange-400">
+                    출판친구 스토어 바로가기
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
+            </a>
+
+            <!-- Portal 2: AI Agent Control Room -->
+            <a href="./control.html" class="group glass-panel rounded-[32px] p-6 glow-orange transition-all duration-300 flex flex-col justify-between min-h-[280px]">
+                <div class="space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform duration-300">
+                        <i data-lucide="cpu" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2 group-hover:text-orange-400 transition-colors">
+                            🤖 AI 에이전트 실시간 통제실
+                            <i data-lucide="arrow-up-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all"></i>
+                        </h3>
+                        <p class="text-slate-400 text-xs leading-relaxed font-medium">
+                            17대 협업 에이전트의 구동 상태, 실시간 국립도서관 데이터 분석 스캔 로그, 복간 타당성 의사결정 파이프라인의 실시간 진행 현황을 시각화하여 감시합니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center gap-2 text-xs font-bold text-orange-400">
+                    실시간 통제 대시보드 바로가기
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
+            </a>
+
+            <!-- Portal 3: ERP Business System -->
+            <a href="./erp.html" class="group glass-panel rounded-[32px] p-6 glow-green transition-all duration-300 flex flex-col justify-between min-h-[280px]">
+                <div class="space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
+                        <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2 group-hover:text-emerald-400 transition-colors">
+                            📊 출판친구 ERP
+                            <i data-lucide="arrow-up-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all"></i>
+                        </h3>
+                        <p class="text-slate-400 text-xs leading-relaxed font-medium">
+                            도서 등록, 자동 견적 기반 인쇄 주문하기, 정산 및 실시간 출고 모니터링, 파트너사 정보 관리를 아우르는 출판친구의 백오피스 코어 업무 인프라를 체험합니다.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center gap-2 text-xs font-bold text-emerald-400">
+                    출판친구 ERP 바로가기
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-7xl mx-auto px-6 py-8 border-t border-slate-800/40 flex flex-col md:flex-row justify-between items-center text-slate-500 text-xs gap-4">
+        <div>
+            © 2026 PUBLISH79. All rights reserved.
+        </div>
+        <div class="flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
+            <span>본 페이지는 공모전 심사 목적의 가상 로그인 토큰이 탑재된 비공개 비밀 허브입니다.</span>
+        </div>
+    </footer>
+
+    <script>
+        // Lucide Icons 초기화
+        lucide.createIcons();
+    </script>
+</body>
+</html>

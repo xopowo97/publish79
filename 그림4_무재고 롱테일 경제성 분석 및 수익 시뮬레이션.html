@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>출판친구 무재고 롱테일 경제성 비교표</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.5);
+            
+            /* 테마별 글로우 및 액센트 색상 */
+            --orange-glow: rgba(249, 115, 22, 0.25);
+            --orange-border: #f97316;
+            --cyan-glow: rgba(56, 189, 248, 0.2);
+            --cyan-border: #38bdf8;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --emerald-border: #10b981;
+            --red-border: #ef4444;
+            --red-glow: rgba(239, 68, 68, 0.15);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1280px;
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+            position: relative;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #38bdf8, #818cf8, #a7f3d0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 테이블 래퍼 */
+        .table-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            font-weight: 700;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            color: #cbd5e1;
+            transition: all 0.2s ease;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(30, 41, 59, 0.3);
+            color: #f8fafc;
+        }
+
+        /* 테이블 구분 및 강조용 스타일 */
+        .row-category {
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .val-original {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .val-new {
+            font-family: 'Outfit', sans-serif;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* 뱃지 스타일 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .badge-positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald-border);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+
+        .badge-negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-glow {
+            background: rgba(249, 115, 22, 0.1);
+            color: #fdba74;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            box-shadow: 0 0 12px var(--orange-glow);
+        }
+
+        /* 시뮬레이션 섹션 */
+        .sim-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sim-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--cyan-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .sim-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .sim-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.05);
+        }
+
+        .sim-info h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .sim-info p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .sim-result {
+            text-align: right;
+        }
+
+        .sim-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--orange-border);
+            text-shadow: 0 0 10px var(--orange-glow);
+        }
+
+        .sim-label {
+            font-size: 11px;
+            color: var(--emerald-border);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>무재고 롱테일 경제성 분석 및 수익 시뮬레이션</h1>
+            <p>[표 1] 50부 복간 기준 상대 원가 및 기대 수익 구조 비교표 (전통 POD 유통 방식을 100 기준 지수화)</p>
+        </div>
+
+        <!-- 표 영역 -->
+        <div class="table-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 30%">구분 항목</th>
+                        <th style="width: 20%">기존 유통 방식 (신국판)</th>
+                        <th style="width: 25%">출판친구 방식 (A5 최적화)</th>
+                        <th style="width: 25%">비교 우위 및 기대 성과</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 수수료율 -->
+                    <tr>
+                        <td class="row-category">유통사/플랫폼 수수료율</td>
+                        <td class="val-original">40%</td>
+                        <td class="val-new" style="color: #a7f3d0;">10%</td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-arrow-down-long"></i> 30%p 수수료 절감
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 공급률 -->
+                    <tr>
+                        <td class="row-category">출판사 공급률 (정가 대비)</td>
+                        <td class="val-original">60%</td>
+                        <td class="val-new" style="color: #a7f3d0;">90%</td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-arrow-up-long"></i> 공급률 1.5배 상승
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 내지 인쇄 원가 -->
+                    <tr>
+                        <td class="row-category">내지 인쇄 원가 지수 (300p)</td>
+                        <td class="val-original">100</td>
+                        <td class="val-new" style="color: #fca5a5;">66.7</td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-arrow-down-long"></i> 인쇄 비용 33.3% 절감
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 권당 제작 원가 -->
+                    <tr>
+                        <td class="row-category">권당 제작 원가 지수</td>
+                        <td class="val-original">100</td>
+                        <td class="val-new" style="color: #fca5a5;">76.5</td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-arrow-down-long"></i> 제작 원가 23.5% 감축
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 권당 순수익 지수 -->
+                    <tr>
+                        <td class="row-category" style="color: #fdba74;">권당 순수익 지수</td>
+                        <td class="val-original">100</td>
+                        <td class="val-new" style="color: #f97316; text-shadow: 0 0 8px rgba(249,115,22,0.2);">215.8</td>
+                        <td>
+                            <span class="badge badge-glow">
+                                <i class="fa-solid fa-fire"></i> 순수익 약 2.15배 폭증
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="font-size: 11px; color: var(--text-sub); margin-top: 12px; padding: 0 20px 16px 20px; font-style: italic; line-height: 1.4;">
+                ※ 본 지표는 실제 제작 환경의 상대적 원가 비율을 나타내며, 파트너사 정보 보호를 위해 구체적인 원화 계약 단가는 표기에서 제외하고 지수화 처리하였습니다.
+            </div>
+        </div>
+
+        <!-- 하단 연간 수익 시뮬레이션 카드 -->
+        <div class="sim-section">
+            <div class="sim-title">
+                <i class="fa-solid fa-chart-pie"></i> 절판 도서 연간 롱테일 복간 수익 시뮬레이션
+            </div>
+            
+            <div class="sim-grid">
+                <!-- 1종 복간 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>1종 복간 운영 시</h4>
+                        <p>연간 300부 판매 기준 (권당 순수익 12,300원 기준)</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value">3,690,000 원</div>
+                        <div class="sim-label"><i class="fa-solid fa-circle-check"></i> 연간 추가 순이익</div>
+                    </div>
+                </div>
+
+                <!-- 10종 복간 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>10종 복간 확장 시</h4>
+                        <p>10종 각 연간 300부 판매 기준 (권당 순수익 12,300원 기준)</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value">36,900,000 원</div>
+                        <div class="sim-label"><i class="fa-solid fa-circle-check"></i> 연간 추가 순이익</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

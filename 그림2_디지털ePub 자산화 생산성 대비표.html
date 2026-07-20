@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>디지털 ePub 자산화 생산성 대비표</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.5);
+            
+            /* 테마별 글로우 및 액센트 색상 (퍼플/에메랄드 중심) */
+            --purple-glow: rgba(168, 85, 247, 0.25);
+            --purple-border: #a855f7;
+            --cyan-glow: rgba(56, 189, 248, 0.2);
+            --cyan-border: #38bdf8;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --emerald-border: #10b981;
+            --red-border: #ef4444;
+            --red-glow: rgba(239, 68, 68, 0.15);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 비율 캡처 최적화 랩퍼 */
+        .viewport-wrapper {
+            width: 1280px;
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 45px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+            position: relative;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #a855f7, #6366f1, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 테이블 래퍼 */
+        .table-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            font-weight: 700;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            color: #cbd5e1;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+            line-height: 1.5;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(30, 41, 59, 0.3);
+            color: #f8fafc;
+        }
+
+        /* 테이블 구분 및 강조용 스타일 */
+        .row-category {
+            font-weight: 700;
+            color: #f8fafc;
+            font-size: 14px;
+        }
+
+        .row-category i {
+            margin-right: 8px;
+            color: var(--purple-border);
+            width: 16px;
+            text-align: center;
+        }
+
+        .val-original {
+            color: #f87171;
+            font-weight: 400;
+        }
+
+        .val-new {
+            color: #a7f3d0;
+            font-weight: 500;
+        }
+
+        /* 뱃지 스타일 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .badge-positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald-border);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+
+        .badge-negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-glow {
+            background: rgba(168, 85, 247, 0.1);
+            color: #d8b4fe;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            box-shadow: 0 0 12px var(--purple-glow);
+        }
+
+        /* 시뮬레이션 섹션 */
+        .sim-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sim-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--cyan-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .sim-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .sim-card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.05);
+        }
+
+        .sim-info h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .sim-info p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .sim-result {
+            text-align: right;
+        }
+
+        .sim-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--emerald-border);
+            text-shadow: 0 0 10px var(--emerald-glow);
+        }
+
+        .sim-label {
+            font-size: 11px;
+            color: var(--purple-border);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>디지털 ePub 자산화 생산성 대비표</h1>
+            <p>[표 3] 기존 수작업 ePub 제작 외주 vs 출판친구 에이전트 자율 컴파일 비교</p>
+        </div>
+
+        <!-- 표 영역 -->
+        <div class="table-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%">구분 단계</th>
+                        <th style="width: 32%">기존 수작업 외주</th>
+                        <th style="width: 28%">출판친구 자율 공정</th>
+                        <th style="width: 15%">생산성 혁신 효과</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 1단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-language"></i>1. 원고 정제 및 번역</td>
+                        <td class="val-original">
+                            전문 번역가 또는 국문학자 의뢰 ➡️ 고어(古語) 현대화 및 글로벌 언어 번역 (비용 수백만 원)
+                        </td>
+                        <td class="val-new">
+                            <strong>6번 번역이 에이전트</strong>를 통한 고어 자동 정밀 현대화 및 글로벌 다국어 **수십 초 내 자동 번역**
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-won-sign"></i> 비용 100% 절감
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 2단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-file-code"></i>2. 멀티미디어 & 빌드</td>
+                        <td class="val-original">
+                            삽화 일러스트레이터 외주 ➡️ 개발자 웹퍼블리싱을 통한 미디어 오버레이 싱크 수동 하드코딩
+                        </td>
+                        <td class="val-new">
+                            <strong>7번 그림이</strong> 삽화 자동 생성 ➡️ <strong>9번 이지퍼비터</strong> ePub3 규격 자동 컴파일 및 미디어 오버레이 생성
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-clock"></i> 시간 99% 단축
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 3단계 -->
+                    <tr>
+                        <td class="row-category"><i class="fa-solid fa-globe"></i>3. 글로벌 유통 및 배포</td>
+                        <td class="val-original">
+                            해외 스토어 개별 수동 가입 및 프로필 승인 ➡️ 국가별 복잡한 포맷 변환 및 수동 빌드 업로드
+                        </td>
+                        <td class="val-new">
+                            <strong>10번 영업이 에이전트</strong>를 연계한 글로벌 마켓 스토어 등록 규격 변환 및 자동 등록 배포
+                        </td>
+                        <td>
+                            <span class="badge badge-positive">
+                                <i class="fa-solid fa-share-nodes"></i> 유통 자동화
+                            </span>
+                        </td>
+                    </tr>
+                    <!-- 종합 평가 -->
+                    <tr>
+                        <td class="row-category" style="color: #d8b4fe;"><i class="fa-solid fa-circle-dollar-to-slot" style="color: #d8b4fe;"></i>종합 평가 (비용)</td>
+                        <td class="val-original" style="font-weight: 700; color: #f87171;">
+                            최소 1개월 이상 (외주비 150만 원 이상 소요, 영세 출판사는 예산 한계로 포기)
+                        </td>
+                        <td class="val-new" style="font-weight: 700; color: #a7f3d0;">
+                            단 수분 내 완료 (대표자 최종 검수/대기 20% 이하, API 비용 약 28,400원 수준)
+                        </td>
+                        <td>
+                            <span class="badge badge-glow">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> 무상 자산화
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 하단 비용 절감 요약 카드 -->
+        <div class="sim-section">
+            <div class="sim-title">
+                <i class="fa-solid fa-calculator"></i> 50종 도서 디지털 ePub화 기준 비용 시뮬레이션
+            </div>
+            
+            <div class="sim-grid">
+                <!-- 기존 외주 방식 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>기존 전문 제작/번역 외주</h4>
+                        <p>디자인, 텍스트 현대화, 미디어 오버레이 하드코딩 외주 비용</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value" style="color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.2);">75,000,000 원</div>
+                        <div class="sim-label" style="color: #f87171;"><i class="fa-solid fa-circle-xmark"></i> 영세 출판사 진입 장벽</div>
+                    </div>
+                </div>
+
+                <!-- 에이전트 자율 빌드 카드 -->
+                <div class="sim-card">
+                    <div class="sim-info">
+                        <h4>출판친구 에이전트 자율 빌드</h4>
+                        <p>6번 번역이 ➡️ 7번 그림이 ➡️ 9번 이지퍼비터 연계 토큰/API 사용 비용</p>
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-value" style="color: #10b981; text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);">1,420,000 원</div>
+                        <div class="sim-label"><i class="fa-solid fa-circle-check"></i> 약 98%의 제작비 절감</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[최신] 에이전트 통제실 | 출판친구 Anti-Gravity</title>
+    <meta name="description" content="출판친구 자율 출판 에이전트 통제실 — 1~16번 에이전트 실시간 모니터링 및 파이프라인 제어">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 통제실 전용 스타일시트 (기존 style.css 절대 불러오지 않음) -->
+    <link rel="stylesheet" href="control.css?v=20260616a">
+
+    <!-- 보안 체크: 최고 관리자(admin) 로그인 상태 확인 -->
+    <script>
+        const role = sessionStorage.getItem('userRole');
+        if (sessionStorage.getItem('isLoggedIn') !== 'true' || (role !== 'admin' && role !== 'judge')) {
+            alert('에이전트 통제실에 접근할 권한이 없습니다. 최고 관리자 계정으로 로그인해주세요.');
+            window.location.href = 'index.html';
+        }
+    </script>
+</head>
+<body>
+
+    <!-- ==========================================
+         에이전트 통제실 전용 UI
+         ========================================== -->
+
+    <!-- 상단 헤더 네비게이션 -->
+    <header class="ctrl-header">
+        <div class="ctrl-header-inner">
+            <!-- 로고 / 브랜드 -->
+            <div class="ctrl-logo">
+                <div class="ctrl-logo-icon">
+                    <i data-lucide="brain-circuit"></i>
+                </div>
+                <div>
+                    <div class="ctrl-logo-title">Anti-Gravity Control</div>
+                    <div class="ctrl-logo-sub">에이전트 통제실 v2.0</div>
+                </div>
+            </div>
+
+            <!-- 상태 인디케이터 -->
+            <div class="ctrl-status-bar">
+                <div class="ctrl-status-item">
+                    <span class="ctrl-dot ctrl-dot-green pulse"></span>
+                    <span class="ctrl-status-label">시스템 정상</span>
+                </div>
+                <div class="ctrl-status-item">
+                    <span class="ctrl-dot ctrl-dot-purple pulse"></span>
+                    <span class="ctrl-status-label">16번 지휘중</span>
+                </div>
+                <div class="ctrl-status-item ctrl-clock" id="ctrl-clock">
+                    00:00:00
+                </div>
+            </div>
+
+            <!-- 실무 엔진 링크 -->
+            <nav class="ctrl-nav">
+                <a href="index.html" class="ctrl-nav-link" style="margin-right: 8px;">
+                    <i data-lucide="shopping-bag"></i>
+                    <span>출판친구스토어</span>
+                </a>
+                <a href="erp.html" class="ctrl-nav-link" style="margin-right: 8px;">
+                    <i data-lucide="external-link"></i>
+                    <span>B2B ERP로 이동</span>
+                </a>
+                <button id="ctrl-nav-btn-pipeline" class="ctrl-nav-btn">
+                    <i data-lucide="play"></i>
+                    <span>파이프라인</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 레이아웃 -->
+    <main class="ctrl-main">
+
+        <!-- 16번 판다 배너 -->
+        <div class="ctrl-orchestrator-banner" id="ctrl-orch-banner">
+            <div class="ctrl-orch-icon">
+                <i data-lucide="brain-circuit"></i>
+            </div>
+            <div class="ctrl-orch-body">
+                <div class="ctrl-orch-label">🧠 16번 (총괄) 판다(Panda) · 실시간 지시사항</div>
+                <div class="ctrl-orch-msg" id="ctrl-orch-msg">
+                    딥서치_살피미의 국립중앙도서관 API 응답 완료. 데이터 신뢰도 92%. 데이터정제_다듬이에게 절판 도서 필터링 명령 전송 중...
+                </div>
+            </div>
+            <div class="ctrl-orch-score">
+                <div class="ctrl-score-num" id="ctrl-orch-score">92<span>%</span></div>
+                <div class="ctrl-score-label">데이터 신뢰도</div>
+            </div>
+        </div>
+
+        <!-- 파이프라인 컨트롤 패널 -->
+        <div class="ctrl-pipeline-panel">
+            <div class="ctrl-pipeline-left">
+                <label class="ctrl-pipeline-label">
+                    <i data-lucide="flask-conical"></i>
+                    자율 수집 & 파이프라인 제어
+                </label>
+                <select id="ctrl-keyword-input" class="ctrl-input ctrl-select">
+                    <option value="all" selected>전체보기(통합)</option>
+                    <option value="저작권 만료">저작권 만료</option>
+                    <option value="소설">소설</option>
+                    <option value="에세이">에세이</option>
+                    <option value="인문학">인문학</option>
+                    <option value="경제경영">경제경영</option>
+                    <option value="사회과학">사회과학</option>
+                    <option value="역사">역사</option>
+                    <option value="과학">과학</option>
+                    <option value="예술">예술</option>
+                    <option value="자기계발">자기계발</option>
+                    <option value="종교">종교</option>
+                    <option value="어린이">어린이</option>
+                    <option value="청소년">청소년</option>
+                </select>
+                <select id="ctrl-bulk-limit" class="ctrl-input ctrl-select" style="margin-left: 8px; width: 230px; background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 0 8px; height: 36px; vertical-align: middle;">
+                    <option value="2">테스트 수집(100종)</option>
+                    <option value="4">일반 수집(200종)</option>
+                    <option value="6" selected>최대 수집(300종)</option>
+                    <option value="auto">⚡ 자율 올스캔 순환 (13대 장르)</option>
+                </select>
+                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary" style="margin-left: 8px;">
+                    <i data-lucide="zap"></i>
+                    ⚡ 에이전트 가동
+                </button>
+            </div>
+            <div class="ctrl-pipeline-right">
+                <span id="ctrl-pipeline-status" class="ctrl-pipeline-status">
+                    대기 중 — 버튼을 눌러 파이프라인을 가동하세요.
+                </span>
+                <button id="ctrl-btn-flashlight" class="ctrl-btn ctrl-btn-flash" style="display: none;">
+                    <i data-lucide="zap"></i>
+                    플래시 라이트 모드 시연
+                </button>
+            </div>
+        </div>
+
+        <!-- 3컬럼 메인 대시보드 그리드 -->
+        <div class="ctrl-grid">
+
+            <!-- 왼쪽: 에이전트 조직도 -->
+            <div class="ctrl-panel ctrl-panel-org" id="ctrl-panel-org">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="git-branch"></i>
+                    <span>에이전트 조직도</span>
+                    <span class="ctrl-badge ctrl-badge-live">LIVE</span>
+                </div>
+                <div class="ctrl-org-tree" id="ctrl-org-tree">
+                    <!-- 가치 창출 및 자율 서비스 본부 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">📡 가치 창출 및 자율 서비스 본부</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-green"></span>
+                            <span class="ctrl-agent-name">1번 딥서치_살피미</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">딥서치</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">2번 데이터정제_다듬이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">정제</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">3번 수익분석_계산이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">분석</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">4번 조판_조판이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">조판</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">5번 교정/교열_고치미</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">교정</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">6번 번역이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">번역</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">7번 그림이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">삽화</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">8번 이지퍼비터POD</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">POD인쇄</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">9번 이지퍼비터epub3</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">디지털컴파일</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">10번 영업이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">영업</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">11번 알리미</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">마케팅</span>
+                        </div>
+                    </div>
+                    <!-- 인프라 엔진 및 행정 지원 본부 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">⚙️ 인프라 엔진 및 행정 지원 본부</div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">12번 눈치왕</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">감시</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">13번 닥터k</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">자가치유</span>
+                        </div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">14번 배달이</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">배포</span>
+                        </div>
+                    </div>
+                    <!-- AI 보안 관제실 -->
+                    <div class="ctrl-dept">
+                        <div class="ctrl-dept-title">🛡️ AI 실시간 보안 및 통제 관제실</div>
+                        <div class="ctrl-agent-row ctrl-agent-idle">
+                            <span class="ctrl-dot ctrl-dot-slate"></span>
+                            <span class="ctrl-agent-name">15번 보안관</span>
+                            <span class="ctrl-agent-task">대기중</span>
+                            <span class="ctrl-agent-tag">보안</span>
+                        </div>
+                    </div>
+                    <!-- 총지휘부 -->
+                    <div class="ctrl-dept ctrl-dept-orch">
+                        <div class="ctrl-dept-title">🧠 총지휘부</div>
+                        <div class="ctrl-agent-row ctrl-agent-active">
+                            <span class="ctrl-dot ctrl-dot-purple"></span>
+                            <span class="ctrl-agent-name">16번 팬더</span>
+                            <span class="ctrl-agent-task">전체 지휘중</span>
+                            <span class="ctrl-agent-tag ctrl-tag-purple">지휘</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 가운데: 복간 후보 TOP3 + 트렌드 차트 -->
+            <div class="ctrl-panel">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="trophy"></i>
+                    <span>복간 후보 TOP 3</span>
+                    <span class="ctrl-badge ctrl-badge-ai">AI 분석</span>
+                </div>
+
+                <div class="ctrl-top3-list" id="ctrl-top3-list">
+                    <div class="ctrl-book-card ctrl-rank-1" id="ctrl-book-rank-1" style="cursor:pointer;">
+                        <div class="ctrl-rank-badge">🥇 1위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">오래된 미래 (헬레나 노르베리-호지)</div>
+                            <div class="ctrl-book-meta">절판 · 2019 · 수요지수 <strong>98.2</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">98<span>점</span></div>
+                    </div>
+                    <div class="ctrl-book-card ctrl-rank-2" id="ctrl-book-rank-2" style="cursor:pointer;">
+                        <div class="ctrl-rank-badge">🥈 2위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">탈학교의 사회 (이반 일리치)</div>
+                            <div class="ctrl-book-meta">절판 · 2017 · 수요지수 <strong>94.7</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">95<span>점</span></div>
+                    </div>
+                    <div class="ctrl-book-card ctrl-rank-3" id="ctrl-book-rank-3" style="cursor:pointer;">
+                        <div class="ctrl-rank-badge">🥉 3위</div>
+                        <div class="ctrl-book-info">
+                            <div class="ctrl-book-title">생각의 탄생 (루트번스타인)</div>
+                            <div class="ctrl-book-meta">절판 · 2020 · 수요지수 <strong>91.1</strong></div>
+                        </div>
+                        <div class="ctrl-reprint-score">91<span>점</span></div>
+                    </div>
+                </div>
+
+                <!-- ePub3 및 AI 마케팅 에셋 팩 3단 탭 -->
+                <div class="ctrl-panel-header" style="margin-top: 24px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="book-open"></i>
+                        <span>AI 에셋 및 샘플러</span>
+                    </div>
+                    <span class="ctrl-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;border:1px solid rgba(168,85,247,0.3);">11번 알리미 연동</span>
+                </div>
+                
+                <!-- 탭 버튼 헤더 -->
+                <div class="ctrl-tabs-header" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 10px; margin-top: 8px; border: 1px solid var(--ctrl-border);">
+                    <button class="ctrl-tab-btn active" onclick="switchAssetTab('epub')" id="tab-btn-epub" style="flex: 1; padding: 7px 10px; border-radius: 8px; border: none; background: rgba(255,255,255,0.08); color: var(--ctrl-text); font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <i data-lucide="book-open" style="width: 12px; height: 12px;"></i>ePub3 샘플
+                    </button>
+                    <button class="ctrl-tab-btn" onclick="switchAssetTab('news')" id="tab-btn-news" style="flex: 1; padding: 7px 10px; border-radius: 8px; border: none; background: transparent; color: var(--ctrl-text-mute); font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s;">
+                        <i data-lucide="image" style="width: 12px; height: 12px;"></i>📰 AI 카드뉴스
+                    </button>
+                    <button class="ctrl-tab-btn" onclick="switchAssetTab('video')" id="tab-btn-video" style="flex: 1; padding: 7px 10px; border-radius: 8px; border: none; background: transparent; color: var(--ctrl-text-mute); font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s;">
+                        <i data-lucide="video" style="width: 12px; height: 12px;"></i>🎬 AI 숏폼
+                    </button>
+                </div>
+                
+                <div id="ctrl-epub-viewer" class="ctrl-epub-viewer" style="margin-top: 8px; position: relative;">
+                    <!-- JS에서 동적으로 채워집니다 -->
+                    <div class="ctrl-epub-idle">
+                        <i data-lucide="book-open" style="width:32px;height:32px;opacity:0.3;"></i>
+                        <p>파이프라인 실행 후 복간 후보 도서를 클릭하면<br>ePub3 샘플러와 마케팅 팩이 이 곳에서 활성화됩니다.</p>
+                    </div>
+                </div>
+
+
+                <!-- 실시간 수집·분석 도서 피드 -->
+                <div class="ctrl-panel-header" style="margin-top: 24px;">
+                    <i data-lucide="rss"></i>
+                    <span>실시간 수집·분석 도서 피드 (최근 8건)</span>
+                    <span class="ctrl-badge ctrl-badge-live" style="background: rgba(14, 165, 233, 0.15); color: #0ea5e9;">LIVE</span>
+                </div>
+                <div class="ctrl-feed-container" id="ctrl-feed-list" style="margin-top: 8px; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                    <div style="padding:24px; text-align:center; color:var(--ctrl-text-mute); font-size:11px; font-weight:600;">
+                        실시간 도서 수집 대기 중...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 실시간 에이전트 로그 -->
+            <div class="ctrl-panel">
+                <div class="ctrl-panel-header">
+                    <i data-lucide="activity"></i>
+                    <span>실시간 에이전트 로그</span>
+                    <span class="ctrl-badge ctrl-badge-live">LIVE</span>
+                </div>
+                <div class="ctrl-log-stream" id="ctrl-log-stream">
+                    <div class="ctrl-log-entry ctrl-log-info mock-log" style="border-left: 3px solid #f97316 !important; background: rgba(249, 115, 22, 0.05);">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[B2B영업_영업이]</span>
+                        <span>절판 도서 도서관 대출 데이터 기반 B2B 복간 제안서 자동 발송 완료 (대기)</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-success">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[딥서치_살피미]</span>
+                        <span>국립중앙도서관 API 호출 성공 · 도서 247건 수집</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-info">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[(총괄) 오케스트레이터]</span>
+                        <span>데이터 정제 명령 → 데이터정제_다듬이 전송</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-warn">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[데이터정제_다듬이]</span>
+                        <span>절판 도서 필터 처리중 · 62건 감지</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-success">
+                        <span class="ctrl-log-time">--:--:--</span>
+                        <span class="ctrl-log-agent">[보안통제_보안관]</span>
+                        <span>비정상 API 호출 0건 · 보안 정상</span>
+                    </div>
+                    <div class="ctrl-log-entry ctrl-log-info">
+                        <span class="ctrl-log-time">--:--:--</span>
+                            <span class="ctrl-log-agent">[에러감지_눈치왕]</span>
+                        <span>에러 없음 · 시스템 안정 상태</span>
+                    </div>
+                </div>
+
+
+
+
+                <!-- 긴급 보고서 큐 섹션 (16번 지휘_판다 연동) -->
+                <div class="ctrl-panel-header" style="margin-top: 24px;">
+                    <i data-lucide="alert-triangle" style="color: #ef4444;"></i>
+                    <span style="color: #ef4444; font-weight: 800;">16번 지휘_판다 [긴급 보고서 큐]</span>
+                    <span class="ctrl-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">긴급 CS</span>
+                </div>
+                <div class="ctrl-ticket-queue" id="ctrl-ticket-queue" style="margin-top: 8px; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                    <div class="ctrl-ticket-empty" style="padding: 24px; text-align: center; color: var(--ctrl-text-mute); font-size: 11px; font-weight: 600; border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                        <i data-lucide="check-circle" style="width: 24px; height: 24px; color: #10b981; margin: 0 auto 8px; display: block;"></i>
+                        접수된 긴급 CS 티켓 보고서가 없습니다. 시스템이 안전합니다.
+                    </div>
+                </div>
+
+                <!-- 승인 로그 섹션 -->
+                <div class="ctrl-panel-header" style="margin-top: 24px;">
+                    <i data-lucide="clipboard-check"></i>
+                    <span>대표님 승인 로그</span>
+                    <span class="ctrl-badge ctrl-badge-ceo">CEO</span>
+                </div>
+                <div class="ctrl-approval-log" id="ctrl-approval-log">
+                    <div class="ctrl-approval-empty">
+                        <i data-lucide="inbox"></i>
+                        <p>아직 승인 기록이 없습니다.<br>파이프라인 실행 후 의사결정 카드를 승인하면 이곳에 기록됩니다.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- END: 3컬럼 그리드 -->
+
+    </main>
+
+    <!-- 시뮬레이션 모달 (동적 생성 공간) -->
+    <!-- JS에서 document.body.insertAdjacentHTML로 삽입 -->
+
+    <!-- AI Helper (Antigravity) Agentic UI -->
+    <div id="ai-fab" class="ai-fab">
+        <i data-lucide="sparkles" class="w-8 h-8"></i>
+    </div>
+
+    <div id="ai-panel" class="ai-panel">
+        <div class="ai-header" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center;">
+            <div class="ai-avatar" style="background: #ffffff; color: #a855f7; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3); flex-shrink: 0;">
+                <i data-lucide="brain-circuit" style="width: 20px; height: 20px;"></i>
+            </div>
+            <div class="flex-1" style="margin-left: 10px; display: flex; align-items: center; justify-content: space-between; overflow: hidden; padding-right: 8px;">
+                <div style="min-width: 0; flex-shrink: 1;">
+                    <div class="text-sm font-black tracking-tight text-white" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">16번 지휘_판다</div>
+                    <div class="text-[10px] text-purple-200 font-bold" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Panda Orchestrator</div>
+                </div>
+                <button id="ai-demo-btn"
+                    style="display: none; flex-shrink: 0; font-size: 9px; background: rgba(255, 255, 255, 0.15); color: #ffffff; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3); cursor: pointer; font-weight: bold; margin-left: 8px; transition: background 0.2s;"
+                    onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
+                    onmouseout="this.style.background='rgba(255, 255, 255, 0.15)'">
+                    DEMO
+                </button>
+            </div>
+            <button id="ai-close-btn" class="text-slate-200 hover:text-white" style="flex-shrink: 0;">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="ai-content" id="ai-chat-content">
+            <div class="ai-msg ai-msg-bot">
+                안녕하세요, 대표님! **16번 지휘_판다**입니다.
+                에이전트 파이프라인의 예외 상황 의사결정이나 비즈니스 규칙 지시사항이 있으시면 언제든 말씀해주세요. 경청하고 수렴하겠습니다.
+            </div>
+
+            <!-- Example of Agent Action (Shown for Demo) -->
+            <div id="ai-agent-action" class="hidden">
+                <div class="ai-msg ai-msg-bot">
+                    🚨 **시스템 에러 감지!**
+                    파일 업로드 과정에서 예기치 못한 이슈가 발생했습니다. 제가 즉시 원인을 분석하고 해결책을 마련하겠습니다.
+                </div>
+                <div class="ai-action-card">
+                    <div class="ai-status-pulse">
+                        <div class="pulse-dot"></div>
+                        <span>자가 치유(Self-Healing) 엔진 가동 중...</span>
+                    </div>
+                    <div class="ai-code-block">
+                        // Analyzing script.js...<br>
+                        // Error found at line 462: Uncaught TypeError<br>
+                        // Patching: Adding null-check for file input...<br>
+                        // PR Created: "fix/file-upload-handler"
+                    </div>
+                    <button id="ai-patch-apply-btn"
+                        style="width: 100%; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: background 0.2s;"
+                        onmouseover="this.style.background='#0369a1'"
+                        onmouseout="this.style.background='#0284c7'">
+                        패치 자동 적용 및 서버 배포 승인
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="ai-footer">
+            <input type="text" id="ai-input" placeholder="지휘_판다에게 질문 및 지시사항 입력..." class="ai-input">
+            <button id="ai-send-btn" class="ai-send-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- [신규] B2B AI 영업 및 마케팅 실시간 관제 센터 슬라이드 패널 -->
+    <div id="ctrl-sales-marketing-panel" class="ctrl-slide-panel" style="position:fixed; top:0; right:-800px; width:760px; height:100vh; background:#0d1117; border-left:1px solid rgba(255,255,255,0.1); box-shadow:-10px 0 35px rgba(0,0,0,0.6); z-index:190; transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display:flex; flex-direction:column; overflow:hidden;">
+        <div class="ctrl-slide-header" style="padding:22px 28px; border-b:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center; background:#161b22;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i data-lucide="shield-alert" style="color:#0ea5e9; width:22px; height:22px;"></i>
+                <span style="font-size:15px; font-weight:900; color:#f1f5f9; letter-spacing:0.02em;">B2B AI 영업 및 마케팅 실시간 관제 센터</span>
+            </div>
+            <button id="ctrl-slide-close-btn" style="background:transparent; border:none; color:#8b949e; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:0.2s;" onmouseover="this.style.color='#f0f6fc'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#8b949e'; this.style.background='transparent';">
+                <i data-lucide="x" style="width:22px; height:22px;"></i>
+            </button>
+        </div>
+        
+        <div class="ctrl-slide-body" style="padding:28px; display:flex; flex-direction:column; gap:28px; overflow-y:auto; flex:1;">
+            <!-- [신규] B2B 플랫폼 실시간 비즈니스 실적판 (6열 대형 그리드) -->
+            <div class="ctrl-slide-section">
+                <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#10b981; margin-bottom:12px;">
+                    <i data-lucide="trending-up" style="width:18px; height:18px;"></i>
+                    <span>출판친구 B2B 플랫폼 실시간 비즈니스 전략 관제판</span>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15); margin-bottom:12px;">
+                    <div style="display:flex; flex-direction:column; gap:6px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('all')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="library" style="width:11px; height:11px; color:#38bdf8;"></i>수집된 원천도서</span>
+                        <span id="b2b-stat-totalbooks" style="font-size:16px; font-weight:900; color:#38bdf8;">0종</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('outofprint')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="book-open" style="width:11px; height:11px; color:#0ea5e9;"></i>영업가능 절판도서</span>
+                        <span id="b2b-stat-outofprint" style="font-size:16px; font-weight:900; color:#0ea5e9;">0종</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px; cursor:pointer; transition:0.2s;" onclick="showBooksListPopup('expired')" onmouseover="this.style.opacity='0.85';" onmouseout="this.style.opacity='1';">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="unlock" style="width:11px; height:11px; color:#f59e0b;"></i>영업가능 만료도서</span>
+                        <span id="b2b-stat-expired" style="font-size:16px; font-weight:900; color:#f59e0b;">0종</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
+                        <span style="font-size:9px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:3px;"><i data-lucide="users" style="width:11px; height:11px; color:#c084fc;"></i>영업 제안중 출판사</span>
+                        <span id="b2b-stat-partners" style="font-size:16px; font-weight:900; color:#a855f7;">0곳</span>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; background:#1f242c; padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="award" style="width:12px; height:12px; color:#34d399;"></i>복간 성공 (종/부수)</span>
+                        <span style="font-size:16px; font-weight:900; color:#10b981;"><span id="b2b-stat-success-kinds">0</span>종 / <span id="b2b-stat-copies">0</span>부</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="coins" style="width:12px; height:12px; color:#facc15;"></i>매출 / 순수익률</span>
+                        <span style="font-size:16px; font-weight:900; color:#eab308;"><span id="b2b-stat-sales">₩0</span> <span style="font-size:10px; color:#c084fc;">(<span id="b2b-stat-margin-pct">0</span>%)</span></span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(255,255,255,0.1); padding-left:16px;">
+                        <span style="font-size:10px; font-weight:800; color:#8b949e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:4px;"><i data-lucide="credit-card" style="width:12px; height:12px; color:#f87171;"></i>누적 AI API 사용료</span>
+                        <span id="b2b-stat-api-costs" style="font-size:16px; font-weight:900; color:#f43f5e;">₩0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- [신규] 장르별 누적 도서 자산 현황판 -->
+            <div class="ctrl-slide-section" style="margin-top: -10px; margin-bottom: 8px;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#38bdf8; margin-bottom:10px;">
+                    <i data-lucide="folders" style="width:16px; height:16px;"></i>
+                    <span>장르별 누적 도서 자산 현황</span>
+                </div>
+                <div id="ctrl-genre-stats-board" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; background:#161b22; padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);">
+                    <div style="font-size:11px; text-align:center; color:#8b949e; grid-column: span 5; padding: 4px 0;">통계 데이터를 불러오는 중...</div>
+                </div>
+            </div>
+
+            <!-- 영업이 타임라인 (좌우 2분할 배치) -->
+            <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:24px; align-items:start;">
+                <div class="ctrl-slide-section">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#0ea5e9; margin-bottom:14px;">
+                        <i data-lucide="briefcase" style="width:18px; height:18px;"></i>
+                        <span>10번 B2B 영업이 — 협상 타임라인</span>
+                    </div>
+                    <div id="ctrl-sales-timeline" class="ctrl-sales-timeline" style="display:flex; flex-direction:column; gap:16px;">
+                        <!-- 동적 바인딩 -->
+                    </div>
+                </div>
+                
+                <div class="ctrl-slide-section">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#a855f7; margin-bottom:14px;">
+                        <i data-lucide="megaphone" style="width:18px; height:18px;"></i>
+                        <span>11번 마케팅 알리미 — AI SNS 배포</span>
+                    </div>
+                    <div class="ctrl-marketing-channels" id="ctrl-marketing-channels" style="display:grid; grid-template-columns:1fr; gap:10px;">
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="youtube" style="width:18px; height:18px; color:#ef4444; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">YouTube Shorts</span>
+                            </div>
+                            <span id="m-status-youtube" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="instagram" style="width:18px; height:18px; color:#ec4899; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">Insta Reels</span>
+                            </div>
+                            <span id="m-status-instagram" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="message-square" style="width:18px; height:18px; color:#eab308; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">Kakao Alimtalk</span>
+                            </div>
+                            <span id="m-status-kakao" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                        <div class="ctrl-m-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                                <i data-lucide="video" style="width:18px; height:18px; color:#ff0050; flex-shrink:0;"></i>
+                                <span style="font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f1f5f9;">TikTok</span>
+                            </div>
+                            <span id="m-status-tiktok" class="ctrl-m-badge" style="font-size:9px; font-weight:900; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:#8b949e;">배포대기</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- [신규] B2B 수집 도서 목록 팝업 모달 -->
+    <div id="b2b-books-modal" style="position:fixed; inset:0; z-index:200; display:none; items-center:center; justify-content:center; background:rgba(15,23,42,0.75); backdrop-filter:blur(4px); padding:20px;">
+        <div style="background:#0d1117; border:1px solid #30363d; border-radius:20px; width:100%; max-width:2xl; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; color:#c9d1d9; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+            <!-- 헤더 -->
+            <div style="padding:20px 24px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between; align-items:center; background:#161b22;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="library" style="color:#58a6ff; width:20px; height:20px;"></i>
+                    <span id="b2b-modal-title" style="font-size:16px; font-weight:900; color:#f0f6fc; letter-spacing:0.02em;">수집 절판 및 만료 도서 목록</span>
+                </div>
+                <button onclick="closeB2BBooksModal()" style="background:transparent; border:none; color:#8b949e; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:6px;" onmouseover="this.style.color='#f0f6fc'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#8b949e'; this.style.background='transparent';">
+                    <i data-lucide="x" style="width:20px; height:20px;"></i>
+                </button>
+            </div>
+            <!-- [신규] 실시간 장르 및 정렬 필터바 -->
+            <div style="padding: 12px 24px; background: #0f141c; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #8b949e;">
+                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                    <span>필터링 및 정렬</span>
+                </div>
+                <select id="b2b-modal-filter-genre" style="background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 4px 8px; font-size: 11px; height: 28px; cursor: pointer;">
+                    <option value="all">전체 장르</option>
+                    <option value="소설">소설</option>
+                    <option value="에세이">에세이</option>
+                    <option value="인문학">인문학</option>
+                    <option value="경제경영">경제경영</option>
+                    <option value="사회과학">사회과학</option>
+                    <option value="역사">역사</option>
+                    <option value="과학">과학</option>
+                    <option value="예술">예술</option>
+                    <option value="자기계발">자기계발</option>
+                    <option value="종교">종교</option>
+                    <option value="어린이">어린이</option>
+                    <option value="청소년">청소년</option>
+                    <option value="저작권 만료">저작권 만료</option>
+                    <option value="미분류">미분류</option>
+                </select>
+                <select id="b2b-modal-sort-by" style="background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 4px 8px; font-size: 11px; height: 28px; cursor: pointer;">
+                    <option value="score">복간 점수 높은 순 🟢</option>
+                    <option value="loans">인기 대출순 🔵</option>
+                    <option value="created">최신 등록순</option>
+                </select>
+            </div>
+            <!-- 리스트 바디 -->
+            <div id="b2b-modal-list-container" style="padding:24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+                <!-- 동적으로 로딩되는 책 리스트 행 -->
+            </div>
+            <!-- 푸터 -->
+            <div style="padding:16px 24px; border-top:1px solid #30363d; background:#161b22; display:flex; justify-content:flex-end;">
+                <button onclick="closeB2BBooksModal()" style="padding:10px 20px; background:#21262d; border:1px solid #30363d; color:#c9d1d9; border-radius:10px; font-size:12px; font-weight:800; cursor:pointer; transition:0.2s;" onmouseover="this.style.background='#30363d';" onmouseout="this.style.background='#21262d';">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- control.js (통제실 전용 스크립트) -->
+    <script src="control.js?v=20260706_shorts_v4"></script>
+</body>
+</html>

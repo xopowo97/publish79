@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>출판친구 통합 구동 플랫폼 쇼케이스</title>
+    <!-- Google Fonts 및 Font Awesome 아이콘 연동 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(51, 65, 85, 0.4);
+            
+            --cyan-border: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.2);
+            --purple-border: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.2);
+            --emerald-border: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.2);
+            
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(6, 182, 212, 0.08) 0px, transparent 40%),
+                radial-gradient(at 90% 80%, rgba(168, 85, 247, 0.08) 0px, transparent 40%),
+                linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* 16:9 캡처 비율 랩퍼 */
+        .viewport-wrapper {
+            width: 1350px;
+            background: rgba(10, 15, 30, 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 타이틀 영역 */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #38bdf8, #a855f7, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-sub);
+            font-weight: 300;
+        }
+
+        /* 대시보드 메인 레이아웃 (좌측 통제실 / 우측 ERP + 스토어) */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        /* 공통 디바이스 윈도우 스타일 */
+        .device-panel {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .device-header {
+            background: #0f172a;
+            height: 32px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .window-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #475569;
+        }
+        .dot.red { background: #ef4444; }
+        .dot.yellow { background: #f59e0b; }
+        .dot.green { background: #10b981; }
+
+        /* 좌측: B2B AI 에이전트 관제실 */
+        .control-room {
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+        }
+
+        .control-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-grow: 1;
+        }
+
+        /* 에이전트 리스트 Grid */
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .agent-badge {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+            text-align: center;
+        }
+
+        .agent-badge.active {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.03);
+        }
+
+        .agent-status-light {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            align-self: flex-end;
+        }
+
+        .agent-icon {
+            font-size: 16px;
+            color: #c084fc;
+        }
+
+        .agent-name {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .agent-task-desc {
+            font-size: 8px;
+            color: var(--text-sub);
+        }
+
+        /* 파이프라인 가동 통계 */
+        .pipeline-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: rgba(9, 12, 24, 0.6);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-title {
+            font-size: 9px;
+            color: var(--text-sub);
+            margin-bottom: 2px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: var(--cyan-border);
+        }
+
+        /* 라이브 로그 패널 */
+        .log-panel {
+            background: #020617;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 9px;
+            line-height: 1.4;
+            color: #94a3b8;
+            height: 120px;
+            overflow-y: auto;
+            border: 1px solid rgba(168, 85, 247, 0.1);
+        }
+
+        .log-line {
+            display: flex;
+            gap: 6px;
+        }
+        .log-line.success { color: #10b981; }
+        .log-line.info { color: #38bdf8; }
+
+        /* 우측: 상단 ERP / 하단 B2C 모바일 스토어 */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* B2B 출판사 ERP */
+        .erp-panel {
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.1);
+        }
+
+        .erp-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .erp-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .metric-title {
+            font-size: 9px;
+            color: var(--text-sub);
+        }
+
+        .metric-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* 주문 도서 테이블 */
+        .erp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
+            text-align: left;
+        }
+
+        .erp-table th {
+            color: var(--text-sub);
+            padding: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-weight: 600;
+        }
+
+        .erp-table td {
+            padding: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+        }
+
+        /* B2C 모바일 스토어 & 데모 로그인 카드 */
+        .store-and-qr-row {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        /* B2C 모바일 폰 목업 */
+        .phone-mockup {
+            background: #0f172a;
+            border: 6px solid #1e293b;
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+            height: 250px;
+            position: relative;
+        }
+
+        /* 스피커 & 노치 데코레이션 */
+        .phone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 10px;
+            background: #1e293b;
+            border-radius: 0 0 6px 6px;
+            z-index: 10;
+        }
+
+        .phone-body {
+            background: #0f172a;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 10px 10px 10px;
+            overflow: hidden;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .phone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 8px;
+        }
+
+        .book-funding-widget {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .widget-img {
+            width: 45px;
+            height: 60px;
+            background: linear-gradient(135deg, #1e1b4b 0%, #311042 100%);
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .widget-info {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .widget-title {
+            font-size: 9px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .widget-gauge-text {
+            font-size: 8px;
+            color: #38bdf8;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .gauge-bar-bg {
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .gauge-bar-fill {
+            height: 100%;
+            width: 78%;
+            background: var(--cyan-border);
+            box-shadow: 0 0 6px var(--cyan-border);
+            border-radius: 2px;
+        }
+
+        .funding-btn {
+            background: var(--cyan-border);
+            color: #020617;
+            font-size: 9px;
+            font-weight: 700;
+            border: none;
+            padding: 5px;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--cyan-glow);
+            margin-top: 8px;
+        }
+
+        /* 데모 접속 안내 및 QR 카드 */
+        .qr-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .qr-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .qr-placeholder {
+            width: 90px;
+            height: 90px;
+            background: #fff;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .qr-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .account-info {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 8px;
+            color: #d1fae5;
+            width: 100%;
+            line-height: 1.5;
+        }
+
+        .account-info strong {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="viewport-wrapper">
+        
+        <!-- 타이틀 영역 -->
+        <div class="header">
+            <h1>출판친구 실시간 구동 플랫폼 쇼케이스</h1>
+            <p>16대 AI 에이전트 자율 관제, 실시간 출판사 ERP 및 B2C 모의결제 스토어 연동 실증</p>
+        </div>
+
+        <!-- 대시보드 메인 레이아웃 -->
+        <div class="dashboard-grid">
+            
+            <!-- 좌측: B2B AI 에이전트 관제실 -->
+            <div class="device-panel control-room">
+                <div class="device-header">
+                    <div class="window-dots">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                    <span><i class="fa-solid fa-server"></i> AI 에이전트 실시간 관제실</span>
+                    <span style="color: #10b981;"><i class="fa-solid fa-circle-check"></i> Live Running</span>
+                </div>
+                
+                <div class="control-body">
+                    <!-- 에이전트 상태 그리드 (16대 중 일부 묘사) -->
+                    <div class="agent-grid">
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-search agent-icon"></i>
+                            <span class="agent-name">01. 살피미</span>
+                            <span class="agent-task-desc">빅데이터 분석</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-filter agent-icon"></i>
+                            <span class="agent-name">02. 다듬이</span>
+                            <span class="agent-task-desc">서지정보 정제</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-calculator agent-icon"></i>
+                            <span class="agent-name">03. 계산이</span>
+                            <span class="agent-task-desc">원가 시뮬레이션</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-pen-nib agent-icon"></i>
+                            <span class="agent-name">05. 고치미</span>
+                            <span class="agent-task-desc">오탈자 자율교정</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-language agent-icon"></i>
+                            <span class="agent-name">06. 번역이</span>
+                            <span class="agent-task-desc">한영 자율번역</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-image agent-icon"></i>
+                            <span class="agent-name">07. 그림이</span>
+                            <span class="agent-task-desc">AI 삽화 자율생성</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-file-pdf agent-icon"></i>
+                            <span class="agent-name">08. 이지퍼비터POD</span>
+                            <span class="agent-task-desc">PDF 자동조판</span>
+                        </div>
+                        <div class="agent-badge active">
+                            <span class="agent-status-light"></span>
+                            <i class="fa-solid fa-user-astronaut agent-icon"></i>
+                            <span class="agent-name">16. 판다(지휘)</span>
+                            <span class="agent-task-desc">대표 가치관 학습</span>
+                        </div>
+                    </div>
+
+                    <!-- 파이프라인 가동 실적 -->
+                    <div class="pipeline-stats">
+                        <div class="stat-card">
+                            <div class="stat-title">누적 탐지 절판본</div>
+                            <div class="stat-value">2,842종</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">AI 자동 조판 완료</div>
+                            <div class="stat-value">148권</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">평균 공정 소요시간</div>
+                            <div class="stat-value">2.4분</div>
+                        </div>
+                    </div>
+
+                    <!-- 터미널 로그 -->
+                    <div class="log-panel">
+                        <div class="log-line info">[08:12:15] [1번 살피미] 도서관 빅데이터 내 미복간 희귀본 탐지 성공.</div>
+                        <div class="log-line info">[08:12:18] [3번 계산이] 도서 규격 기반 종이책 제작 원가 분석 완료.</div>
+                        <div class="log-line success">[08:12:20] [16번 판다] 복간 승인 제안 카드 발행 및 모방 학습 데이터 적재 성공.</div>
+                        <div class="log-line info">[08:12:22] [8번 이지퍼비터POD] A5 변환 판형 93% 정밀 축소 조판 수행 시작...</div>
+                        <div class="log-line success">[08:12:24] [8번 이지퍼비터POD] 300p 분량 인쇄 완제품 PDF 컴파일 완료 (12.4초).</div>
+                        <div class="log-line success">[08:12:28] [11번 알리미] 숏폼 나레이션 오디오 파일 및 카드뉴스 SVG 병합 성공.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 우측: 상단 ERP / 하단 스토어 및 데모 인증 QR -->
+            <div class="right-column">
+                
+                <!-- B2B 출판사 ERP -->
+                <div class="device-panel erp-panel">
+                    <div class="device-header">
+                        <div class="window-dots">
+                            <div class="dot red"></div>
+                            <div class="dot yellow"></div>
+                            <div class="dot green"></div>
+                        </div>
+                        <span><i class="fa-solid fa-chart-line"></i> 실시간 펀딩 현황</span>
+                        <span>v1.0.4</span>
+                    </div>
+                    
+                    <div class="erp-body">
+                        <!-- 기본 매트릭스 -->
+                        <div class="erp-metrics">
+                            <div class="metric-card">
+                                <span class="metric-title">진행 펀딩</span>
+                                <span class="metric-value" style="color: #38bdf8;">14종</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">총 예약 구매자</span>
+                                <span class="metric-value" style="color: #a855f7;">4,812명</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">정산 대기액</span>
+                                <span class="metric-value" style="color: #10b981;">₩ 3,842K</span>
+                            </div>
+                        </div>
+
+                        <!-- 실시간 진행 상태 테이블 -->
+                        <table class="erp-table">
+                            <thead>
+                                <tr>
+                                    <th>도서명 (ISBN)</th>
+                                    <th>목표 부수</th>
+                                    <th>현재 예약</th>
+                                    <th>제작 진행</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>셜록 홈즈의 모험 (999-89-..)</td>
+                                    <td>100부</td>
+                                    <td style="color:#06b6d4; font-weight:700;">78부</td>
+                                    <td><span class="status-badge" style="background:rgba(6,182,212,0.1); color:#06b6d4;">펀딩 진행중</span></td>
+                                </tr>
+                                <tr>
+                                    <td>홍길동전 현대화본 (999-89-..)</td>
+                                    <td>100부</td>
+                                    <td style="color:#10b981; font-weight:700;">102부</td>
+                                    <td><span class="status-badge">인쇄 발주완료</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 하단: 스토어 및 QR 레이아웃 -->
+                <div class="store-and-qr-row">
+                    
+                    <!-- B2C 모바일 폰 -->
+                    <div class="phone-mockup">
+                        <div class="phone-body">
+                            <div class="phone-header">
+                                <span><i class="fa-solid fa-bars"></i> 출판친구 스토어</span>
+                                <span><i class="fa-solid fa-wifi"></i> 5G</span>
+                            </div>
+                            
+                            <div class="book-funding-widget">
+                                <div class="widget-img">
+                                    <i class="fa-solid fa-book-open"></i>
+                                </div>
+                                <div class="widget-info">
+                                    <span class="widget-title">셜록 홈즈의 모험 (Bilingual)</span>
+                                    <div class="widget-gauge-text">
+                                        <span>펀딩 달성률</span>
+                                        <span>78 / 100부</span>
+                                    </div>
+                                    <div class="gauge-bar-bg">
+                                        <div class="gauge-bar-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button class="funding-btn">
+                                <i class="fa-solid fa-credit-card"></i> 예약 구매하기 (빌링키 등록)
+                            </button>
+                            <span style="font-size: 7px; color: var(--text-sub); text-align: center; margin-top: 6px;">
+                                *목표 달성 시 자동 일괄 결제, 실패 시 100% 무상 취소
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 데모 접속 안내 및 자동생성 QR -->
+                    <div class="qr-card">
+                        <span class="qr-title"><i class="fa-solid fa-circle-check"></i> B2C - B2B 실시간 연동</span>
+                        <div style="font-size: 8.5px; color: var(--text-sub); text-align: center; line-height: 1.5; margin-top: 10px; padding: 10px; background: rgba(16, 185, 129, 0.03); border: 1px dashed rgba(16, 185, 129, 0.15); border-radius: 8px; width: 100%;">
+                            출판친구 스토어에서 발생한 복간 수요는 Supabase를 통해 B2B AI 통제실로 실시간 전달되어 에이전트에 의해 분석되며, 펀딩 성공 시 출판사가 직접 출판친구 ERP 시스템에 발주하여 제작 및 정산, 그리고 구매자에게 배송 됩니다.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

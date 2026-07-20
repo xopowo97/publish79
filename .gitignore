@@ -1,0 +1,8 @@
+.env
+.env.local
+.env.*
+node_modules/
+scratch/temp_assets/
+.gemini/
+.DS_Store
+Thumbs.db

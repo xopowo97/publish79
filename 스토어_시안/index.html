@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판친구 STORE - 4계절 감성 테마 체험관</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Outfit & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* 스크롤바 숨기기 및 스무스 스크롤 */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
+        }
+
+        /* --------------------------------------------------
+           🎨 CSS 4계절 테마 변수 정의 (대표님 맞춤 개편)
+        -------------------------------------------------- */
+        :root {
+            /* 🌸 [봄: 4월~6월] 아날로그 크림 페이퍼 & 새싹 민트 */
+            --bg-color: #f9f8f6;
+            --text-color: #1c1a17;
+            --text-muted: #736c64;
+            --card-bg: #ffffff;
+            --card-border: #eae6dd;
+            --primary-color: #0d9488; /* 새싹 민트 그린 (Teal) */
+            --primary-hover: #0f766e;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(28, 26, 23, 0.03);
+            --header-bg: rgba(249, 248, 246, 0.92);
+            --hero-bg: radial-gradient(circle at top, #f3f0e8 0%, #f9f8f6 75%);
+            --badge-bg: rgba(13, 148, 136, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #eae6dd;
+            --accent-glow: rgba(13, 148, 136, 0.15);
+        }
+
+        body.theme-summer {
+            /* 🌊 [여름: 7월~9월] 아이스 블루 & 네온 오션 (시리도록 시원한 연파랑) */
+            --bg-color: #f0f9ff; /* 투명하고 차가운 얼음 물빛 */
+            --text-color: #0c4a6e; /* 깊고 시원한 심해 파란색 */
+            --text-muted: #0284c7; /* 활력 있는 스카이 블루 */
+            --card-bg: #ffffff;
+            --card-border: #bae6fd; /* 맑은 하늘빛 테두리 */
+            --primary-color: #0284c7; /* 탄산수 파란색 */
+            --primary-hover: #0369a1;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(14, 165, 233, 0.04);
+            --header-bg: rgba(240, 249, 255, 0.92);
+            --hero-bg: radial-gradient(circle at top, #bae6fd 0%, #f0f9ff 75%);
+            --badge-bg: rgba(2, 132, 199, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #bae6fd;
+            --accent-glow: rgba(2, 132, 199, 0.15);
+        }
+
+        body.theme-autumn {
+            /* 🍂 [가을: 10월~12월] 오트밀 & 따뜻한 벽돌 온기 */
+            --bg-color: #fcf8f5;
+            --text-color: #2c2621;
+            --text-muted: #78716c;
+            --card-bg: #ffffff;
+            --card-border: #eadfd6;
+            --primary-color: #f97316; /* 따스한 오렌지 벽돌 */
+            --primary-hover: #ea580c;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(44, 38, 33, 0.04);
+            --header-bg: rgba(252, 248, 245, 0.92);
+            --hero-bg: radial-gradient(circle at top, #f7ece1 0%, #fcf8f5 75%);
+            --badge-bg: rgba(249, 115, 22, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #eadfd6;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+        }
+
+        body.theme-winter {
+            /* ❄️ [겨울: 1월~3월] 캐시미어 웜그레이 & 희망찬 라벤더 보라 */
+            --bg-color: #f3efe9; /* 포근한 겨울 캐시미어 */
+            --text-color: #2c2825;
+            --text-muted: #7c7267;
+            --card-bg: #ffffff;
+            --card-border: #e6dfd5;
+            --primary-color: #8b5cf6; /* 새로운 시작의 라벤더 퍼플 */
+            --primary-hover: #7c3aed;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(44, 40, 37, 0.03);
+            --header-bg: rgba(243, 239, 233, 0.92);
+            --hero-bg: radial-gradient(circle at top, #eae2d6 0%, #f3efe9 75%);
+            --badge-bg: rgba(139, 92, 246, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #e6dfd5;
+            --accent-glow: rgba(139, 92, 246, 0.15);
+        }
+
+        /* --------------------------------------------------
+           ⚡ 테마 변수 강제 덮어쓰기 (클래스 기반)
+        -------------------------------------------------- */
+        body {
+            background-color: var(--bg-color) !important;
+            color: var(--text-color) !important;
+        }
+        
+        .theme-card {
+            background-color: var(--card-bg) !important;
+            border-color: var(--card-border) !important;
+            box-shadow: 0 10px 30px -10px var(--shadow-color) !important;
+            color: var(--text-color) !important;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+        }
+
+        .theme-text-muted {
+            color: var(--text-muted) !important;
+            transition: color 0.4s ease !important;
+        }
+
+        .theme-header {
+            background-color: var(--header-bg) !important;
+            border-color: var(--card-border) !important;
+            transition: background-color 0.4s ease, border-color 0.4s ease !important;
+        }
+
+        .theme-hero {
+            background: var(--hero-bg) !important;
+            transition: background 0.4s ease !important;
+        }
+
+        .theme-badge {
+            background-color: var(--badge-bg) !important;
+            color: var(--primary-color) !important;
+            transition: all 0.4s ease !important;
+        }
+
+        .theme-primary-btn {
+            background-color: var(--primary-color) !important;
+            color: var(--primary-text) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-primary-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px var(--accent-glow);
+        }
+
+        .theme-secondary-btn {
+            background-color: var(--card-bg) !important;
+            border-color: var(--card-border) !important;
+            color: var(--text-color) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-secondary-btn:hover {
+            background-color: var(--bg-color) !important;
+            transform: translateY(-2px);
+        }
+
+        .theme-input {
+            background-color: var(--input-bg) !important;
+            border-color: var(--input-border) !important;
+            color: var(--text-color) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-input:focus {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 4px var(--badge-bg) !important;
+        }
+
+        .theme-highlight-text {
+            color: var(--primary-color) !important;
+            transition: color 0.4s ease !important;
+        }
+
+        .theme-divider {
+            border-color: var(--card-border) !important;
+            transition: border-color 0.4s ease !important;
+        }
+
+        /* 투트랙 2원화 카드 전용 입체 그림자 효과 */
+        .card-funding-active {
+            border-width: 1.5px !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 12px 28px -8px var(--accent-glow) !important;
+        }
+        .card-funding-active:hover {
+            transform: translateY(-8px) scale(1.01);
+        }
+
+        .card-vote-active:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color) !important;
+        }
+    </style>
+</head>
+<body class="theme-spring antialiased">
+
+    <!-- 🎛️ 상단 고정형 슬림 글래스 4계절 테마 컨트롤러 배너 -->
+    <div class="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 text-white backdrop-blur-md border-b border-slate-900 px-6 py-2 flex flex-col sm:flex-row justify-between items-center gap-2 shadow-lg transition-all h-[48px]">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <span class="text-[10px] font-black tracking-wider uppercase font-outfit text-slate-400">Theme Lounge</span>
+            <h4 class="text-xs font-bold text-white">4계절 순환 시안 체험관</h4>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <button onclick="switchTheme('spring')" id="btn-spring" class="px-3 py-1 rounded-full text-[10px] font-black bg-teal-600 text-white border-2 border-white transition-all shadow-md">
+                🌸 봄
+            </button>
+            <button onclick="switchTheme('summer')" id="btn-summer" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                🌊 여름
+            </button>
+            <button onclick="switchTheme('autumn')" id="btn-autumn" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                🍂 가을
+            </button>
+            <button onclick="switchTheme('winter')" id="btn-winter" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                ❄️ 겨울
+            </button>
+        </div>
+    </div>
+
+    <!-- 🧭 Header Navigation -->
+    <nav class="fixed top-[48px] left-0 right-0 z-40 theme-header border-b backdrop-blur-md transition-all">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-black tracking-tighter">출판친구 <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-md font-bold uppercase ml-1">Store</span></span>
+                </div>
+                <div class="hidden md:flex items-center gap-6 text-sm font-bold theme-text-muted">
+                    <a href="#" class="hover:text-current transition-colors theme-highlight-text">스토어 홈</a>
+                    <a href="#" class="hover:text-current transition-colors">복간 요청</a>
+                    <a href="#" class="hover:text-current transition-colors">실시간 랭킹</a>
+                    <a href="#" class="hover:text-current transition-colors">복간 성공작</a>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button class="px-4 py-2 text-xs font-bold rounded-full theme-secondary-btn border transition-all">로그인</button>
+                <button class="px-4 py-2 text-xs font-black rounded-full theme-primary-btn transition-all">무료 가입</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 🚀 Hero Section (검색창 2배 확장 및 1열 카테고리 탭 탑재) -->
+    <header class="pt-48 pb-20 theme-hero overflow-hidden relative">
+        <div class="absolute inset-0 opacity-5"
+            style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
+        <div class="max-w-5xl mx-auto px-6 text-center relative z-10 space-y-8">
+            <div class="space-y-6">
+                <!-- 대표님 요청에 따른 ANTIGRAFITI POD 뱃지 완벽 삭제 -->
+                <h1 class="text-4xl md:text-[54px] font-black font-outfit leading-[1.15] tracking-tight">
+                    세상에서 사라진<br><span class="theme-highlight-text">명작을 다시</span> 깨우다.
+                </h1>
+                
+                <!-- 대표님 UAT 확정 문구 완벽 적용 -->
+                <p class="text-sm md:text-base theme-text-muted max-w-2xl mx-auto leading-relaxed font-medium">
+                    출판친구는 출판사와 독자가 함께 염원하는 절판 도서를 발굴하여,<br>
+                    사장되고 잊혀 가던 우리의 소중한 문화 자산을 복원하고 새로운 생명을 불어넣습니다.
+                </p>
+                
+                <!-- 🔍 대형 검색창 (2배 크기 확장) 및 1열 카테고리 스크롤화 -->
+                <div class="space-y-6 max-w-4xl mx-auto pt-6">
+                    <!-- 대폭 확장된 시인성 최고의 대형 검색창 -->
+                    <div class="relative rounded-[24px] overflow-hidden border transition-all shadow-lg">
+                        <i data-lucide="search" class="absolute left-6 top-6 w-6 h-6 theme-text-muted"></i>
+                        <input type="text" placeholder="다시 읽고 싶은 도서명이나 저자를 검색해보세요..."
+                            class="w-full pl-16 pr-6 py-6 theme-input text-lg font-bold outline-none border transition-all rounded-[24px] placeholder:opacity-50">
+                    </div>
+
+                    <!-- 1열로 시원하게 정렬된 가로 카테고리 바 (추천 태그 텍스트 영구 소거) -->
+                    <div class="flex overflow-x-auto whitespace-nowrap scrollbar-hide py-2 gap-2 justify-start md:justify-center w-full px-2 border-y theme-divider">
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-black theme-primary-btn transition-all">전체</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">소설</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">에세이</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">인문학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">경제경영</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">사회과학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">역사</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">과학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">예술</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">자기계발</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">종교</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">어린이</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">청소년</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-4 justify-center pt-2">
+                    <button class="theme-primary-btn px-7 py-4 rounded-2xl font-black text-sm transition-all shadow-lg flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>새로운 복간 도서 제안하기</span>
+                    </button>
+                    <button class="theme-secondary-btn border px-7 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-2">
+                        <i data-lucide="bookmark" class="w-4 h-4"></i>
+                        <span>나의 복간 도서관</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 📊 실시간 복간 라이브 현황판 (빛나는 광원 테마 연동) -->
+    <main class="max-w-7xl mx-auto px-6 py-12 space-y-24">
+
+        <section class="theme-card rounded-[32px] p-8 md:p-12 border shadow-2xl relative overflow-hidden transition-all">
+            <div class="relative z-10 space-y-8">
+                <!-- 현황판 헤더 -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b theme-divider pb-6">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 theme-badge rounded-full text-[10px] font-black tracking-widest uppercase">
+                            <span class="w-1.5 h-1.5 bg-current rounded-full animate-ping"></span>
+                            Live Dashboard
+                        </span>
+                        <h2 class="text-2xl md:text-3xl font-black font-outfit mt-2 tracking-tight">실시간 복간 라이브 현황판</h2>
+                    </div>
+                    <p class="text-xs theme-text-muted max-w-xs leading-relaxed md:text-right">
+                        출판친구와 독자님들이 함께 만들어 가는 실시간 예약 펀딩 실적 및 플랫폼 통계 지표입니다.
+                    </p>
+                </div>
+                
+                <!-- 4열 카운터 그리드 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">구출 완료 도서</div>
+                        <div class="text-3xl font-black font-outfit">357 <span class="text-xs text-slate-500 font-bold">종</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">복간 진행률</div>
+                        <div class="text-3xl font-black font-outfit theme-highlight-text">98.2 <span class="text-xs text-slate-500 font-bold">%</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">누적 복간 예약부수</div>
+                        <div class="text-3xl font-black font-outfit">1,452 <span class="text-xs text-slate-500 font-bold">부</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">참여 독자(서포터)</div>
+                        <div class="text-3xl font-black font-outfit">8,914 <span class="text-xs text-slate-500 font-bold">명</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 📚 B2C 도서 전시 목록 (테마가 적용된 카드 형태 예제) -->
+        <section class="space-y-8">
+            <div class="border-b theme-divider pb-4">
+                <h3 class="text-2xl font-black font-outfit tracking-tight">🔥 실시간 인기 복간 프로젝트</h3>
+                <p class="text-xs theme-text-muted mt-1">펀딩 달성률 및 투표율이 높은 순으로 실시간 인기 순위가 정렬됩니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 카드 1: 마녀 (B2B 제휴완료 / 펀딩 진행 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-funding-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <!-- 임시 표지 플레이스홀더 -->
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-[#E11D48] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Funding</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">소설</span>
+                            <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">원가 33.3% 절감</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">마녀 (Witch)</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">서상원 저 | 출판친구</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            💡 11번 알리미가 제작한 숏폼 홍보 영상 및 카드뉴스 5종이 즉시 연동됩니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">98% 달성</span>
+                                <span class="theme-text-muted font-bold">49 / 50 부</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 98%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all">복간 참여 (펀딩 예약)</button>
+                    </div>
+                </div>
+ 
+                <!-- 카드 2: 사랑의 선물 (B2C 독자 복간 청원 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-vote-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Vote</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">에세이</span>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">독자 청원 진행 중</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">사랑의 선물</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">소나무 저 | 한솔출판</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            📢 청원 성공 시 B2B 영업대표가 출판사에 복간을 정식 요청합니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">80% 요청</span>
+                                <span class="theme-text-muted font-bold">8 / 10 표</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 80%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-secondary-btn border transition-all">복간 찬성 (요청 투표)</button>
+                    </div>
+                </div>
+
+                <!-- 카드 3: 역사란 무엇인가 (복간 최종 성공) -->
+                <div class="theme-card border rounded-3xl p-5 card-funding-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-emerald-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Restored</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">인문학</span>
+                            <span class="text-[9px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">인쇄 제작 및 발송 완료</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">역사란 무엇인가</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">E.H.카 저 | 인문출판사</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            ✨ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판 완료.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-emerald-500 font-black">복간 성공 (구매 가능)</span>
+                            </div>
+                            <div class="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all bg-emerald-600 hover:bg-emerald-500 text-white border-0">즉시 도서 구매</button>
+                    </div>
+                </div>
+
+                <!-- 카드 4: 돈의 방정식 (B2C 독자 복간 청원 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-vote-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Vote</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">경제경영</span>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">독자 청원 진행 중</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">돈의 방정식 (Money)</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">골드만 저 | 경제일보</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            📢 청원 성공 시 B2B 영업대표가 출판사에 복간을 정식 요청합니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">40% 요청</span>
+                                <span class="theme-text-muted font-bold">4 / 10 표</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 40%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-secondary-btn border transition-all">복간 찬성 (요청 투표)</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 📝 Footer -->
+    <footer class="border-t theme-divider py-16 text-center theme-text-muted text-xs space-y-4 transition-all">
+        <p class="font-bold">출판친구   A N T I - G R A V I T Y   4 - S E A S O N S   D E M O</p>
+        <p>© 2026 출판친구. All rights reserved. 4계절 디자인 시안 교차 검증용 샌드박스 페이지.</p>
+    </footer>
+
+    <!-- 🕹️ 4계절 테마 스위칭 자바스크립트 -->
+    <script>
+        function switchTheme(theme) {
+            // 1. 바디 클래스 초기화 및 주입
+            document.body.className = '';
+            document.body.classList.add('antialiased', 'theme-' + theme);
+
+            // 2. 버튼 상태 제어 (액티브 표시)
+            const buttons = {
+                spring: document.getElementById('btn-spring'),
+                summer: document.getElementById('btn-summer'),
+                autumn: document.getElementById('btn-autumn'),
+                winter: document.getElementById('btn-winter')
+            };
+
+            for (const key in buttons) {
+                if (key === theme) {
+                    buttons[key].className = 'px-4 py-1.5 rounded-full text-xs font-black border-2 border-white transition-all shadow-md';
+                    // 각 계절 테마별 단추 액티브 색상 바인딩
+                    if (key === 'spring') buttons[key].classList.add('bg-teal-600', 'text-white');
+                    else if (key === 'summer') buttons[key].classList.add('bg-sky-500', 'text-white');
+                    else if (key === 'autumn') buttons[key].classList.add('bg-orange-500', 'text-white');
+                    else if (key === 'winter') buttons[key].classList.add('bg-violet-600', 'text-white');
+                } else {
+                    buttons[key].className = 'px-4 py-1.5 rounded-full text-xs font-black bg-slate-800 text-slate-400 border border-slate-700 transition-all hover:bg-slate-700';
+                }
+            }
+        }
+
+        // 아이콘 렌더링
+        lucide.createIcons();
+    </script>
+</body>
+</html>

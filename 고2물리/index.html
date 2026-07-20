@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고2 물리 세특 발표자료 - 시간 여행의 물리학적 한계</title>
+  <!-- 구글 폰트: Noto Sans KR 및 Outfit/Orbitron (미래적 타이포그래피) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Orbitron:wght@700;900&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    /* CSS 변수 설정 - 파스텔 톤앤매너와 높은 대비의 서체 구성 */
+    :root {
+      --bg-gradient-start: #F8FAFC;
+      --bg-gradient-end: #F1F5F9;
+      --slide-bg: #FFFFFF;
+      --text-main: #0F172A;     /* 깊은 네이비 */
+      --text-muted: #334155;    /* 짙은 슬레이트 그레이 */
+      --text-light: #64748B;    /* 옅은 회색 */
+      
+      --point-blue: #0284C7;     /* 시안 블루 (미래) */
+      --point-green: #059669;    /* 에메랄드 그린 (오픈런) */
+      --point-red: #E11D48;      /* 로즈 레드 (입구컷/과거) */
+      --point-orange: #EA580C;   /* 오렌지 (역설) */
+      --point-purple: #7C3AED;   /* 퍼플 (시간 순서 보호) */
+      
+      --divider-color: #E2E8F0;
+    }
+
+    /* 초기화 및 기본 스타일 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      color: var(--text-main);
+      font-family: 'Noto Sans KR', sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* 전체 프레젠테이션 컨테이너 (16:9 고정 비율) */
+    #presentation-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    #presentation {
+      position: absolute;
+      width: 1280px;
+      height: 720px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      transform-origin: center center;
+      background-color: var(--slide-bg);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 20px;
+      box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.1);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* 은은하고 몽환적인 파스텔 배경 블롭 */
+    .space-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.45;
+      animation: float 30s infinite ease-in-out alternate;
+    }
+
+    .blob-1 {
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, #E0F2FE 0%, transparent 75%);
+      top: -250px;
+      left: -200px;
+    }
+
+    .blob-2 {
+      width: 750px;
+      height: 750px;
+      background: radial-gradient(circle, #ECFDF5 0%, transparent 75%);
+      bottom: -350px;
+      right: -200px;
+      animation-delay: -7s;
+    }
+
+    .blob-3 {
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, #F5F3FF 0%, transparent 75%);
+      top: 30%;
+      left: 60%;
+      opacity: 0.35;
+      animation: pulse-aura 15s infinite alternate;
+    }
+
+    .grid-overlay {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-size: 50px 50px;
+      background-image: 
+        linear-gradient(to right, rgba(15, 23, 42, 0.015) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.015) 1px, transparent 1px);
+      z-index: 2;
+    }
+
+    /* 슬라이드 공통 스타일 - 여백과 간격을 극대화한 포스터 구도 */
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      padding: 60px 90px;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 10;
+      transition: opacity 0.35s ease-in-out;
+      opacity: 0;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* 슬라이드 헤더 */
+    .slide-header {
+      width: 100%;
+      z-index: 15;
+      margin-bottom: 5px;
+    }
+
+    .slide-title {
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: -1px;
+    }
+
+    /* 핵심 키워드 밑줄 강조 스타일 */
+    .highlight-keyword {
+      font-weight: 800;
+      border-bottom: 2px solid var(--keyword-color, var(--neon-cyan));
+      padding-bottom: 2px;
+      color: var(--keyword-color, var(--neon-cyan));
+      text-shadow: 0 0 8px var(--keyword-glow, rgba(6, 182, 212, 0.2));
+    }
+
+    /* 슬라이드 1번 (표지) */
+    .slide-1-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 15;
+      width: 100%;
+    }
+
+    .slide-1-text {
+      width: 58%;
+    }
+
+    .topic-badge {
+      display: inline-block;
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--point-blue);
+      border: 1px solid rgba(2, 132, 199, 0.2);
+      background-color: #F0F9FF;
+      padding: 6px 14px;
+      border-radius: 30px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 28px;
+    }
+
+    .slide-1-title {
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1.3;
+      color: var(--text-main);
+      word-break: keep-all;
+      letter-spacing: -2.5px;
+      margin-bottom: 20px;
+    }
+
+    .slide-1-title span.highlight {
+      color: var(--point-blue);
+      position: relative;
+    }
+
+    .slide-1-title span.highlight::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+      width: 100%;
+      height: 12px;
+      background-color: rgba(2, 132, 199, 0.1);
+      z-index: -1;
+    }
+
+    .slide-1-subtitle {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-muted);
+      word-break: keep-all;
+    }
+
+    .slide-1-visual {
+      width: 38%;
+      height: 380px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .spacetime-grid {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      border: 1px dashed rgba(2, 132, 199, 0.25);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: rotateGrid 24s linear infinite;
+    }
+
+    .spacetime-grid::before {
+      content: '';
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border: 1px dashed rgba(2, 132, 199, 0.4);
+      border-radius: 50%;
+    }
+
+    .quantum-particle {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: radial-gradient(circle, var(--point-blue) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: orbitalMove 7s linear infinite;
+    }
+
+    .wormhole-center {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle, var(--point-blue) 0%, rgba(2, 132, 199, 0.05) 80%);
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(2, 132, 199, 0.35);
+      animation: pulse-glow 3s infinite alternate;
+    }
+
+    /* 슬라이드 2번 (완전 자유형 split-screen 대비) */
+    .slide-2-container {
+      display: flex;
+      flex-content: stretch;
+      flex: 1;
+      z-index: 15;
+      margin: 25px 0;
+      position: relative;
+    }
+
+    /* 정가운데 수직 점선만 둠 */
+    .slide-2-container::after {
+      content: '';
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      width: 2px;
+      height: 80%;
+      background: linear-gradient(to bottom, transparent, var(--divider-color), transparent);
+    }
+
+    .split-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 0 50px;
+      text-align: center;
+    }
+
+    .pane-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.04));
+      animation: float-icon 6s infinite ease-in-out alternate;
+    }
+
+    .pane-title {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 12px;
+    }
+
+    .pane-badge {
+      font-size: 14px;
+      font-weight: 800;
+      padding: 6px 16px;
+      border-radius: 30px;
+      margin-bottom: 28px;
+    }
+
+    .pane-desc {
+      font-size: 18px;
+      line-height: 1.8;
+      color: var(--text-muted);
+      word-break: keep-all;
+      max-width: 440px;
+    }
+
+    /* 슬라이드 3번 (우주선 질주 트랙 및 초대형 수식) */
+    .slide-3-container {
+      display: flex;
+      flex: 1;
+      z-index: 15;
+      margin: 20px 0;
+      align-items: center;
+    }
+
+    .slide-3-left {
+      width: 50%;
+      padding-right: 50px;
+      position: relative;
+    }
+
+    /* 넓게 확장된 질주 트랙 */
+    .track-container {
+      position: relative;
+      width: 100%;
+      height: 12px;
+      background: linear-gradient(to right, rgba(2, 132, 199, 0.05), rgba(2, 132, 199, 0.2), rgba(2, 132, 199, 0.05));
+      border-radius: 10px;
+      margin: 32px 0;
+    }
+
+    .track-ship {
+      position: absolute;
+      font-size: 36px;
+      top: -24px;
+      left: 10%;
+      animation: cruise-wide 10s linear infinite;
+    }
+
+    .track-desc {
+      font-size: 19px;
+      line-height: 1.85;
+      color: var(--text-muted);
+      word-break: keep-all;
+    }
+
+    .slide-3-right {
+      width: 50%;
+      padding-left: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-left: 1.5px solid var(--divider-color);
+    }
+
+    .slide-3-right h3 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 24px;
+    }
+
+    /* 상자 테두리가 없는 대형 수식 타이포그래피 */
+    .huge-formula {
+      font-family: 'Orbitron', 'Times New Roman', Times, serif;
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .huge-formula span.highlight-var {
+      color: var(--point-blue);
+      text-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+    }
+
+    .huge-fraction {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: middle;
+      font-size: 0.95em;
+    }
+
+    .huge-num {
+      padding: 0 10px;
+      border-bottom: 3.5px solid var(--text-main);
+      line-height: 1.1;
+      color: var(--point-blue);
+    }
+
+    .huge-den {
+      padding: 4px 10px 0;
+      line-height: 1.1;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .huge-sqrt-symbol {
+      font-family: initial;
+      font-style: italic;
+      font-size: 1.1em;
+      margin-right: -1px;
+      color: var(--text-light);
+    }
+
+    .huge-sqrt-inner {
+      border-top: 2px solid var(--text-main);
+      padding-top: 2px;
+    }
+
+    .formula-desc-list {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 16.5px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .formula-desc-list li {
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .formula-desc-list li::before {
+      content: '⚡';
+      position: absolute;
+      left: 0;
+      color: var(--point-blue);
+    }
+
+    /* 슬라이드 4번 (일방통행 시간축 인포그래픽 - 정밀 간격 조율) */
+    .slide-4-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      z-index: 15;
+      margin: 20px 0;
+      justify-content: center;
+    }
+
+    /* 수평 타임라인 가로선 */
+    .timeline-axis {
+      position: relative;
+      width: 100%;
+      height: 4px;
+      background-color: var(--divider-color);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-top: 140px;    
+      margin-bottom: 120px; 
+    }
+
+    .timeline-axis::after {
+      content: '▶';
+      position: absolute;
+      right: -12px;
+      font-size: 14px;
+      color: var(--text-light);
+    }
+
+    .timeline-node {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 45%;
+      height: 0; 
+    }
+
+    .node-point {
+      width: 24px;
+      height: 24px;
+      background-color: var(--node-color);
+      border: 5px solid var(--slide-bg);
+      border-radius: 50%;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      position: absolute;
+      top: -12px; 
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    .timeline-node:hover .node-point {
+      transform: scale(1.3);
+    }
+
+    /* 노드와 텍스트를 연결하는 세로 가이드 점선 */
+    .node-guide-line {
+      position: absolute;
+      width: 2px;
+      z-index: 5;
+    }
+
+    .node-guide-line.upward {
+      bottom: 12px; 
+      height: 75px;
+      border-left: 2px dashed var(--node-color);
+    }
+
+    .node-guide-line.downward {
+      top: 12px; 
+      height: 75px;
+      border-left: 2px dashed var(--node-color);
+    }
+
+    .node-card {
+      position: absolute;
+      width: 480px;
+      text-align: center;
+      z-index: 8;
+    }
+
+    .node-card.upward {
+      bottom: 95px; 
+    }
+
+    .node-card.downward {
+      top: 95px;  
+    }
+
+    .node-title-bright {
+      font-size: 21px;
+      font-weight: 900;
+      color: var(--node-color);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .node-desc-box {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      word-break: keep-all;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    .node-desc-box p.highlight-sub {
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 6px;
+    }
+
+    /* 슬라이드 5번 (대형 물음표 🍗 및 웜홀 하울링 펄스 파동) */
+    .slide-5-container {
+      display: flex;
+      flex: 1;
+      z-index: 15;
+      margin: 20px 0;
+      align-items: center;
+    }
+
+    .slide-5-left {
+      width: 48%;
+      padding-right: 40px;
+      position: relative;
+    }
+
+    .giant-watermark {
+      position: absolute;
+      font-size: 150px;
+      opacity: 0.08;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .slide-5-left h3 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--point-orange);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-5-left p.main-text {
+      font-size: 19px;
+      line-height: 1.85;
+      color: var(--text-muted);
+      word-break: keep-all;
+      margin-bottom: 24px;
+    }
+
+    .slide-5-left .highlight-card-desc {
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--text-light);
+      border-left: 3px solid var(--point-orange);
+      padding-left: 16px;
+    }
+
+    .slide-5-right {
+      width: 52%;
+      padding-left: 40px;
+      border-left: 1.5px solid var(--divider-color);
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide-5-right h3 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--point-purple);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* 웜홀 붕괴 하울링 펄스 애니메이션 영역 */
+    .howling-pulse-area {
+      position: absolute;
+      right: 20px;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .pulse-circle {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(124, 92, 237, 0.1);
+      border: 1px solid rgba(124, 92, 237, 0.3);
+      border-radius: 50%;
+      animation: echo-pulse 4s infinite linear;
+    }
+
+    .pulse-circle:nth-child(2) { animation-delay: 1.3s; }
+    .pulse-circle:nth-child(3) { animation-delay: 2.6s; }
+
+    .pulse-core {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background-color: var(--point-purple);
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(124, 92, 237, 0.6);
+    }
+
+    .slide-5-right p.main-text {
+      font-size: 19px;
+      line-height: 1.85;
+      color: var(--text-muted);
+      word-break: keep-all;
+      margin-bottom: 24px;
+      z-index: 10;
+    }
+
+    .slide-5-right .highlight-card-desc {
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--text-light);
+      border-left: 3px solid var(--point-purple);
+      padding-left: 16px;
+      z-index: 10;
+    }
+
+    /* 슬라이드 6번 (완전 개방형 피날레) */
+    .slide-6-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      z-index: 15;
+      width: 100%;
+    }
+
+    .closing-summary-bright {
+      font-size: 46px;
+      font-weight: 900;
+      color: var(--point-blue);
+      margin-bottom: 36px;
+      letter-spacing: -1.5px;
+      text-shadow: 0 2px 10px rgba(2, 132, 199, 0.05);
+    }
+
+    .closing-statement-wide {
+      max-width: 960px;
+      margin-bottom: 48px;
+    }
+
+    .closing-statement-wide p {
+      font-size: 23px;
+      line-height: 1.9;
+      color: var(--text-muted);
+      word-break: keep-all;
+      letter-spacing: -0.5px;
+    }
+
+    .closing-statement-wide p strong {
+      font-weight: 900;
+      color: var(--text-main);
+      border-bottom: 3.5px solid var(--point-blue);
+      padding-bottom: 2px;
+    }
+
+    .closing-greeting-bright {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-light);
+    }
+
+    /* 극장식 조명 원형 그라데이션 - 밝은 시안 */
+    .theater-light-bright {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.6);
+      width: 850px;
+      height: 850px;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.09) 0%, transparent 70%);
+      z-index: 5;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.5s ease-out, transform 2s ease-out;
+    }
+
+    .slide.active .theater-light-bright {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.3);
+    }
+
+    /* 7번 슬라이드 Q&A 2x2 4분면 십자 그리드 레이아웃 */
+    .slide-7-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 30px 60px;
+      flex: 1;
+      z-index: 15;
+      margin: 15px 0;
+      position: relative;
+      padding-top: 15px;
+    }
+
+    /* 4분면 구분 십자 점선 가이드라인 */
+    .slide-7-container::before {
+      content: '';
+      position: absolute;
+      top: 2%;
+      left: 50%;
+      width: 2px;
+      height: 94%;
+      background: linear-gradient(to bottom, transparent, var(--divider-color) 20%, var(--divider-color) 80%, transparent);
+      z-index: 5;
+    }
+
+    .slide-7-container::after {
+      content: '';
+      position: absolute;
+      left: 2%;
+      top: 50%;
+      width: 96%;
+      height: 2px;
+      background: linear-gradient(to right, transparent, var(--divider-color) 20%, var(--divider-color) 80%, transparent);
+      z-index: 5;
+    }
+
+    .qa-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 0 10px;
+      z-index: 10;
+    }
+
+    .qa-question-box {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--point-blue);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.4;
+      word-break: keep-all;
+    }
+
+    .qa-q-badge {
+      background-color: #E0F2FE;
+      color: var(--point-blue);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 5px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .qa-answer-box {
+      font-size: 14.5px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      word-break: keep-all;
+      padding-left: 34px;
+    }
+
+    .qa-answer-box p {
+      margin-bottom: 4px;
+    }
+
+    .qa-answer-box strong {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    /* 슬라이드 푸터 (발표자 정보 및 장표 번호) */
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+      z-index: 15;
+      font-size: 14px;
+      color: var(--text-light);
+      border-top: 1px solid rgba(15, 23, 42, 0.04);
+      padding-top: 14px;
+      margin-top: 5px;
+    }
+
+    .author-info {
+      background: #F8FAFC;
+      border: 1px solid var(--divider-color);
+      padding: 6px 14px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-weight: 700;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .author-info:hover {
+      border-color: var(--point-blue);
+      background-color: #F0F9FF;
+      color: var(--point-blue);
+    }
+
+    .slide-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-light);
+      letter-spacing: 0.5px;
+    }
+
+    /* 내비게이션 컨트롤러 */
+    .nav-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(10px);
+      padding: 6px 16px;
+      border-radius: 40px;
+      z-index: 100;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: #F1F5F9;
+      color: var(--point-blue);
+    }
+
+    .nav-btn:disabled {
+      color: #CBD5E1;
+      cursor: not-allowed;
+    }
+
+    .slide-indicator {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+      min-width: 50px;
+      text-align: center;
+    }
+
+    /* 단축키 도움말 배지 */
+    .keyboard-helper {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--divider-color);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .key-badge {
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: var(--text-main);
+    }
+
+    /* 애니메이션 */
+    @keyframes float {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(25px, 15px) scale(1.06); }
+      100% { transform: translate(-15px, -25px) scale(0.97); }
+    }
+
+    @keyframes pulse-aura {
+      0% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.95); }
+      100% { opacity: 0.45; transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    @keyframes rotateGrid {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes orbitalMove {
+      0% { transform: rotate(0deg) translate(150px) rotate(0deg); }
+      100% { transform: rotate(360deg) translate(150px) rotate(-360deg); }
+    }
+
+    @keyframes cruise-wide {
+      0% { left: -10%; }
+      50% { left: 45%; transform: translateY(-30%) scaleY(1.02); }
+      100% { left: 110%; }
+    }
+
+    @keyframes echo-pulse {
+      0% { transform: scale(0.5); opacity: 0.9; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 프레젠테이션 전체 영역 -->
+  <div id="presentation-container">
+    <div id="presentation">
+      
+      <!-- 공통 파스텔 실험실 무드 백그라운드 -->
+      <div class="space-background">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="grid-overlay"></div>
+      </div>
+
+      <!-- 도움말 배지 -->
+      <div class="keyboard-helper">
+        <span class="key-badge">←</span> <span class="key-badge">→</span> 방향키로 슬라이드 이동
+      </div>
+
+      <!-- [SLIDE 1] 표지 -->
+      <div class="slide active" id="slide-1">
+        <div></div>
+
+        <div class="slide-1-container">
+          <div class="slide-1-text">
+            <div class="topic-badge">PHYSICS SEMINAR</div>
+            <h1 class="slide-1-title">
+              <span class="highlight">시간 여행</span>이<br>
+              불가능한 이유
+            </h1>
+            <p class="slide-1-subtitle">
+              현대 물리학과 열역학으로 파헤치는 시공간의 한계
+            </p>
+          </div>
+          <div class="slide-1-visual">
+            <div class="spacetime-grid">
+              <div class="quantum-particle"></div>
+            </div>
+            <div class="wormhole-center"></div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">01</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 2] 시간 여행의 두 갈래 길 -->
+      <div class="slide" id="slide-2">
+        <div class="slide-header">
+          <h2 class="slide-title">시간 여행의 두 갈래 길: 미래 vs 과거</h2>
+        </div>
+
+        <div class="slide-2-container">
+          <!-- 미래 여행 영역 -->
+          <div class="split-pane">
+            <div class="pane-icon">🚀</div>
+            <h3 class="pane-title" style="color: var(--point-green);">미래 여행 (Future)</h3>
+            <span class="pane-badge" style="color: var(--point-green); background-color: #ECFDF5;">조건부 가능</span>
+            <p class="pane-desc">
+              움직이는 대상의 시간은 느리게 흐릅니다(상대성 이론). 이 시간 지연을 이용해 <strong>미래로 도약하는 편도선 여행</strong>은 이미 검증된 이론입니다.
+            </p>
+          </div>
+
+          <!-- 과거 여행 영역 -->
+          <div class="split-pane">
+            <div class="pane-icon">↩️</div>
+            <h3 class="pane-title" style="color: var(--point-red);">과거 여행 (Past)</h3>
+            <span class="pane-badge" style="color: var(--point-red); background-color: #FFF1F2;">절대 불가능</span>
+            <p class="pane-desc">
+              시간을 뒤로 감는 것은 우주의 근본 논리 체계를 뒤흔듭니다. 원인이 결과보다 항상 앞서야 하는 <strong>'인과율'</strong>이 과거행 경로를 영구 차단합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">02</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 3] 미래 여행: 시간 지연과 광속의 한계 -->
+      <div class="slide" id="slide-3">
+        <div class="slide-header">
+          <h2 class="slide-title">미래 여행: 시간 지연과 광속의 한계</h2>
+        </div>
+
+        <div class="slide-3-container">
+          <!-- 왼쪽 영역: 비행 트랙 인포그래픽 -->
+          <div class="slide-3-left">
+            <div class="tile-header-bright" style="color: var(--point-blue);">
+              <span>🏃‍♂️</span> 달리기 시합과 손목시계
+            </div>
+            
+            <!-- 와이드 트랙 선 -->
+            <div class="track-container">
+              <div class="track-ship">🚀</div>
+            </div>
+
+            <p class="track-desc">
+              광속 우주선을 탄 친구는 겨우 <strong>'하루'</strong> 동안 달렸을 뿐인데, 지구의 달력은 이미 <strong>'일주일'</strong>이 지나 있습니다. 친구는 지구 기준 미래의 영역으로 혼자 튀어 올라온 셈입니다.
+            </p>
+          </div>
+
+          <!-- 오른쪽 영역: 공식 -->
+          <div class="slide-3-right">
+            <h3 style="color: var(--text-main);">⚛️ 특수 상대성 이론 공식</h3>
+            
+            <div class="huge-formula">
+              <span class="highlight-var">t'</span>
+              <span>=</span>
+              <div class="huge-fraction">
+                <span class="huge-num">t</span>
+                <div class="huge-den">
+                  <span class="huge-sqrt-symbol">&radic;</span>
+                  <span class="huge-sqrt-inner">1 - v&sup2;/c&sup2;</span>
+                </div>
+              </div>
+            </div>
+
+            <ul class="formula-desc-list">
+              <li>속도(v)가 빛의 속도(c)에 다다를수록 지구 시간(t)보다 우주선 시간(t')은 정체됩니다.</li>
+              <li>단, 속도가 되려면 <strong>무한한 에너지(기름값)</strong>가 소모되어 이론상 갈 수 없습니다.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">03</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 4] 과거 여행이 불가한 이유 -->
+      <div class="slide" id="slide-4">
+        <div class="slide-header">
+          <h2 class="slide-title">과거 여행이 물리적으로 불가한 이유</h2>
+        </div>
+
+        <div class="slide-4-container">
+          <!-- 수평 타임라인 축선 -->
+          <div class="timeline-axis">
+            
+            <!-- 노드 1: 쏟아진 우유 -->
+            <div class="timeline-node" style="--node-color: var(--point-orange);">
+              <div class="node-point"></div>
+              <div class="node-guide-line upward"></div>
+              <div class="node-card upward">
+                <h4 class="node-title-bright">🧹 쏟아진 우유와 엔트로피</h4>
+                <div class="node-desc-box">
+                  <p>우유를 바닥에 쏟으면 사방으로 무질서하게 퍼지지만, 가만히 둔다고 스스로 다시 컵에 담기지는 않습니다. 우주도 똑같습니다.</p>
+                  <p class="highlight-sub">시간은 무질서해지는 일방향으로만 흐릅니다 (열역학 제2법칙).</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 노드 2: 빛의 속도 -->
+            <div class="timeline-node" style="--node-color: var(--point-red);">
+              <div class="node-point"></div>
+              <div class="node-guide-line downward"></div>
+              <div class="node-card downward">
+                <h4 class="node-title-bright">👤 그림자 잡기와 빛의 한계</h4>
+                <div class="node-desc-box">
+                  <p>거울에 튕겨 도망치는 내 빛보다 내가 더 빠르게 달릴 순 없습니다. 그림자를 결코 추월할 수 없는 것과 같습니다.</p>
+                  <p class="highlight-sub">우주의 그 어떤 것도 빛의 속도(c)보다 빨라질 수 없습니다.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">04</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 5] 논리적 모순: 할아버지 역설과 보호막 -->
+      <div class="slide" id="slide-5">
+        <div class="slide-header">
+          <h2 class="slide-title">논리적 모순: 할아버지 역설과 보호막</h2>
+        </div>
+
+        <div class="slide-5-container">
+          <!-- 왼쪽: 치킨 역설 -->
+          <div class="slide-5-left">
+            <div class="giant-watermark">🍗</div>
+            <h3>🍗 치킨 역설 <span style="font-size: 15px; font-weight: 500; color: var(--text-light);">(할아버지 역설)</span></h3>
+            <p class="main-text">
+              어제 치킨 가게 사장님의 개업을 막기 위해 과거로 타임머신을 타고 날아갔습니다. 개업을 완벽하게 방해했다면, <strong>오늘 내가 먹은 치킨은 대체 어디서 날아온 것일까요?</strong> 
+            </p>
+            <p class="highlight-card-desc">
+              내가 태어나기도 전에 과거의 원인을 훼손하는 것은 원인이 먼저 있고 결과가 나중에 생긴다는 우주의 철칙 **인과율(Causality)**을 파괴하는 모순입니다.
+            </p>
+          </div>
+
+          <!-- 오른쪽: 호킹 가설 -->
+          <div class="slide-5-right">
+            <!-- 웜홀 에너지 폭주 펄스 모션 -->
+            <div class="howling-pulse-area">
+              <div class="pulse-circle"></div>
+              <div class="pulse-circle"></div>
+              <div class="pulse-circle"></div>
+              <div class="pulse-core"></div>
+            </div>
+
+            <h3>🛡️ 시간 순서 보호 가설 <span style="font-size: 16px; font-weight: 500; color: var(--text-light);">(우주의 모순 방어막)</span></h3>
+            <p class="main-text">
+              스티븐 호킹은 우주가 스스로 모순(논리 오류)을 완벽히 감지하고 방어한다고 보았습니다. 과거 여행용 웜홀이 만들어지려는 순간 스스로를 부숴 버린다는 주장입니다.
+            </p>
+            <p class="highlight-card-desc">
+              미세한 가상 입자들이 무한히 웜홀 안을 공명(마이크 하울링 현상)하며 폭주하게 되며, 결국 웜홀 장치 자체가 **순식간에 폭발해 자멸**해 버린다는 가설입니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">05</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 6] 피날레 -->
+      <div class="slide" id="slide-6">
+        <!-- 밝은 아우라 극장식 조명 -->
+        <div class="theater-light-bright"></div>
+
+        <div></div>
+
+        <div class="slide-6-container">
+          <h2 class="closing-summary-bright">시간 여행은 기술의 한계 때문이 아닙니다.</h2>
+          
+          <div class="closing-statement-wide">
+            <p>
+              앞서 살펴본 <strong>'쏟아진 우유의 법칙(열역학 법칙)'</strong>과 <strong>'원인과 결과의 규칙(인과율)'</strong>이 과거로 가는 문을 꽁꽁 닫아 두었기 때문입니다.<br>
+              결국 우리가 할 수 있는 진짜 가장 멋진 시간 여행은, 바로 지금 이 순간인 <strong>'현재'</strong>를 열심히 살아가는 거라고 생각합니다.
+            </p>
+          </div>
+
+          <p class="closing-greeting-bright">경청해 주셔서 감사합니다. 질문이 있으시면 말씀해 주세요!</p>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">06</div>
+        </div>
+      </div>
+
+      <!-- [SLIDE 7] 예상 질문 & 답변 (보너스 4대 Q&A 십자 그리드 장표) -->
+      <div class="slide" id="slide-7">
+        <div class="slide-header">
+          <h2 class="slide-title">자주 묻는 질문 & 모범 답변 (Q&A)</h2>
+        </div>
+
+        <div class="slide-7-container">
+          <!-- 좌상: Q1 -->
+          <div class="qa-column">
+            <div class="qa-question-box">
+              <span class="qa-q-badge">Q1</span>
+              <div>웜홀이나 워프 등 공간 도약으로 과거로 갈 수 없나요?</div>
+            </div>
+            <div class="qa-answer-box">
+              <p><strong>과거 통로는 열릴 수 있으나 통과는 불가능합니다.</strong></p>
+              <p>공간 도약은 시간 역행과 수학적으로 동등하지만, 과거로 향하는 웜홀이 열리는 찰나 미세 에너지가 무한 증폭(하울링)되어 웜홀 장치 자체가 폭발해 붕괴한다는 가설이 바로 <strong>시간 순서 보호 가설</strong>입니다.</p>
+            </div>
+          </div>
+
+          <!-- 우상: Q2 -->
+          <div class="qa-column">
+            <div class="qa-question-box">
+              <span class="qa-q-badge">Q2</span>
+              <div>청소나 에어컨으로 방이 깨끗해지면 시간이 되돌아간 건가요?</div>
+            </div>
+            <div class="qa-answer-box">
+              <p><strong>내 방은 정돈되어도 우주 전체는 무질서해집니다.</strong></p>
+              <p>방의 무질서도(엔트로피)가 줄어드는 대가로, 에어컨 실외기는 바깥 우주로 더 많은 열(무질서)을 뿜었습니다. 우주 전체의 무질서도는 언제나 증가하므로 시간의 흐름은 꺾이지 않습니다.</p>
+            </div>
+          </div>
+
+          <!-- 좌하: Q3 -->
+          <div class="qa-column">
+            <div class="qa-question-box">
+              <span class="qa-q-badge">Q3</span>
+              <div>과거 여행은 안 되는데 미래 여행은 왜 역설이 없나요?</div>
+            </div>
+            <div class="qa-answer-box">
+              <p><strong>시간의 흐름 속도를 다르게 만들었을 뿐입니다.</strong></p>
+              <p>나의 시간 흐름이 느려져 지구 기준 일주일 뒤 미래에 도착하더라도, 지구의 역사(과거)는 단 하나도 변하지 않았습니다. <strong>원인이 결과를 앞서는 흐름</strong>을 깨뜨리지 않아 모순이 없습니다.</p>
+            </div>
+          </div>
+
+          <!-- 우하: Q4 -->
+          <div class="qa-column">
+            <div class="qa-question-box">
+              <span class="qa-q-badge">Q4</span>
+              <div>광속보다 빨라지면 공식상 허수 시간이 되는데 무슨 뜻인가요?</div>
+            </div>
+            <div class="qa-answer-box">
+              <p><strong>현실에서 관측하거나 측정 불가능한 시간입니다.</strong></p>
+              <p>수학 공식상 광속을 초과하면 분모가 허수 $i$가 되는데, 이는 질량을 지닌 현실의 우리가 <strong>우주의 속도 제한선인 광속을 절대로 넘을 수 없다</strong>는 물리학적 금지를 뜻합니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <div class="author-info" title="클릭하여 편집할 수 있습니다." contenteditable="true" spellcheck="false">
+            [학년 / 반 / 이름 입력]
+          </div>
+          <div class="slide-number">07</div>
+        </div>
+      </div>
+
+      <!-- 내비게이션 바 컨트롤러 -->
+      <div class="nav-controls">
+        <button class="nav-btn" id="prev-btn" aria-label="이전 슬라이드" disabled>◀</button>
+        <div class="slide-indicator"><span id="current-slide-num">1</span> / <span id="total-slide-num">7</span></div>
+        <button class="nav-btn" id="next-btn" aria-label="다음 슬라이드">▶</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 슬라이드 제어 및 반응형 스케일링 스크립트 -->
+  <script>
+    // 1. 슬라이드 상태 관리
+    let currentSlide = 1;
+    let totalSlides = document.querySelectorAll('.slide').length;
+
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const currentSlideNumSpan = document.getElementById('current-slide-num');
+    const totalSlideNumSpan = document.getElementById('total-slide-num');
+
+    function updateSlideCount() {
+      totalSlides = document.querySelectorAll('.slide').length;
+      totalSlideNumSpan.textContent = totalSlides;
+    }
+
+    function goToSlide(slideIndex) {
+      if (slideIndex < 1 || slideIndex > totalSlides) return;
+      
+      document.querySelector('.slide.active').classList.remove('active');
+      
+      const targetSlide = document.getElementById(`slide-${slideIndex}`);
+      targetSlide.classList.add('active');
+      
+      currentSlide = slideIndex;
+      currentSlideNumSpan.textContent = currentSlide;
+
+      prevBtn.disabled = (currentSlide === 1);
+      nextBtn.disabled = (currentSlide === totalSlides);
+      
+      syncAuthorInfo();
+    }
+
+    function syncAuthorInfo() {
+      const activeAuthor = document.querySelector('.slide.active .author-info');
+      const authorText = activeAuthor ? activeAuthor.innerText : '[학년 / 반 / 이름 입력]';
+      
+      document.querySelectorAll('.author-info').forEach(info => {
+        if (info !== activeAuthor) {
+          info.innerText = authorText;
+        }
+      });
+    }
+
+    document.querySelectorAll('.author-info').forEach(info => {
+      info.addEventListener('input', () => {
+        document.querySelectorAll('.author-info').forEach(other => {
+          if (other !== info) {
+            other.innerText = info.innerText;
+          }
+        });
+      });
+    });
+
+    prevBtn.addEventListener('click', () => goToSlide(currentSlide - 1));
+    nextBtn.addEventListener('click', () => goToSlide(currentSlide + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement.getAttribute('contenteditable') === 'true') {
+        return;
+      }
+      
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        goToSlide(currentSlide - 1);
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === 'Space') {
+        goToSlide(currentSlide + 1);
+      }
+    });
+
+    updateSlideCount();
+    goToSlide(1);
+
+    // 2. 16:9 비율 유지를 위한 윈도우 스케일 변환 로직
+    function resizeSlides() {
+      const presentation = document.getElementById('presentation');
+      const targetWidth = 1280;
+      const targetHeight = 720;
+      
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      const scaleX = windowWidth / targetWidth;
+      const scaleY = windowHeight / targetHeight;
+      const scale = Math.min(scaleX, scaleY) * 0.96;
+      
+      presentation.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeSlides);
+    window.addEventListener('load', resizeSlides);
+  </script>
+</body>
+</html>
