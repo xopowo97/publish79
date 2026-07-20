@@ -215,6 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bulkAssetsBtn) {
         bulkAssetsBtn.addEventListener('click', () => triggerCtrlBulkAssets());
     }
+    const bulkGatherBtn = document.getElementById('ctrl-btn-bulk-gather');
+    if (bulkGatherBtn) {
+        bulkGatherBtn.addEventListener('click', () => triggerCtrlBulkGather());
+    }
     const flashBtn = document.getElementById('ctrl-btn-flashlight');
     if (flashBtn) {
         flashBtn.addEventListener('click', () => toggleCtrlFlashlight());
@@ -1782,6 +1786,114 @@ async function triggerCtrlPipeline(isRetry = false) {
                 btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> 파이프라인 실행`;
             }
         }
+    }
+}
+
+// ───────────────────────────────────────────
+// 12-0. [신규] 대량 수집 직렬 배치 락 가동 트리거
+// ───────────────────────────────────────────
+async function triggerCtrlBulkGather() {
+    const btn = document.getElementById('ctrl-btn-bulk-gather');
+    const normalBtn = document.getElementById('ctrl-btn-pipeline');
+    const statusEl = document.getElementById('ctrl-pipeline-status');
+    const kwInput = document.getElementById('ctrl-keyword-input');
+    const limitInput = document.getElementById('ctrl-bulk-limit');
+
+    const targetPages = parseInt(limitInput?.value || '6', 10) || 6;
+    let kw = kwInput?.value?.trim() || 'all';
+
+    // 로테이션 인덱스 로컬스토리지에서 조회
+    let rotIdx = parseInt(localStorage.getItem('ctrl_rotation_index') || '0', 10);
+    if (isNaN(rotIdx) || rotIdx < 0 || rotIdx >= CTRL_KEYWORD_ROTATION.length) {
+        rotIdx = 0;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> 대량 수집 중...`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    if (normalBtn) normalBtn.disabled = true;
+
+    resetEpubViewer(); // 신규 수집 가동 시 뷰어 초기화
+
+    let successTotal = 0;
+    let dbInsertedTotal = 0;
+
+    try {
+        for (let page = 1; page <= targetPages; page++) {
+            let currentKw = kw;
+            // 지능형 로테이션이 켜진 경우(all), 매 페이지마다 키워드를 번갈아 스캔
+            if (kw === 'all' || kw === '' || kw === '절판 도서') {
+                currentKw = CTRL_KEYWORD_ROTATION[(rotIdx + page - 1) % CTRL_KEYWORD_ROTATION.length];
+            }
+
+            if (statusEl) {
+                statusEl.textContent = `🔄 [대량수집 ${page}/${targetPages}P] "${currentKw}" 분야 수집 중...`;
+                statusEl.style.color = 'var(--ctrl-amber)';
+            }
+
+            // 개별 API 단기 호출로 504 Gateway Timeout 완전 방지
+            const endpoint = ctrlApiUrl('/api/pipeline');
+            const res = await fetch(`${endpoint}?keyword=${encodeURIComponent(currentKw)}&pageNo=${page}`);
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    successTotal += parseInt(data.totalCollected || 0, 10);
+                    dbInsertedTotal += parseInt(data.inserted || 0, 10);
+
+                    // 대시보드 및 관제 실적 지표 즉시 리프레시
+                    await loadCtrlDashboard();
+                    _ctrl_lastLogId = 0; // 로그 증분 트리거
+                    await _fetchAndRenderCtrlLogs();
+                }
+            } else {
+                console.warn(`[대량수집] ${page}페이지 API 실패: HTTP ${res.status}`);
+            }
+
+            // 동기식 직렬 배치 락 (800ms 트래픽 안전 딜레이)
+            if (page < targetPages) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+        }
+
+        // 성공 종료 시 로테이션 인덱스를 수집한 만큼 뒤로 밀어둠
+        if (kw === 'all' || kw === '' || kw === '절판 도서') {
+            rotIdx = (rotIdx + targetPages) % CTRL_KEYWORD_ROTATION.length;
+            localStorage.setItem('ctrl_rotation_index', rotIdx);
+        }
+
+        if (statusEl) {
+            statusEl.textContent = `✅ 대량수집 완료! 총 ${successTotal}건 수집 ➔ ${dbInsertedTotal}건 DB 신규/갱신 적재`;
+            statusEl.style.color = 'var(--ctrl-green)';
+        }
+
+        // 마케팅 채널 활성화 갱신
+        updateMarketingChannels(true);
+
+        // UAT 피드백 추천 카드 가동
+        if (_ctrl_candidates && _ctrl_candidates.length > 0) {
+            setTimeout(() => {
+                triggerOrchestratorRecommendation();
+            }, 1000);
+            setTimeout(() => {
+                checkPrintCostOptimization(_ctrl_candidates[0], 30);
+            }, 2500);
+        }
+
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = `❌ 대량수집 오류: ${err.message}`;
+            statusEl.style.color = 'var(--ctrl-rose)';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="zap" style="width: 14px; height: 14px;"></i> ⚡ 대량 수집`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        if (normalBtn) normalBtn.disabled = false;
     }
 }
 

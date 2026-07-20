@@ -396,7 +396,6 @@ function runDataRefiner_Dadumeui(rawBook) {
         estimated_royalty_rate: estimatedRoyaltyRate,
         category: category,
         digital_archive_url: rawBook.digital_archive_url || rawBook.detail_link || null,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
 }
@@ -453,13 +452,13 @@ async function updateAgentStatus(supabase_url, supabase_key, agentId, status, ro
 // ============================================================
 // [핵심 함수] 국립중앙도서관 오픈 API 호출 (search.do)
 // ============================================================
-async function fetchNationalLibraryBooks(apiKey, kwd, pageSize = 30) {
+async function fetchNationalLibraryBooks(apiKey, kwd, pageNum = 1, pageSize = 30) {
     const params = new URLSearchParams({
         key:         apiKey,
         apiType:     'json',
         category:    '도서',
         kwd:         kwd,
-        pageNum:     '1',
+        pageNum:     String(pageNum),
         pageSize:    String(pageSize),
         displayType: 'detail'
     });
@@ -482,7 +481,7 @@ async function fetchNationalLibraryBooks(apiKey, kwd, pageSize = 30) {
 // [핵심 함수] 도서관 정보나루 인기 대출 API 호출 (loanItemSrch)
 // KDC 코드 기반으로 해당 분야의 최근 인기 대출 도서 목록을 먼저 수집
 // ============================================================
-async function fetchLibraryNaruLoanList(apiKey, kdc, pageSize = 50) {
+async function fetchLibraryNaruLoanList(apiKey, kdc, pageNo = 1, pageSize = 50) {
     // 최근 3개월 날짜 범위 계산
     const endDate = new Date();
     const startDate = new Date();
@@ -494,7 +493,7 @@ async function fetchLibraryNaruLoanList(apiKey, kdc, pageSize = 50) {
         startDt:   fmt(startDate),
         endDt:     fmt(endDate),
         kdc:       kdc,
-        pageNo:    '1',
+        pageNo:    String(pageNo),
         pageSize:  String(pageSize),
         format:    'json'
     });
@@ -575,10 +574,22 @@ export default async function handler(req, res) {
     if (!rawUrl || !supKey) return res.status(500).json({ error: 'SUPABASE 환경변수 미설정' });
     if (!ALADIN_API_KEY)    return res.status(500).json({ error: 'ALADIN_API_KEY 환경변수 미설정' });
 
-    // 검색 키워드 파싱
+    // 검색 키워드 및 페이지 번호 파싱
     let keyword = '';
-    if (req.method === 'GET')       keyword = req.query?.keyword || '소설';
-    else if (req.method === 'POST') keyword = req.body?.keyword  || '소설';
+    let pageNo = 1;
+    if (req.method === 'GET') {
+        keyword = req.query?.keyword || '소설';
+        pageNo = parseInt(req.query?.pageNo || '1', 10) || 1;
+    } else if (req.method === 'POST') {
+        keyword = req.body?.keyword  || '소설';
+        pageNo = parseInt(req.body?.pageNo  || '1', 10) || 1;
+    }
+
+    // [보안 가드레일] 단일 요청당 페이지 수 상한선 (최대 6페이지, 대출 인기 300위 밖은 수집 실익 없음)
+    if (pageNo > 6) {
+        console.warn(`[pipeline] 요청 페이지 한계 초과 차단 — 요청 페이지: ${pageNo}`);
+        return res.status(400).json({ error: '단일 요청 페이지 제한 초과 (최대 6페이지, 300위 까지만 허용)' });
+    }
 
     const pipelineStartAt = new Date().toISOString();
     const log = (agent_id, agent_name, level, message, metadata) =>
@@ -680,7 +691,7 @@ export default async function handler(req, res) {
                     // 유아, 동화, 어린이, 그림책 키워드 병렬 수집
                     const searchKeywords = ['동화', '그림책', '어린이', '유아'];
                     const fetchPromises = searchKeywords.map(async (searchKw) => {
-                        return await fetchNationalLibraryBooks(LIBRARY_API_KEY, searchKw, 30);
+                        return await fetchNationalLibraryBooks(LIBRARY_API_KEY, searchKw, pageNo, 30);
                     });
                     const resultsArrays = await Promise.all(fetchPromises);
                     const mergedResults = [].concat(...resultsArrays);
@@ -758,7 +769,7 @@ export default async function handler(req, res) {
             
             if (LIBRARY_NARU_API_KEY) {
                 try {
-                    naruBooks = await fetchLibraryNaruLoanList(LIBRARY_NARU_API_KEY, kdc, 50);
+                    naruBooks = await fetchLibraryNaruLoanList(LIBRARY_NARU_API_KEY, kdc, pageNo, 50);
                     await log(1, '살피미', 'success', `도서관정보나루 대출 인기작 ${naruBooks.length}건 수집 완료 (KDC: ${kdc})`, { count: naruBooks.length, kdc });
                 } catch (naruErr) {
                     isSimulated = true;

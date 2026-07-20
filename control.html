@@ -130,6 +130,15 @@
                     <i data-lucide="rocket"></i>
                     파이프라인 실행
                 </button>
+                <select id="ctrl-bulk-limit" class="ctrl-input ctrl-select" style="margin-left: 8px; width: 130px; background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 0 8px; height: 36px; vertical-align: middle;">
+                    <option value="2">테스트 수집(100종)</option>
+                    <option value="4">일반 수집(200종)</option>
+                    <option value="6" selected>최대 수집(300종)</option>
+                </select>
+                <button id="ctrl-btn-bulk-gather" class="ctrl-btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; color: #fff; margin-left: 4px; border-radius: 6px; padding: 0 14px; height: 36px; font-weight: 800; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;" onmouseover="this.style.opacity='0.9';" onmouseout="this.style.opacity='1';">
+                    <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+                    ⚡ 대량 수집
+                </button>
                 <button id="ctrl-btn-bulk-assets" class="ctrl-btn ctrl-btn-success" style="background: linear-gradient(135deg, #10b981, #059669); margin-left: 8px;">
                     <i data-lucide="sparkles"></i>
                     대량 에셋 생성 (20종)
