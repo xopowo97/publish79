@@ -34,7 +34,7 @@
      - [api/store.js] 백엔드에 `action: 'trigger-bulk-assets'` 분기를 신설하고, Vercel 서버리스 함수의 10초 타임아웃 제한을 우회하기 위해 **비동기 스레드 분리 백그라운드 기동 방식**을 적용함.
      - 대표님이 버튼을 누르시면, 백엔드 서버가 DB candidate 20종을 추출하여 Gemini 2.5 Flash를 타서 카드뉴스 5장 기획과 UAT 숏폼 매핑을 완료하고 Supabase DB에 `status='success'`로 완전히 자동 적재를 마침.
   2. **유튜브 API Quota 제한 예외 감사 로그 연동**:
-     - [api/upload-shorts.js] 서버리스 함수 catch 블록 내부에 **12번 감시_눈치왕** 명의의 Supabase `agent_audit_logs` post fetch 코드를 이식함.
+     - [api/upload-shorts.js] 서버리스 함수 catch 블록 내부에 **12번 감시_눈치왕** 명의 of Supabase `agent_audit_logs` post fetch 코드를 이식함.
      - 일일 업로드 제한(하루 6개)으로 인한 Quota 초과 또는 외부 통신 장애 발생 시, 크래시 없이 폴백 비디오(`QDrpvRK_1gc`)로 자동 대체함과 동시에 `[warning]` 등급으로 눈치왕의 우회 조치 감사 로그를 DB에 인서트하여, 통제실 화면 우측 관제 로그 스트림상에 실시간으로 우회 처리 사실이 깜빡이며 노출되도록 보완 완료.
   3. **로컬스토리지 레거시 마녀 캐시 만료 가드 장착**:
      - [control.js] DOMContentLoaded 이벤트 리스너 최상단에 브라우저 내의 구버전 마녀 UAT 캐시 키들(`ctrl_sim_status`, `reprint_candidates`, `reprint_candidates_cache`, `sim_active_book`)을 자동으로 삭제해주는 `localStorage.removeItem()` 루프를 삽입하여, 20종 대량 적재 결과물이 랭킹 위젯에서 꼬여서 찌그러져 보이는 현상을 완벽하게 예방함.
