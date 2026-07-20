@@ -725,7 +725,7 @@ window.fetchAndRenderGenreStats = async function() {
     const board = document.getElementById('ctrl-genre-stats-board');
     if (!board) return;
     try {
-        const statsUrl = ctrlApiUrl('/api/category-stats');
+        const statsUrl = ctrlApiUrl('/api/control-helper?action=stats');
         const res = await fetch(statsUrl);
         if (res.ok) {
             const data = await res.json();
@@ -3695,7 +3695,7 @@ async function triggerSelfHealingPipeline(payload) {
 
             const pollInterval = setInterval(async () => {
                 try {
-                    const statusRes = await fetch(ctrlApiUrl(`/api/deploy-status?pr=${data.prBranch}`));
+                    const statusRes = await fetch(ctrlApiUrl(`/api/deploy-manager?action=status&pr=${data.prBranch}`));
                     if (statusRes.ok) {
                         const statusData = await statusRes.json();
                         if (statusData.status === 'APPROVED') {
