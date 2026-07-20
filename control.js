@@ -206,23 +206,29 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[통제실] Lucide 아이콘 초기화 실패:', e);
     }
 
-    // 파이프라인 버튼 이벤트 연결
+    // 파이프라인 버튼 이벤트 연결 (단일 통합 제어)
     const pipelineBtn = document.getElementById('ctrl-btn-pipeline');
     if (pipelineBtn) {
-        pipelineBtn.addEventListener('click', () => triggerCtrlPipeline(false));
+        pipelineBtn.addEventListener('click', () => triggerUnifiedAgent());
     }
-    const bulkAssetsBtn = document.getElementById('ctrl-btn-bulk-assets');
-    if (bulkAssetsBtn) {
-        bulkAssetsBtn.addEventListener('click', () => triggerCtrlBulkAssets());
+    
+    // B2B 수집 도서 목록 팝업의 실시간 정렬 및 장르 필터 이벤트 연결
+    const modalGenreFilter = document.getElementById('b2b-modal-filter-genre');
+    const modalSortFilter = document.getElementById('b2b-modal-sort-by');
+    if (modalGenreFilter) {
+        modalGenreFilter.addEventListener('change', () => renderB2BBooksList());
     }
-    const bulkGatherBtn = document.getElementById('ctrl-btn-bulk-gather');
-    if (bulkGatherBtn) {
-        bulkGatherBtn.addEventListener('click', () => triggerCtrlBulkGather());
+    if (modalSortFilter) {
+        modalSortFilter.addEventListener('change', () => renderB2BBooksList());
     }
-    const flashBtn = document.getElementById('ctrl-btn-flashlight');
-    if (flashBtn) {
-        flashBtn.addEventListener('click', () => toggleCtrlFlashlight());
-    }
+
+    // 장르별 누적 도서 자산 현황판 최초 가동
+    setTimeout(() => {
+        if (typeof fetchAndRenderGenreStats === 'function') {
+            fetchAndRenderGenreStats();
+        }
+    }, 800);
+
     const pipelineNavBtn = document.getElementById('ctrl-nav-btn-pipeline');
     if (pipelineNavBtn) {
         pipelineNavBtn.addEventListener('click', () => triggerCtrlPipeline(false));
@@ -714,10 +720,135 @@ async function updateB2BBusinessMetrics() {
 }
 
 // [신규] B2B 수집 도서 목록 팝업 모달 구동
+// [신규] 장르별 누적 도서 자산 현황판 렌더러
+window.fetchAndRenderGenreStats = async function() {
+    const board = document.getElementById('ctrl-genre-stats-board');
+    if (!board) return;
+    try {
+        const statsUrl = ctrlApiUrl('/api/category-stats');
+        const res = await fetch(statsUrl);
+        if (res.ok) {
+            const data = await res.json();
+            const stats = data.stats || {};
+            // 5개 핵심 카테고리
+            const genres = ['소설', '인문학', '어린이', '저작권 만료', '사회과학'];
+            board.innerHTML = genres.map(g => {
+                const count = stats[g] || 0;
+                let color = '#38bdf8';
+                if (g === '저작권 만료') color = '#f59e0b';
+                if (g === '어린이') color = '#10b981';
+                return `
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px; box-sizing:border-box;">
+                        <span style="font-size:9.5px; font-weight:800; color:#8b949e; white-space:nowrap;">${g === '어린이' ? '아동' : g}</span>
+                        <span style="font-size:11.5px; font-weight:900; color:${color};">${count}종</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (e) {
+        console.warn('[통제실] 장르 통계 로딩 오류:', e);
+    }
+};
+
+// [신규] 통합 실행 분기기 (수동/대량/자율 순환 통합)
+window.triggerUnifiedAgent = async function() {
+    const limitInput = document.getElementById('ctrl-bulk-limit');
+    const mode = limitInput ? limitInput.value : '6';
+
+    if (mode === 'auto') {
+        // 자율 올스캔 순환 수집 기동
+        await triggerAutoCronRotator();
+    } else {
+        // 일반 대량 수집 기동 (2, 4, 6 페이지 단위 수동 수집)
+        await triggerCtrlBulkGather();
+    }
+};
+
+// [신규] 13대 장르 자율 올스캔 순환 수집 가동 함수
+window.triggerAutoCronRotator = async function() {
+    const btn = document.getElementById('ctrl-btn-pipeline');
+    const statusEl = document.getElementById('ctrl-pipeline-status');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> 자율 순환 중...';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    const categories = [
+        { keyword: '소설', kdc: '8' },
+        { keyword: '철학', kdc: '1' },
+        { keyword: '사회과학', kdc: '3' },
+        { keyword: '자연과학', kdc: '4' },
+        { keyword: '기술과학', kdc: '5' },
+        { keyword: '예술', kdc: '6' },
+        { keyword: '언어', kdc: '7' },
+        { keyword: '역사', kdc: '9' },
+        { keyword: '총류', kdc: '0' },
+        { keyword: '종교', kdc: '2' },
+        { keyword: '청소년', kdc: '' },
+        { keyword: '아동', kdc: '' },
+        { keyword: '저작권 만료', kdc: '' }
+    ];
+
+    resetEpubViewer(); // 뷰어 초기화
+    let successTotal = 0;
+    let dbInsertedTotal = 0;
+
+    try {
+        for (let i = 0; i < categories.length; i++) {
+            const cat = categories[i];
+            if (statusEl) {
+                statusEl.textContent = `🔄 [자율 순환 ${i + 1}/${categories.length}P] "${cat.keyword}" 수집 중...`;
+                statusEl.style.color = 'var(--ctrl-amber)';
+            }
+
+            // IP 차단 우회용 무작위 안전 지연 (1.2 ~ 2.8초)
+            const delay = Math.floor(Math.random() * 1600) + 1200;
+            await new Promise(r => setTimeout(r, delay));
+
+            const endpoint = ctrlApiUrl('/api/pipeline');
+            const res = await fetch(`${endpoint}?keyword=${encodeURIComponent(cat.keyword)}&kdc=${cat.kdc}&pageNo=1`);
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    successTotal += parseInt(data.totalCollected || 0, 10);
+                    dbInsertedTotal += parseInt(data.inserted || 0, 10);
+
+                    // 화면 지표 실시간 동기화
+                    await loadCtrlDashboard();
+                    _ctrl_lastLogId = 0;
+                    await _fetchAndRenderCtrlLogs();
+                    
+                    // 장르 통계 실시간 동기화
+                    await fetchAndRenderGenreStats();
+                }
+            }
+        }
+        if (statusEl) {
+            statusEl.textContent = `✅ 자율 올스캔 완료! ${successTotal}건 수집 → ${dbInsertedTotal}건 DB 적재`;
+            statusEl.style.color = 'var(--ctrl-green)';
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = `❌ 자율 순환 중 에러: ${err.message}`;
+            statusEl.style.color = 'var(--ctrl-rose)';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="zap"></i> ⚡ 에이전트 가동`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+};
+
+// [신규] B2B 수집 도서 목록 팝업 모달 구동 (리액티브 필터 결합 버전)
 window.showBooksListPopup = async function(filterType) {
     const modal = document.getElementById('b2b-books-modal');
-    const titleEl = document.getElementById('b2b-modal-title');
     const container = document.getElementById('b2b-modal-list-container');
+    const genreSelect = document.getElementById('b2b-modal-filter-genre');
+    const sortSelect = document.getElementById('b2b-modal-sort-by');
     
     if (!modal || !container) return;
 
@@ -726,66 +857,98 @@ window.showBooksListPopup = async function(filterType) {
     modal.style.justifyContent = 'center';
     container.innerHTML = '<div style="text-align:center; padding:40px; color:#8b949e; font-size:12px;">데이터 로딩 중...</div>';
 
+    // 팝업 진입 시 기본 선택 매핑
+    if (genreSelect) {
+        genreSelect.value = filterType === 'expired' ? '저작권 만료' : 'all';
+    }
+    if (sortSelect) {
+        sortSelect.value = 'score';
+    }
+
     let books = [];
     if (_ctrl_supabase) {
         try {
-            let query = _ctrl_supabase.from('reprint_candidates').select('*');
-            if (filterType === 'expired') {
-                query = query.eq('copyright_status', 'expired');
-            }
-            const { data, error } = query;
-            let resultData = data;
-            
-            // 만약 REST 쿼리에서 직접 select 처리가 되지 않은 경우 select * 후 filter
-            if (error) {
-                const { data: allData, error: allErr } = await _ctrl_supabase.from('reprint_candidates').select('*');
-                if (!allErr && allData) {
-                    resultData = filterType === 'expired' 
-                        ? allData.filter(b => b.copyright_status === 'expired') 
-                        : allData;
-                }
-            } else {
-                const { data: fetchedData } = await query;
-                resultData = fetchedData;
-            }
-            
-            if (resultData && resultData.length > 0) {
-                books = resultData;
+            // 필터링 유연성을 위해 전체 도서를 한 번에 긁어와 로컬 메모리에 캐싱
+            const { data, error } = await _ctrl_supabase.from('reprint_candidates').select('*');
+            if (!error && data) {
+                books = data;
             }
         } catch(err) {
-            console.warn('[통제실] 책 목록 조회 실패, 로컬 데이터로 대체합니다.', err);
+            console.warn('[통제실] 책 목록 DB 전체 조회 실패', err);
         }
     }
 
     if (books.length === 0) {
-        books = _ctrl_candidates.filter(b => {
-            if (filterType === 'expired') return b.copyright_status === 'expired' || b.id === 5;
-            return true;
-        });
+        books = _ctrl_candidates || [];
     }
 
-    titleEl.innerText = filterType === 'expired' 
-        ? '저작권 만료 도서 목록 (실시간 관제)' 
-        : '수집 절판 도서 목록 (실시간 관제)';
+    // 전역 배열에 바인딩
+    window._b2bAllBooks = books;
 
-    container.innerHTML = books.map((book, idx) => `
+    // 즉석 렌더링 호출
+    renderB2BBooksList();
+};
+
+// [신규] 팝업 목록 실시간 필터/정렬 렌더링 함수
+window.renderB2BBooksList = function() {
+    const container = document.getElementById('b2b-modal-list-container');
+    const genreSelect = document.getElementById('b2b-modal-filter-genre');
+    const sortSelect = document.getElementById('b2b-modal-sort-by');
+    
+    if (!container || !window._b2bAllBooks) return;
+
+    const genre = genreSelect ? genreSelect.value : 'all';
+    const sortBy = sortSelect ? sortSelect.value : 'score';
+
+    // 1. 장르 필터링
+    let filtered = [...window._b2bAllBooks];
+    if (genre !== 'all') {
+        if (genre === '저작권 만료') {
+            filtered = filtered.filter(b => b.copyright_status === 'expired' || b.copyright_status === 'public_domain');
+        } else if (genre === '미분류') {
+            filtered = filtered.filter(b => !b.category || b.category === '미분류');
+        } else {
+            filtered = filtered.filter(b => b.category === genre);
+        }
+    }
+
+    // 2. 정렬 방식 적용
+    if (sortBy === 'score') {
+        filtered.sort((a, b) => (b.reprint_score || 0) - (a.reprint_score || 0));
+    } else if (sortBy === 'loans') {
+        filtered.sort((a, b) => (b.library_loans || 0) - (a.library_loans || 0));
+    } else if (sortBy === 'created') {
+        filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+
+    // 3. HTML 드로잉
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:#8b949e; font-size:12px;">조건에 맞는 수집 도서가 존재하지 않습니다.</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map((book, idx) => {
+        const isExpired = book.copyright_status === 'expired' || book.copyright_status === 'public_domain';
+        const displayScore = book.reprint_score || 0;
+        return `
         <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; border-left: 4px solid ${
-            book.copyright_status === 'expired' ? '#f59e0b' : '#38bdf8'
+            isExpired ? '#f59e0b' : '#38bdf8'
         };">
             <div>
-                <div style="font-size:10px; font-weight:800; color:#58a6ff; margin-bottom:4px; font-family:monospace;">ISBN: ${book.isbn || '9791104' + (100000 + book.id)}</div>
-                <h4 style="font-size:13px; font-weight:900; color:#f0f6fc; margin:0 0-4px 0; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${book.title}</h4>
+                <div style="font-size:10px; font-weight:800; color:#58a6ff; margin-bottom:4px; font-family:monospace;">ISBN: ${book.isbn || '9791104' + (100000 + book.id)} | 분류: ${book.category || '미분류'}</div>
+                <h4 style="font-size:13px; font-weight:900; color:#f0f6fc; margin:0 0 4px 0; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${book.title}</h4>
                 <p style="font-size:11px; color:#8b949e; margin:0;">${book.author || '저자 미상'} | ${book.publisher || '출판사 미상'} (${book.pub_year || '년도 미상'})</p>
             </div>
             <div style="text-align:right;">
                 <span style="font-size:9px; font-weight:900; padding:3px 8px; border-radius:6px; background:${
-                    book.copyright_status === 'expired' ? 'rgba(245,158,11,0.15); color:#f59e0b;' : 'rgba(56,189,248,0.15); color:#38bdf8;'
-                }">${book.copyright_status === 'expired' ? '만료 도서' : '저작권 보호'}</span>
-                <div style="font-size:10px; color:#8b949e; margin-top:6px; font-weight:700;">대출점수: ${book.library_loans ? book.library_loans.toLocaleString() : '0'}점</div>
+                    isExpired ? 'rgba(245,158,11,0.15); color:#f59e0b;' : 'rgba(56,189,248,0.15); color:#38bdf8;'
+                }">${isExpired ? '만료 도서' : '저작권 보호'} | 복간점수: ${displayScore}점</span>
+                <div style="font-size:10px; color:#8b949e; margin-top:6px; font-weight:700;">최근1년 대출수: ${book.library_loans ? book.library_loans.toLocaleString() : '0'}건</div>
             </div>
         </div>
-    `).join('');
-    
+        `;
+    }).join('');
+
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
@@ -924,6 +1087,9 @@ function renderCtrlSkeletons() {
 // 5. 대시보드 데이터 로드 (에이전트 조직도 + 복간 후보)
 // ───────────────────────────────────────────
 async function loadCtrlDashboard() {
+    if (typeof fetchAndRenderGenreStats === 'function') {
+        fetchAndRenderGenreStats();
+    }
     let agentData = [];
     if (!_ctrl_supabase) {
         console.warn('[통제실] Supabase 객체가 없어 로컬 정적 데이터 모드로 실행합니다.');
@@ -1888,12 +2054,14 @@ async function triggerCtrlBulkGather() {
             statusEl.style.color = 'var(--ctrl-rose)';
         }
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<i data-lucide="zap" style="width: 14px; height: 14px;"></i> ⚡ 대량 수집`;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+        if (normalBtn) {
+            normalBtn.disabled = false;
+            normalBtn.innerHTML = `<i data-lucide="zap"></i> ⚡ 에이전트 가동`;
         }
-        if (normalBtn) normalBtn.disabled = false;
+        if (typeof fetchAndRenderGenreStats === 'function') {
+            fetchAndRenderGenreStats();
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }
 

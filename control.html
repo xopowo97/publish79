@@ -108,7 +108,7 @@
             <div class="ctrl-pipeline-left">
                 <label class="ctrl-pipeline-label">
                     <i data-lucide="flask-conical"></i>
-                    딥서치_살피미 + 데이터정제_다듬이 파이프라인 수동 실행
+                    자율 수집 & 파이프라인 제어
                 </label>
                 <select id="ctrl-keyword-input" class="ctrl-input ctrl-select">
                     <option value="all" selected>전체보기(통합)</option>
@@ -126,22 +126,15 @@
                     <option value="어린이">어린이</option>
                     <option value="청소년">청소년</option>
                 </select>
-                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary">
-                    <i data-lucide="rocket"></i>
-                    파이프라인 실행
-                </button>
-                <select id="ctrl-bulk-limit" class="ctrl-input ctrl-select" style="margin-left: 8px; width: 130px; background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 0 8px; height: 36px; vertical-align: middle;">
+                <select id="ctrl-bulk-limit" class="ctrl-input ctrl-select" style="margin-left: 8px; width: 230px; background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 0 8px; height: 36px; vertical-align: middle;">
                     <option value="2">테스트 수집(100종)</option>
                     <option value="4">일반 수집(200종)</option>
                     <option value="6" selected>최대 수집(300종)</option>
+                    <option value="auto">⚡ 자율 올스캔 순환 (13대 장르)</option>
                 </select>
-                <button id="ctrl-btn-bulk-gather" class="ctrl-btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; color: #fff; margin-left: 4px; border-radius: 6px; padding: 0 14px; height: 36px; font-weight: 800; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;" onmouseover="this.style.opacity='0.9';" onmouseout="this.style.opacity='1';">
-                    <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-                    ⚡ 대량 수집
-                </button>
-                <button id="ctrl-btn-bulk-assets" class="ctrl-btn ctrl-btn-success" style="background: linear-gradient(135deg, #10b981, #059669); margin-left: 8px;">
-                    <i data-lucide="sparkles"></i>
-                    대량 에셋 생성 (20종)
+                <button id="ctrl-btn-pipeline" class="ctrl-btn ctrl-btn-primary" style="margin-left: 8px;">
+                    <i data-lucide="zap"></i>
+                    ⚡ 에이전트 가동
                 </button>
             </div>
             <div class="ctrl-pipeline-right">
@@ -561,6 +554,17 @@
                 </div>
             </div>
 
+            <!-- [신규] 장르별 누적 도서 자산 현황판 -->
+            <div class="ctrl-slide-section" style="margin-top: -10px; margin-bottom: 8px;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#38bdf8; margin-bottom:10px;">
+                    <i data-lucide="folders" style="width:16px; height:16px;"></i>
+                    <span>장르별 누적 도서 자산 현황</span>
+                </div>
+                <div id="ctrl-genre-stats-board" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; background:#161b22; padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);">
+                    <div style="font-size:11px; text-align:center; color:#8b949e; grid-column: span 5; padding: 4px 0;">통계 데이터를 불러오는 중...</div>
+                </div>
+            </div>
+
             <!-- 영업이 타임라인 (좌우 2분할 배치) -->
             <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:24px; align-items:start;">
                 <div class="ctrl-slide-section">
@@ -625,6 +629,35 @@
                 <button onclick="closeB2BBooksModal()" style="background:transparent; border:none; color:#8b949e; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:6px;" onmouseover="this.style.color='#f0f6fc'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#8b949e'; this.style.background='transparent';">
                     <i data-lucide="x" style="width:20px; height:20px;"></i>
                 </button>
+            </div>
+            <!-- [신규] 실시간 장르 및 정렬 필터바 -->
+            <div style="padding: 12px 24px; background: #0f141c; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #8b949e;">
+                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                    <span>필터링 및 정렬</span>
+                </div>
+                <select id="b2b-modal-filter-genre" style="background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 4px 8px; font-size: 11px; height: 28px; cursor: pointer;">
+                    <option value="all">전체 장르</option>
+                    <option value="소설">소설</option>
+                    <option value="에세이">에세이</option>
+                    <option value="인문학">인문학</option>
+                    <option value="경제경영">경제경영</option>
+                    <option value="사회과학">사회과학</option>
+                    <option value="역사">역사</option>
+                    <option value="과학">과학</option>
+                    <option value="예술">예술</option>
+                    <option value="자기계발">자기계발</option>
+                    <option value="종교">종교</option>
+                    <option value="어린이">어린이</option>
+                    <option value="청소년">청소년</option>
+                    <option value="저작권 만료">저작권 만료</option>
+                    <option value="미분류">미분류</option>
+                </select>
+                <select id="b2b-modal-sort-by" style="background: #1f242c; border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 6px; padding: 4px 8px; font-size: 11px; height: 28px; cursor: pointer;">
+                    <option value="score">복간 점수 높은 순 🟢</option>
+                    <option value="loans">인기 대출순 🔵</option>
+                    <option value="created">최신 등록순</option>
+                </select>
             </div>
             <!-- 리스트 바디 -->
             <div id="b2b-modal-list-container" style="padding:24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
