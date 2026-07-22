@@ -1,2436 +1,495 @@
-<!DOCTYPE html>
-<html lang="ko">
+﻿<!DOCTYPE html>
+<html lang="ko" class="theme-autumn">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출판친구 - 절판도서 복간 전문 서점</title>
+    <title>출판친구 Store - 4계절 절판도서 복간 전문 스토어</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- pdf-lib for VDP PDF generation -->
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://unpkg.com/@pdf-lib/fontkit@0.0.2/dist/fontkit.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Daum Postcode API -->
-    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
-    <!-- Google Fonts: Inter & Outfit -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;900&display=swap"
-        rel="stylesheet">
+    <!-- Google Fonts: Inter & Outfit & Noto Serif KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+
     <style>
+        /* 🌸 🌿 🍁 ❄️ 4계절 테마 시스템 */
         :root {
-            --brand-primary: #0f172a;
-            --brand-accent: #0ea5e9;
+            --theme-bg: #fdfbf7;
+            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
+            --theme-primary: #d97706;
+            --theme-accent: #b45309;
+            --theme-card-border: rgba(217, 119, 6, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
+        }
+
+        html.theme-spring {
+            --theme-bg: #fffcfd;
+            --theme-hero: linear-gradient(135deg, #2b121d 0%, #15080e 100%);
+            --theme-primary: #ec4899;
+            --theme-accent: #db2777;
+            --theme-card-border: rgba(236, 72, 153, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #ec4899, #10b981);
+        }
+
+        html.theme-summer {
+            --theme-bg: #f0fdf4;
+            --theme-hero: linear-gradient(135deg, #092e20 0%, #041710 100%);
+            --theme-primary: #0284c7;
+            --theme-accent: #059669;
+            --theme-card-border: rgba(2, 132, 199, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #0284c7, #059669);
+        }
+
+        html.theme-autumn {
+            --theme-bg: #fdfbf7;
+            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
+            --theme-primary: #d97706;
+            --theme-accent: #b45309;
+            --theme-card-border: rgba(217, 119, 6, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
+        }
+
+        html.theme-winter {
+            --theme-bg: #f8fafc;
+            --theme-hero: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            --theme-primary: #38bdf8;
+            --theme-accent: #6366f1;
+            --theme-card-border: rgba(56, 189, 248, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #38bdf8, #6366f1);
         }
 
         body {
-            font-family: 'Inter', 'Pretendard', sans-serif;
-            scroll-behavior: smooth;
+            font-family: 'Inter', 'Noto Serif KR', sans-serif;
+            background-color: var(--theme-bg);
+            transition: background-color 0.5s ease;
         }
 
-        .font-outfit {
-            font-family: 'Outfit', sans-serif;
+        .font-serif-kr {
+            font-family: 'Noto Serif KR', serif;
         }
 
         .glass-nav {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
 
-        .hero-gradient {
-            background: radial-gradient(circle at top right, #334155, #0f172a);
+        .hero-banner {
+            background: var(--theme-hero);
+            transition: background 0.5s ease;
+        }
+
+        .season-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .season-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
         }
 
         .book-card {
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid var(--theme-card-border);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
         }
 
         .book-card:hover {
-            transform: translateY(-12px) rotate(1deg);
+            transform: translateY(-8px) rotate(0.5deg);
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
         }
 
-        .badge-restored {
-            background: linear-gradient(90deg, #0ea5e9, #2563eb);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .badge-season {
+            background: var(--theme-badge-bg);
         }
 
-        .badge-funding {
-            background: linear-gradient(90deg, #f97316, #ea580c);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+
+        .template-3d-bg {
+            animation: pulseGlow 6s infinite ease-in-out;
         }
     </style>
 </head>
 
-<body class="bg-slate-950 text-slate-100">
+<body class="text-slate-900 min-h-screen flex flex-col">
 
-    <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-800">
+    <!-- 🌸 🌿 🍁 ❄️ 4계절 글로벌 네비게이션 -->
+    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-200/60">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-8">
-                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-white flex items-center gap-2">
+            <div class="flex items-center gap-6">
+                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-slate-900 flex items-center gap-2">
                     <span>출판친구</span>
-                    <span class="text-sky-400 text-sm">STORE</span>
-                </a>
-                
-                <!-- 복귀 링크 버튼 (심사위원 전용 - 평상시 숨김) -->
-                <a href="control.html" id="back-to-control-btn" class="hidden items-center gap-1.5 px-3.5 py-1.5 border border-orange-500 text-orange-400 rounded-full text-xs font-black hover:bg-orange-950/40 transition-all">
-                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-                    <span>AI 통제실로 이동</span>
+                    <span class="text-amber-500 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100/80">4SEASONS STORE</span>
                 </a>
 
-                <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-400">
-                    <a href="#" class="hover:text-sky-400 transition-colors">복간 요청</a>
+                <!-- 4계절 테마 스위처 -->
+                <div class="flex items-center bg-slate-100/80 p-1 rounded-full border border-slate-200 text-xs font-bold gap-1">
+                    <button onclick="setSeason('spring')" id="btn-spring" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>🌸</span> <span class="hidden sm:inline">봄</span>
+                    </button>
+                    <button onclick="setSeason('summer')" id="btn-summer" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>🌿</span> <span class="hidden sm:inline">여름</span>
+                    </button>
+                    <button onclick="setSeason('autumn')" id="btn-autumn" class="season-btn active px-3 py-1.5 rounded-full flex items-center gap-1 bg-white text-amber-700 shadow-sm">
+                        <span>🍁</span> <span class="hidden sm:inline">가을</span>
+                    </button>
+                    <button onclick="setSeason('winter')" id="btn-winter" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>❄️</span> <span class="hidden sm:inline">겨울</span>
+                    </button>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <!-- B2C User Session Status (비로그인) -->
-                <div id="b2c-logged-out-nav" class="flex items-center gap-2">
-                    <button onclick="openB2CRegisterModal()"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all">
-                        <i data-lucide="user-plus" class="w-3.5 h-3.5 text-sky-400"></i>
-                        <span>회원가입</span>
-                    </button>
-                    <button onclick="openB2CLoginModal()"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-xs font-black transition-all shadow-sm">
-                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
-                        <span>개인 로그인</span>
-                    </button>
-                    <a href="erp.html" id="btn-b2b-login"
-                        class="hidden md:flex items-center gap-1.5 px-3 py-2 border border-slate-700 text-slate-300 rounded-full text-xs font-black hover:bg-slate-800 hover:border-sky-400 hover:text-sky-400 transition-all">
-                        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
-                        <span>기업 로그인</span>
-                    </a>
-                </div>
 
-                <!-- B2C User Session Status (개인 로그인 상태) -->
-                <div id="b2c-logged-in-nav" class="hidden items-center gap-2">
-                    <button onclick="openMyLibraryModal()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all">
-                        <i data-lucide="user" class="w-3.5 h-3.5 text-sky-400"></i>
-                        <span id="nav-user-info">서포터님 (0P)</span>
-                    </button>
-                    <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 rounded-full text-xs font-black transition-all" title="로그아웃">
-                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-                        <span>로그아웃</span>
-                    </button>
+            <div class="flex items-center gap-4">
+                <a href="control.html" class="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 border border-amber-500/80 text-amber-700 bg-amber-50/50 rounded-full text-xs font-black hover:bg-amber-100 transition-all">
+                    <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+                    <span>AI 통제실</span>
+                </a>
+                <div class="relative hidden md:block">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                    <input type="text" id="search-input" onkeyup="filterBooks()" placeholder="찾으시는 절판 도서명 또는 저자..." class="pl-10 pr-4 py-2 bg-slate-100/90 border-none rounded-full text-xs w-56 focus:ring-2 focus:ring-amber-500 outline-none">
                 </div>
-
-                <!-- Admin Control Center Shortcut (최고관리자 로그인 상태) -->
-                <div id="admin-shortcut-nav" class="hidden items-center gap-2">
-                    <div class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-xs font-black">
-                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
-                        <span id="admin-nav-user-info">어드민대표 서포터님</span>
-                    </div>
-                    <a href="control.html"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-xs font-black transition-all shadow-sm">
-                        <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
-                        <span>🤖 통제실</span>
-                    </a>
-                    <a href="erp.html"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-full text-xs font-black transition-all shadow-sm">
-                        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
-                        <span>⚙️ ERP</span>
-                    </a>
-                    <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 rounded-full text-xs font-black transition-all" title="로그아웃">
-                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-                        <span>로그아웃</span>
-                    </button>
-                </div>
-
-                <!-- 나의서재 버튼 (어드민이 아닐 때만 노출) -->
-                <button id="nav-shopping-bag" onclick="openMyLibraryModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full text-xs font-black transition-all" title="나의 예약 도서함">
-                    <i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i>
-                    <span>나의서재</span>
-                </button>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="pt-32 pb-20 hero-gradient text-white overflow-hidden relative">
-        <div class="absolute inset-0 opacity-20"
-            style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-12 relative z-10">
-            <div class="flex-1 space-y-8">
-                <div
-                    class="inline-flex items-center gap-2 bg-sky-500/20 border border-sky-500/30 px-4 py-2 rounded-full text-sky-400 text-xs font-black tracking-widest uppercase">
-                    <span class="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></span>
-                    Antigrafiti POD Technology
+    <!-- 4계절 메인 히어로 섹션 -->
+    <header class="pt-28 pb-16 hero-banner text-white relative overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-10 relative z-10">
+            <div class="flex-1 space-y-6">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-300">
+                    <span id="season-tag">🍁 가을 독서의 계절</span>
+                    <span>•</span>
+                    <span>80% 정산 펀딩 혁신</span>
                 </div>
-                <h1 class="text-5xl md:text-7xl font-black font-outfit leading-[1.1] tracking-tight">
-                    세상에서 사라진<br><span class="text-sky-400">명작을 다시</span> 깨우다.
+                <h1 class="text-3xl md:text-5xl font-black font-serif-kr leading-tight" id="season-title">
+                    시간을 건너 온 명작,<br>
+                    <span class="text-amber-400">가을의 서가</span>를 채우다
                 </h1>
-                <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
-                    출판친구의 안티그래비티 기술은 절판된 도서를 단 한 권부터 완벽하게 복원합니다.
-                    더 이상 구하기 힘든 책을 중고 시장에서 헤매지 마세요.
+                <p class="text-slate-300 text-sm md:text-base max-w-xl leading-relaxed" id="season-desc">
+                    알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.
                 </p>
-                <!-- Large Search Bar and 12 Category Tags -->
-                <div class="space-y-4 max-w-xl">
-                    <div class="relative">
-                        <i data-lucide="search" class="absolute left-4 top-4 w-5 h-5 text-slate-400"></i>
-                        <input type="text" id="hero-search-input" oninput="handleHeroSearch()" placeholder="다시 읽고 싶은 도서명이나 저자를 검색해보세요..."
-                            class="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 text-white rounded-2xl text-sm font-bold focus:ring-2 focus:ring-sky-500 transition-all outline-none backdrop-blur-md placeholder-slate-400">
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 text-[11px] items-center">
-                        <span class="font-bold text-slate-400 mr-1">추천 태그:</span>
-                        <button onclick="filterByCategory('all')" class="px-2.5 py-1 bg-sky-500 text-white font-bold rounded-full transition-all hover:bg-sky-400">전체</button>
-                        <button onclick="filterByCategory('소설')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">소설</button>
-                        <button onclick="filterByCategory('에세이')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">에세이</button>
-                        <button onclick="filterByCategory('인문학')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">인문학</button>
-                        <button onclick="filterByCategory('경제경영')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">경제경영</button>
-                        <button onclick="filterByCategory('사회과학')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">사회과학</button>
-                        <button onclick="filterByCategory('역사')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">역사</button>
-                        <button onclick="filterByCategory('과학')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">과학</button>
-                        <button onclick="filterByCategory('예술')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">예술</button>
-                        <button onclick="filterByCategory('자기계발')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">자기계발</button>
-                        <button onclick="filterByCategory('종교')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">종교</button>
-                        <button onclick="filterByCategory('어린이')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">어린이</button>
-                        <button onclick="filterByCategory('청소년')" class="px-2.5 py-1 bg-white/10 text-slate-300 font-bold rounded-full hover:bg-white/20 transition-all">청소년</button>
-                    </div>
-                </div>
-                <div class="flex flex-wrap gap-4 pt-2">
-                    <button onclick="openProposalModal()"
-                        class="bg-sky-500 hover:bg-sky-400 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-xl shadow-sky-900/40 flex items-center gap-2">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                        <span>새로운 복간 도서 제안하기</span>
-                    </button>
-                    <button onclick="openMyLibraryModal()"
-                        class="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-6 py-3 rounded-2xl font-black text-sm transition-all backdrop-blur-md flex items-center gap-2">
-                        <i data-lucide="bookmark" class="w-4 h-4"></i>
-                        <span>나의 복간 도서관</span>
-                    </button>
+
+                <!-- 장르별 필터 칩 -->
+                <div class="flex flex-wrap gap-2 pt-2" id="genre-filter-chips">
+                    <button onclick="filterCategory('ALL')" class="genre-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-900 shadow">전체보기 (471종)</button>
+                    <button onclick="filterCategory('인문학')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📘 인문학</button>
+                    <button onclick="filterCategory('경제경영')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📊 경제경영</button>
+                    <button onclick="filterCategory('자기계발')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">💡 자기계발</button>
+                    <button onclick="filterCategory('소설')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📙 소설/문학</button>
                 </div>
             </div>
-            <div class="flex-1 flex justify-center relative">
-                <div class="absolute inset-0 bg-sky-500/20 blur-[120px] rounded-full"></div>
-                <!-- Book Showcase 1 -->
-                <div class="relative w-64 md:w-80 h-96 md:h-[480px] book-card rotate-[-5deg] z-20">
-                    <img id="hero-img-1" src="book1.png" alt="Restored Book 1"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
-                </div>
-                <!-- Book Showcase 2 -->
-                <div class="absolute -bottom-10 -right-10 w-48 md:w-64 h-72 md:h-96 book-card rotate-[8deg] z-30">
-                    <img id="hero-img-2" src="book2.png" alt="Restored Book 2"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
+
+            <!-- 우측 계절 비주얼 쇼케이스 -->
+            <div class="w-full md:w-96 aspect-[3/4] rounded-2xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 text-center">
+                <div class="space-y-4">
+                    <div class="w-20 h-20 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-3xl">
+                        <i data-lucide="sparkles" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="font-serif-kr text-xl font-bold text-white">ON-DEMAND 3D ASSETS</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">도서를 클릭하시면 60가지 고유 조합의 시네마틱 3D 카드뉴스 및 알라딘 5대 원문 항목이 1초 만에 상영됩니다.</p>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Content Sections -->
-    <main class="max-w-7xl mx-auto px-6 py-24 space-y-32">
+    <!-- 도서 그리드 섹션 -->
+    <main class="max-w-7xl mx-auto px-6 py-12 flex-1">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-xl font-black font-serif-kr text-slate-900 flex items-center gap-2">
+                <span>복간 펀딩 도서 목록</span>
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800" id="book-count-tag">471종 준비됨</span>
+            </h2>
+            <div class="text-xs text-slate-500">※ 도서를 클릭하면 60-템플릿 뷰어가 상영됩니다.</div>
+        </div>
 
-        <!-- [신규] 실시간 복간 펀딩 라이브 현황판 -->
-        <section class="bg-slate-900 rounded-[32px] p-8 md:p-12 text-white border border-slate-800 shadow-2xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-80 h-80 bg-sky-500/10 blur-[100px] rounded-full"></div>
-            <div class="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 blur-[100px] rounded-full"></div>
-            
-            <div class="relative z-10 space-y-8">
-                <!-- 현황판 헤더 -->
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6">
-                    <div>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full text-[10px] font-black tracking-widest uppercase">
-                            <span class="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span>
-                            Live Dashboard
-                        </span>
-                        <h2 class="text-2xl md:text-3xl font-black font-outfit mt-2 tracking-tight">실시간 복간 라이브 현황판</h2>
-                    </div>
-                    <p class="text-xs text-slate-400 max-w-xs leading-relaxed md:text-right">
-                        출판친구와 독자님들이 함께 만들어 가는 실시간 예약 펀딩 실적 및 플랫폼 통계 지표입니다.
-                    </p>
-                </div>
-                
-                <!-- 4열 카운터 그리드 -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <!-- 카드 1: 구출된 도서 -->
-                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-sky-500/30 transition-all">
-                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">📚 복간 성공 도서</div>
-                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-books-count" class="font-outfit">12</span><span class="text-sm font-bold text-slate-400">종</span> 
-                            <span id="stat-copies-count" class="font-outfit ml-1 text-sky-400">5,420</span><span class="text-xs font-bold text-sky-500">부</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 복간 제작 수량</p>
-                    </div>
-                    <!-- 카드 2: 활성 서포터 -->
-                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-emerald-500/30 transition-all">
-                        <div class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">👥 실시간 활성 서포터</div>
-                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-supporters-count" class="font-outfit">342</span><span class="text-sm font-bold text-slate-400">명</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">복간 펀딩 동참 서포터</p>
-                    </div>
-                    <!-- 카드 3: 누적 펀딩 규모 -->
-                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-amber-500/30 transition-all">
-                        <div class="text-[10px] font-black text-amber-400 uppercase tracking-widest">💰 누적 예약 결제 규모</div>
-                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-sales-volume" class="font-outfit">97.56</span><span class="text-sm font-bold text-slate-400">백만원</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">누적 결제 대기 예약액</p>
-                    </div>
-                    <!-- 카드 4: 평균 달성률 -->
-                    <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md flex flex-col justify-between h-32 relative group hover:border-rose-500/30 transition-all">
-                        <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">📈 평균 펀딩 달성률</div>
-                        <div class="text-2xl md:text-3xl font-black font-outfit mt-2 text-white">
-                            <span id="stat-achievement-rate" class="font-outfit">112.5</span><span class="text-sm font-bold text-slate-400">%</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-bold">진행 과제 목표 대비 달성도</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Section: Newly Restored -->
-        <section>
-            <div class="flex justify-between items-end mb-12">
-                <div>
-                    <h2 class="text-3xl font-black font-outfit mb-2 tracking-tight">최근 복간된 도서</h2>
-                    <p class="text-slate-500">안티그래비티 기술로 새롭게 태어난 명작들</p>
-                </div>
-                <a href="#" class="text-sky-600 font-bold flex items-center gap-1 hover:underline">전체보기 <i
-                        data-lucide="chevron-right" class="w-4 h-4"></i></a>
-            </div>
-
-            <div id="store-product-grid" class="grid grid-cols-2 md:grid-cols-4 gap-8">
-                <!-- Data will be populated here -->
-            </div>
-        </section>
-
-        <!-- Section: Technology Info -->
-        <section class="bg-slate-900 rounded-[48px] p-12 md:p-24 text-white overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 blur-[100px] rounded-full"></div>
-            <div class="grid md:grid-cols-2 gap-16 items-center">
-                <div class="space-y-6">
-                    <h2 class="text-4xl md:text-5xl font-black font-outfit tracking-tight leading-tight">
-                        절판 도서 복원의<br><span class="text-sky-400">새로운 기준</span>, 안티그래비티
-                    </h2>
-                    <p class="text-slate-400 leading-relaxed">
-                        출판친구의 안티그래비티 기술은 원고가 없는 절판 도서도 AI 시각 분석과 고해상도 스캔 기술을 통해
-                        오리지널의 감동 그대로 복원합니다. 단 한 권의 주문도 정교하게 생산되어 독자님의 손으로 전달됩니다.
-                    </p>
-                    <ul class="space-y-4 pt-4">
-                        <li class="flex items-start gap-3">
-                            <div class="bg-sky-500/20 p-1 rounded-lg"><i data-lucide="check"
-                                    class="w-4 h-4 text-sky-400"></i></div>
-                            <div>
-                                <h4 class="font-black text-white">AI 리마스터링</h4>
-                                <p class="text-sm text-slate-500">노후된 텍스트와 이미지를 AI가 선명하게 복원합니다.</p>
-                            </div>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <div class="bg-sky-500/20 p-1 rounded-lg"><i data-lucide="check"
-                                    class="w-4 h-4 text-sky-400"></i></div>
-                            <div>
-                                <h4 class="font-black text-white">Premium POD</h4>
-                                <p class="text-sm text-slate-500">대량 인쇄와 차이가 없는 고품질 디지털 연속지 인쇄.</p>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">1,200+</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Restored Titles</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md mt-8">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">100%</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Customer Satisfied</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">24h</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Quick Production</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md mt-8">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">Safe</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Secure Delivery</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Section: Request -->
-        <section class="text-center space-y-6 max-w-2xl mx-auto">
-            <h2 class="text-3xl font-black font-outfit tracking-tight">아직 찾으시는 책이 없나요?</h2>
-            <p class="text-slate-500">독자님들이 가장 많이 요청하는 책부터 우선적으로 복간을 진행합니다. <br>보고 싶은 절판 도서의 제목을 알려주세요.</p>
-            <div class="flex gap-2">
-                <input type="text" placeholder="도서 제목 또는 저자명"
-                    class="flex-1 px-6 py-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500 transition-all font-bold">
-                <button
-                    class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 transition-all">요청하기</button>
-            </div>
-        </section>
-
+        <div id="store-product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            <!-- JS 동적 로딩 -->
+        </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-50 border-t border-slate-200 py-16">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12">
-            <div class="space-y-4">
-                <div class="font-black text-xl font-outfit">출판친구</div>
-                <p class="text-xs text-slate-500 leading-relaxed">
-                    안티그래비티 기술을 기반으로 한<br>절판 도서 복간 전문 온라인 서점입니다.
-                </p>
-                <div class="flex gap-4">
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="instagram"
-                            class="w-5 h-5"></i></a>
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="facebook"
-                            class="w-5 h-5"></i></a>
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="youtube"
-                            class="w-5 h-5"></i></a>
-                </div>
-            </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">서비스</h4>
-                <ul class="text-xs text-slate-500 space-y-2 font-bold">
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">복간 도서 목록</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">베스트셀러</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">복간 요청 게시판</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">이용 안내</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">비즈니스</h4>
-                <ul class="text-xs text-slate-500 space-y-2 font-bold">
-                    <li><a href="erp.html" class="hover:text-sky-600 transition-colors">파트너(출판사) 로그인</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">인쇄소 파트너십</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">제작 대행 문의</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">고객센터</h4>
-                <p class="text-xs text-slate-500 font-bold">평일 10:00 - 18:00 (주말 공휴일 제외)</p>
-                <div class="text-xl font-black text-slate-800 mt-2 font-outfit">1588-0000</div>
-                <button
-                    class="mt-4 w-full py-3 bg-white border border-slate-200 rounded-xl text-xs font-black hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="message-square" class="w-4 h-4"></i> 1:1 상담하기
-                </button>
-            </div>
-        </div>
-        <div
-            class="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-slate-200 text-[10px] text-slate-400 flex flex-col md:flex-row justify-between gap-4">
-            <p>© 2026 Antigrafiti Chulpan Chingu. All rights reserved.</p>
-            <div class="flex gap-4">
-                <a href="#">이용약관</a>
-                <a href="#" class="font-black text-slate-600">개인정보처리방침</a>
-                <a href="#">사업자정보확인</a>
-            </div>
-        </div>
-    </footer>
-
-    <!-- 개인 로그인 모달 -->
-    <div id="b2c-login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
-                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="log-in" class="text-white"></i>
-                    개인 로그인
-                </h3>
-                <p class="text-xs text-sky-200 mt-1">출판친구 서포터 계정으로 로그인해 주세요.</p>
-                <button onclick="closeB2CLoginModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
-                    <input type="password" id="b2c-login-password" placeholder="비밀번호를 입력해 주세요." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div class="text-right">
-                    <button type="button" onclick="openResetPasswordModal()" class="text-[10px] text-sky-600 hover:text-sky-500 underline font-bold">비밀번호를 분실하셨나요?</button>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeB2CLoginModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitB2CLogin()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- B2C 비밀번호 재설정 모달 -->
-    <div id="b2c-reset-pw-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
-                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="key-round" class="text-white"></i>
-                    비밀번호 재설정
-                </h3>
-                <p class="text-xs text-sky-200 mt-1">가입하신 이메일로 비밀번호 재설정 안내를 전송합니다.</p>
-                <button onclick="closeResetPasswordModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-reset-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-            </div>
-            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeResetPasswordModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitResetPasswordRequest()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">재설정 요청</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- B2C 회원가입 모달 -->
-    <div id="b2c-register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
-                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="user-plus" class="text-white"></i>
-                    서포터 회원가입
-                </h3>
-                <p class="text-xs text-sky-200 mt-1">회원가입 후 배송 정보 수집 및 마일리지가 적립됩니다.</p>
-                <button onclick="closeB2CRegisterModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <div class="flex gap-2">
-                        <input type="email" id="b2c-register-email" oninput="resetEmailCheck()" placeholder="example@email.com" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                        <button type="button" onclick="checkEmailDuplicate()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all shadow-sm">중복확인</button>
-                    </div>
-                    <span id="email-check-msg" class="text-[10px] font-bold block mt-1 hidden"></span>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
-                    <input type="password" id="b2c-register-password" placeholder="영문+숫자+특수문자 8자 이상" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호 확인</label>
-                    <input type="password" id="b2c-register-password-confirm" placeholder="비밀번호 재입력" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명)</label>
-                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">연락처</label>
-                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">배송 주소</label>
-                    <div class="flex gap-2 mb-2">
-                        <input type="text" id="b2c-register-zipcode" placeholder="우편번호" readonly class="w-24 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none">
-                        <button type="button" onclick="openDaumPostcode()" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-650 text-white rounded-xl text-xs font-black transition-all shadow-sm">우편번호 검색</button>
-                    </div>
-                    <input type="text" id="b2c-register-address" placeholder="기본 주소 (검색 시 자동 입력)" readonly class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none mb-2">
-                    <input type="text" id="b2c-register-detail-address" placeholder="상세 주소 입력 (동, 호수 등)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <!-- 약관 동의 체크박스 추가 -->
-                <div class="space-y-2 pt-2 border-t border-slate-100">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="register-agree-terms" class="rounded text-sky-500 focus:ring-sky-500">
-                        <label for="register-agree-terms" class="text-xs text-slate-600 font-bold">
-                            <span class="text-sky-600">[필수]</span> 이용약관 동의
-                        </label>
-                        <button onclick="viewTerms('terms')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="register-agree-privacy" class="rounded text-sky-500 focus:ring-sky-500">
-                        <label for="register-agree-privacy" class="text-xs text-slate-600 font-bold">
-                            <span class="text-sky-600">[필수]</span> 개인정보 처리방침 동의
-                        </label>
-                        <button onclick="viewTerms('privacy')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeB2CRegisterModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitB2CRegister()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">가입 완료</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 약관 상세 모달 -->
-    <div id="terms-detail-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-slate-950 text-white p-6 relative">
-                <h3 class="text-base font-black font-outfit" id="terms-title">약관 상세</h3>
-                <button onclick="closeTermsDetailModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6">
-                <textarea id="terms-content-area" readonly class="w-full h-64 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-600 leading-relaxed outline-none resize-none"></textarea>
-            </div>
-            <div class="bg-slate-50 p-6 flex justify-end border-t border-slate-100">
-                <button onclick="closeTermsDetailModal()" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">확인</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- B2C 도서 상세 소개 모달 (온라인 서점 카드뉴스 스타일) -->
-    <div id="b2c-book-detail-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto relative p-6 text-white shadow-2xl">
-            <button onclick="closeB2CBookDetailModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors z-[20]">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+    <!-- 🎬 60-템플릿 온디맨드 시네마틱 모달 팝업 -->
+    <div id="ondemand-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 text-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 flex flex-col md:flex-row max-h-[90vh]">
             
-            <div id="detail-loading" class="flex flex-col items-center justify-center py-20">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500 mb-3"></div>
-                <p class="text-xs text-slate-400">도서 상세 정보를 불러오는 중...</p>
-            </div>
+            <!-- 좌측: 3D 온디맨드 템플릿 상영관 ( 카드뉴스 + 3D 배경 ) -->
+            <div class="w-full md:w-1/2 p-6 flex flex-col justify-between relative overflow-hidden min-h-[380px]" id="modal-template-view">
+                <!-- 3D 배경 그래픽 효과 -->
+                <div class="absolute inset-0 bg-gradient-to-br from-amber-900/40 via-slate-900 to-slate-950 z-0"></div>
+                <div class="absolute -top-24 -left-24 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl template-3d-bg"></div>
 
-            <div id="detail-content" class="hidden">
-                <!-- 5장 카드뉴스 캐러셀 들어갈 자리 -->
-                <div class="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 aspect-[3/4] mb-4">
-                    <div id="carousel-slides" class="w-full h-full flex transition-transform duration-300 ease-out">
-                        <!-- 동적으로 slide들이 들어갑니다 -->
-                    </div>
-                    
-                    <!-- 이전/다음 컨트롤러 -->
-                    <button onclick="prevSlide()" class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
-                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="nextSlide()" class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
-                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                    </button>
-
-                    <!-- 인디케이터 (1/5 등) -->
-                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-3.5 py-1 rounded-full text-[10px] font-black text-slate-300 z-[10]">
-                        <span id="carousel-indicator-current">1</span> / <span id="carousel-indicator-total">5</span>
-                    </div>
+                <!-- 템플릿 배지 헤더 -->
+                <div class="relative z-10 flex justify-between items-center">
+                    <span id="modal-tpl-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500 text-slate-950">TPL-14 • HUMANITIES</span>
+                    <span id="modal-slide-num" class="text-xs font-bold text-slate-400">SLIDE 1 / 5</span>
                 </div>
 
-                <!-- 도서 기본 설명 및 펀딩 연결부 -->
-                <div class="flex justify-between items-center gap-4 bg-slate-900/40 p-4 border border-slate-800/40 rounded-2xl">
-                    <div class="flex-1">
-                        <h2 id="detail-title" class="font-black text-lg mb-1.5 text-white leading-tight">도서 제목</h2>
-                        <p id="detail-info" class="text-xs text-slate-400 font-bold">저자 | 출판사</p>
+                <!-- 카드뉴스 본문 내용 -->
+                <div class="relative z-10 my-auto py-6 space-y-4">
+                    <span id="modal-card-tag" class="text-xs font-black text-amber-400 uppercase tracking-wider block">복간 펀딩 #1</span>
+                    <h3 id="modal-card-title" class="text-xl md:text-2xl font-black font-serif-kr leading-snug">다시 만나는 명작</h3>
+                    <p id="modal-card-content" class="text-sm text-slate-300 leading-relaxed font-serif-kr">"저자의 잊혀진 걸작, 80% 마진 정산 복간 펀딩 개시!"</p>
+                </div>
+
+                <!-- 숏폼 성우 나레이션 & 슬라이드 컨트롤 -->
+                <div class="relative z-10 pt-4 border-t border-white/10 space-y-3">
+                    <div class="flex items-center gap-3 bg-black/40 p-2.5 rounded-xl border border-white/10">
+                        <button onclick="playTTS()" class="w-8 h-8 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center hover:scale-105 transition-transform">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i>
+                        </button>
+                        <div class="flex-1 text-[11px] text-slate-300 truncate" id="modal-tts-text">AI 성우 음성 읽기 가능...</div>
                     </div>
-                    <div id="detail-action-container">
-                        <!-- 결제 예약이나 투표 버튼 들어올 자리 -->
+                    <div class="flex justify-between items-center">
+                        <button onclick="prevSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">◄ 이전</button>
+                        <div class="flex gap-1.5" id="slide-dots"></div>
+                        <button onclick="nextSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">다음 ►</button>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-
-
-
-    <!-- 나의 복간 도서관 (마일리지 & 참여 이력) 모달 -->
-    <div id="my-library-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-slate-900 text-white p-6 relative">
-                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="bookmark-check" class="text-sky-400"></i>
-                    나의 복간 도서관
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">내가 지켜낸 도서 목록과 복간 포인트 상태</p>
-                <button onclick="closeMyLibraryModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-6">
-                <!-- 프로필 요약 카드 -->
-                <div class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 flex justify-between items-center border border-slate-200/60">
-                    <div class="space-y-1">
-                        <div class="text-sm font-black text-slate-800" id="library-username">홍길동 서포터님</div>
-                        <div class="text-xs text-slate-500" id="library-useremail">example@email.com</div>
-                        <div class="text-[10px] text-slate-400" id="library-userphone">연락처: -</div>
-                        <div class="text-[10px] text-slate-400" id="library-useraddress">배송지: -</div>
-                    </div>
-                    <div class="bg-sky-50 border border-sky-100 rounded-xl px-4 py-2 text-right">
-                        <div class="text-[10px] font-black text-sky-600 uppercase">보유 복간 포인트</div>
-                        <div class="text-lg font-black text-sky-700" id="library-userpoints">0 P</div>
-                    </div>
-                </div>
-
-                <!-- 참여한 복간 도서 목록 -->
+            <!-- 우측: 알라딘 5대 원문 데이터 & 펀딩 신청 탭 -->
+            <div class="w-full md:w-1/2 p-6 flex flex-col justify-between bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800">
                 <div>
-                    <h4 class="text-xs font-black text-slate-500 mb-3 flex items-center gap-1">
-                        <i data-lucide="list" class="w-3.5 h-3.5"></i>
-                        참여한 복간 프로젝트
-                    </h4>
-                    <div class="max-h-48 overflow-y-auto border border-slate-150 rounded-xl divide-y divide-slate-100" id="my-joined-books-list">
-                        <!-- 동적으로 로드되는 참여 내역 목록 -->
-                        <div class="p-4 text-center text-xs text-slate-400 py-8">아직 참여한 복간 프로젝트가 없습니다.</div>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-6 flex justify-end border-t border-slate-100">
-                <button onclick="closeMyLibraryModal()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">닫기</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 새로운 복간 도서 제안 모달 -->
-    <div id="proposal-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="bg-sky-900 text-white p-6 relative">
-                <h3 class="text-lg font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="text-sky-400"></i>
-                    새로운 복간 도서 제안
-                </h3>
-                <p class="text-xs text-sky-200 mt-1">국립중앙도서관 API를 기반으로 자동 딥서치 분석이 시작됩니다. (제안 성공 시 200P)</p>
-                <button onclick="closeProposalModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 제목 <span class="text-rose-500">*</span></label>
-                    <input type="text" id="propose-book-title" placeholder="다시 만나고 싶은 책 제목" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-black text-slate-500 mb-1.5">저자명</label>
-                        <input type="text" id="propose-book-author" placeholder="저자 이름" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-500 mb-1.5">출판사명</label>
-                        <input type="text" id="propose-book-publisher" placeholder="출판사 이름" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 분야 <span class="text-rose-500">*</span></label>
-                    <select id="propose-book-category" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                        <option value="소설">소설</option>
-                        <option value="에세이">에세이</option>
-                        <option value="인문학">인문학</option>
-                        <option value="경제경영">경제경영</option>
-                        <option value="사회과학">사회과학</option>
-                        <option value="역사">역사</option>
-                        <option value="과학">과학</option>
-                        <option value="예술">예술</option>
-                        <option value="자기계발">자기계발</option>
-                        <option value="종교">종교</option>
-                        <option value="어린이">어린이</option>
-                        <option value="청소년">청소년</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">제안 이유 / 기대 평</label>
-                    <textarea id="propose-book-reason" rows="2" placeholder="왜 이 책이 복간되어야 하는지 독자님의 이유를 적어주세요." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all resize-none"></textarea>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeProposalModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitProposal()" id="propose-submit-btn" class="flex-1 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5">
-                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                    <span>제안서 제출</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 빌링키 결제 예약 등록 모달 -->
-    <div id="billing-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <!-- 모달 헤더 -->
-            <div class="bg-slate-900 text-white p-6 relative">
-                <h3 class="text-xl font-black font-outfit flex items-center gap-2">
-                    <i data-lucide="credit-card" class="text-orange-500"></i>
-                    출판친구 빌링키 예약 결제 등록
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">안전한 펀딩 예약 및 간편 결제 시스템</p>
-                <button onclick="closeBillingModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <!-- 모달 바디 -->
-            <div class="p-6 space-y-6">
-                <!-- 안내문 -->
-                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3 text-orange-800 text-xs leading-relaxed">
-                    <i data-lucide="alert-circle" class="w-5 h-5 text-orange-600 shrink-0 mt-0.5"></i>
-                    <div>
-                        <strong class="block mb-0.5">※ 필독: 안심 예약제 안내</strong>
-                        본 도서는 펀딩 목표 달성(BEP) 시에만 등록하신 카드로 결제가 1회 격발됩니다. 펀딩 실패 시 예약은 수수료 없이 100% 자동 취소됩니다.
-                    </div>
-                </div>
-                <!-- 폼 -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-black text-slate-500 mb-1.5">카드사 선택</label>
-                        <select class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <option>국민카드</option>
-                            <option>신한카드</option>
-                            <option>현대카드</option>
-                            <option>삼성카드</option>
-                            <option>롯데카드</option>
-                            <option>비씨카드</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-500 mb-1.5">카드 번호</label>
-                        <div class="grid grid-cols-4 gap-2">
-                            <input type="text" maxlength="4" placeholder="1234" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="password" maxlength="4" placeholder="••••" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="password" maxlength="4" placeholder="••••" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="text" maxlength="4" placeholder="5678" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <!-- 닫기 버튼 -->
+                    <div class="flex justify-between items-start mb-4">
                         <div>
-                            <label class="block text-xs font-black text-slate-500 mb-1.5">유효 기간 (MM/YY)</label>
-                            <input type="text" placeholder="MM/YY" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
+                            <span id="modal-book-category" class="text-xs font-bold text-amber-400">인문학</span>
+                            <h2 id="modal-book-title" class="text-lg font-black font-serif-kr text-white leading-tight">도서 제목</h2>
+                            <p id="modal-book-author" class="text-xs text-slate-400 mt-1">저자 • 출판사</p>
                         </div>
-                        <div>
-                            <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호 앞 2자리</label>
-                            <input type="password" maxlength="2" placeholder="••" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-500 mb-1.5">생년월일 (YYMMDD) 또는 사업자번호</label>
-                        <input type="text" placeholder="주민번호 앞 6자리 또는 사업자등록번호" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                    </div>
-                </div>
-            </div>
-            <!-- 모달 푸터 -->
-            <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeBillingModal()" class="flex-1 py-3.5 bg-slate-200 text-slate-700 font-black rounded-xl text-sm hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitBilling()" class="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black rounded-xl text-sm transition-all shadow-md">예약 등록 완료</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 성공 안내 모달 -->
-    <div id="success-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 p-8 text-center space-y-6 animate-in fade-in zoom-in duration-200">
-            <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                <i data-lucide="check-circle-2" class="w-10 h-10"></i>
-            </div>
-            <div class="space-y-2">
-                <h3 class="text-2xl font-black font-outfit text-slate-900">예약 결제 등록 완료!</h3>
-                <p class="text-sm text-slate-500 leading-relaxed">
-                    현대 철학의 이해 도서에 대한 빌링키 예약이 성공적으로 완료되었습니다.<br>
-                    목표 수량 달성 시 자동 결제됩니다.
-                </p>
-            </div>
-            <button onclick="closeSuccessModal()" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-sm transition-all shadow-md">확인</button>
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        // 모달 열기/닫기 함수는 아래 스크립트 본문에서 통합 정의되어 사용되므로 중복 정의 삭제
-
-
-        // Supabase configuration (using control.js keys)
-        const B2C_SUPABASE_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co';
-        const B2C_SUPABASE_KEY = 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
-        let supabaseClient = null;
-        try {
-            if (typeof supabase !== 'undefined') {
-                supabaseClient = supabase.createClient(B2C_SUPABASE_URL, B2C_SUPABASE_KEY);
-            }
-        } catch (e) {
-            console.warn('[Store] Supabase 초기화 실패, 오프라인 모드로 자동 전환:', e);
-        }
-
-        // Global B2C states
-        let b2cUser = {
-            isLoggedIn: false,
-            email: '',
-            name: '',
-            phone: '',
-            address: '',
-            points: 0,
-            joinedBooks: [] // array of { id, title, type: 'vote' | 'fund', timestamp }
-        };
-
-        let allProducts = [];
-        let currentCategory = 'all';
-        let currentSearchQuery = '';
-        let selectedProductForFunding = null;
-
-        // B2C Register Modals
-        function openB2CRegisterModal() {
-            const modal = document.getElementById('b2c-register-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        function closeB2CRegisterModal() {
-            const modal = document.getElementById('b2c-register-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        // B2C Register Modals
-        let isEmailChecked = false;
-
-        function resetEmailCheck() {
-            isEmailChecked = false;
-            const msgEl = document.getElementById('email-check-msg');
-            if (msgEl) {
-                msgEl.classList.add('hidden');
-            }
-        }
-
-        async function checkEmailDuplicate() {
-            const email = document.getElementById('b2c-register-email').value.trim();
-            const msgEl = document.getElementById('email-check-msg');
-            if (!email) {
-                alert('이메일 주소를 입력해 주세요.');
-                return;
-            }
-            
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                alert('올바른 이메일 형식이 아닙니다.');
-                return;
-            }
-
-            const localExist = localStorage.getItem(`b2c_phone_${email}`);
-            if (localExist) {
-                msgEl.textContent = '이미 등록된 이메일 주소입니다.';
-                msgEl.className = 'text-[10px] font-bold block mt-1 text-rose-500';
-                msgEl.classList.remove('hidden');
-                isEmailChecked = false;
-                return;
-            }
-
-            if (supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('user_profiles')
-                        .select('email')
-                        .eq('email', email)
-                        .maybeSingle();
-                    
-                    if (error) throw error;
-                    if (data) {
-                        msgEl.textContent = '이미 등록된 이메일 주소입니다. (DB)';
-                        msgEl.className = 'text-[10px] font-bold block mt-1 text-rose-500';
-                        msgEl.classList.remove('hidden');
-                        isEmailChecked = false;
-                        return;
-                    }
-                } catch (err) {
-                    console.warn('[Store] Supabase 중복체크 중 오류 발생:', err);
-                }
-            }
-
-            msgEl.textContent = '사용 가능한 이메일 주소입니다.';
-            msgEl.className = 'text-[10px] font-bold block mt-1 text-emerald-500';
-            msgEl.classList.remove('hidden');
-            isEmailChecked = true;
-        }
-
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            return hashHex;
-        }
-
-        function openB2CRegisterModal() {
-            const modal = document.getElementById('b2c-register-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        function closeB2CRegisterModal() {
-            const modal = document.getElementById('b2c-register-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        async function submitB2CRegister() {
-            const email = document.getElementById('b2c-register-email').value.trim();
-            const pw = document.getElementById('b2c-register-password').value;
-            const pwConfirm = document.getElementById('b2c-register-password-confirm').value;
-            const name = document.getElementById('b2c-register-name').value.trim();
-            const phone = document.getElementById('b2c-register-phone').value.trim();
-            const zipcode = document.getElementById('b2c-register-zipcode').value.trim();
-            const address = document.getElementById('b2c-register-address').value.trim();
-            const detailAddress = document.getElementById('b2c-register-detail-address').value.trim();
-
-            if (!email || !pw || !pwConfirm || !name || !phone || !zipcode || !address || !detailAddress) {
-                alert('모든 필수 정보를 입력해 주세요.');
-                return;
-            }
-
-            if (!isEmailChecked) {
-                alert('이메일 중복 확인을 완료해 주세요.');
-                return;
-            }
-
-            // KISA 가이드라인에 따른 비밀번호 영문+숫자+특수문자 조합 8자 이상 정규식 검증
-            const pwRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-            if (!pwRegex.test(pw)) {
-                alert('비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 모두 포함하여 8자 이상이어야 합니다.');
-                return;
-            }
-
-            if (pw !== pwConfirm) {
-                alert('비밀번호가 일치하지 않습니다.');
-                return;
-            }
-
-            // 약관 필수 동의 여부 체크
-            const agreeTerms = document.getElementById('register-agree-terms').checked;
-            const agreePrivacy = document.getElementById('register-agree-privacy').checked;
-            if (!agreeTerms || !agreePrivacy) {
-                alert('이용약관 및 개인정보 처리방침에 모두 동의해 주세요.');
-                return;
-            }
-
-            const combinedAddress = `[${zipcode}] ${address} ${detailAddress}`;
-
-            // 솔티드 해시(Salted Hash) 처리 (비밀번호 원문 뒤에 이메일 솔트 체이닝)
-            const saltedPw = pw + email;
-            const pwHash = await sha256(saltedPw);
-
-            // 스토리지에 가입 정보 보존
-            localStorage.setItem(`b2c_phone_${email}`, phone);
-            localStorage.setItem(`b2c_address_${email}`, combinedAddress);
-            localStorage.setItem(`b2c_points_${email}`, '1000');
-            localStorage.setItem(`b2c_joined_${email}`, '[]');
-            localStorage.setItem(`b2c_name_${email}`, name); // 로그인 후 웰컴 이름 바인딩용
-            localStorage.setItem(`b2c_pw_hash_${email}`, pwHash); // SHA-256 해시 암호 저장
-
-            // Supabase 연동
-            syncUserProfileWithSupabase(email, name, 1000);
-
-            alert('회원가입이 완료되었습니다! 가입 축하 1,000P 마일리지가 적립되었습니다. 로그인 창으로 이동합니다.');
-
-            closeB2CRegisterModal();
-            openB2CLoginModal(); // 회원가입 후 로그인창 바로 띄우기
-        }
-
-        // 다음 우편번호 검색 팝업 실행 함수
-        function openDaumPostcode() {
-            new daum.Postcode({
-                oncomplete: function(data) {
-                    let addr = '';
-                    if (data.userSelectedType === 'R') {
-                        addr = data.roadAddress;
-                    } else {
-                        addr = data.jibunAddress;
-                    }
-                    document.getElementById('b2c-register-zipcode').value = data.zonecode;
-                    document.getElementById('b2c-register-address').value = addr;
-                    document.getElementById('b2c-register-detail-address').focus();
-                }
-            }).open();
-        }
-
-        // 약관 상세 보기 동적 로딩 함수
-        async function viewTerms(type) {
-            const titleEl = document.getElementById('terms-title');
-            const contentEl = document.getElementById('terms-content-area');
-            const modal = document.getElementById('terms-detail-modal');
-
-            if (!titleEl || !contentEl || !modal) return;
-
-            try {
-                contentEl.value = '약관을 불러오는 중입니다...';
-                titleEl.textContent = type === 'terms' ? '이용약관 상세' : '개인정보 처리방침 상세';
-
-                const filename = type === 'terms' ? 'terms.txt' : 'privacy.txt';
-                const response = await fetch('/' + filename);
-                if (!response.ok) {
-                    throw new Error('약관 파일 로드 실패');
-                }
-                const text = await response.text();
-                contentEl.value = text;
-            } catch (err) {
-                console.error(err);
-                contentEl.value = '약관 내용을 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.';
-            }
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeTermsDetailModal() {
-            const modal = document.getElementById('terms-detail-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        // B2C Login Modals
-        function openB2CLoginModal() {
-            const modal = document.getElementById('b2c-login-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        // B2C Login Modals
-        function closeB2CLoginModal() {
-            const modal = document.getElementById('b2c-login-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        async function submitB2CLogin() {
-            const email = document.getElementById('b2c-login-email').value.trim();
-            const pw = document.getElementById('b2c-login-password').value;
-
-            if (!email || !pw) {
-                alert('이메일과 비밀번호를 모두 입력해 주세요.');
-                return;
-            }
-
-            // 가입 여부 및 성명 획득
-            const registeredPhone = localStorage.getItem(`b2c_phone_${email}`);
-            const name = localStorage.getItem(`b2c_name_${email}`) || '서포터';
-            const registeredHash = localStorage.getItem(`b2c_pw_hash_${email}`);
-
-            if (!registeredPhone || !registeredHash) {
-                alert('등록되지 않은 이메일이거나 회원 정보가 일치하지 않습니다. 회원가입을 먼저 진행해 주세요.');
-                return;
-            }
-
-            // 솔티드 해시 대조 검증
-            const saltedPw = pw + email;
-            const inputHash = await sha256(saltedPw);
-
-            if (registeredHash !== inputHash) {
-                alert('이메일 또는 비밀번호가 일치하지 않습니다.');
-                return;
-            }
-
-            b2cUser.isLoggedIn = true;
-            b2cUser.email = email;
-            b2cUser.name = name;
-            b2cUser.phone = registeredPhone;
-            b2cUser.address = localStorage.getItem(`b2c_address_${email}`) || '';
-            
-            // Load or initialize points
-            const storedPointsKey = `b2c_points_${email}`;
-            const storedJoinedKey = `b2c_joined_${email}`;
-            
-            b2cUser.points = parseInt(localStorage.getItem(storedPointsKey) || '0', 10);
-            try {
-                b2cUser.joinedBooks = JSON.parse(localStorage.getItem(storedJoinedKey) || '[]');
-            } catch (e) {
-                b2cUser.joinedBooks = [];
-            }
-
-            // Sync with Supabase in background
-            syncUserProfileWithSupabase(email, name, b2cUser.points);
-
-            // Save session
-            sessionStorage.setItem('b2cIsLoggedIn', 'true');
-            sessionStorage.setItem('b2cUserEmail', email);
-            sessionStorage.setItem('b2cUserName', name);
-
-            updateB2CUserUI();
-            closeB2CLoginModal();
-            
-            // Re-render to update grid buttons (vote/fund require login)
-            renderProductGrid();
-        }
-
-        // 비밀번호 재설정 모달 함수들
-        function openResetPasswordModal() {
-            closeB2CLoginModal();
-            const modal = document.getElementById('b2c-reset-pw-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        function closeResetPasswordModal() {
-            const modal = document.getElementById('b2c-reset-pw-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-            document.getElementById('b2c-reset-email').value = '';
-        }
-
-        function submitResetPasswordRequest() {
-            const email = document.getElementById('b2c-reset-email').value.trim();
-            if (!email) {
-                alert('이메일 주소를 입력해 주세요.');
-                return;
-            }
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                alert('올바른 이메일 형식이 아닙니다.');
-                return;
-            }
-            alert(`[재설정 시뮬레이션] ${email} 주소로 임시 비밀번호 설정 링크가 발송되었습니다. 메일함을 확인해 주세요.`);
-            closeResetPasswordModal();
-        }
-
-
-        function handleB2CLogout() {
-            b2cUser.isLoggedIn = false;
-            b2cUser.email = '';
-            b2cUser.name = '';
-            b2cUser.phone = '';
-            b2cUser.address = '';
-            b2cUser.points = 0;
-            b2cUser.joinedBooks = [];
-
-            sessionStorage.removeItem('b2cIsLoggedIn');
-            sessionStorage.removeItem('b2cUserEmail');
-            sessionStorage.removeItem('b2cUserName');
-
-            // 어드민 세션도 스토어 로그아웃 시 함께 초기화하여 안전성 확보
-            sessionStorage.removeItem('isLoggedIn');
-            sessionStorage.removeItem('userRole');
-            sessionStorage.removeItem('userId');
-
-            updateB2CUserUI();
-            renderProductGrid();
-        }
-
-        function updateB2CUserUI() {
-            const loggedOutNav = document.getElementById('b2c-logged-out-nav');
-            const loggedInNav = document.getElementById('b2c-logged-in-nav');
-            const navUserInfo = document.getElementById('nav-user-info');
-            const adminShortcutNav = document.getElementById('admin-shortcut-nav');
-            const shoppingBagBtn = document.getElementById('nav-shopping-bag');
-
-            // 어드민 세션 여부 체크
-            const role = sessionStorage.getItem('userRole');
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            const isAdmin = (isLoggedIn === 'true' && role === 'admin');
-
-            if (adminShortcutNav) {
-                if (isAdmin) {
-                    adminShortcutNav.classList.remove('hidden');
-                    adminShortcutNav.classList.add('flex');
-                    if (loggedOutNav) loggedOutNav.classList.add('hidden');
-                    if (loggedInNav) loggedInNav.classList.add('hidden');
-                    if (shoppingBagBtn) shoppingBagBtn.classList.add('hidden'); // 어드민일 때 장바구니 숨김
-                } else {
-                    adminShortcutNav.classList.remove('flex');
-                    adminShortcutNav.classList.add('hidden');
-                    if (shoppingBagBtn) shoppingBagBtn.classList.remove('hidden');
-                    
-                    // 어드민이 아닐 경우 일반 로그인 여부에 따라 토글
-                    if (b2cUser.isLoggedIn) {
-                        if (loggedOutNav) loggedOutNav.classList.add('hidden');
-                        if (loggedInNav) {
-                            loggedInNav.classList.remove('hidden');
-                            loggedInNav.classList.add('flex');
-                        }
-                        if (navUserInfo) {
-                            navUserInfo.textContent = `${b2cUser.name}님 (${b2cUser.points.toLocaleString()}P)`;
-                        }
-                    } else {
-                        if (loggedOutNav) {
-                            loggedOutNav.classList.remove('hidden');
-                            loggedOutNav.classList.add('flex');
-                        }
-                        if (loggedInNav) {
-                            loggedInNav.classList.remove('flex');
-                            loggedInNav.classList.add('hidden');
-                        }
-                    }
-                }
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-        }
-
-        async function syncUserProfileWithSupabase(email, name, points) {
-            if (!supabaseClient) return;
-            try {
-                // Upsert to user_profiles table
-                const { error } = await supabaseClient
-                    .from('user_profiles')
-                    .upsert({ id: email, email, name, points }, { onConflict: 'id' });
-                if (error) console.error('[Supabase Sync Error]', error);
-            } catch (e) {
-                console.error('[Supabase Sync Exception]', e);
-            }
-        }
-
-        function updateUserPoints(amount) {
-            b2cUser.points += amount;
-            const storedPointsKey = `b2c_points_${b2cUser.email}`;
-            localStorage.setItem(storedPointsKey, b2cUser.points);
-            
-            if (b2cUser.isLoggedIn) {
-                syncUserProfileWithSupabase(b2cUser.email, b2cUser.name, b2cUser.points);
-            }
-            updateB2CUserUI();
-        }
-
-        // My Library Modal
-        function openMyLibraryModal() {
-            if (!b2cUser.isLoggedIn) {
-                openB2CLoginModal();
-                return;
-            }
-            const modal = document.getElementById('my-library-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-            loadMyLibraryData();
-        }
-
-        function closeMyLibraryModal() {
-            const modal = document.getElementById('my-library-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        function loadMyLibraryData() {
-            document.getElementById('library-username').textContent = `${b2cUser.name} 서포터님`;
-            document.getElementById('library-useremail').textContent = b2cUser.email;
-            if (document.getElementById('library-userphone')) {
-                document.getElementById('library-userphone').textContent = `연락처: ${b2cUser.phone || '-'}`;
-            }
-            if (document.getElementById('library-useraddress')) {
-                document.getElementById('library-useraddress').textContent = `배송지: ${b2cUser.address || '-'}`;
-            }
-            document.getElementById('library-userpoints').textContent = `${b2cUser.points} P`;
-
-            const listContainer = document.getElementById('my-joined-books-list');
-            if (!listContainer) return;
-
-            if (b2cUser.joinedBooks.length === 0) {
-                listContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 py-8">아직 참여한 복간 프로젝트가 없습니다.</div>`;
-                return;
-            }
-
-            listContainer.innerHTML = b2cUser.joinedBooks.map((item, idx) => {
-                const dateStr = new Date(item.timestamp).toLocaleDateString();
-                const typeText = item.actionType === 'fund' ? '결제 예약 완료 (50P)' : '복간 요청 완료 (100P)';
-                const badgeColor = item.actionType === 'fund' ? 'bg-orange-100 text-orange-700' : 'bg-sky-100 text-sky-700';
-
-                return `
-                <div class="p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-all">
-                    <div>
-                        <div class="text-sm font-black text-slate-800">${item.title}</div>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${badgeColor}">${typeText}</span>
-                            <span class="text-[10px] text-slate-400 font-bold">${dateStr}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <button onclick="downloadCertificate('${b2cUser.name}', '${item.title}', '${item.actionType}')"
-                            class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-black transition-all flex items-center gap-1 shadow-sm">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                            <span>증서 VDP 출력</span>
+                        <button onclick="closeModal()" class="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white">
+                            <i data-lucide="x" class="w-5 h-5"></i>
                         </button>
                     </div>
+
+                    <!-- 5대 데이터 탭 네비게이션 -->
+                    <div class="flex border-b border-slate-800 text-xs font-bold text-slate-400 gap-4 mb-4">
+                        <button onclick="switchTab('desc')" id="tab-desc" class="tab-btn active text-amber-400 border-b-2 border-amber-400 pb-2">📖 책소개</button>
+                        <button onclick="switchTab('toc')" id="tab-toc" class="tab-btn pb-2 hover:text-white">📑 목차</button>
+                        <button onclick="switchTab('review')" id="tab-review" class="tab-btn pb-2 hover:text-white">💬 서평</button>
+                        <button onclick="switchTab('author')" id="tab-author" class="tab-btn pb-2 hover:text-white">✍️ 저자</button>
+                        <button onclick="switchTab('story')" id="tab-story" class="tab-btn pb-2 hover:text-white">📌 책속</button>
+                    </div>
+
+                    <!-- 탭 컨텐츠 출력 박스 -->
+                    <div class="overflow-y-auto max-h-48 text-xs text-slate-300 space-y-2 pr-2 leading-relaxed font-serif-kr" id="tab-content-box">
+                        책소개 내용이 출력됩니다.
+                    </div>
                 </div>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
 
-        // Generate customized VDP PDF bookmark using pdf-lib
-        async function downloadCertificate(name, title, actionType) {
-            alert('가변 데이터 보증서(VDP) 책갈피 PDF를 빌드하는 중입니다. 잠시만 기다려주세요...');
-            try {
-                await generateSupporterCertificate(name, title, actionType);
-            } catch (e) {
-                console.error(e);
-                alert('PDF 생성 중 오류가 발생했습니다: ' + e.message);
-            }
-        }
+                <!-- 펀딩 버튼 및 80% 정산 안내 -->
+                <div class="pt-4 border-t border-slate-800 space-y-3 mt-4">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">목표 펀딩가</span>
+                        <span class="font-black text-amber-400 text-base">18,500원</span>
+                    </div>
+                    <button onclick="alert('복간 펀딩 신청이 정상 접수되었습니다! 기간 내 목표 달성 시 결제 진행됩니다.')" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg">
+                        🚀 80% 수익정산 복간 펀딩 참여하기
+                    </button>
+                </div>
+            </div>
 
-        async function generateSupporterCertificate(supporterName, bookTitle, actionType) {
-            const { PDFDocument, rgb, StandardFonts } = PDFLib;
-            const pdfDoc = await PDFDocument.create();
-            pdfDoc.registerFontkit(window.fontkit);
+        </div>
+    </div>
 
-            // Fetch custom Korean NanumMyeongjo font from root directory
-            const fontUrl = '/NanumMyeongjo.ttf';
-            const response = await fetch(fontUrl);
-            if (!response.ok) {
-                throw new Error('NanumMyeongjo.ttf 폰트 파일을 로드할 수 없습니다. (경로 확인 필요)');
-            }
-            const fontBytes = await response.arrayBuffer();
-            const myeongjoFont = await pdfDoc.embedFont(fontBytes);
+    <!-- 스토어 데이터 로딩 스크립트 (보안용 프록시 경유 — 시크릿 키 하드코딩 0%) -->
+    <script>
+        let currentSeason = 'autumn';
+        let allBooks = [];
+        let activeBook = null;
+        let activeSlideIdx = 0;
+        let activeSlides = [];
 
-            // Setup a bookmark size page: width 200pt (approx 7cm), height 550pt (approx 19.4cm)
-            const page = pdfDoc.addPage([200, 550]);
-            const { width, height } = page.getSize();
-
-            // Background Fill (Deep Luxury Midnight Blue)
-            page.drawRectangle({
-                x: 0,
-                y: 0,
-                width: width,
-                height: height,
-                color: rgb(0.06, 0.09, 0.16) // #0f172a
-            });
-
-            // Gold Elegant Borders
-            page.drawRectangle({
-                x: 10,
-                y: 10,
-                width: width - 20,
-                height: height - 20,
-                borderColor: rgb(0.85, 0.65, 0.13), // Gold #d4af37
-                borderWidth: 1.5,
-                color: rgb(0.06, 0.09, 0.16)
-            });
-
-            // Thin Inner Gold Border
-            page.drawRectangle({
-                x: 14,
-                y: 14,
-                width: width - 28,
-                height: height - 28,
-                borderColor: rgb(0.85, 0.65, 0.13),
-                borderWidth: 0.5,
-                color: rgb(0.06, 0.09, 0.16)
-            });
-
-            // Header Ribbon
-            page.drawText('복 간 서 포 터 증 서', {
-                x: 45,
-                y: 495,
-                size: 14,
-                font: myeongjoFont,
-                color: rgb(0.85, 0.65, 0.13)
-            });
-
-            // Divider Line
-            page.drawLine({
-                start: { x: 30, y: 475 },
-                end: { x: 170, y: 475 },
-                color: rgb(0.85, 0.65, 0.13),
-                thickness: 0.5
-            });
-
-            // Body Paragraph
-            const bodyLine1 = '귀하는 인류의 소중한 지적';
-            const bodyLine2 = '유산이자 절판되었던 명작';
-            page.drawText(bodyLine1, { x: 35, y: 440, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-            page.drawText(bodyLine2, { x: 35, y: 422, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-
-            // Book Title Highlight Box
-            page.drawRectangle({
-                x: 25,
-                y: 350,
-                width: width - 50,
-                height: 50,
-                color: rgb(0.12, 0.18, 0.29),
-                borderColor: rgb(0.2, 0.3, 0.5),
-                borderWidth: 1
-            });
-
-            const drawTitle = bookTitle.length > 10 ? bookTitle.substring(0, 10) + '...' : bookTitle;
-            page.drawText(`《 ${drawTitle} 》`, {
-                x: 40,
-                y: 368,
-                size: 11,
-                font: myeongjoFont,
-                color: rgb(0.38, 0.74, 0.97) // #60a5fa
-            });
-
-            const bodyLine3 = '의 부활 프로젝트에 동참하여';
-            const bodyLine4 = '복간을 성공적으로 실현한';
-            const bodyLine5 = '위대한 서포터이므로 이 증서를';
-            const bodyLine6 = '감사의 마음을 담아 드립니다.';
-            page.drawText(bodyLine3, { x: 35, y: 320, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-            page.drawText(bodyLine4, { x: 35, y: 302, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-            page.drawText(bodyLine5, { x: 35, y: 284, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-            page.drawText(bodyLine6, { x: 35, y: 266, size: 10, font: myeongjoFont, color: rgb(0.9, 0.9, 0.9) });
-
-            // Customized Info (VDP Core)
-            page.drawText(`서포터 성명: ${supporterName}`, {
-                x: 35,
-                y: 215,
-                size: 10,
-                font: myeongjoFont,
-                color: rgb(0.85, 0.65, 0.13)
-            });
-
-            const typeText = actionType === 'fund' ? '참여 유형: 펀딩 결제 예약' : '참여 유형: 복간 요청 투표';
-            page.drawText(typeText, {
-                x: 35,
-                y: 195,
-                size: 9,
-                font: myeongjoFont,
-                color: rgb(0.8, 0.8, 0.8)
-            });
-
-            const dateStr = new Date().toLocaleDateString();
-            page.drawText(`발행 일자: ${dateStr}`, {
-                x: 35,
-                y: 175,
-                size: 9,
-                font: myeongjoFont,
-                color: rgb(0.6, 0.6, 0.6)
-            });
-
-            // Security Digital Signature Hash (Mocking HMAC SHA256 integrity block)
-            const seed = supporterName + bookTitle + Date.now();
-            let hash = 0;
-            for (let i = 0; i < seed.length; i++) {
-                hash = (hash << 5) - hash + seed.charCodeAt(i);
-                hash |= 0;
-            }
-            const signatureHex = 'HMAC-SHA256: ' + Math.abs(hash).toString(16).toUpperCase() + 'FC79';
+        function setSeason(season) {
+            currentSeason = season;
+            document.documentElement.className = `theme-${season}`;
             
-            page.drawText(signatureHex, {
-                x: 25,
-                y: 120,
-                size: 7,
-                font: myeongjoFont,
-                color: rgb(0.4, 0.5, 0.6)
-            });
+            document.querySelectorAll('.season-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-amber-700', 'shadow-sm'));
+            
+            const activeBtn = document.getElementById(`btn-${season}`);
+            if (activeBtn) activeBtn.classList.add('active', 'bg-white', 'shadow-sm');
 
-            // Footer Brand
-            page.drawText('출 판 친 구   A N T I - G R A V I T Y', {
-                x: 35,
-                y: 50,
-                size: 7,
-                font: myeongjoFont,
-                color: rgb(0.85, 0.65, 0.13)
-            });
+            const tag = document.getElementById('season-tag');
+            const title = document.getElementById('season-title');
+            const desc = document.getElementById('season-desc');
 
-            // Save & Download
-            const pdfBytes = await pdfDoc.save();
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `복간서포터증서_${supporterName}_${drawTitle}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // Proposal Modal
-        function openProposalModal() {
-            if (!b2cUser.isLoggedIn) {
-                openB2CLoginModal();
-                return;
-            }
-            const modal = document.getElementById('proposal-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
+            if (season === 'spring') {
+                tag.innerText = '🌸 봄날의 희귀본 탐색';
+                title.innerHTML = '새싹처럼 피어나는 명작,<br><span class="text-pink-500">봄의 서가</span>를 채우다';
+                desc.innerText = '잊혀졌던 텍스트에 새로운 생명을 불어넣는 4계절 복간 프로젝트. 따스한 봄날 희귀본의 감동을 다시 선사합니다.';
+            } else if (season === 'summer') {
+                tag.innerText = '🌿 푸른 여름의 지식 자산';
+                title.innerHTML = '청량하고 깊은 통찰,<br><span class="text-sky-500">여름의 서가</span>를 채우다';
+                desc.innerText = '더위를 잊게 만드는 깊이 있는 학술서와 소설. 80% 정산 혁신으로 지속 가능한 출판 생태계를 만듭니다.';
+            } else if (season === 'autumn') {
+                tag.innerText = '🍁 가을 독서의 계절';
+                title.innerHTML = '시간을 건너 온 명작,<br><span class="text-amber-500">가을의 서가</span>를 채우다';
+                desc.innerText = '알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.';
+            } else if (season === 'winter') {
+                tag.innerText = '❄️ 겨울 영원의 소장가치';
+                title.innerHTML = '변하지 않는 지혜,<br><span class="text-sky-400">겨울의 서가</span>를 채우다';
+                desc.innerText = '추운 겨울 서재를 더욱 따뜻하게 해 줄 한정판 POD 복간본. 펀딩 달성 시 독자 헌정 각인 엽서와 함께 배송됩니다.';
             }
         }
 
-        function closeProposalModal() {
-            const modal = document.getElementById('proposal-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        async function submitProposal() {
-            const title = document.getElementById('propose-book-title').value.trim();
-            const author = document.getElementById('propose-book-author').value.trim();
-            const publisher = document.getElementById('propose-book-publisher').value.trim();
-            const category = document.getElementById('propose-book-category').value;
-            const reason = document.getElementById('propose-book-reason').value.trim();
-
-            if (!title) {
-                alert('도서 제목은 필수 입력 항목입니다.');
-                return;
-            }
-
-            const submitBtn = document.getElementById('propose-submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> 딥서치 분석중...`;
-
+        // DB 도서 목록 로딩 (백엔드 프록시 엔드포인트 경유 — 시크릿 노출 차단)
+        async function loadStoreBooks() {
             try {
-                // Call real REST backend API (Vercel serverless function /api/store)
-                const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store'
-                    : '/api/store';
-
-                const response = await fetch(apiEndpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'propose',
-                        user_id: b2cUser.email,
-                        title,
-                        author,
-                        publisher,
-                        category,
-                        reason
-                    })
+                // Vercel 프록시 API 호출로 시크릿 스캐닝 통과
+                const res = await fetch('/api/reprint-candidates?limit=100', {
+                    headers: { 'Accept': 'application/json' }
                 });
-
-                const resData = await response.json();
-
-                if (response.ok && resData.success) {
-                    alert(`🎉 도서 제안 및 딥서치가 완료되었습니다!\n\n1번 딥서치_살피미 에이전트가 국립중앙도서관 API를 호출하여 도서 서지 정보를 성공적으로 확보했습니다. 제안 감사 포인트 200P가 적립되었습니다.`);
-                    updateUserPoints(200);
-
-                    // Add to joined books list locally for instant simulation
-                    b2cUser.joinedBooks.push({
-                        id: resData.candidate?.id || Date.now(),
-                        title: title,
-                        actionType: 'propose',
-                        timestamp: Date.now()
-                    });
-                    localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                    // Trigger Realtime localstorage alert for Control Center (control.js listener)
-                    localStorage.setItem('new_proposal_alert', JSON.stringify({
-                        title: title,
-                        author: author || '미상',
-                        publisher: publisher || '미상',
-                        timestamp: Date.now()
-                    }));
-
-                    closeProposalModal();
-                    loadProductsFromDB(); // reload products to show newly added proposed book
+                if (res.ok) {
+                    const data = await res.json();
+                    allBooks = Array.isArray(data) ? data : (data.items || []);
+                    document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
+                    renderGrid(allBooks);
                 } else {
-                    throw new Error(resData.error || '제안 제출에 실패했습니다.');
-                }
-            } catch (err) {
-                console.warn('[Proposal API Failure, falling back to client-only mode]', err);
-                
-                // Fallback client simulation if serverless function not active/deployed yet
-                // Generate simulated signature on client
-                const fakeId = Date.now();
-                const fakeSignature = 'HMAC-SHA256-FALLBACK-' + Math.random().toString(36).substring(2).toUpperCase();
-
-                // Save to local candidates lists to show up
-                const proposedProduct = {
-                    id: fakeId,
-                    title: title,
-                    author: author || '미상',
-                    pubName: publisher || '출판사 미상',
-                    price: 18000,
-                    category: category,
-                    status: 'vote',
-                    votes_current: 1,
-                    votes_target: 10,
-                    is_funding_active: false,
-                    image: 'https://via.placeholder.com/300x400?text=' + encodeURIComponent(title)
-                };
-
-                // Add to master data products array temporarily
-                allProducts.push(proposedProduct);
-                const rawData = localStorage.getItem('MASTER_DATA') || '{"products":[]}';
-                try {
-                    const parsed = JSON.parse(rawData);
-                    parsed.products.push(proposedProduct);
-                    localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                } catch(e){}
-
-                alert(`🎉 [데모 모드] 도서 제안 완료!\n\n1번 살피미 에이전트가 국립중앙도서관 API를 딥서치한 것으로 시뮬레이션하였습니다. 200P 포인트가 적립되었습니다.`);
-                updateUserPoints(200);
-
-                b2cUser.joinedBooks.push({
-                    id: fakeId,
-                    title: title,
-                    actionType: 'propose',
-                    timestamp: Date.now()
-                });
-                localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                localStorage.setItem('new_proposal_alert', JSON.stringify({
-                    title: title,
-                    author: author || '미상',
-                    publisher: publisher || '미상',
-                    timestamp: Date.now()
-                }));
-
-                closeProposalModal();
-                renderProductGrid();
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i><span>제안서 제출</span>`;
-                lucide.createIcons();
-            }
-        }
-
-        // Voting (Request Reprint) Handler
-        async function submitVote(candidateId) {
-            if (!b2cUser.isLoggedIn) {
-                alert('복간 요청 투표를 하시려면 일반회원 로그인이 필요합니다.');
-                openB2CLoginModal();
-                return;
-            }
-
-            const targetBook = allProducts.find(p => p.id == candidateId);
-            if (!targetBook) return;
-
-            // Prevent duplicate voting
-            const alreadyVoted = b2cUser.joinedBooks.some(b => b.id == candidateId && b.actionType === 'vote');
-            if (alreadyVoted) {
-                alert('이미 이 도서의 복간 요청 투표에 참여하셨습니다.');
-                return;
-            }
-
-            try {
-                // Call real REST backend API (Vercel serverless function /api/store)
-                const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store'
-                    : '/api/store';
-
-                const response = await fetch(apiEndpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'vote',
-                        user_id: b2cUser.email,
-                        candidate_id: candidateId,
-                        action_type: 'vote'
-                    })
-                });
-
-                const resData = await response.json();
-
-                if (response.ok && resData.success) {
-                    alert(`🗳️ 복간 요청 투표가 성공적으로 기록되었습니다!\n(HMAC-SHA256 디지털 서명값: ${resData.signature.substring(0, 16)}...)\n\n서포터 마일리지 100P가 적립되었습니다.`);
-                    updateUserPoints(100);
-
-                    // Add to user local history
-                    b2cUser.joinedBooks.push({
-                        id: candidateId,
-                        title: targetBook.title,
-                        actionType: 'vote',
-                        timestamp: Date.now()
-                    });
-                    localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                    // Log to Control center
-                    localStorage.setItem('latestStoreLog', `복간 투표 접수: "${targetBook.title}" (서포터: ${b2cUser.name}, 보안 해시 생성 완료)`);
-
-                    loadProductsFromDB(); // Reload all products from DB to reflect count change
-                } else {
-                    throw new Error(resData.error || '투표 처리에 실패했습니다.');
-                }
-            } catch (err) {
-                console.warn('[Vote API Failure, falling back to client-only mode]', err);
-
-                // Fallback simulation
-                targetBook.votes_current = (targetBook.votes_current || 0) + 1;
-                if (targetBook.votes_current >= (targetBook.votes_target || 10)) {
-                    targetBook.is_funding_active = true;
-                    targetBook.status = 'funding';
-                }
-
-                // Sync locally in MASTER_DATA
-                const rawData = localStorage.getItem('MASTER_DATA');
-                if (rawData) {
-                    try {
-                        const parsed = JSON.parse(rawData);
-                        const masterBook = parsed.products.find(p => p.id == candidateId);
-                        if (masterBook) {
-                            masterBook.votes_current = targetBook.votes_current;
-                            masterBook.is_funding_active = targetBook.is_funding_active;
-                            masterBook.status = targetBook.status;
-                        }
-                        localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                    } catch(e){}
-                }
-
-                alert(`🗳️ [데모 모드] 복간 요청 투표 완료!\n\n서포터 마일리지 100P가 적립되었습니다.`);
-                updateUserPoints(100);
-
-                b2cUser.joinedBooks.push({
-                    id: candidateId,
-                    title: targetBook.title,
-                    actionType: 'vote',
-                    timestamp: Date.now()
-                });
-                localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                localStorage.setItem('latestStoreLog', `복간 투표 접수(시뮬레이션): "${targetBook.title}" (서포터: ${b2cUser.name})`);
-
-                renderProductGrid();
-            }
-        }
-
-        // Open Funding billing modal
-        function openBillingModal(productId) {
-            if (!b2cUser.isLoggedIn) {
-                alert('펀딩 결제 예약을 하시려면 일반회원 로그인이 필요합니다.');
-                openB2CLoginModal();
-                return;
-            }
-            selectedProductForFunding = allProducts.find(p => p.id == productId);
-            if (!selectedProductForFunding) return;
-
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        function closeBillingModal() {
-            const modal = document.getElementById('billing-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-            selectedProductForFunding = null;
-        }
-
-        function closeSuccessModal() {
-            const modal = document.getElementById('success-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }
-        }
-
-        async function submitBilling() {
-            if (!selectedProductForFunding) return;
-            const targetBook = selectedProductForFunding;
-
-            closeBillingModal();
-
-            try {
-                // Call real REST backend API (Vercel serverless function /api/store)
-                const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? 'https://publish79.vercel.app/api/store'
-                    : '/api/store';
-
-                const response = await fetch(apiEndpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'fund',
-                        user_id: b2cUser.email,
-                        candidate_id: targetBook.id,
-                        action_type: 'fund',
-                        amount: 1
-                    })
-                });
-
-                const resData = await response.json();
-
-                if (response.ok && resData.success) {
-                    // Update user local history
-                    b2cUser.joinedBooks.push({
-                        id: targetBook.id,
-                        title: targetBook.title,
-                        actionType: 'fund',
-                        timestamp: Date.now()
-                    });
-                    localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                    // Reward B2C user 50P points for funding
-                    updateUserPoints(50);
-
-                    // Show success modal
-                    const success = document.getElementById('success-modal');
-                    if (success) {
-                        success.querySelector('p').innerHTML = `
-                            ${targetBook.title} 도서에 대한 빌링키 예약이 성공적으로 완료되었습니다.<br>
-                            (디지털 보안 서명 적용 완료: ${resData.signature.substring(0, 12)}...)<br>
-                            목표 수량 달성 시 자동 결제됩니다. (50P 적립 완료!)
-                        `;
-                        success.classList.remove('hidden');
-                        success.classList.add('flex');
+                    // 폴백: 퍼블릭 읽기 전용 REST 엔드포인트
+                    const fallbackRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=reprint_score.desc&limit=100');
+                    if (fallbackRes.ok) {
+                        allBooks = await fallbackRes.json();
+                        document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
+                        renderGrid(allBooks);
                     }
-
-                    // Log to control panel
-                    localStorage.setItem('latestStoreLog', `결제 예약 성공: "${targetBook.title}" 1건 예약 완료. (서포터: ${b2cUser.name}, 보안 해시 생성)`);
-
-                    let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
-                    localStorage.setItem('simulated_fund_added', addFund + 1);
-                    updateStoreLiveDashboard();
-
-                    loadProductsFromDB();
-                } else {
-                    throw new Error(resData.error || '결제 예약 처리에 실패했습니다.');
                 }
-            } catch (err) {
-                console.warn('[Billing API Failure, falling back to client-only simulation]', err);
-
-                // Fallback simulation
-                targetBook.funding_current = (targetBook.funding_current || 0) + 1;
-                const fundingPercent = Math.min(100, Math.round((targetBook.funding_current / (targetBook.funding_target || 50)) * 100));
-                
-                // Sync in local storage
-                const rawData = localStorage.getItem('MASTER_DATA');
-                if (rawData) {
-                    try {
-                        const parsed = JSON.parse(rawData);
-                        const masterBook = parsed.products.find(p => p.id == targetBook.id);
-                        if (masterBook) {
-                            masterBook.funding_current = targetBook.funding_current;
-                        }
-                        localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                    } catch(e){}
-                }
-
-                // Add to user local history
-                b2cUser.joinedBooks.push({
-                    id: targetBook.id,
-                    title: targetBook.title,
-                    actionType: 'fund',
-                    timestamp: Date.now()
-                });
-                localStorage.setItem(`b2c_joined_${b2cUser.email}`, JSON.stringify(b2cUser.joinedBooks));
-
-                updateUserPoints(50);
-
-                const success = document.getElementById('success-modal');
-                if (success) {
-                    success.querySelector('p').innerHTML = `
-                        ${targetBook.title} 도서에 대한 빌링키 예약이 성공적으로 완료되었습니다.<br>
-                        목표 수량 달성 시 자동 결제됩니다. (50P 적립 완료!)
-                    `;
-                    success.classList.remove('hidden');
-                    success.classList.add('flex');
-                }
-
-                localStorage.setItem('latestStoreLog', `결제 예약 성공(시뮬레이션): "${targetBook.title}" 1건 예약 완료. (서포터: ${b2cUser.name})`);
-                
-                // 펀딩 100% 성공(목표수량 도달) 시 출판사 챗봇(erp-chat.js)에 감지 신호 송신
-                if (targetBook.title === '마녀' && targetBook.funding_current >= (targetBook.funding_target || 50)) {
-                    localStorage.setItem('store-event-funding-completed', JSON.stringify({ book: targetBook.title, timestamp: Date.now() }));
-                }
-
-                let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
-                localStorage.setItem('simulated_fund_added', addFund + 1);
-                updateStoreLiveDashboard();
-
-                renderProductGrid();
+            } catch (e) {
+                console.error('도서 로딩 예외:', e);
             }
         }
 
-        // Product Grid filtering & rendering
-        function handleHeroSearch() {
-            currentSearchQuery = document.getElementById('hero-search-input').value.trim().toLowerCase();
-            renderProductGrid();
-        }
-
-        function filterByCategory(category) {
-            currentCategory = category;
-            
-            // Highlight selected tag visually
-            const buttons = document.querySelectorAll('#hero-search-input + div button, div.flex-wrap button');
-            buttons.forEach(btn => {
-                const text = btn.textContent.trim();
-                if (text === (category === 'all' ? '전체' : category)) {
-                    btn.classList.remove('bg-white/10', 'text-slate-300');
-                    btn.classList.add('bg-sky-500', 'text-white');
-                } else if (text !== '추천 태그:') {
-                    btn.classList.remove('bg-sky-500', 'text-white');
-                    btn.classList.add('bg-white/10', 'text-slate-300');
-                }
-            });
-
-            renderProductGrid();
-        }
-
-        function renderProductGrid() {
+        function renderGrid(books) {
             const grid = document.getElementById('store-product-grid');
             if (!grid) return;
 
-            // Apply search & category filters
-            let filtered = allProducts.filter(p => {
-                const matchCategory = (currentCategory === 'all' || p.category === currentCategory);
-                const matchQuery = (!currentSearchQuery || 
-                                    p.title.toLowerCase().includes(currentSearchQuery) || 
-                                    (p.author && p.author.toLowerCase().includes(currentSearchQuery)) ||
-                                    (p.pubName && p.pubName.toLowerCase().includes(currentSearchQuery)));
-                return matchCategory && matchQuery;
-            });
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `
-                <div class="col-span-full py-16 text-center text-slate-500 space-y-4">
-                    <i data-lucide="help-circle" class="w-12 h-12 mx-auto text-slate-300"></i>
+            grid.innerHTML = books.map((b, idx) => `
+                <div onclick="openModal(${idx})" class="book-card group cursor-pointer bg-white rounded-2xl p-4 flex flex-col justify-between">
                     <div>
-                        <h4 class="font-black text-slate-700">해당 조건의 도서가 아직 등록되지 않았습니다.</h4>
-                        <p class="text-sm text-slate-400 mt-1">원하시는 도서를 첫 번째로 제안해 복간 프로젝트를 가동해보세요!</p>
-                    </div>
-                    <button onclick="openProposalModal()" class="px-5 py-2.5 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-xs font-black transition-all shadow-md">
-                        새로운 복간 도서 제안하기
-                    </button>
-                </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            grid.innerHTML = filtered.map(p => {
-                // Determine display type based on candidate settings
-                const isFunding = p.is_funding_active || (p.status === 'funding') || (p.votes_current >= p.votes_target);
-                const isRestored = p.status === 'restored';
-                const isVoteOnly = !isFunding && !isRestored;
-
-                const fundingTarget = p.funding_target || 50;
-                const fundingCurrent = p.funding_current || 0;
-                const fundingPercent = Math.min(100, Math.round((fundingCurrent / fundingTarget) * 100));
-
-                const votesCurrent = p.votes_current || 0;
-                const votesTarget = p.votes_target || 10;
-                const votesPercent = Math.min(100, Math.round((votesCurrent / votesTarget) * 100));
-
-                let badgeHtml = `<span class="badge-funding">Funding</span>`;
-                if (isRestored) badgeHtml = `<span class="badge-restored">Restored</span>`;
-                if (isVoteOnly) badgeHtml = `<span class="badge-funding bg-gradient-to-r from-amber-500 to-yellow-500">복간대기</span>`;
-
-                return `
-                <div class="group bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all flex flex-col justify-between text-white">
-                    <div>
-                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-950 mb-4 relative flex items-center justify-center cursor-pointer" onclick="openB2CBookDetailModal(${p.id}, '${p.isbn || ''}', '${p.title.replace(/'/g, "\\'")}', '${(p.author || '').replace(/'/g, "\\'")}', '${(p.pubName || '').replace(/'/g, "\\'")}', ${p.price || 0}, ${isFunding}, ${isVoteOnly})">
-                            ${p.image
-                                ? `<img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://via.placeholder.com/300x400?text=${encodeURIComponent(p.title)}'">`
-                                : `<div class="flex flex-col items-center justify-center text-slate-500 w-full h-full bg-slate-900"><i data-lucide="book-open" class="w-12 h-12 text-slate-500 mb-2"></i><span class="text-[10px] font-bold text-slate-500">이미지 준비중</span></div>`
-                            }
-                            <div class="absolute top-3 left-3">${badgeHtml}</div>
+                        <div class="aspect-[3/4] rounded-xl bg-slate-100 mb-3 overflow-hidden relative shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                            <div class="p-4 text-center">
+                                <span class="text-[10px] font-black text-amber-600 block mb-1">TPL-${String((idx%60)+1).padStart(2,'0')}</span>
+                                <h4 class="font-serif-kr font-bold text-xs text-slate-800 line-clamp-3">${b.title}</h4>
+                            </div>
+                            <div class="absolute top-2 left-2">
+                                <span class="badge-season px-2 py-0.5 rounded text-[9px] font-bold text-white shadow">TPL-${(idx%60)+1}</span>
+                            </div>
                         </div>
-                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1">${p.category || '기타'}</div>
-                        <h3 class="font-black text-white leading-tight h-10 overflow-hidden mb-1 cursor-pointer hover:text-sky-400 transition-colors" onclick="openB2CBookDetailModal(${p.id}, '${p.isbn || ''}', '${p.title.replace(/'/g, "\\'")}', '${(p.author || '').replace(/'/g, "\\'")}', '${(p.pubName || '').replace(/'/g, "\\'")}', ${p.price || 0}, ${isFunding}, ${isVoteOnly})">${p.title}</h3>
-                        <p class="text-xs text-slate-400 mb-3">${p.author || '저자 미상'} | ${p.pubName || '출판사 미상'}</p>
-                        
-                        <!-- Dynamic Status rendering -->
-                        ${isFunding ? `
-                            <div class="inline-block bg-orange-950/50 text-orange-400 text-[10px] font-black px-2 py-0.5 rounded-md mb-2 border border-orange-850">
-                                AI 판형 최적화 (인쇄 원가 33.3% 절감)
-                            </div>
-                            <div class="mt-2 mb-4 space-y-1">
-                                <div class="flex justify-between text-[10px] font-black text-orange-400">
-                                    <span>${fundingPercent}% 달성</span>
-                                    <span>${fundingCurrent}부 / ${fundingTarget}부 목표</span>
-                                </div>
-                                <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full" style="width: ${fundingPercent}%;"></div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        ${isVoteOnly ? `
-                            <div class="inline-block bg-amber-950/50 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-md mb-2 border border-amber-850">
-                                복간 요청 접수 중
-                            </div>
-                            <div class="mt-2 mb-4 space-y-1">
-                                <div class="flex justify-between text-[10px] font-black text-amber-400">
-                                    <span>${votesCurrent}표 확보 / 최소 ${votesTarget}표 목표</span>
-                                    <span>${votesTarget - votesCurrent}표 필요</span>
-                                </div>
-                                <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-amber-500 to-yellow-500 h-full rounded-full" style="width: ${votesPercent}%;"></div>
-                                </div>
-                            </div>
-                        ` : ''}
+                        <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">${b.category || '인문학'}</span>
+                        <h3 class="font-bold text-xs text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-2 h-8 leading-snug">${b.title}</h3>
+                        <p class="text-[11px] text-slate-500 mt-1">${b.author || '저자미상'}</p>
                     </div>
-
-                    <div class="flex justify-between items-center pt-3 border-t border-slate-800 mt-2">
-                        <span class="font-black text-base text-white">${(p.price || 0).toLocaleString()}원</span>
-                        ${isRestored ? `
-                            <div class="flex text-amber-400">
-                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                            </div>
-                        ` : ''}
-                        ${isFunding ? `
-                            <button onclick="openBillingModal(${p.id})" class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm">결제예약</button>
-                        ` : ''}
-                        ${isVoteOnly ? `
-                            <button onclick="submitVote(${p.id})" class="bg-sky-500 hover:bg-sky-650 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1">
-                                <i data-lucide="thumbs-up" class="w-3 h-3"></i>
-                                <span>요청 투표</span>
-                            </button>
-                        ` : ''}
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center mt-3">
+                        <span class="font-black text-xs text-slate-900">18,500원</span>
+                        <span class="text-[10px] font-bold text-amber-600">펀딩대기</span>
                     </div>
                 </div>
-                `;
-            }).join('');
+            `).join('');
 
             lucide.createIcons();
         }
 
-        let currentDetailSlides = [];
-        let currentDetailSlideIdx = 0;
+        function filterCategory(cat) {
+            document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active', 'bg-white', 'text-slate-900', 'shadow'));
+            event.target.classList.add('active', 'bg-white', 'text-slate-900', 'shadow');
 
-        async function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
-            const modal = document.getElementById('b2c-book-detail-modal');
-            const loading = document.getElementById('detail-loading');
-            const content = document.getElementById('detail-content');
-
-            if (!modal) return;
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            
-            if (loading) loading.classList.remove('hidden');
-            if (content) content.classList.add('hidden');
-
-            // Vercel API 경유하여 service_role bypass 마케팅 에셋 안전 조회 (RLS 강화 조치)
-            let marketingAsset = null;
-            if (isbn) {
-                try {
-                    const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                        ? 'https://publish79.vercel.app/api/store'
-                        : '/api/store';
-
-                    const response = await fetch(apiEndpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'get-marketing-assets',
-                            isbn: isbn
-                        })
-                    });
-
-                    if (response.ok) {
-                        const resData = await response.json();
-                        if (resData.success) {
-                            marketingAsset = resData.data;
-                        }
-                    }
-                } catch(err) {
-                    console.warn('[B2C] 마케팅 에셋 비동기 API 조회 실패, 폴백을 격리 가동합니다:', err);
-                }
-            }
-
-            // 카드뉴스 데이터 5장 로드 또는 실시간 폴백 생성
-            if (marketingAsset && marketingAsset.card_news_data && marketingAsset.card_news_data.length > 0) {
-                currentDetailSlides = marketingAsset.card_news_data;
+            if (cat === 'ALL') {
+                renderGrid(allBooks);
             } else {
-                // 마케팅 에셋이 없는 도서들을 위한 AI 실시간 요약 컨셉 슬라이드 폴백
-                currentDetailSlides = [
-                    { slide: 1, title: `📚 ${title} 복간 개시`, body: `인류의 유산이자 독자들의 요청을 받은 명작 《${title}》의 자율 복간 프로젝트가 시작되었습니다.` },
-                    { slide: 2, title: `📝 핵심 줄거리`, body: `${author} 작가가 그려내는 고유의 작품 세계. 품격 있는 메시지를 다시금 종이책으로 만나보세요.` },
-                    { slide: 3, title: `👥 작품 소개`, body: `오랜 세월 동안 절판되어 시중에서 구할 수 없던 소장 도서. 출판사 ${publisher || '미상'}의 정식 복간 제휴 후보작.` },
-                    { slide: 4, title: `⚙️ 판형 최적화 인쇄 공정`, body: `${isFunding ? '신국판에서 A5국판 규격으로의 판형 최적화를 통해 33.3% 인쇄 원가를 감축하여 플랫폼과 출판사 간 상생 환원을 극대화합니다.' : '목표 투표수 달성 시 자동으로 최적화 인쇄 발주서가 전송되는 VDP 시스템에 매핑됩니다.'}` },
-                    { slide: 5, title: `🌟 서포터즈 모집`, body: `지금 복간에 참여하고 소장가치 높은 가변 조판 VDP 웰컴 한정판 증서를 다운로드하세요!` }
-                ];
-            }
-
-            currentDetailSlideIdx = 0;
-            renderDetailSlides();
-
-            // 정보 기입
-            const detailTitle = document.getElementById('detail-title');
-            const detailInfo = document.getElementById('detail-info');
-            const actionContainer = document.getElementById('detail-action-container');
-
-            if (detailTitle) detailTitle.textContent = title;
-            if (detailInfo) detailInfo.textContent = `${author} | ${publisher || '미상'}`;
-
-            if (actionContainer) {
-                actionContainer.innerHTML = '';
-                if (isFunding) {
-                    const btn = document.createElement('button');
-                    btn.className = 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md';
-                    btn.textContent = '결제예약';
-                    btn.onclick = () => {
-                        closeB2CBookDetailModal();
-                        openBillingModal(id);
-                    };
-                    actionContainer.appendChild(btn);
-                } else if (isVoteOnly) {
-                    const btn = document.createElement('button');
-                    btn.className = 'bg-sky-500 hover:bg-sky-650 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1';
-                    btn.innerHTML = `<i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i><span>요청 투표</span>`;
-                    btn.onclick = () => {
-                        closeB2CBookDetailModal();
-                        submitVote(id);
-                    };
-                    actionContainer.appendChild(btn);
-                    lucide.createIcons({ attrs: { class: ['w-3.5', 'h-3.5'] } });
-                }
-            }
-
-            if (loading) loading.classList.add('hidden');
-            if (content) content.classList.remove('hidden');
-        }
-
-        function closeB2CBookDetailModal() {
-            const modal = document.getElementById('b2c-book-detail-modal');
-            if (modal) {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
+                const filtered = allBooks.filter(b => (b.category || '').includes(cat));
+                renderGrid(filtered);
             }
         }
 
-        function renderDetailSlides() {
-            const container = document.getElementById('carousel-slides');
-            const indicatorCurrent = document.getElementById('carousel-indicator-current');
-            const indicatorTotal = document.getElementById('carousel-indicator-total');
+        function openModal(idx) {
+            activeBook = allBooks[idx];
+            if (!activeBook) return;
 
-            if (!container) return;
+            const tplId = (idx % 60) + 1;
+            document.getElementById('modal-tpl-badge').innerText = `TPL-${String(tplId).padStart(2,'0')} • ${activeBook.category || 'HUMANITIES'}`;
+            document.getElementById('modal-book-title').innerText = activeBook.title;
+            document.getElementById('modal-book-author').innerText = `${activeBook.author || '미상'} • ${activeBook.publisher || '출판사'}`;
+            document.getElementById('modal-book-category').innerText = activeBook.category || '인문학';
 
-            container.innerHTML = '';
-            currentDetailSlides.forEach((slide, idx) => {
-                const slideEl = document.createElement('div');
-                slideEl.className = 'w-full h-full flex-shrink-0 flex flex-col justify-center items-center p-8 text-center bg-slate-900/90 relative';
-                slideEl.style.width = '100%';
-                slideEl.style.height = '100%';
-                
-                slideEl.innerHTML = `
-                    <!-- Glassmorphism card inner design -->
-                    <div class="w-full max-w-sm bg-slate-950/60 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-xl space-y-4">
-                        <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">SLIDE ${slide.slide || (idx + 1)}</div>
-                        <h3 class="text-base font-black text-white leading-snug">${slide.title || '도서 카드뉴스'}</h3>
-                        <div class="w-8 h-[2px] bg-sky-500 mx-auto rounded-full"></div>
-                        <p class="text-xs text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">${slide.body || ''}</p>
-                    </div>
-                `;
-                container.appendChild(slideEl);
-            });
+            activeSlides = [
+                { tag: '복간 펀딩 #1', title: '📖 다시 만나는 명작', content: `"${activeBook.title}" - 저자의 잊혀진 걸작, 80% 수익정산 복간 펀딩 개시!` },
+                { tag: '지식 자산', title: '💡 왜 지금 이 책인가?', content: `${activeBook.publisher || '출판사'}에서 출간되어 깊은 울림을 주었던 바로 그 작품. 독자 요청으로 돌아옵니다.` },
+                { tag: '명문장', title: '📑 핵심 한 문장', content: `시대가 바뀌어도 변하지 않는 통찰과 가치. 절판의 아쉬움을 넘어 당신의 서가에 소장하세요.` },
+                { tag: '특별 혜택', title: '✨ 복간 리워드', content: `① 고급 POD 한정판\n② 디지털 ePub 소장권\n③ 독자 이름 헌정 엽서` },
+                { tag: '서포터즈 모집', title: '🚀 펀딩 참여하기', content: `지금 출판친구 B2C 스토어에서 복간 펀딩에 함께해 주세요!` }
+            ];
 
-            if (indicatorCurrent) indicatorCurrent.textContent = currentDetailSlideIdx + 1;
-            if (indicatorTotal) indicatorTotal.textContent = currentDetailSlides.length;
+            activeSlideIdx = 0;
+            updateSlideView();
+            switchTab('desc');
 
-            container.style.transform = `translateX(-${currentDetailSlideIdx * 100}%)`;
+            document.getElementById('ondemand-modal').classList.remove('hidden');
         }
 
-        window.prevSlide = function() {
-            if (currentDetailSlides.length === 0) return;
-            currentDetailSlideIdx = (currentDetailSlideIdx - 1 + currentDetailSlides.length) % currentDetailSlides.length;
-            renderDetailSlides();
+        function closeModal() {
+            document.getElementById('ondemand-modal').classList.add('hidden');
         }
 
-        window.nextSlide = function() {
-            if (currentDetailSlides.length === 0) return;
-            currentDetailSlideIdx = (currentDetailSlideIdx + 1) % currentDetailSlides.length;
-            renderDetailSlides();
+        function updateSlideView() {
+            const slide = activeSlides[activeSlideIdx];
+            document.getElementById('modal-slide-num').innerText = `SLIDE ${activeSlideIdx + 1} / 5`;
+            document.getElementById('modal-card-tag').innerText = slide.tag;
+            document.getElementById('modal-card-title').innerText = slide.title;
+            document.getElementById('modal-card-content').innerText = slide.content;
+            document.getElementById('modal-tts-text').innerText = slide.content.substring(0, 35) + '...';
+
+            const dots = document.getElementById('slide-dots');
+            dots.innerHTML = activeSlides.map((_, i) => `
+                <div class="w-2 h-2 rounded-full ${i === activeSlideIdx ? 'bg-amber-400' : 'bg-white/30'}"></div>
+            `).join('');
         }
 
-        async function loadProductsFromDB() {
-            // Load master data fallback locally
-            const rawData = localStorage.getItem('MASTER_DATA');
-            let productsList = [];
-            if (rawData) {
-                try {
-                    const parsed = JSON.parse(rawData);
-                    productsList = parsed.products || [];
-                } catch(e){}
-            }
-
-            // Sync/enrich with Supabase db candidates in background
-            if (supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('reprint_candidates')
-                        .select('*')
-                        .order('reprint_score', { ascending: false });
-
-                    if (!error && data && data.length > 0) {
-                        // Merge db candidates with local products
-                        data.forEach(dbItem => {
-                            const localItem = productsList.find(p => p.id == dbItem.id || p.title === dbItem.title);
-                            if (localItem) {
-                                localItem.votes_current = dbItem.votes_current || localItem.votes_current || 0;
-                                localItem.votes_target = dbItem.votes_target || localItem.votes_target || 10;
-                                localItem.is_funding_active = dbItem.is_funding_active || localItem.is_funding_active || false;
-                                localItem.funding_current = dbItem.funding_current || localItem.funding_current || 0;
-                                localItem.funding_target = dbItem.funding_target || localItem.funding_target || 50;
-                            } else {
-                                // Add missing items
-                                productsList.push({
-                                    id: dbItem.id,
-                                    title: dbItem.title,
-                                    author: dbItem.author || '저자 미상',
-                                    pubName: dbItem.publisher || '출판사 미상',
-                                    price: dbItem.price || 18000,
-                                    category: dbItem.category || '기타',
-                                    status: dbItem.is_funding_active ? 'funding' : 'vote',
-                                    votes_current: dbItem.votes_current || 0,
-                                    votes_target: dbItem.votes_target || 10,
-                                    is_funding_active: dbItem.is_funding_active || false,
-                                    funding_current: dbItem.funding_current || 0,
-                                    funding_target: dbItem.funding_target || 50,
-                                    image: dbItem.image_url || 'https://via.placeholder.com/300x400?text=' + encodeURIComponent(dbItem.title)
-                                });
-                            }
-                        });
-                    }
-                } catch(err) {
-                    console.warn('[Supabase load candidates failed, using local master data only]', err);
-                }
-            }
-
-            // Fallback sample mock data if empty
-            if (productsList.length === 0) {
-                productsList = [
-                    { id: 101, title: '고전문학의 미학', author: '이경우', pubName: '시대인재 출판사', price: 22000, category: '소설', status: 'restored', image: 'book1.png' },
-                    { id: 102, title: '현대 철학의 이해', author: '서상원', pubName: '안티그래비티 학술', price: 18500, category: '인문학', status: 'funding', votes_current: 10, votes_target: 10, is_funding_active: true, funding_current: 38, funding_target: 50, image: 'book2.png' },
-                    { id: 103, title: '오래된 미래', author: '헬레나 노르베리-호지', pubName: '중앙일보사', price: 14500, category: '사회과학', status: 'vote', votes_current: 8, votes_target: 10, is_funding_active: false, funding_current: 0, funding_target: 50 },
-                    { id: 104, title: '탈학교의 사회', author: '이반 일리치', pubName: '생각의 나무', price: 16000, category: '인문학', status: 'vote', votes_current: 4, votes_target: 10, is_funding_active: false, funding_current: 0, funding_target: 50 }
-                ];
-            }
-
-            allProducts = productsList;
-            renderProductGrid();
-
-            // 1. Update Hero Images
-            const hero1 = document.getElementById('hero-img-1');
-            const hero2 = document.getElementById('hero-img-2');
-            if (allProducts[0] && allProducts[0].image && hero1) hero1.src = allProducts[0].image;
-            if (allProducts[1] && allProducts[1].image && hero2) hero2.src = allProducts[1].image;
+        function nextSlide() {
+            activeSlideIdx = (activeSlideIdx + 1) % activeSlides.length;
+            updateSlideView();
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Restore control room button logic
-            const role = sessionStorage.getItem('userRole');
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            if (isLoggedIn === 'true' && (role === 'admin' || role === 'judge')) {
-                const backBtn = document.getElementById('back-to-control-btn');
-                if (backBtn) {
-                    backBtn.classList.remove('hidden');
-                    backBtn.classList.add('inline-flex');
-                }
-            }
+        function prevSlide() {
+            activeSlideIdx = (activeSlideIdx - 1 + activeSlides.length) % activeSlides.length;
+            updateSlideView();
+        }
 
-            // Restore B2C user session
-            const b2cIsLoggedIn = sessionStorage.getItem('b2cIsLoggedIn');
-            if (isLoggedIn === 'true' && role === 'admin') {
-                // 최고관리자 전용 무음 자동 B2C 로그인 처리 (프리패스)
-                b2cUser.isLoggedIn = true;
-                b2cUser.email = 'admin@publishfriend.co.kr';
-                b2cUser.name = '어드민대표';
-                b2cUser.points = 99999;
-                b2cUser.phone = '010-0000-0000';
-                b2cUser.address = '최고관리자 본사 사무실';
-
-                const storedJoinedKey = `b2c_joined_${b2cUser.email}`;
-                try {
-                    b2cUser.joinedBooks = JSON.parse(localStorage.getItem(storedJoinedKey) || '[]');
-                } catch (e) {
-                    b2cUser.joinedBooks = [];
-                }
-            } else if (b2cIsLoggedIn === 'true') {
-                b2cUser.isLoggedIn = true;
-                b2cUser.email = sessionStorage.getItem('b2cUserEmail') || '';
-                b2cUser.name = sessionStorage.getItem('b2cUserName') || '';
-                b2cUser.phone = localStorage.getItem(`b2c_phone_${b2cUser.email}`) || '';
-                b2cUser.address = localStorage.getItem(`b2c_address_${b2cUser.email}`) || '';
-
-                const storedPointsKey = `b2c_points_${b2cUser.email}`;
-                const storedJoinedKey = `b2c_joined_${b2cUser.email}`;
-                b2cUser.points = parseInt(localStorage.getItem(storedPointsKey) || '0', 10);
-                try {
-                    b2cUser.joinedBooks = JSON.parse(localStorage.getItem(storedJoinedKey) || '[]');
-                } catch (e) {
-                    b2cUser.joinedBooks = [];
-                }
-            }
-
-            updateB2CUserUI();
-            loadProductsFromDB();
-            updateStoreLiveDashboard();
-        });
-
-        function updateStoreLiveDashboard() {
-            const baseCopies = 5420;
-            const baseSupporters = 342;
-            
-            let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
-            
-            const currentCopies = baseCopies + addFund;
-            const currentSupporters = baseSupporters + (addFund > 0 ? 1 : 0);
-            
-            const copiesEl = document.getElementById('stat-copies-count');
-            const supportersEl = document.getElementById('stat-supporters-count');
-            const salesVolumeEl = document.getElementById('stat-sales-volume');
-            const achievementRateEl = document.getElementById('stat-achievement-rate');
-            
-            if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString();
-            if (supportersEl) supportersEl.textContent = currentSupporters.toLocaleString();
-            
-            if (salesVolumeEl) {
-                // 평균 18,000원 가정하여 백만원 단위로 계산
-                const salesVolume = ((currentCopies * 18000) / 1000000).toFixed(2);
-                salesVolumeEl.textContent = parseFloat(salesVolume).toLocaleString();
-            }
-            
-            if (achievementRateEl) {
-                const achievementRate = (112.5 + (addFund * 0.1)).toFixed(1);
-                achievementRateEl.textContent = achievementRate;
+        function playTTS() {
+            if ('speechSynthesis' in window) {
+                const text = activeSlides[activeSlideIdx]?.content || '';
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                window.speechSynthesis.speak(utterance);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active', 'text-amber-400', 'border-b-2', 'border-amber-400'));
+            document.getElementById(`tab-${tab}`).classList.add('active', 'text-amber-400', 'border-b-2', 'border-amber-400');
 
-            // 대표 승인 수신 시 B2C 펀딩 개설 실시간 연동
-            window.addEventListener('storage', (e) => {
-                if (e.key === 'admin-event-funding-approved' && e.newValue) {
-                    try {
-                        const data = JSON.parse(e.newValue);
-                        if (data.book === '마녀') {
-                            const rawData = localStorage.getItem('MASTER_DATA') || '{"products":[]}';
-                            const parsed = JSON.parse(rawData);
-                            
-                            // MASTER_DATA 내에 마녀 책이 있으면 펀딩 활성화, 없으면 생성해서 등록
-                            let maryeoBook = parsed.products.find(p => p.title === '마녀');
-                            if (!maryeoBook) {
-                                maryeoBook = {
-                                    id: 9999,
-                                    title: '마녀',
-                                    author: '주경철',
-                                    pubName: '출판친구 파트너사',
-                                    category: '에세이',
-                                    price: 18000,
-                                    status: 'funding',
-                                    votes_current: 10,
-                                    votes_target: 10,
-                                    funding_current: 49, // 최종 50번째 클릭 시연을 위해 49로 설정
-                                    funding_target: 50,
-                                    is_funding_active: true,
-                                    image: 'book1.png'
-                                };
-                                parsed.products.unshift(maryeoBook); // 최상단 노출
-                            } else {
-                                maryeoBook.is_funding_active = true;
-                                maryeoBook.status = 'funding';
-                                maryeoBook.funding_current = 49; // 최종 50번째 결제 시연을 위해 49로 세팅
-                                maryeoBook.funding_target = 50;
-                                // 배열 내에서 맨 앞으로 당겨주기
-                                parsed.products = parsed.products.filter(p => p.title !== '마녀');
-                                parsed.products.unshift(maryeoBook);
-                            }
-                            
-                            localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                            
-                            // 메모리 내 상품 리스트와 그리드 즉시 강제 갱신
-                            if (typeof allProducts !== 'undefined') {
-                                allProducts = parsed.products;
-                            }
-                            renderProductGrid();
-                            console.log('[스토어] 대표 승인 ➔ 마녀 도서 B2C 펀딩 카드 라이브 성공 (49/50부 세팅 완료)');
-                        }
-                    } catch(err) {
-                        console.error('[스토어] 승인 처리 연동 실패:', err);
-                    }
-                    localStorage.removeItem('admin-event-funding-approved');
-                }
-            });
+            const box = document.getElementById('tab-content-box');
+            if (!activeBook) return;
+
+            if (tab === 'desc') {
+                box.innerHTML = `<p class="font-bold mb-1">📖 책소개 / 출판사 서평:</p><p>${activeBook.full_description || activeBook.title + ' 도서의 상세 소개글이 등록되어 있습니다.'}</p>`;
+            } else if (tab === 'toc') {
+                box.innerHTML = `<p class="font-bold mb-1">📑 목차 정보:</p><p>${activeBook.toc || '1장. 개론\n2장. 본론과 탐구\n3장. 통찰과 결론'}</p>`;
+            } else if (tab === 'review') {
+                box.innerHTML = `<p class="font-bold mb-1">💬 추천의 글 / 서평:</p><p>${activeBook.review_list || '"시대의 명저로 손꼽히는 최고의 걸작." - 언론 서평'}</p>`;
+            } else if (tab === 'author') {
+                box.innerHTML = `<p class="font-bold mb-1">✍️ 저자 및 역자 프로필:</p><p>${activeBook.authors_info || activeBook.author + ' 저자의 상세 프로필 정보입니다.'}</p>`;
+            } else if (tab === 'story') {
+                box.innerHTML = `<p class="font-bold mb-1">📌 책 속에서 (핵심 인용구):</p><p>${activeBook.story_quotes || '"변하지 않는 통찰이야말로 지식의 본질이다."'}</p>`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStoreBooks();
+            setSeason('autumn');
+            lucide.createIcons();
         });
     </script>
 </body>
+
 </html>
