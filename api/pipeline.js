@@ -396,6 +396,12 @@ function runDataRefiner_Dadumeui(rawBook) {
         estimated_royalty_rate: estimatedRoyaltyRate,
         category: category,
         digital_archive_url: rawBook.digital_archive_url || rawBook.detail_link || null,
+        // 5대 핵심 상업 데이터 원문 수집 연결
+        full_description: rawBook.fullDescription || rawBook.description || null,
+        toc: rawBook.toc || null,
+        review_list: rawBook.reviewList || null,
+        authors_info: rawBook.authors || null,
+        story_quotes: rawBook.story || null,
         updated_at: new Date().toISOString()
     };
 }
