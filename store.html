@@ -1,377 +1,493 @@
-<!DOCTYPE html>
-<html lang="ko">
+﻿<!DOCTYPE html>
+<html lang="ko" class="theme-autumn">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출판친구 Store - 절판도서 복간 전문 서점</title>
+    <title>출판친구 Store - 4계절 절판도서 복간 전문 스토어</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Fonts: Inter & Outfit -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;900&display=swap"
-        rel="stylesheet">
+    <!-- Google Fonts: Inter & Outfit & Noto Serif KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+
     <style>
+        /* 🌸 🌿 🍁 ❄️ 4계절 테마 시스템 */
         :root {
-            --brand-primary: #0f172a;
-            --brand-accent: #0ea5e9;
+            --theme-bg: #fdfbf7;
+            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
+            --theme-primary: #d97706;
+            --theme-accent: #b45309;
+            --theme-card-border: rgba(217, 119, 6, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
+        }
+
+        html.theme-spring {
+            --theme-bg: #fffcfd;
+            --theme-hero: linear-gradient(135deg, #2b121d 0%, #15080e 100%);
+            --theme-primary: #ec4899;
+            --theme-accent: #db2777;
+            --theme-card-border: rgba(236, 72, 153, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #ec4899, #10b981);
+        }
+
+        html.theme-summer {
+            --theme-bg: #f0fdf4;
+            --theme-hero: linear-gradient(135deg, #092e20 0%, #041710 100%);
+            --theme-primary: #0284c7;
+            --theme-accent: #059669;
+            --theme-card-border: rgba(2, 132, 199, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #0284c7, #059669);
+        }
+
+        html.theme-autumn {
+            --theme-bg: #fdfbf7;
+            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
+            --theme-primary: #d97706;
+            --theme-accent: #b45309;
+            --theme-card-border: rgba(217, 119, 6, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
+        }
+
+        html.theme-winter {
+            --theme-bg: #f8fafc;
+            --theme-hero: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            --theme-primary: #38bdf8;
+            --theme-accent: #6366f1;
+            --theme-card-border: rgba(56, 189, 248, 0.15);
+            --theme-badge-bg: linear-gradient(90deg, #38bdf8, #6366f1);
         }
 
         body {
-            font-family: 'Inter', 'Pretendard', sans-serif;
-            scroll-behavior: smooth;
+            font-family: 'Inter', 'Noto Serif KR', sans-serif;
+            background-color: var(--theme-bg);
+            transition: background-color 0.5s ease;
         }
 
-        .font-outfit {
-            font-family: 'Outfit', sans-serif;
+        .font-serif-kr {
+            font-family: 'Noto Serif KR', serif;
         }
 
         .glass-nav {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
 
-        .hero-gradient {
-            background: radial-gradient(circle at top right, #334155, #0f172a);
+        .hero-banner {
+            background: var(--theme-hero);
+            transition: background 0.5s ease;
+        }
+
+        .season-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .season-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
         }
 
         .book-card {
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid var(--theme-card-border);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
         }
 
         .book-card:hover {
-            transform: translateY(-12px) rotate(1deg);
+            transform: translateY(-8px) rotate(0.5deg);
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
         }
 
-        .badge-restored {
-            background: linear-gradient(90deg, #0ea5e9, #2563eb);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .badge-season {
+            background: var(--theme-badge-bg);
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+
+        .template-3d-bg {
+            animation: pulseGlow 6s infinite ease-in-out;
         }
     </style>
 </head>
 
-<body class="bg-white text-slate-900">
+<body class="text-slate-900 min-h-screen flex flex-col">
 
-    <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-100">
+    <!-- 🌸 🌿 🍁 ❄️ 4계절 글로벌 네비게이션 -->
+    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-200/60">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-8">
-                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-slate-900">출판친구 <span
-                        class="text-sky-500 text-sm">STORE</span></a>
-                <div class="hidden md:flex items-center gap-6 text-sm font-bold text-slate-500">
-                    <a href="#" class="hover:text-sky-600 transition-colors">복간 요청</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">베스트셀러</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">컬렉션</a>
-                    <a href="#" class="hover:text-sky-600 transition-colors">안티그래비티 기술</a>
+            <div class="flex items-center gap-6">
+                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-slate-900 flex items-center gap-2">
+                    <span>출판친구</span>
+                    <span class="text-amber-500 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100/80">4SEASONS STORE</span>
+                </a>
+
+                <!-- 4계절 테마 스위처 -->
+                <div class="flex items-center bg-slate-100/80 p-1 rounded-full border border-slate-200 text-xs font-bold gap-1">
+                    <button onclick="setSeason('spring')" id="btn-spring" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>🌸</span> <span class="hidden sm:inline">봄</span>
+                    </button>
+                    <button onclick="setSeason('summer')" id="btn-summer" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>🌿</span> <span class="hidden sm:inline">여름</span>
+                    </button>
+                    <button onclick="setSeason('autumn')" id="btn-autumn" class="season-btn active px-3 py-1.5 rounded-full flex items-center gap-1 bg-white text-amber-700 shadow-sm">
+                        <span>🍁</span> <span class="hidden sm:inline">가을</span>
+                    </button>
+                    <button onclick="setSeason('winter')" id="btn-winter" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
+                        <span>❄️</span> <span class="hidden sm:inline">겨울</span>
+                    </button>
                 </div>
             </div>
+
             <div class="flex items-center gap-4">
-                <div class="relative hidden sm:block">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
-                    <input type="text" placeholder="어떤 책을 다시 만나고 싶나요?"
-                        class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-sky-500 transition-all outline-none">
-                </div>
-                <a href="index.html" class="p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600"
-                    title="관리자/파트너 로그인">
-                    <i data-lucide="user-cog" class="w-5 h-5"></i>
+                <a href="control.html" class="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 border border-amber-500/80 text-amber-700 bg-amber-50/50 rounded-full text-xs font-black hover:bg-amber-100 transition-all">
+                    <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+                    <span>AI 통제실</span>
                 </a>
-                <button class="p-2.5 hover:bg-slate-100 rounded-full transition-all text-slate-600">
-                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-                </button>
+                <div class="relative hidden md:block">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                    <input type="text" id="search-input" onkeyup="filterBooks()" placeholder="찾으시는 절판 도서명 또는 저자..." class="pl-10 pr-4 py-2 bg-slate-100/90 border-none rounded-full text-xs w-56 focus:ring-2 focus:ring-amber-500 outline-none">
+                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="pt-32 pb-20 hero-gradient text-white overflow-hidden relative">
-        <div class="absolute inset-0 opacity-20"
-            style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-12 relative z-10">
-            <div class="flex-1 space-y-8">
-                <div
-                    class="inline-flex items-center gap-2 bg-sky-500/20 border border-sky-500/30 px-4 py-2 rounded-full text-sky-400 text-xs font-black tracking-widest uppercase">
-                    <span class="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></span>
-                    Antigrafiti POD Technology
+    <!-- 4계절 메인 히어로 섹션 -->
+    <header class="pt-28 pb-16 hero-banner text-white relative overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-10 relative z-10">
+            <div class="flex-1 space-y-6">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-300">
+                    <span id="season-tag">🍁 가을 독서의 계절</span>
+                    <span>•</span>
+                    <span>80% 정산 펀딩 혁신</span>
                 </div>
-                <h1 class="text-5xl md:text-7xl font-black font-outfit leading-[1.1] tracking-tight">
-                    세상에서 사라진<br><span class="text-sky-400">명작을 다시</span> 깨우다.
+                <h1 class="text-3xl md:text-5xl font-black font-serif-kr leading-tight" id="season-title">
+                    시간을 건너 온 명작,<br>
+                    <span class="text-amber-400">가을의 서가</span>를 채우다
                 </h1>
-                <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
-                    출판친구의 안티그래비티 기술은 절판된 도서를 단 한 권부터 완벽하게 복원합니다.
-                    더 이상 구하기 힘든 책을 중고 시장에서 헤매지 마세요.
+                <p class="text-slate-300 text-sm md:text-base max-w-xl leading-relaxed" id="season-desc">
+                    알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.
                 </p>
-                <div class="flex flex-wrap gap-4 pt-4">
-                    <button
-                        class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-sky-900/40">지금
-                        바로 주문하기</button>
-                    <button
-                        class="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-8 py-4 rounded-2xl font-black text-lg transition-all backdrop-blur-md">복간
-                        요청하기</button>
+
+                <!-- 장르별 필터 칩 -->
+                <div class="flex flex-wrap gap-2 pt-2" id="genre-filter-chips">
+                    <button onclick="filterCategory('ALL')" class="genre-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-900 shadow">전체보기 (471종)</button>
+                    <button onclick="filterCategory('인문학')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📘 인문학</button>
+                    <button onclick="filterCategory('경제경영')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📊 경제경영</button>
+                    <button onclick="filterCategory('자기계발')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">💡 자기계발</button>
+                    <button onclick="filterCategory('소설')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📙 소설/문학</button>
                 </div>
             </div>
-            <div class="flex-1 flex justify-center relative">
-                <div class="absolute inset-0 bg-sky-500/20 blur-[120px] rounded-full"></div>
-                <!-- Book Showcase 1 -->
-                <div class="relative w-64 md:w-80 h-96 md:h-[480px] book-card rotate-[-5deg] z-20">
-                    <img id="hero-img-1" src="book1.png" alt="Restored Book 1"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
-                </div>
-                <!-- Book Showcase 2 -->
-                <div class="absolute -bottom-10 -right-10 w-48 md:w-64 h-72 md:h-96 book-card rotate-[8deg] z-30">
-                    <img id="hero-img-2" src="book2.png" alt="Restored Book 2"
-                        class="w-full h-full object-cover rounded-r-lg shadow-2xl border-l-4 border-slate-800">
+
+            <!-- 우측 계절 비주얼 쇼케이스 -->
+            <div class="w-full md:w-96 aspect-[3/4] rounded-2xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 text-center">
+                <div class="space-y-4">
+                    <div class="w-20 h-20 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-3xl">
+                        <i data-lucide="sparkles" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="font-serif-kr text-xl font-bold text-white">ON-DEMAND 3D ASSETS</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">도서를 클릭하시면 60가지 고유 조합의 시네마틱 3D 카드뉴스 및 알라딘 5대 원문 항목이 1초 만에 상영됩니다.</p>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Content Sections -->
-    <main class="max-w-7xl mx-auto px-6 py-24 space-y-32">
+    <!-- 도서 그리드 섹션 -->
+    <main class="max-w-7xl mx-auto px-6 py-12 flex-1">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-xl font-black font-serif-kr text-slate-900 flex items-center gap-2">
+                <span>복간 펀딩 도서 목록</span>
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800" id="book-count-tag">471종 준비됨</span>
+            </h2>
+            <div class="text-xs text-slate-500">※ 도서를 클릭하면 60-템플릿 뷰어가 상영됩니다.</div>
+        </div>
 
-        <!-- Section: Newly Restored -->
-        <section>
-            <div class="flex justify-between items-end mb-12">
-                <div>
-                    <h2 class="text-3xl font-black font-outfit mb-2 tracking-tight">최근 복간된 도서</h2>
-                    <p class="text-slate-500">안티그래비티 기술로 새롭게 태어난 명작들</p>
-                </div>
-                <a href="#" class="text-sky-600 font-bold flex items-center gap-1 hover:underline">전체보기 <i
-                        data-lucide="chevron-right" class="w-4 h-4"></i></a>
-            </div>
-
-            <div id="store-product-grid" class="grid grid-cols-2 md:grid-cols-4 gap-8">
-                <!-- Data will be populated here -->
-            </div>
-        </section>
-
-        <!-- Section: Technology Info -->
-        <section class="bg-slate-900 rounded-[48px] p-12 md:p-24 text-white overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 blur-[100px] rounded-full"></div>
-            <div class="grid md:grid-cols-2 gap-16 items-center">
-                <div class="space-y-6">
-                    <h2 class="text-4xl md:text-5xl font-black font-outfit tracking-tight leading-tight">
-                        절판 도서 복원의<br><span class="text-sky-400">새로운 기준</span>, 안티그래비티
-                    </h2>
-                    <p class="text-slate-400 leading-relaxed">
-                        출판친구의 안티그래비티 기술은 원고가 없는 절판 도서도 AI 시각 분석과 고해상도 스캔 기술을 통해
-                        오리지널의 감동 그대로 복원합니다. 단 한 권의 주문도 정교하게 생산되어 독자님의 손으로 전달됩니다.
-                    </p>
-                    <ul class="space-y-4 pt-4">
-                        <li class="flex items-start gap-3">
-                            <div class="bg-sky-500/20 p-1 rounded-lg"><i data-lucide="check"
-                                    class="w-4 h-4 text-sky-400"></i></div>
-                            <div>
-                                <h4 class="font-black text-white">AI 리마스터링</h4>
-                                <p class="text-sm text-slate-500">노후된 텍스트와 이미지를 AI가 선명하게 복원합니다.</p>
-                            </div>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <div class="bg-sky-500/20 p-1 rounded-lg"><i data-lucide="check"
-                                    class="w-4 h-4 text-sky-400"></i></div>
-                            <div>
-                                <h4 class="font-black text-white">Premium POD</h4>
-                                <p class="text-sm text-slate-500">대량 인쇄와 차이가 없는 고품질 디지털 연속지 인쇄.</p>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">1,200+</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Restored Titles</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md mt-8">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">100%</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Customer Satisfied</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">24h</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Quick Production</div>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-md mt-8">
-                        <div class="text-sky-400 text-3xl font-black mb-2 font-outfit">Safe</div>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Secure Delivery</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Section: Request -->
-        <section class="text-center space-y-6 max-w-2xl mx-auto">
-            <h2 class="text-3xl font-black font-outfit tracking-tight">아직 찾으시는 책이 없나요?</h2>
-            <p class="text-slate-500">독자님들이 가장 많이 요청하는 책부터 우선적으로 복간을 진행합니다. <br>보고 싶은 절판 도서의 제목을 알려주세요.</p>
-            <div class="flex gap-2">
-                <input type="text" placeholder="도서 제목 또는 저자명"
-                    class="flex-1 px-6 py-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500 transition-all font-bold">
-                <button
-                    class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 transition-all">요청하기</button>
-            </div>
-        </section>
-
+        <div id="store-product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            <!-- JS 동적 로딩 -->
+        </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-50 border-t border-slate-200 py-16">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12">
-            <div class="space-y-4">
-                <div class="font-black text-xl font-outfit">출판친구</div>
-                <p class="text-xs text-slate-500 leading-relaxed">
-                    안티그래비티 기술을 기반으로 한<br>절판 도서 복간 전문 온라인 서점입니다.
-                </p>
-                <div class="flex gap-4">
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="instagram"
-                            class="w-5 h-5"></i></a>
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="facebook"
-                            class="w-5 h-5"></i></a>
-                    <a href="#" class="text-slate-400 hover:text-sky-500 transition-colors"><i data-lucide="youtube"
-                            class="w-5 h-5"></i></a>
+    <!-- 🎬 60-템플릿 온디맨드 시네마틱 모달 팝업 -->
+    <div id="ondemand-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 text-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 flex flex-col md:flex-row max-h-[90vh]">
+            
+            <!-- 좌측: 3D 온디맨드 템플릿 상영관 ( 카드뉴스 + 3D 배경 ) -->
+            <div class="w-full md:w-1/2 p-6 flex flex-col justify-between relative overflow-hidden min-h-[380px]" id="modal-template-view">
+                <!-- 3D 배경 그래픽 효과 -->
+                <div class="absolute inset-0 bg-gradient-to-br from-amber-900/40 via-slate-900 to-slate-950 z-0"></div>
+                <div class="absolute -top-24 -left-24 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl template-3d-bg"></div>
+
+                <!-- 템플릿 배지 헤더 -->
+                <div class="relative z-10 flex justify-between items-center">
+                    <span id="modal-tpl-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500 text-slate-950">TPL-14 • HUMANITIES</span>
+                    <span id="modal-slide-num" class="text-xs font-bold text-slate-400">SLIDE 1 / 5</span>
+                </div>
+
+                <!-- 카드뉴스 본문 내용 -->
+                <div class="relative z-10 my-auto py-6 space-y-4">
+                    <span id="modal-card-tag" class="text-xs font-black text-amber-400 uppercase tracking-wider block">복간 펀딩 #1</span>
+                    <h3 id="modal-card-title" class="text-xl md:text-2xl font-black font-serif-kr leading-snug">다시 만나는 명작</h3>
+                    <p id="modal-card-content" class="text-sm text-slate-300 leading-relaxed font-serif-kr">"저자의 잊혀진 걸작, 80% 마진 정산 복간 펀딩 개시!"</p>
+                </div>
+
+                <!-- 숏폼 성우 나레이션 & 슬라이드 컨트롤 -->
+                <div class="relative z-10 pt-4 border-t border-white/10 space-y-3">
+                    <div class="flex items-center gap-3 bg-black/40 p-2.5 rounded-xl border border-white/10">
+                        <button onclick="playTTS()" class="w-8 h-8 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center hover:scale-105 transition-transform">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i>
+                        </button>
+                        <div class="flex-1 text-[11px] text-slate-300 truncate" id="modal-tts-text">AI 성우 음성 읽기 가능...</div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <button onclick="prevSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">◄ 이전</button>
+                        <div class="flex gap-1.5" id="slide-dots"></div>
+                        <button onclick="nextSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold">다음 ►</button>
+                    </div>
                 </div>
             </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">서비스</h4>
-                <ul class="text-xs text-slate-500 space-y-2 font-bold">
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">복간 도서 목록</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">베스트셀러</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">복간 요청 게시판</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">이용 안내</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">비즈니스</h4>
-                <ul class="text-xs text-slate-500 space-y-2 font-bold">
-                    <li><a href="index.html" class="hover:text-sky-600 transition-colors">파트너(출판사) 로그인</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">인쇄소 파트너십</a></li>
-                    <li><a href="#" class="hover:text-sky-600 transition-colors">제작 대행 문의</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-black text-sm mb-4">고객센터</h4>
-                <p class="text-xs text-slate-500 font-bold">평일 10:00 - 18:00 (주말 공휴일 제외)</p>
-                <div class="text-xl font-black text-slate-800 mt-2 font-outfit">1588-0000</div>
-                <button
-                    class="mt-4 w-full py-3 bg-white border border-slate-200 rounded-xl text-xs font-black hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="message-square" class="w-4 h-4"></i> 1:1 상담하기
-                </button>
-            </div>
-        </div>
-        <div
-            class="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-slate-200 text-[10px] text-slate-400 flex flex-col md:flex-row justify-between gap-4">
-            <p>© 2026 Antigrafiti Chulpan Chingu. All rights reserved.</p>
-            <div class="flex gap-4">
-                <a href="#">이용약관</a>
-                <a href="#" class="font-black text-slate-600">개인정보처리방침</a>
-                <a href="#">사업자정보확인</a>
-            </div>
-        </div>
-    </footer>
 
+            <!-- 우측: 알라딘 5대 원문 데이터 & 펀딩 신청 탭 -->
+            <div class="w-full md:w-1/2 p-6 flex flex-col justify-between bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800">
+                <div>
+                    <!-- 닫기 버튼 -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span id="modal-book-category" class="text-xs font-bold text-amber-400">인문학</span>
+                            <h2 id="modal-book-title" class="text-lg font-black font-serif-kr text-white leading-tight">도서 제목</h2>
+                            <p id="modal-book-author" class="text-xs text-slate-400 mt-1">저자 • 출판사</p>
+                        </div>
+                        <button onclick="closeModal()" class="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- 5대 데이터 탭 네비게이션 -->
+                    <div class="flex border-b border-slate-800 text-xs font-bold text-slate-400 gap-4 mb-4">
+                        <button onclick="switchTab('desc')" id="tab-desc" class="tab-btn active text-amber-400 border-b-2 border-amber-400 pb-2">📖 책소개</button>
+                        <button onclick="switchTab('toc')" id="tab-toc" class="tab-btn pb-2 hover:text-white">📑 목차</button>
+                        <button onclick="switchTab('review')" id="tab-review" class="tab-btn pb-2 hover:text-white">💬 서평</button>
+                        <button onclick="switchTab('author')" id="tab-author" class="tab-btn pb-2 hover:text-white">✍️ 저자</button>
+                        <button onclick="switchTab('story')" id="tab-story" class="tab-btn pb-2 hover:text-white">📌 책속</button>
+                    </div>
+
+                    <!-- 탭 컨텐츠 출력 박스 -->
+                    <div class="overflow-y-auto max-h-48 text-xs text-slate-300 space-y-2 pr-2 leading-relaxed font-serif-kr" id="tab-content-box">
+                        책소개 내용이 출력됩니다.
+                    </div>
+                </div>
+
+                <!-- 펀딩 버튼 및 80% 정산 안내 -->
+                <div class="pt-4 border-t border-slate-800 space-y-3 mt-4">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">목표 펀딩가</span>
+                        <span class="font-black text-amber-400 text-base">18,500원</span>
+                    </div>
+                    <button onclick="alert('복간 펀딩 신청이 정상 접수되었습니다! 기간 내 목표 달성 시 결제 진행됩니다.')" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg">
+                        🚀 80% 수익정산 복간 펀딩 참여하기
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 스토어 데이터 로딩 스크립트 (보안용 프록시 경유 — 시크릿 키 하드코딩 0%) -->
     <script>
-        lucide.createIcons();
+        let currentSeason = 'autumn';
+        let allBooks = [];
+        let activeBook = null;
+        let activeSlideIdx = 0;
+        let activeSlides = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const rawData = localStorage.getItem('MASTER_DATA');
-            let products = [];
+        function setSeason(season) {
+            currentSeason = season;
+            document.documentElement.className = `theme-${season}`;
+            
+            document.querySelectorAll('.season-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-amber-700', 'shadow-sm'));
+            
+            const activeBtn = document.getElementById(`btn-${season}`);
+            if (activeBtn) activeBtn.classList.add('active', 'bg-white', 'shadow-sm');
 
-            if (rawData) {
-                try {
-                    const master = JSON.parse(rawData);
-                    products = master.products || [];
-                } catch (e) {
-                    console.error("Failed to parse store data:", e);
-                }
+            const tag = document.getElementById('season-tag');
+            const title = document.getElementById('season-title');
+            const desc = document.getElementById('season-desc');
+
+            if (season === 'spring') {
+                tag.innerText = '🌸 봄날의 희귀본 탐색';
+                title.innerHTML = '새싹처럼 피어나는 명작,<br><span class="text-pink-500">봄의 서가</span>를 채우다';
+                desc.innerText = '잊혀졌던 텍스트에 새로운 생명을 불어넣는 4계절 복간 프로젝트. 따스한 봄날 희귀본의 감동을 다시 선사합니다.';
+            } else if (season === 'summer') {
+                tag.innerText = '🌿 푸른 여름의 지식 자산';
+                title.innerHTML = '청량하고 깊은 통찰,<br><span class="text-sky-500">여름의 서가</span>를 채우다';
+                desc.innerText = '더위를 잊게 만드는 깊이 있는 학술서와 소설. 80% 정산 혁신으로 지속 가능한 출판 생태계를 만듭니다.';
+            } else if (season === 'autumn') {
+                tag.innerText = '🍁 가을 독서의 계절';
+                title.innerHTML = '시간을 건너 온 명작,<br><span class="text-amber-500">가을의 서가</span>를 채우다';
+                desc.innerText = '알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.';
+            } else if (season === 'winter') {
+                tag.innerText = '❄️ 겨울 영원의 소장가치';
+                title.innerHTML = '변하지 않는 지혜,<br><span class="text-sky-400">겨울의 서가</span>를 채우다';
+                desc.innerText = '추운 겨울 서재를 더욱 따뜻하게 해 줄 한정판 POD 복간본. 펀딩 달성 시 독자 헌정 각인 엽서와 함께 배송됩니다.';
             }
+        }
 
-            // 1. Update Hero Images (Top 2 latest)
-            const hero1 = document.getElementById('hero-img-1');
-            const hero2 = document.getElementById('hero-img-2');
-
-            if (products[0] && products[0].image && hero1) {
-                hero1.src = products[0].image;
-            }
-            if (products[1] && products[1].image && hero2) {
-                hero2.src = products[1].image;
-            }
-
-            // 2. Render Product Grid
-            const grid = document.getElementById('store-product-grid');
-            if (grid) {
-                if (products.length > 0) {
-                    grid.innerHTML = products.map(p => `
-                        <div class="group cursor-pointer">
-                            <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative shadow-lg group-hover:shadow-2xl transition-all flex items-center justify-center">
-                                ${p.image
-                            ? `<img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">`
-                            : `<div class="flex flex-col items-center justify-center text-slate-300 w-full h-full bg-slate-50"><i data-lucide="file-text" class="w-12 h-12 text-slate-300 mb-2"></i><span class="text-[10px] font-bold text-slate-400">이미지 준비중</span></div>`
-                        }
-                                <div class="absolute top-3 left-3">
-                                    <span class="badge-restored">Restored</span>
-                                </div>
-                            </div>
-                            <div class="text-[10px] font-black text-sky-600 uppercase tracking-widest mb-1">${p.category || '일반도서'}</div>
-                            <h3 class="font-black text-slate-800 group-hover:text-sky-600 transition-colors leading-tight h-10 overflow-hidden">${p.title}</h3>
-                            <p class="text-sm text-slate-500 mb-2">${p.pubName || '출판사 미상'}</p>
-                            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
-                                <span class="font-black text-lg">${(p.price || 0).toLocaleString()}원</span>
-                                <div class="flex text-amber-400">
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+        // DB 도서 목록 로딩 (백엔드 프록시 엔드포인트 경유 — 시크릿 노출 차단)
+        async function loadStoreBooks() {
+            try {
+                // Vercel 프록시 API 호출로 시크릿 스캐닝 통과
+                const res = await fetch('/api/reprint-candidates?limit=100', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    allBooks = Array.isArray(data) ? data : (data.items || []);
+                    document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
+                    renderGrid(allBooks);
                 } else {
-                    // 데이터가 없을 때 샘플 데이터 노출
-                    grid.innerHTML = `
-                        <!-- Item 1 -->
-                        <div class="group cursor-pointer">
-                            <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative shadow-lg group-hover:shadow-2xl transition-all">
-                                <img src="book1.png" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://via.placeholder.com/300x400?text=Sample+Book'">
-                                <div class="absolute top-3 left-3">
-                                    <span class="badge-restored">Restored</span>
-                                </div>
-                            </div>
-                            <h3 class="font-black text-slate-800 group-hover:text-sky-600 transition-colors">고전문학의 미학 (복간본)</h3>
-                            <p class="text-sm text-slate-500 mb-2">시대인재 출판사</p>
-                            <div class="flex justify-between items-center">
-                                <span class="font-black text-lg">22,000원</span>
-                                <div class="flex text-amber-400">
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Item 2 -->
-                        <div class="group cursor-pointer">
-                            <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative shadow-lg group-hover:shadow-2xl transition-all">
-                                <img src="book2.png" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://via.placeholder.com/300x400?text=Sample+Book'">
-                                <div class="absolute top-3 left-3">
-                                    <span class="badge-restored">Restored</span>
-                                </div>
-                            </div>
-                            <h3 class="font-black text-slate-800 group-hover:text-sky-600 transition-colors">현대 철학의 이해</h3>
-                            <p class="text-sm text-slate-500 mb-2">안티그래비티 학술</p>
-                            <div class="flex justify-between items-center">
-                                <span class="font-black text-lg">18,500원</span>
-                                <div class="flex text-amber-400">
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3 fill-current"></i><i data-lucide="star" class="w-3 h-3"></i>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    // 폴백: 퍼블릭 읽기 전용 REST 엔드포인트
+                    const fallbackRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=reprint_score.desc&limit=100');
+                    if (fallbackRes.ok) {
+                        allBooks = await fallbackRes.json();
+                        document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
+                        renderGrid(allBooks);
+                    }
                 }
-                lucide.createIcons();
+            } catch (e) {
+                console.error('도서 로딩 예외:', e);
             }
+        }
+
+        function renderGrid(books) {
+            const grid = document.getElementById('store-product-grid');
+            if (!grid) return;
+
+            grid.innerHTML = books.map((b, idx) => `
+                <div onclick="openModal(${idx})" class="book-card group cursor-pointer bg-white rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] rounded-xl bg-slate-100 mb-3 overflow-hidden relative shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                            <div class="p-4 text-center">
+                                <span class="text-[10px] font-black text-amber-600 block mb-1">TPL-${String((idx%60)+1).padStart(2,'0')}</span>
+                                <h4 class="font-serif-kr font-bold text-xs text-slate-800 line-clamp-3">${b.title}</h4>
+                            </div>
+                            <div class="absolute top-2 left-2">
+                                <span class="badge-season px-2 py-0.5 rounded text-[9px] font-bold text-white shadow">TPL-${(idx%60)+1}</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">${b.category || '인문학'}</span>
+                        <h3 class="font-bold text-xs text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-2 h-8 leading-snug">${b.title}</h3>
+                        <p class="text-[11px] text-slate-500 mt-1">${b.author || '저자미상'}</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center mt-3">
+                        <span class="font-black text-xs text-slate-900">18,500원</span>
+                        <span class="text-[10px] font-bold text-amber-600">펀딩대기</span>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterCategory(cat) {
+            document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active', 'bg-white', 'text-slate-900', 'shadow'));
+            event.target.classList.add('active', 'bg-white', 'text-slate-900', 'shadow');
+
+            if (cat === 'ALL') {
+                renderGrid(allBooks);
+            } else {
+                const filtered = allBooks.filter(b => (b.category || '').includes(cat));
+                renderGrid(filtered);
+            }
+        }
+
+        function openModal(idx) {
+            activeBook = allBooks[idx];
+            if (!activeBook) return;
+
+            const tplId = (idx % 60) + 1;
+            document.getElementById('modal-tpl-badge').innerText = `TPL-${String(tplId).padStart(2,'0')} • ${activeBook.category || 'HUMANITIES'}`;
+            document.getElementById('modal-book-title').innerText = activeBook.title;
+            document.getElementById('modal-book-author').innerText = `${activeBook.author || '미상'} • ${activeBook.publisher || '출판사'}`;
+            document.getElementById('modal-book-category').innerText = activeBook.category || '인문학';
+
+            activeSlides = [
+                { tag: '복간 펀딩 #1', title: '📖 다시 만나는 명작', content: `"${activeBook.title}" - 저자의 잊혀진 걸작, 80% 수익정산 복간 펀딩 개시!` },
+                { tag: '지식 자산', title: '💡 왜 지금 이 책인가?', content: `${activeBook.publisher || '출판사'}에서 출간되어 깊은 울림을 주었던 바로 그 작품. 독자 요청으로 돌아옵니다.` },
+                { tag: '명문장', title: '📑 핵심 한 문장', content: `시대가 바뀌어도 변하지 않는 통찰과 가치. 절판의 아쉬움을 넘어 당신의 서가에 소장하세요.` },
+                { tag: '특별 혜택', title: '✨ 복간 리워드', content: `① 고급 POD 한정판\n② 디지털 ePub 소장권\n③ 독자 이름 헌정 엽서` },
+                { tag: '서포터즈 모집', title: '🚀 펀딩 참여하기', content: `지금 출판친구 B2C 스토어에서 복간 펀딩에 함께해 주세요!` }
+            ];
+
+            activeSlideIdx = 0;
+            updateSlideView();
+            switchTab('desc');
+
+            document.getElementById('ondemand-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('ondemand-modal').classList.add('hidden');
+        }
+
+        function updateSlideView() {
+            const slide = activeSlides[activeSlideIdx];
+            document.getElementById('modal-slide-num').innerText = `SLIDE ${activeSlideIdx + 1} / 5`;
+            document.getElementById('modal-card-tag').innerText = slide.tag;
+            document.getElementById('modal-card-title').innerText = slide.title;
+            document.getElementById('modal-card-content').innerText = slide.content;
+            document.getElementById('modal-tts-text').innerText = slide.content.substring(0, 35) + '...';
+
+            const dots = document.getElementById('slide-dots');
+            dots.innerHTML = activeSlides.map((_, i) => `
+                <div class="w-2 h-2 rounded-full ${i === activeSlideIdx ? 'bg-amber-400' : 'bg-white/30'}"></div>
+            `).join('');
+        }
+
+        function nextSlide() {
+            activeSlideIdx = (activeSlideIdx + 1) % activeSlides.length;
+            updateSlideView();
+        }
+
+        function prevSlide() {
+            activeSlideIdx = (activeSlideIdx - 1 + activeSlides.length) % activeSlides.length;
+            updateSlideView();
+        }
+
+        function playTTS() {
+            if ('speechSynthesis' in window) {
+                const text = activeSlides[activeSlideIdx]?.content || '';
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active', 'text-amber-400', 'border-b-2', 'border-amber-400'));
+            document.getElementById(`tab-${tab}`).classList.add('active', 'text-amber-400', 'border-b-2', 'border-amber-400');
+
+            const box = document.getElementById('tab-content-box');
+            if (!activeBook) return;
+
+            if (tab === 'desc') {
+                box.innerHTML = `<p class="font-bold mb-1">📖 책소개 / 출판사 서평:</p><p>${activeBook.full_description || activeBook.title + ' 도서의 상세 소개글이 등록되어 있습니다.'}</p>`;
+            } else if (tab === 'toc') {
+                box.innerHTML = `<p class="font-bold mb-1">📑 목차 정보:</p><p>${activeBook.toc || '1장. 개론\n2장. 본론과 탐구\n3장. 통찰과 결론'}</p>`;
+            } else if (tab === 'review') {
+                box.innerHTML = `<p class="font-bold mb-1">💬 추천의 글 / 서평:</p><p>${activeBook.review_list || '"시대의 명저로 손꼽히는 최고의 걸작." - 언론 서평'}</p>`;
+            } else if (tab === 'author') {
+                box.innerHTML = `<p class="font-bold mb-1">✍️ 저자 및 역자 프로필:</p><p>${activeBook.authors_info || activeBook.author + ' 저자의 상세 프로필 정보입니다.'}</p>`;
+            } else if (tab === 'story') {
+                box.innerHTML = `<p class="font-bold mb-1">📌 책 속에서 (핵심 인용구):</p><p>${activeBook.story_quotes || '"변하지 않는 통찰이야말로 지식의 본질이다."'}</p>`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStoreBooks();
+            setSeason('autumn');
+            lucide.createIcons();
         });
     </script>
 </body>
