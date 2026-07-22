@@ -1,239 +1,599 @@
-﻿<!DOCTYPE html>
-<html lang="ko" class="theme-autumn">
-
+<!DOCTYPE html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출판친구 Store - 4계절 절판도서 복간 전문 스토어</title>
-    <!-- Tailwind CSS -->
+    <title>출판친구 STORE - 4계절 감성 테마 체험관</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Outfit & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Fonts: Inter & Outfit & Noto Serif KR -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-        /* 🌸 🌿 🍁 ❄️ 4계절 테마 시스템 */
-        :root {
-            --theme-bg: #fdfbf7;
-            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
-            --theme-primary: #d97706;
-            --theme-accent: #b45309;
-            --theme-card-border: rgba(217, 119, 6, 0.15);
-            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
-        }
-
-        html.theme-spring {
-            --theme-bg: #fffcfd;
-            --theme-hero: linear-gradient(135deg, #2b121d 0%, #15080e 100%);
-            --theme-primary: #ec4899;
-            --theme-accent: #db2777;
-            --theme-card-border: rgba(236, 72, 153, 0.15);
-            --theme-badge-bg: linear-gradient(90deg, #ec4899, #10b981);
-        }
-
-        html.theme-summer {
-            --theme-bg: #f0fdf4;
-            --theme-hero: linear-gradient(135deg, #092e20 0%, #041710 100%);
-            --theme-primary: #0284c7;
-            --theme-accent: #059669;
-            --theme-card-border: rgba(2, 132, 199, 0.15);
-            --theme-badge-bg: linear-gradient(90deg, #0284c7, #059669);
-        }
-
-        html.theme-autumn {
-            --theme-bg: #fdfbf7;
-            --theme-hero: linear-gradient(135deg, #2d1b0f 0%, #1a0f08 100%);
-            --theme-primary: #d97706;
-            --theme-accent: #b45309;
-            --theme-card-border: rgba(217, 119, 6, 0.15);
-            --theme-badge-bg: linear-gradient(90deg, #d97706, #b45309);
-        }
-
-        html.theme-winter {
-            --theme-bg: #f8fafc;
-            --theme-hero: linear-gradient(135deg, #0f172a 0%, #020617 100%);
-            --theme-primary: #38bdf8;
-            --theme-accent: #6366f1;
-            --theme-card-border: rgba(56, 189, 248, 0.15);
-            --theme-badge-bg: linear-gradient(90deg, #38bdf8, #6366f1);
-        }
-
         body {
-            font-family: 'Inter', 'Noto Serif KR', sans-serif;
-            background-color: var(--theme-bg);
-            transition: background-color 0.5s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
         }
 
-        .font-serif-kr {
-            font-family: 'Noto Serif KR', serif;
+        /* 스크롤바 숨기기 및 스무스 스크롤 */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
         }
 
-        .glass-nav {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+        /* --------------------------------------------------
+           🎨 CSS 4계절 테마 변수 정의 (대표님 맞춤 개편)
+        -------------------------------------------------- */
+        :root {
+            /* 🌸 [봄: 4월~6월] 아날로그 크림 페이퍼 & 새싹 민트 */
+            --bg-color: #f9f8f6;
+            --text-color: #1c1a17;
+            --text-muted: #736c64;
+            --card-bg: #ffffff;
+            --card-border: #eae6dd;
+            --primary-color: #0d9488; /* 새싹 민트 그린 (Teal) */
+            --primary-hover: #0f766e;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(28, 26, 23, 0.03);
+            --header-bg: rgba(249, 248, 246, 0.92);
+            --hero-bg: radial-gradient(circle at top, #f3f0e8 0%, #f9f8f6 75%);
+            --badge-bg: rgba(13, 148, 136, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #eae6dd;
+            --accent-glow: rgba(13, 148, 136, 0.15);
         }
 
-        .hero-banner {
-            background: var(--theme-hero);
-            transition: background 0.5s ease;
+        body.theme-summer {
+            /* 🌊 [여름: 7월~9월] 아이스 블루 & 네온 오션 (시리도록 시원한 연파랑) */
+            --bg-color: #f0f9ff; /* 투명하고 차가운 얼음 물빛 */
+            --text-color: #0c4a6e; /* 깊고 시원한 심해 파란색 */
+            --text-muted: #0284c7; /* 활력 있는 스카이 블루 */
+            --card-bg: #ffffff;
+            --card-border: #bae6fd; /* 맑은 하늘빛 테두리 */
+            --primary-color: #0284c7; /* 탄산수 파란색 */
+            --primary-hover: #0369a1;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(14, 165, 233, 0.04);
+            --header-bg: rgba(240, 249, 255, 0.92);
+            --hero-bg: radial-gradient(circle at top, #bae6fd 0%, #f0f9ff 75%);
+            --badge-bg: rgba(2, 132, 199, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #bae6fd;
+            --accent-glow: rgba(2, 132, 199, 0.15);
         }
 
-        .season-btn {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        body.theme-autumn {
+            /* 🍂 [가을: 10월~12월] 오트밀 & 따뜻한 벽돌 온기 */
+            --bg-color: #fcf8f5;
+            --text-color: #2c2621;
+            --text-muted: #78716c;
+            --card-bg: #ffffff;
+            --card-border: #eadfd6;
+            --primary-color: #f97316; /* 따스한 오렌지 벽돌 */
+            --primary-hover: #ea580c;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(44, 38, 33, 0.04);
+            --header-bg: rgba(252, 248, 245, 0.92);
+            --hero-bg: radial-gradient(circle at top, #f7ece1 0%, #fcf8f5 75%);
+            --badge-bg: rgba(249, 115, 22, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #eadfd6;
+            --accent-glow: rgba(249, 115, 22, 0.15);
         }
 
-        .season-btn.active {
-            transform: scale(1.05);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+        body.theme-winter {
+            /* ❄️ [겨울: 1월~3월] 캐시미어 웜그레이 & 희망찬 라벤더 보라 */
+            --bg-color: #f3efe9; /* 포근한 겨울 캐시미어 */
+            --text-color: #2c2825;
+            --text-muted: #7c7267;
+            --card-bg: #ffffff;
+            --card-border: #e6dfd5;
+            --primary-color: #8b5cf6; /* 새로운 시작의 라벤더 퍼플 */
+            --primary-hover: #7c3aed;
+            --primary-text: #ffffff;
+            --shadow-color: rgba(44, 40, 37, 0.03);
+            --header-bg: rgba(243, 239, 233, 0.92);
+            --hero-bg: radial-gradient(circle at top, #eae2d6 0%, #f3efe9 75%);
+            --badge-bg: rgba(139, 92, 246, 0.1);
+            --input-bg: #ffffff;
+            --input-border: #e6dfd5;
+            --accent-glow: rgba(139, 92, 246, 0.15);
         }
 
-        .book-card {
-            border: 1px solid var(--theme-card-border);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+        /* --------------------------------------------------
+           ⚡ 테마 변수 강제 덮어쓰기 (클래스 기반)
+        -------------------------------------------------- */
+        body {
+            background-color: var(--bg-color) !important;
+            color: var(--text-color) !important;
+        }
+        
+        .theme-card {
+            background-color: var(--card-bg) !important;
+            border-color: var(--card-border) !important;
+            box-shadow: 0 10px 30px -10px var(--shadow-color) !important;
+            color: var(--text-color) !important;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
         }
 
-        .book-card:hover {
-            transform: translateY(-8px) rotate(0.5deg);
-            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
+        .theme-text-muted {
+            color: var(--text-muted) !important;
+            transition: color 0.4s ease !important;
         }
 
-        .badge-season {
-            background: var(--theme-badge-bg);
+        .theme-header {
+            background-color: var(--header-bg) !important;
+            border-color: var(--card-border) !important;
+            transition: background-color 0.4s ease, border-color 0.4s ease !important;
         }
 
-        @keyframes pulseGlow {
-            0%, 100% { opacity: 0.8; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.03); }
+        .theme-hero {
+            background: var(--hero-bg) !important;
+            transition: background 0.4s ease !important;
         }
 
-        .template-3d-bg {
-            animation: pulseGlow 6s infinite ease-in-out;
+        .theme-badge {
+            background-color: var(--badge-bg) !important;
+            color: var(--primary-color) !important;
+            transition: all 0.4s ease !important;
+        }
+
+        .theme-primary-btn {
+            background-color: var(--primary-color) !important;
+            color: var(--primary-text) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-primary-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px var(--accent-glow);
+        }
+
+        .theme-secondary-btn {
+            background-color: var(--card-bg) !important;
+            border-color: var(--card-border) !important;
+            color: var(--text-color) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-secondary-btn:hover {
+            background-color: var(--bg-color) !important;
+            transform: translateY(-2px);
+        }
+
+        .theme-input {
+            background-color: var(--input-bg) !important;
+            border-color: var(--input-border) !important;
+            color: var(--text-color) !important;
+            transition: all 0.3s ease !important;
+        }
+        .theme-input:focus {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 4px var(--badge-bg) !important;
+        }
+
+        .theme-highlight-text {
+            color: var(--primary-color) !important;
+            transition: color 0.4s ease !important;
+        }
+
+        .theme-divider {
+            border-color: var(--card-border) !important;
+            transition: border-color 0.4s ease !important;
+        }
+
+        /* 투트랙 2원화 카드 전용 입체 그림자 효과 */
+        .card-funding-active {
+            border-width: 1.5px !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 12px 28px -8px var(--accent-glow) !important;
+        }
+        .card-funding-active:hover {
+            transform: translateY(-8px) scale(1.01);
+        }
+
+        .card-vote-active:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color) !important;
         }
     </style>
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 </head>
+<body class="theme-spring antialiased">
 
-<body class="text-slate-900 min-h-screen flex flex-col">
+    <!-- 🎛️ 상단 고정형 슬림 글래스 4계절 테마 컨트롤러 배너 -->
+    <div id="admin-theme-lounge" class="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 hidden transition-all duration-300 text-white backdrop-blur-md border-b border-slate-900 px-6 py-2 flex flex-col sm:flex-row justify-between items-center gap-2 shadow-lg transition-all h-[48px]">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <span class="text-[10px] font-black tracking-wider uppercase font-outfit text-slate-400">Theme Lounge</span>
+            <h4 class="text-xs font-bold text-white">4계절 순환 시안 체험관</h4>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <button onclick="switchTheme('spring')" id="btn-spring" class="px-3 py-1 rounded-full text-[10px] font-black bg-teal-600 text-white border-2 border-white transition-all shadow-md">
+                🌸 봄
+            </button>
+            <button onclick="switchTheme('summer')" id="btn-summer" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                🌊 여름
+            </button>
+            <button onclick="switchTheme('autumn')" id="btn-autumn" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                🍂 가을
+            </button>
+            <button onclick="switchTheme('winter')" id="btn-winter" class="px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800 hover:text-white">
+                ❄️ 겨울
+            </button>
+        </div>
+    </div>
 
-    <!-- 🌸 🌿 🍁 ❄️ 4계절 글로벌 네비게이션 -->
-    <nav class="fixed top-0 w-full z-50 glass-nav border-b border-slate-200/60">
+    <!-- 🧭 Header Navigation -->
+    <nav class="fixed top-[48px] left-0 right-0 z-40 theme-header border-b backdrop-blur-md transition-all">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-6">
-                <a href="#" class="font-black text-2xl font-outfit tracking-tighter text-slate-900 flex items-center gap-2">
-                    <span>출판친구</span>
-                    <span class="text-amber-500 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100/80">4SEASONS STORE</span>
-                </a>
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-black tracking-tighter">출판친구 <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-md font-bold uppercase ml-1">Store</span></span>
+                </div>
+                <div class="hidden md:flex items-center gap-6 text-sm font-bold theme-text-muted">
+                    <a href="#" class="hover:text-current transition-colors theme-highlight-text">스토어 홈</a>
+                    <a href="#" class="hover:text-current transition-colors">복간 요청</a>
+                    <a href="#" class="hover:text-current transition-colors">실시간 랭킹</a>
+                    <a href="#" class="hover:text-current transition-colors">복간 성공작</a>
+                </div>
+            </div>
+            
+            
+            <div class="flex items-center gap-2" id="nav-auth-container">
+                <!-- 로그인 전 버튼 모음 (기본값) -->
+                <div id="auth-buttons-logged-out" class="flex items-center gap-2">
+                    <button onclick="openModalById('modal-supporter-signup')" class="px-3.5 py-1.5 text-xs font-bold rounded-full theme-secondary-btn border flex items-center gap-1">
+                        <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                        <span>회원가입</span>
+                    </button>
+                    <button onclick="openModalById('modal-user-login')" class="px-3.5 py-1.5 text-xs font-bold bg-sky-500 text-white hover:bg-sky-600 rounded-full flex items-center gap-1 shadow-sm">
+                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                        <span>개인 로그인</span>
+                    </button>
+                    <button onclick="openModalById('modal-partner-login')" class="px-3.5 py-1.5 text-xs font-bold rounded-full theme-secondary-btn border flex items-center gap-1">
+                        <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+                        <span>기업 로그인</span>
+                    </button>
+                    <button onclick="openModalById('modal-my-library')" class="px-3.5 py-1.5 text-xs font-bold rounded-full theme-secondary-btn border flex items-center gap-1">
+                        <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+                        <span>나의서재</span>
+                    </button>
+                </div>
 
-                <!-- 4계절 테마 스위처 -->
-                <div class="flex items-center bg-slate-100/80 p-1 rounded-full border border-slate-200 text-xs font-bold gap-1">
-                    <button onclick="setSeason('spring')" id="btn-spring" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
-                        <span>🌸</span> <span class="hidden sm:inline">봄</span>
-                    </button>
-                    <button onclick="setSeason('summer')" id="btn-summer" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
-                        <span>🌿</span> <span class="hidden sm:inline">여름</span>
-                    </button>
-                    <button onclick="setSeason('autumn')" id="btn-autumn" class="season-btn active px-3 py-1.5 rounded-full flex items-center gap-1 bg-white text-amber-700 shadow-sm">
-                        <span>🍁</span> <span class="hidden sm:inline">가을</span>
-                    </button>
-                    <button onclick="setSeason('winter')" id="btn-winter" class="season-btn px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-white text-slate-600">
-                        <span>❄️</span> <span class="hidden sm:inline">겨울</span>
+                <!-- 어드민 대표 로그인 후 버튼 모음 -->
+                <div id="auth-buttons-admin" class="hidden items-center gap-2">
+                    <span class="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-full text-xs font-black flex items-center gap-1">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                        <span>어드민대표 서포터님</span>
+                    </span>
+                    <a href="control.html" class="px-3.5 py-1.5 text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 rounded-full flex items-center gap-1 shadow-sm">
+                        <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                        <span>통제실</span>
+                    </a>
+                    <a href="erp.html" class="px-3.5 py-1.5 text-xs font-black bg-amber-500 text-slate-950 hover:bg-amber-400 rounded-full flex items-center gap-1 shadow-sm">
+                        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
+                        <span>ERP</span>
+                    </a>
+                    <button onclick="handleLogout()" class="px-3.5 py-1.5 text-xs font-bold rounded-full theme-secondary-btn border flex items-center gap-1 hover:bg-red-50 hover:text-red-600">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        <span>로그아웃</span>
                     </button>
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
-                <a href="control.html" class="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 border border-amber-500/80 text-amber-700 bg-amber-50/50 rounded-full text-xs font-black hover:bg-amber-100 transition-all">
-                    <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
-                    <span>AI 통제실</span>
-                </a>
-                <div class="relative hidden md:block">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
-                    <input type="text" id="search-input" onkeyup="filterBooks()" placeholder="찾으시는 절판 도서명 또는 저자..." class="pl-10 pr-4 py-2 bg-slate-100/90 border-none rounded-full text-xs w-56 focus:ring-2 focus:ring-amber-500 outline-none">
-                </div>
-            </div>
         </div>
     </nav>
 
-    <!-- 4계절 메인 히어로 섹션 -->
-    <header class="pt-28 pb-16 hero-banner text-white relative overflow-hidden">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-10 relative z-10">
-            <div class="flex-1 space-y-6">
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-300">
-                    <span id="season-tag">🍁 가을 독서의 계절</span>
-                    <span>•</span>
-                    <span>80% 정산 펀딩 혁신</span>
-                </div>
-                <h1 class="text-3xl md:text-5xl font-black font-serif-kr leading-tight" id="season-title">
-                    시간을 건너 온 명작,<br>
-                    <span class="text-amber-400">가을의 서가</span>를 채우다
+    <!-- 🚀 Hero Section (검색창 2배 확장 및 1열 카테고리 탭 탑재) -->
+    <header class="pt-48 pb-20 theme-hero overflow-hidden relative">
+        <div class="absolute inset-0 opacity-5"
+            style="background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');"></div>
+        <div class="max-w-5xl mx-auto px-6 text-center relative z-10 space-y-8">
+            <div class="space-y-6">
+                <!-- 대표님 요청에 따른 ANTIGRAFITI POD 뱃지 완벽 삭제 -->
+                <h1 class="text-4xl md:text-[54px] font-black font-outfit leading-[1.15] tracking-tight">
+                    세상에서 사라진<br><span class="theme-highlight-text">명작을 다시</span> 깨우다.
                 </h1>
-                <p class="text-slate-300 text-sm md:text-base max-w-xl leading-relaxed" id="season-desc">
-                    알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.
+                
+                <!-- 대표님 UAT 확정 문구 완벽 적용 -->
+                <p class="text-sm md:text-base theme-text-muted max-w-2xl mx-auto leading-relaxed font-medium">
+                    출판친구는 출판사와 독자가 함께 염원하는 절판 도서를 발굴하여,<br>
+                    사장되고 잊혀 가던 우리의 소중한 문화 자산을 복원하고 새로운 생명을 불어넣습니다.
                 </p>
-
-                <!-- 장르별 필터 칩 -->
-                <div class="flex flex-wrap gap-2 pt-2" id="genre-filter-chips">
-                    <button onclick="filterCategory('ALL')" class="genre-chip active px-4 py-1.5 rounded-full text-xs font-bold bg-white text-slate-900 shadow">전체보기 (471종)</button>
-                    <button onclick="filterCategory('인문학')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📘 인문학</button>
-                    <button onclick="filterCategory('경제경영')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📊 경제경영</button>
-                    <button onclick="filterCategory('자기계발')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">💡 자기계발</button>
-                    <button onclick="filterCategory('소설')" class="genre-chip px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20">📙 소설/문학</button>
-                </div>
-            </div>
-
-            <!-- 우측 계절 비주얼 쇼케이스 -->
-            <div class="w-full md:w-96 aspect-[3/4] rounded-2xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 text-center">
-                <div class="space-y-4">
-                    <div class="w-20 h-20 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-3xl">
-                        <i data-lucide="sparkles" class="w-10 h-10"></i>
+                
+                <!-- 🔍 대형 검색창 (2배 크기 확장) 및 1열 카테고리 스크롤화 -->
+                <div class="space-y-6 max-w-4xl mx-auto pt-6">
+                    <!-- 대폭 확장된 시인성 최고의 대형 검색창 -->
+                    <div class="relative rounded-[24px] overflow-hidden border transition-all shadow-lg">
+                        <i data-lucide="search" class="absolute left-6 top-6 w-6 h-6 theme-text-muted"></i>
+                        <input type="text" placeholder="다시 읽고 싶은 도서명이나 저자를 검색해보세요..."
+                            class="w-full pl-16 pr-6 py-6 theme-input text-lg font-bold outline-none border transition-all rounded-[24px] placeholder:opacity-50">
                     </div>
-                    <h3 class="font-serif-kr text-xl font-bold text-white">ON-DEMAND 3D ASSETS</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed">도서를 클릭하시면 60가지 고유 조합의 시네마틱 3D 카드뉴스 및 알라딘 5대 원문 항목이 1초 만에 상영됩니다.</p>
+
+                    <!-- 1열로 시원하게 정렬된 가로 카테고리 바 (추천 태그 텍스트 영구 소거) -->
+                    <div class="flex overflow-x-auto whitespace-nowrap scrollbar-hide py-2 gap-2 justify-start md:justify-center w-full px-2 border-y theme-divider">
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-black theme-primary-btn transition-all">전체</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">소설</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">에세이</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">인문학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">경제경영</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">사회과학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">역사</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">과학</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">예술</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">자기계발</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">종교</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">어린이</button>
+                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">청소년</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-4 justify-center pt-2">
+                    <button class="theme-primary-btn px-7 py-4 rounded-2xl font-black text-sm transition-all shadow-lg flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>새로운 복간 도서 제안하기</span>
+                    </button>
+                    <button class="theme-secondary-btn border px-7 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-2">
+                        <i data-lucide="bookmark" class="w-4 h-4"></i>
+                        <span>나의 복간 도서관</span>
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- 도서 그리드 섹션 -->
-    <main class="max-w-7xl mx-auto px-6 py-12 flex-1">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-xl font-black font-serif-kr text-slate-900 flex items-center gap-2">
-                <span>복간 펀딩 도서 목록</span>
-                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800" id="book-count-tag">471종 준비됨</span>
-            </h2>
-            <div class="text-xs text-slate-500">※ 도서를 클릭하면 60-템플릿 뷰어가 상영됩니다.</div>
-        </div>
+    <!-- 📊 실시간 복간 라이브 현황판 (빛나는 광원 테마 연동) -->
+    <main class="max-w-7xl mx-auto px-6 py-12 space-y-24">
 
-        <div id="store-product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            <!-- JS 동적 로딩 -->
-        </div>
+        <section class="theme-card rounded-[32px] p-8 md:p-12 border shadow-2xl relative overflow-hidden transition-all">
+            <div class="relative z-10 space-y-8">
+                <!-- 현황판 헤더 -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b theme-divider pb-6">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 theme-badge rounded-full text-[10px] font-black tracking-widest uppercase">
+                            <span class="w-1.5 h-1.5 bg-current rounded-full animate-ping"></span>
+                            Live Dashboard
+                        </span>
+                        <h2 class="text-2xl md:text-3xl font-black font-outfit mt-2 tracking-tight">실시간 복간 라이브 현황판</h2>
+                    </div>
+                    <p class="text-xs theme-text-muted max-w-xs leading-relaxed md:text-right">
+                        출판친구와 독자님들이 함께 만들어 가는 실시간 예약 펀딩 실적 및 플랫폼 통계 지표입니다.
+                    </p>
+                </div>
+                
+                <!-- 4열 카운터 그리드 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">구출 완료 도서</div>
+                        <div class="text-3xl font-black font-outfit">357 <span class="text-xs text-slate-500 font-bold">종</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">복간 진행률</div>
+                        <div class="text-3xl font-black font-outfit theme-highlight-text">98.2 <span class="text-xs text-slate-500 font-bold">%</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">누적 복간 예약부수</div>
+                        <div class="text-3xl font-black font-outfit">1,452 <span class="text-xs text-slate-500 font-bold">부</span></div>
+                    </div>
+                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                        <div class="theme-text-muted text-xs font-black uppercase tracking-wider">참여 독자(서포터)</div>
+                        <div class="text-3xl font-black font-outfit">8,914 <span class="text-xs text-slate-500 font-bold">명</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 📚 B2C 도서 전시 목록 (테마가 적용된 카드 형태 예제) -->
+        <section class="space-y-8">
+            <div class="border-b theme-divider pb-4">
+                <h3 class="text-2xl font-black font-outfit tracking-tight">🔥 실시간 인기 복간 프로젝트</h3>
+                <p class="text-xs theme-text-muted mt-1">펀딩 달성률 및 투표율이 높은 순으로 실시간 인기 순위가 정렬됩니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 카드 1: 마녀 (B2B 제휴완료 / 펀딩 진행 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-funding-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <!-- 임시 표지 플레이스홀더 -->
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-[#E11D48] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Funding</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">소설</span>
+                            <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">원가 33.3% 절감</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">마녀 (Witch)</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">서상원 저 | 출판친구</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            💡 11번 알리미가 제작한 숏폼 홍보 영상 및 카드뉴스 5종이 즉시 연동됩니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">98% 달성</span>
+                                <span class="theme-text-muted font-bold">49 / 50 부</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 98%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all">복간 참여 (펀딩 예약)</button>
+                    </div>
+                </div>
+ 
+                <!-- 카드 2: 사랑의 선물 (B2C 독자 복간 청원 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-vote-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Vote</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">에세이</span>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">독자 청원 진행 중</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">사랑의 선물</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">소나무 저 | 한솔출판</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            📢 청원 성공 시 B2B 영업대표가 출판사에 복간을 정식 요청합니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">80% 요청</span>
+                                <span class="theme-text-muted font-bold">8 / 10 표</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 80%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-secondary-btn border transition-all">복간 찬성 (요청 투표)</button>
+                    </div>
+                </div>
+
+                <!-- 카드 3: 역사란 무엇인가 (복간 최종 성공) -->
+                <div class="theme-card border rounded-3xl p-5 card-funding-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-emerald-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Restored</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">인문학</span>
+                            <span class="text-[9px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">인쇄 제작 및 발송 완료</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">역사란 무엇인가</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">E.H.카 저 | 인문출판사</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            ✨ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판 완료.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-emerald-500 font-black">복간 성공 (구매 가능)</span>
+                            </div>
+                            <div class="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all bg-emerald-600 hover:bg-emerald-500 text-white border-0">즉시 도서 구매</button>
+                    </div>
+                </div>
+
+                <!-- 카드 4: 돈의 방정식 (B2C 독자 복간 청원 중) -->
+                <div class="theme-card border rounded-3xl p-5 card-vote-active flex flex-col justify-between">
+                    <div>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50">
+                                <i data-lucide="book-open" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest opacity-60">Cover Image</span>
+                            </div>
+                            <div class="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Vote</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">경제경영</span>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">독자 청원 진행 중</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base">돈의 방정식 (Money)</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium text-slate-500">골드만 저 | 경제일보</p>
+                        <div class="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
+                            📢 청원 성공 시 B2B 영업대표가 출판사에 복간을 정식 요청합니다.
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="theme-highlight-text font-black">40% 요청</span>
+                                <span class="theme-text-muted font-bold">4 / 10 표</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
+                                <div class="theme-primary-btn h-full rounded-full" style="width: 40%"></div>
+                            </div>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-secondary-btn border transition-all">복간 찬성 (요청 투표)</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
+
+    <!-- 📝 Footer -->
+    <footer class="border-t theme-divider py-16 text-center theme-text-muted text-xs space-y-4 transition-all">
+        <p class="font-bold">출판친구   A N T I - G R A V I T Y   4 - S E A S O N S   D E M O</p>
+        <p>© 2026 출판친구. All rights reserved. 4계절 디자인 시안 교차 검증용 샌드박스 페이지.</p>
+    </footer>
+
+    <!-- 🕹️ 4계절 테마 스위칭 자바스크립트 -->
+    <script>
+        function switchTheme(theme) {
+            // 1. 바디 클래스 초기화 및 주입
+            document.body.className = '';
+            document.body.classList.add('antialiased', 'theme-' + theme);
+
+            // 2. 버튼 상태 제어 (액티브 표시)
+            const buttons = {
+                spring: document.getElementById('btn-spring'),
+                summer: document.getElementById('btn-summer'),
+                autumn: document.getElementById('btn-autumn'),
+                winter: document.getElementById('btn-winter')
+            };
+
+            for (const key in buttons) {
+                if (key === theme) {
+                    buttons[key].className = 'px-4 py-1.5 rounded-full text-xs font-black border-2 border-white transition-all shadow-md';
+                    // 각 계절 테마별 단추 액티브 색상 바인딩
+                    if (key === 'spring') buttons[key].classList.add('bg-teal-600', 'text-white');
+                    else if (key === 'summer') buttons[key].classList.add('bg-sky-500', 'text-white');
+                    else if (key === 'autumn') buttons[key].classList.add('bg-orange-500', 'text-white');
+                    else if (key === 'winter') buttons[key].classList.add('bg-violet-600', 'text-white');
+                } else {
+                    buttons[key].className = 'px-4 py-1.5 rounded-full text-xs font-black bg-slate-800 text-slate-400 border border-slate-700 transition-all hover:bg-slate-700';
+                }
+            }
+        }
+
+        // 아이콘 렌더링
+        lucide.createIcons();
+    </script>
 
     <!-- 🎬 60-템플릿 온디맨드 시네마틱 모달 팝업 -->
     <div id="ondemand-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 text-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 flex flex-col md:flex-row max-h-[90vh]">
             
-            <!-- 좌측: 3D 온디맨드 템플릿 상영관 ( 카드뉴스 + 3D 배경 ) -->
             <div class="w-full md:w-1/2 p-6 flex flex-col justify-between relative overflow-hidden min-h-[380px]" id="modal-template-view">
-                <!-- 3D 배경 그래픽 효과 -->
                 <div class="absolute inset-0 bg-gradient-to-br from-amber-900/40 via-slate-900 to-slate-950 z-0"></div>
-                <div class="absolute -top-24 -left-24 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl template-3d-bg"></div>
-
-                <!-- 템플릿 배지 헤더 -->
                 <div class="relative z-10 flex justify-between items-center">
                     <span id="modal-tpl-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500 text-slate-950">TPL-14 • HUMANITIES</span>
                     <span id="modal-slide-num" class="text-xs font-bold text-slate-400">SLIDE 1 / 5</span>
                 </div>
-
-                <!-- 카드뉴스 본문 내용 -->
                 <div class="relative z-10 my-auto py-6 space-y-4">
                     <span id="modal-card-tag" class="text-xs font-black text-amber-400 uppercase tracking-wider block">복간 펀딩 #1</span>
                     <h3 id="modal-card-title" class="text-xl md:text-2xl font-black font-serif-kr leading-snug">다시 만나는 명작</h3>
                     <p id="modal-card-content" class="text-sm text-slate-300 leading-relaxed font-serif-kr">"저자의 잊혀진 걸작, 80% 마진 정산 복간 펀딩 개시!"</p>
                 </div>
-
-                <!-- 숏폼 성우 나레이션 & 슬라이드 컨트롤 -->
                 <div class="relative z-10 pt-4 border-t border-white/10 space-y-3">
                     <div class="flex items-center gap-3 bg-black/40 p-2.5 rounded-xl border border-white/10">
                         <button onclick="playTTS()" class="w-8 h-8 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center hover:scale-105 transition-transform">
@@ -249,10 +609,8 @@
                 </div>
             </div>
 
-            <!-- 우측: 알라딘 5대 원문 데이터 & 펀딩 신청 탭 -->
             <div class="w-full md:w-1/2 p-6 flex flex-col justify-between bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800">
                 <div>
-                    <!-- 닫기 버튼 -->
                     <div class="flex justify-between items-start mb-4">
                         <div>
                             <span id="modal-book-category" class="text-xs font-bold text-amber-400">인문학</span>
@@ -264,28 +622,25 @@
                         </button>
                     </div>
 
-                    <!-- 5대 데이터 탭 네비게이션 -->
-                    <div class="flex border-b border-slate-800 text-xs font-bold text-slate-400 gap-4 mb-4">
-                        <button onclick="switchTab('desc')" id="tab-desc" class="tab-btn active text-amber-400 border-b-2 border-amber-400 pb-2">📖 책소개</button>
-                        <button onclick="switchTab('toc')" id="tab-toc" class="tab-btn pb-2 hover:text-white">📑 목차</button>
-                        <button onclick="switchTab('review')" id="tab-review" class="tab-btn pb-2 hover:text-white">💬 서평</button>
-                        <button onclick="switchTab('author')" id="tab-author" class="tab-btn pb-2 hover:text-white">✍️ 저자</button>
-                        <button onclick="switchTab('story')" id="tab-story" class="tab-btn pb-2 hover:text-white">📌 책속</button>
+                    <div class="flex border-b border-slate-800 text-xs font-bold text-slate-400 gap-3 mb-4 overflow-x-auto scrollbar-hide">
+                        <button onclick="switchTab('desc')" id="tab-desc" class="tab-btn active text-amber-400 border-b-2 border-amber-400 pb-2 whitespace-nowrap">📖 책소개</button>
+                        <button onclick="switchTab('toc')" id="tab-toc" class="tab-btn pb-2 hover:text-white whitespace-nowrap">📑 목차</button>
+                        <button onclick="switchTab('review')" id="tab-review" class="tab-btn pb-2 hover:text-white whitespace-nowrap">💬 서평</button>
+                        <button onclick="switchTab('author')" id="tab-author" class="tab-btn pb-2 hover:text-white whitespace-nowrap">✍️ 저자</button>
+                        <button onclick="switchTab('story')" id="tab-story" class="tab-btn pb-2 hover:text-white whitespace-nowrap">📌 책속</button>
                     </div>
 
-                    <!-- 탭 컨텐츠 출력 박스 -->
                     <div class="overflow-y-auto max-h-48 text-xs text-slate-300 space-y-2 pr-2 leading-relaxed font-serif-kr" id="tab-content-box">
                         책소개 내용이 출력됩니다.
                     </div>
                 </div>
 
-                <!-- 펀딩 버튼 및 80% 정산 안내 -->
                 <div class="pt-4 border-t border-slate-800 space-y-3 mt-4">
                     <div class="flex justify-between items-center text-xs">
                         <span class="text-slate-400">목표 펀딩가</span>
                         <span class="font-black text-amber-400 text-base">18,500원</span>
                     </div>
-                    <button onclick="alert('복간 펀딩 신청이 정상 접수되었습니다! 기간 내 목표 달성 시 결제 진행됩니다.')" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg">
+                    <button onclick="alert('복간 펀딩 신청이 정상 접수되었습니다!')" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg">
                         🚀 80% 수익정산 복간 펀딩 참여하기
                     </button>
                 </div>
@@ -294,66 +649,18 @@
         </div>
     </div>
 
-    <!-- 스토어 데이터 로딩 스크립트 (보안용 프록시 경유 — 시크릿 키 하드코딩 0%) -->
     <script>
-        let currentSeason = 'autumn';
         let allBooks = [];
         let activeBook = null;
         let activeSlideIdx = 0;
         let activeSlides = [];
 
-        function setSeason(season) {
-            currentSeason = season;
-            document.documentElement.className = `theme-${season}`;
-            
-            document.querySelectorAll('.season-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-amber-700', 'shadow-sm'));
-            
-            const activeBtn = document.getElementById(`btn-${season}`);
-            if (activeBtn) activeBtn.classList.add('active', 'bg-white', 'shadow-sm');
-
-            const tag = document.getElementById('season-tag');
-            const title = document.getElementById('season-title');
-            const desc = document.getElementById('season-desc');
-
-            if (season === 'spring') {
-                tag.innerText = '🌸 봄날의 희귀본 탐색';
-                title.innerHTML = '새싹처럼 피어나는 명작,<br><span class="text-pink-500">봄의 서가</span>를 채우다';
-                desc.innerText = '잊혀졌던 텍스트에 새로운 생명을 불어넣는 4계절 복간 프로젝트. 따스한 봄날 희귀본의 감동을 다시 선사합니다.';
-            } else if (season === 'summer') {
-                tag.innerText = '🌿 푸른 여름의 지식 자산';
-                title.innerHTML = '청량하고 깊은 통찰,<br><span class="text-sky-500">여름의 서가</span>를 채우다';
-                desc.innerText = '더위를 잊게 만드는 깊이 있는 학술서와 소설. 80% 정산 혁신으로 지속 가능한 출판 생태계를 만듭니다.';
-            } else if (season === 'autumn') {
-                tag.innerText = '🍁 가을 독서의 계절';
-                title.innerHTML = '시간을 건너 온 명작,<br><span class="text-amber-500">가을의 서가</span>를 채우다';
-                desc.innerText = '알라딘 유통망 및 정보나루 대출 빅데이터 분석으로 엄선된 절판 상업 도서 471종. 60가지 시네마틱 3D 온디맨드 에셋으로 다시 시작되는 복간 펀딩을 만나보세요.';
-            } else if (season === 'winter') {
-                tag.innerText = '❄️ 겨울 영원의 소장가치';
-                title.innerHTML = '변하지 않는 지혜,<br><span class="text-sky-400">겨울의 서가</span>를 채우다';
-                desc.innerText = '추운 겨울 서재를 더욱 따뜻하게 해 줄 한정판 POD 복간본. 펀딩 달성 시 독자 헌정 각인 엽서와 함께 배송됩니다.';
-            }
-        }
-
-        // DB 도서 목록 로딩 (백엔드 프록시 엔드포인트 경유 — 시크릿 노출 차단)
         async function loadStoreBooks() {
             try {
-                // Vercel 프록시 API 호출로 시크릿 스캐닝 통과
-                const res = await fetch('/api/reprint-candidates?limit=100', {
-                    headers: { 'Accept': 'application/json' }
-                });
+                const res = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=reprint_score.desc&limit=100');
                 if (res.ok) {
-                    const data = await res.json();
-                    allBooks = Array.isArray(data) ? data : (data.items || []);
-                    document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
+                    allBooks = await res.json();
                     renderGrid(allBooks);
-                } else {
-                    // 폴백: 퍼블릭 읽기 전용 REST 엔드포인트
-                    const fallbackRes = await fetch('https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=reprint_score.desc&limit=100');
-                    if (fallbackRes.ok) {
-                        allBooks = await fallbackRes.json();
-                        document.getElementById('book-count-tag').innerText = `${allBooks.length}종 수집됨`;
-                        renderGrid(allBooks);
-                    }
                 }
             } catch (e) {
                 console.error('도서 로딩 예외:', e);
@@ -361,45 +668,37 @@
         }
 
         function renderGrid(books) {
-            const grid = document.getElementById('store-product-grid');
+            const grid = document.querySelector('main .grid');
             if (!grid) return;
 
             grid.innerHTML = books.map((b, idx) => `
-                <div onclick="openModal(${idx})" class="book-card group cursor-pointer bg-white rounded-2xl p-4 flex flex-col justify-between">
+                <div onclick="openModal(${idx})" class="theme-card border rounded-3xl p-5 card-funding-active flex flex-col justify-between cursor-pointer">
                     <div>
-                        <div class="aspect-[3/4] rounded-xl bg-slate-100 mb-3 overflow-hidden relative shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                            <div class="p-4 text-center">
-                                <span class="text-[10px] font-black text-amber-600 block mb-1">TPL-${String((idx%60)+1).padStart(2,'0')}</span>
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400 w-full h-full bg-slate-200/50 p-4 text-center">
+                                <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">TPL-${String((idx%60)+1).padStart(2,'0')}</span>
                                 <h4 class="font-serif-kr font-bold text-xs text-slate-800 line-clamp-3">${b.title}</h4>
                             </div>
-                            <div class="absolute top-2 left-2">
-                                <span class="badge-season px-2 py-0.5 rounded text-[9px] font-bold text-white shadow">TPL-${(idx%60)+1}</span>
-                            </div>
+                            <div class="absolute top-3 left-3 bg-[#E11D48] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">TPL-${(idx%60)+1}</div>
                         </div>
-                        <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">${b.category || '인문학'}</span>
-                        <h3 class="font-bold text-xs text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-2 h-8 leading-snug">${b.title}</h3>
-                        <p class="text-[11px] text-slate-500 mt-1">${b.author || '저자미상'}</p>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">${b.category || '인문학'}</span>
+                            <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">80% 정산</span>
+                        </div>
+                        <h4 class="font-black leading-tight h-10 overflow-hidden text-sm mb-1 line-clamp-2">${b.title}</h4>
+                        <p class="text-xs theme-text-muted mb-2 font-medium">${b.author || '저자미상'} | ${b.publisher || '출판사'}</p>
                     </div>
-                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center mt-3">
-                        <span class="font-black text-xs text-slate-900">18,500원</span>
-                        <span class="text-[10px] font-bold text-amber-600">펀딩대기</span>
+                    <div class="space-y-3 pt-2">
+                        <div class="flex justify-between items-center text-xs font-bold border-t theme-divider pt-2">
+                            <span class="font-black">18,500원</span>
+                            <span class="theme-highlight-text text-[11px]">복간 펀딩 🚀</span>
+                        </div>
+                        <button class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all">온디맨드 뷰어 열기</button>
                     </div>
                 </div>
             `).join('');
 
-            lucide.createIcons();
-        }
-
-        function filterCategory(cat) {
-            document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active', 'bg-white', 'text-slate-900', 'shadow'));
-            event.target.classList.add('active', 'bg-white', 'text-slate-900', 'shadow');
-
-            if (cat === 'ALL') {
-                renderGrid(allBooks);
-            } else {
-                const filtered = allBooks.filter(b => (b.category || '').includes(cat));
-                renderGrid(filtered);
-            }
+            if (window.lucide) lucide.createIcons();
         }
 
         function openModal(idx) {
@@ -407,17 +706,17 @@
             if (!activeBook) return;
 
             const tplId = (idx % 60) + 1;
-            document.getElementById('modal-tpl-badge').innerText = `TPL-${String(tplId).padStart(2,'0')} • ${activeBook.category || 'HUMANITIES'}`;
+            document.getElementById('modal-tpl-badge').innerText = 'TPL-' + String(tplId).padStart(2,'0') + ' • ' + (activeBook.category || 'HUMANITIES');
             document.getElementById('modal-book-title').innerText = activeBook.title;
-            document.getElementById('modal-book-author').innerText = `${activeBook.author || '미상'} • ${activeBook.publisher || '출판사'}`;
+            document.getElementById('modal-book-author').innerText = (activeBook.author || '미상') + ' • ' + (activeBook.publisher || '출판사');
             document.getElementById('modal-book-category').innerText = activeBook.category || '인문학';
 
             activeSlides = [
-                { tag: '복간 펀딩 #1', title: '📖 다시 만나는 명작', content: `"${activeBook.title}" - 저자의 잊혀진 걸작, 80% 수익정산 복간 펀딩 개시!` },
-                { tag: '지식 자산', title: '💡 왜 지금 이 책인가?', content: `${activeBook.publisher || '출판사'}에서 출간되어 깊은 울림을 주었던 바로 그 작품. 독자 요청으로 돌아옵니다.` },
-                { tag: '명문장', title: '📑 핵심 한 문장', content: `시대가 바뀌어도 변하지 않는 통찰과 가치. 절판의 아쉬움을 넘어 당신의 서가에 소장하세요.` },
-                { tag: '특별 혜택', title: '✨ 복간 리워드', content: `① 고급 POD 한정판\n② 디지털 ePub 소장권\n③ 독자 이름 헌정 엽서` },
-                { tag: '서포터즈 모집', title: '🚀 펀딩 참여하기', content: `지금 출판친구 B2C 스토어에서 복간 펀딩에 함께해 주세요!` }
+                { tag: '복간 펀딩 #1', title: '📖 다시 만나는 명작', content: '"' + activeBook.title + '" - 저자의 잊혀진 걸작, 80% 수익정산 복간 펀딩 개시!' },
+                { tag: '지식 자산', title: '💡 왜 지금 이 책인가?', content: (activeBook.publisher || '출판사') + '에서 출간되어 깊은 울림을 주었던 바로 그 작품. 독자 요청으로 돌아옵니다.' },
+                { tag: '명문장', title: '📑 핵심 한 문장', content: '시대가 바뀌어도 변하지 않는 통찰과 가치. 절판의 아쉬움을 넘어 당신의 서가에 소장하세요.' },
+                { tag: '특별 혜택', title: '✨ 복간 리워드', content: '① 고급 POD 한정판\n② 디지털 ePub 소장권\n③ 독자 이름 헌정 엽서' },
+                { tag: '서포터즈 모집', title: '🚀 펀딩 참여하기', content: '지금 출판친구 B2C 스토어에서 복간 펀딩에 함께해 주세요!' }
             ];
 
             activeSlideIdx = 0;
@@ -433,16 +732,14 @@
 
         function updateSlideView() {
             const slide = activeSlides[activeSlideIdx];
-            document.getElementById('modal-slide-num').innerText = `SLIDE ${activeSlideIdx + 1} / 5`;
+            document.getElementById('modal-slide-num').innerText = 'SLIDE ' + (activeSlideIdx + 1) + ' / 5';
             document.getElementById('modal-card-tag').innerText = slide.tag;
             document.getElementById('modal-card-title').innerText = slide.title;
             document.getElementById('modal-card-content').innerText = slide.content;
             document.getElementById('modal-tts-text').innerText = slide.content.substring(0, 35) + '...';
 
             const dots = document.getElementById('slide-dots');
-            dots.innerHTML = activeSlides.map((_, i) => `
-                <div class="w-2 h-2 rounded-full ${i === activeSlideIdx ? 'bg-amber-400' : 'bg-white/30'}"></div>
-            `).join('');
+            dots.innerHTML = activeSlides.map((_, i) => '<div class="w-2 h-2 rounded-full ' + (i === activeSlideIdx ? 'bg-amber-400' : 'bg-white/30') + '"></div>').join('');
         }
 
         function nextSlide() {
@@ -466,30 +763,271 @@
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active', 'text-amber-400', 'border-b-2', 'border-amber-400'));
-            document.getElementById(`tab-${tab}`).classList.add('active', 'text-amber-400', 'border-b-2', 'border-amber-400');
+            document.getElementById('tab-' + tab).classList.add('active', 'text-amber-400', 'border-b-2', 'border-amber-400');
 
             const box = document.getElementById('tab-content-box');
             if (!activeBook) return;
 
             if (tab === 'desc') {
-                box.innerHTML = `<p class="font-bold mb-1">📖 책소개 / 출판사 서평:</p><p>${activeBook.full_description || activeBook.title + ' 도서의 상세 소개글이 등록되어 있습니다.'}</p>`;
+                box.innerHTML = '<p class="font-bold mb-1">📖 책소개 / 출판사 서평:</p><p>' + (activeBook.full_description || activeBook.title + ' 도서의 상세 소개글이 등록되어 있습니다.') + '</p>';
             } else if (tab === 'toc') {
-                box.innerHTML = `<p class="font-bold mb-1">📑 목차 정보:</p><p>${activeBook.toc || '1장. 개론\n2장. 본론과 탐구\n3장. 통찰과 결론'}</p>`;
+                box.innerHTML = '<p class="font-bold mb-1">📑 목차 정보:</p><p>' + (activeBook.toc || '1장. 개론\n2장. 본론과 탐구\n3장. 통찰과 결론') + '</p>';
             } else if (tab === 'review') {
-                box.innerHTML = `<p class="font-bold mb-1">💬 추천의 글 / 서평:</p><p>${activeBook.review_list || '"시대의 명저로 손꼽히는 최고의 걸작." - 언론 서평'}</p>`;
+                box.innerHTML = '<p class="font-bold mb-1">💬 추천의 글 / 서평:</p><p>' + (activeBook.review_list || '"시대의 명저로 손꼽히는 최고의 걸작." - 언론 서평') + '</p>';
             } else if (tab === 'author') {
-                box.innerHTML = `<p class="font-bold mb-1">✍️ 저자 및 역자 프로필:</p><p>${activeBook.authors_info || activeBook.author + ' 저자의 상세 프로필 정보입니다.'}</p>`;
+                box.innerHTML = '<p class="font-bold mb-1">✍️ 저자 및 역자 프로필:</p><p>' + (activeBook.authors_info || activeBook.author + ' 저자의 상세 프로필 정보입니다.') + '</p>';
             } else if (tab === 'story') {
-                box.innerHTML = `<p class="font-bold mb-1">📌 책 속에서 (핵심 인용구):</p><p>${activeBook.story_quotes || '"변하지 않는 통찰이야말로 지식의 본질이다."'}</p>`;
+                box.innerHTML = '<p class="font-bold mb-1">📌 책 속에서 (핵심 인용구):</p><p>' + (activeBook.story_quotes || '"변하지 않는 통찰이야말로 지식의 본질이다."') + '</p>';
             }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             loadStoreBooks();
-            setSeason('autumn');
-            lucide.createIcons();
         });
     </script>
-</body>
 
+
+    <!-- 📝 서포터 회원가입 모달 (카카오 우편번호 API 연동) -->
+    <div id="modal-supporter-signup" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl border border-slate-200 relative text-slate-900">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-black font-outfit text-indigo-600">서포터 회원가입</h3>
+                    <p class="text-xs text-slate-500 mt-1">가입 후 배송 정보 수집 및 마일리지가 적립됩니다.</p>
+                </div>
+                <button onclick="closeModalById('modal-supporter-signup')" class="p-2 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleSupporterSignup(event)" class="space-y-4 text-xs font-bold">
+                <div>
+                    <label class="block text-slate-600 mb-1">아이디 (이메일)</label>
+                    <input type="email" id="signup-email" required placeholder="example@domain.com" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">비밀번호</label>
+                    <input type="password" id="signup-pw" required placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">서포터 성명 (실명)</label>
+                    <input type="text" id="signup-name" required placeholder="홍길동" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">연락처</label>
+                    <input type="tel" id="signup-phone" required placeholder="010-1234-5678" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">배송지 주소</label>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="signup-postcode" readonly placeholder="우편번호" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none">
+                        <button type="button" onclick="execKakaoPostcode()" class="px-4 py-3 bg-sky-500 text-white rounded-xl font-bold whitespace-nowrap hover:bg-sky-600">우편번호 검색</button>
+                    </div>
+                    <input type="text" id="signup-address" readonly placeholder="기본 주소 (검색 시 자동 입력)" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none mb-2">
+                    <input type="text" id="signup-address-detail" placeholder="상세 주소 입력 (동, 호수 등)" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-black text-sm hover:bg-indigo-700 shadow-md">가입 완료</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🔑 개인 로그인 모달 -->
+    <div id="modal-user-login" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-sm shadow-2xl border border-slate-200 text-slate-900">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-black text-sky-600">개인 로그인</h3>
+                    <p class="text-xs text-slate-500 mt-1">서포터 개인 계정으로 로그인합니다.</p>
+                </div>
+                <button onclick="closeModalById('modal-user-login')" class="p-2 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleUserLogin(event)" class="space-y-4 text-xs font-bold">
+                <div>
+                    <label class="block text-slate-600 mb-1">아이디</label>
+                    <input type="text" id="login-user-id" required placeholder="user 또는 admin" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">비밀번호</label>
+                    <input type="password" id="login-user-pw" required placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-500">
+                </div>
+                <button type="submit" class="w-full py-3.5 bg-sky-500 text-white rounded-xl font-black text-sm hover:bg-sky-600 shadow-md">로그인</button>
+                <div class="text-center pt-2 text-[11px] text-slate-400">
+                    테스트용 계정: admin / admin (어드민) 또는 user / user
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 💼 기업 로그인 모달 -->
+    <div id="modal-partner-login" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-sm shadow-2xl border border-slate-200 text-slate-900">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800">기업/출판사 로그인</h3>
+                    <p class="text-xs text-slate-500 mt-1">B2B 파트너사 전용 통합 세션</p>
+                </div>
+                <button onclick="closeModalById('modal-partner-login')" class="p-2 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handlePartnerLogin(event)" class="space-y-4 text-xs font-bold">
+                <div>
+                    <label class="block text-slate-600 mb-1">출판사/기업 ID</label>
+                    <input type="text" id="login-partner-id" required placeholder="partner01" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-slate-800">
+                </div>
+                <div>
+                    <label class="block text-slate-600 mb-1">비밀번호</label>
+                    <input type="password" id="login-partner-pw" required placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-slate-800">
+                </div>
+                <button type="submit" class="w-full py-3.5 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-slate-800 shadow-md">기업 로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 📖 나의 서재 모달 -->
+    <div id="modal-my-library" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl border border-slate-200 text-slate-900">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-black text-indigo-600">나의 서재</h3>
+                    <p class="text-xs text-slate-500 mt-1">내가 복간 펀딩에 참여한 도서 서재입니다.</p>
+                </div>
+                <button onclick="closeModalById('modal-my-library')" class="p-2 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-3 max-h-60 overflow-y-auto text-xs" id="my-library-list">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold text-slate-800">마녀 (Witch)</h4>
+                        <p class="text-[11px] text-slate-400">펀딩 참여 완료 • 배송 대기중</p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black">1부 예약</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 🔑 인증 & 카카오 우편번호 & 모달 제어 통합 스크립트 -->
+    <script>
+        // 모달 제어
+        function openModalById(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeModalById(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // 카카오 우편번호 서비스 연동
+        function execKakaoPostcode() {
+            if (typeof daum !== 'undefined' && daum.Postcode) {
+                new daum.Postcode({
+                    oncomplete: function(data) {
+                        document.getElementById('signup-postcode').value = data.zonecode;
+                        document.getElementById('signup-address').value = data.address;
+                        document.getElementById('signup-address-detail').focus();
+                    }
+                }).open();
+            } else {
+                alert('우편번호 서비스 로딩 중입니다. 잠시 후 다시 시도해 주세요.');
+            }
+        }
+
+        // 서포터 가입 핸들러
+        function handleSupporterSignup(e) {
+            e.preventDefault();
+            alert('서포터 회원가입이 성공적으로 완료되었습니다! 가입 마일리지 1,000p가 적립되었습니다.');
+            closeModalById('modal-supporter-signup');
+        }
+
+        // 개인 로그인 핸들러
+        function handleUserLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('login-user-id').value.trim();
+            if (id === 'admin') {
+                sessionStorage.setItem('userId', 'admin');
+                sessionStorage.setItem('userRole', 'admin');
+                alert('어드민대표 권한으로 로그인되었습니다!');
+            } else {
+                sessionStorage.setItem('userId', id || 'user');
+                sessionStorage.setItem('userRole', 'supporter');
+                alert(id + ' 서포터님 반갑습니다!');
+            }
+            closeModalById('modal-user-login');
+            updateAuthUI();
+        }
+
+        // 기업 로그인 핸들러
+        function handlePartnerLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('login-partner-id').value.trim();
+            sessionStorage.setItem('userId', id || 'partner');
+            sessionStorage.setItem('userRole', 'publisher');
+            alert('기업 파트너사 세션으로 로그인되었습니다!');
+            closeModalById('modal-partner-login');
+            updateAuthUI();
+        }
+
+        // 로그아웃 핸들러
+        function handleLogout() {
+            sessionStorage.removeItem('userId');
+            sessionStorage.removeItem('userRole');
+            alert('로그아웃되었습니다.');
+            updateAuthUI();
+        }
+
+        // 로그인 권한에 따른 UI 및 4계절 단추 제어
+        function updateAuthUI() {
+            const role = sessionStorage.getItem('userRole');
+            const userId = sessionStorage.getItem('userId');
+            const isAdmin = (role === 'admin' || userId === 'admin');
+
+            const loggedOutBox = document.getElementById('auth-buttons-logged-out');
+            const adminBox = document.getElementById('auth-buttons-admin');
+            const themeLounge = document.getElementById('admin-theme-lounge');
+            const headerNav = document.querySelector('nav.theme-header');
+
+            if (isAdmin) {
+                // 어드민 대표 로그인 상태
+                if (loggedOutBox) loggedOutBox.classList.add('hidden');
+                if (adminBox) {
+                    adminBox.classList.remove('hidden');
+                    adminBox.classList.add('flex');
+                }
+                // 4계절 슬림 단추 띠 노출
+                if (themeLounge) {
+                    themeLounge.classList.remove('hidden');
+                    themeLounge.classList.add('flex');
+                }
+                if (headerNav) headerNav.style.top = '48px';
+            } else {
+                // 로그인 전 또는 일반 서포터/기업회원
+                if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+                if (adminBox) {
+                    adminBox.classList.add('hidden');
+                    adminBox.classList.remove('flex');
+                }
+                // 4계절 슬림 단추 띠 자동 숨김
+                if (themeLounge) {
+                    themeLounge.classList.add('hidden');
+                    themeLounge.classList.remove('flex');
+                }
+                if (headerNav) headerNav.style.top = '0px';
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+        });
+    </script>
+
+</body>
 </html>
