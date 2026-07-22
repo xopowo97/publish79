@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     if (action === 'stats') {
         try {
             const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
-            const response = await fetch(`${base}/reprint_candidates?select=category`, {
+            const response = await fetch(`${base}/reprint_candidates?select=category&limit=5000`, {
                 method: 'GET',
                 headers: {
                     'apikey': supKey,
@@ -60,50 +60,50 @@ export default async function handler(req, res) {
         }
     }
 
-    // ─── 분기 2: 백그라운드 자동 순환 수집 (cron) ───
+    // ─── 분기 2: 상업 운했 수집 키워드 로테이션 (콘) ───
     if (action === 'cron') {
         const host = req.headers.host || 'localhost:3000';
         const protocol = host.includes('localhost') ? 'http' : 'https';
 
-        const categories = [
-            { keyword: '소설', kdc: '8' },
+        // ✅ 상업 도서 전용 수집 키워드 풀 (어린이/동화 자동 스킵)
+        const COMMERCIAL_KEYWORDS = [
+            { keyword: '인문학', kdc: '1' },
             { keyword: '철학', kdc: '1' },
+            { keyword: '경제경영', kdc: '3' },
+            { keyword: '자기계발', kdc: '3' },
             { keyword: '사회과학', kdc: '3' },
-            { keyword: '자연과학', kdc: '4' },
-            { keyword: '기술과학', kdc: '5' },
-            { keyword: '예술', kdc: '6' },
-            { keyword: '언어', kdc: '7' },
             { keyword: '역사', kdc: '9' },
-            { keyword: '총류', kdc: '0' },
-            { keyword: '종교', kdc: '2' },
-            { keyword: '청소년', kdc: '' },
-            { keyword: '아동', kdc: '' },
-            { keyword: '저작권 만료', kdc: '' }
+            { keyword: '소설', kdc: '8' },
+            { keyword: '과학', kdc: '4' },
+            { keyword: '예술', kdc: '6' },
         ];
 
-        const currentMinute = new Date().getMinutes();
-        const index = currentMinute % categories.length;
-        const selected = categories[index];
+        // 가변 시간대 수집: 현재 시각/분을 로그에 기록 (20일 일정표 추적용)
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
 
-        const jitterDelay = Math.floor(Math.random() * 4000) + 2000; 
+        // 키워드 로테이션: 시각/분 기반으로 순환 선택 (가변성 확보)
+        const totalMinutes = currentHour * 60 + currentMinute;
+        const selected = COMMERCIAL_KEYWORDS[totalMinutes % COMMERCIAL_KEYWORDS.length];
+
+        const jitterDelay = Math.floor(Math.random() * 2000) + 500; // 0.5초~2.5초 지연
 
         try {
             await new Promise(r => setTimeout(r, jitterDelay));
 
             const pipelineUrl = `${protocol}://${host}/api/pipeline?keyword=${encodeURIComponent(selected.keyword)}&kdc=${selected.kdc}&pageNo=1`;
-            console.log(`[크론 자율 통합 수집] 선택 장르: "${selected.keyword}" | 딜레이: ${jitterDelay}ms | URL: ${pipelineUrl}`);
+            console.log(`[콘 상업 수집] 선택 장르: "${selected.keyword}" | 기동 시각: ${currentHour}:${String(currentMinute).padStart(2,'0')} | 딘레이: ${jitterDelay}ms`);
 
             const response = await fetch(pipelineUrl, {
                 method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: { 'Accept': 'application/json' }
             });
 
             if (!response.ok) {
                 const errText = await response.text();
                 return res.status(502).json({
-                    error: '크론 연계 파이프라인 기동 실패',
+                    error: '콘 연계 파이프라인 기동 실패',
                     category: selected.keyword,
                     detail: errText.substring(0, 200)
                 });
@@ -113,6 +113,7 @@ export default async function handler(req, res) {
 
             return res.status(200).json({
                 success: true,
+                cronHour: currentHour,
                 cronMinute: currentMinute,
                 selectedCategory: selected.keyword,
                 jitterDelayMs: jitterDelay,
@@ -121,7 +122,7 @@ export default async function handler(req, res) {
 
         } catch (err) {
             return res.status(500).json({
-                error: '크론 자율 가동 중 예외 발생',
+                error: '콘 자율 가동 중 예외 발생',
                 detail: err.message
             });
         }
