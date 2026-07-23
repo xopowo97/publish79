@@ -1271,7 +1271,7 @@
 
             const themeLounge = document.getElementById('admin-theme-lounge');
             const mainNav = document.querySelector('nav.glass-nav');
-            // backBtn removed
+            const backBtn = null; // back-to-control-btn 버튼 소거됨 — null로 안전하게 처리
 
             // 어드민 세션 여부 체크
             const role = sessionStorage.getItem('userRole');
@@ -2530,13 +2530,7 @@
             // Restore control room button logic
             const role = sessionStorage.getItem('userRole');
             const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            if (isLoggedIn === 'true' && (role === 'admin' || role === 'judge')) {
-                // const backBtn = document.getElementById('back-to-control-btn');
-                if (backBtn) {
-                    backBtn.classList.remove('hidden');
-                    backBtn.classList.add('inline-flex');
-                }
-            }
+            // back-to-control-btn 버튼 소거됨 — 관련 로직 안전하게 제거
 
             // Restore B2C user session
             const b2cIsLoggedIn = sessionStorage.getItem('b2cIsLoggedIn');
