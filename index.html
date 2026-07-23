@@ -2321,11 +2321,110 @@
             }).join('');
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        let currentDetailSlides = [];
+        let currentDetailSlideIdx = 0;
+
+        async function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
+            const modal = document.getElementById('b2c-book-detail-modal');
+            const loading = document.getElementById('detail-loading');
+            const content = document.getElementById('detail-content');
+
+            if (!modal) return;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            if (loading) loading.classList.remove('hidden');
+            if (content) content.classList.add('hidden');
+
+            let marketingAsset = null;
+            if (isbn) {
+                try {
+                    const apiEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'https://publish79.vercel.app/api/store'
+                        : '/api/store';
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'get-marketing-assets', isbn: isbn })
+                    });
+                    if (response.ok) {
+                        const resData = await response.json();
+                        if (resData.success) marketingAsset = resData.data;
+                    }
+                } catch(err) {
+                    console.warn('[B2C] 마케팅 에셋 조회 실패:', err);
+                }
+            }
+
+            if (marketingAsset && marketingAsset.card_news_data && marketingAsset.card_news_data.length > 0) {
+                currentDetailSlides = marketingAsset.card_news_data;
+            } else {
+                currentDetailSlides = [
+                    { slide: 1, title: `📚 ${title} 복간 개시`, body: `인류의 유산이자 독자들의 요청을 받은 명작 《${title}》의 자율 복간 프로젝트가 시작되었습니다.` },
+                    { slide: 2, title: `📝 핵심 줄거리`, body: `${author} 작가가 그려내는 고유의 작품 세계. 품격 있는 메시지를 다시금 종이책으로 만나보세요.` },
+                    { slide: 3, title: `👥 작품 소개`, body: `오랜 세월 동안 절판되어 시중에서 구할 수 없던 소장 도서. 출판사 ${publisher || '미상'}의 정식 복간 제휴 후보작.` },
+                    { slide: 4, title: `⚙️ 판형 최적화 인쇄 공정`, body: `${isFunding ? '신국판에서 A5국판 규격으로의 판형 최적화를 통해 33.3% 인쇄 원가를 감축하여 플랫폼과 출판사 간 상생 환원을 극대화합니다.' : '목표 투표수 달성 시 자동으로 최적화 인쇄 발주서가 전송되는 VDP 시스템에 매핑됩니다.'}` },
+                    { slide: 5, title: `🌟 서포터즈 모집`, body: `지금 복간에 참여하고 소장가치 높은 가변 조판 VDP 웰컴 한정판 증서를 다운로드하세요!` }
+                ];
+            }
+
+            currentDetailSlideIdx = 0;
+            renderDetailSlides();
+
+            const detailTitle = document.getElementById('detail-title');
+            const detailInfo = document.getElementById('detail-info');
+            const actionContainer = document.getElementById('detail-action-container');
+
+            if (detailTitle) detailTitle.textContent = title;
+            if (detailInfo) detailInfo.textContent = `${author} | ${publisher || '미상'}`;
+
+            if (actionContainer) {
+                actionContainer.innerHTML = '';
+                if (isFunding) {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md';
+                    btn.textContent = '결제예약';
+                    btn.onclick = () => { closeB2CBookDetailModal(); openBillingModal(id); };
+                    actionContainer.appendChild(btn);
+                } else if (isVoteOnly) {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-sky-500 hover:bg-sky-650 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1';
+                    btn.innerHTML = `<i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i><span>요청 투표</span>`;
+                    btn.onclick = () => { closeB2CBookDetailModal(); submitVote(id); };
+                    actionContainer.appendChild(btn);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            }
+
+            if (loading) loading.classList.add('hidden');
+            if (content) content.classList.remove('hidden');
+        }
+
+        function closeB2CBookDetailModal() {
+            const modal = document.getElementById('b2c-book-detail-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderDetailSlides() {
+            const container = document.getElementById('carousel-slides');
+            const indicatorCurrent = document.getElementById('carousel-indicator-current');
+            const indicatorTotal = document.getElementById('carousel-indicator-total');
+
+            if (!container) return;
+
+            container.innerHTML = '';
+            currentDetailSlides.forEach((slide, idx) => {
+                const slideEl = document.createElement('div');
+                slideEl.className = 'w-full h-full flex-shrink-0 flex flex-col justify-center items-center p-8 text-center bg-slate-900/90 relative';
                 slideEl.style.width = '100%';
                 slideEl.style.height = '100%';
-                
                 slideEl.innerHTML = `
-                    <!-- Glassmorphism card inner design -->
                     <div class="w-full max-w-sm bg-slate-950/60 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-xl space-y-4">
                         <div class="text-[10px] font-black text-sky-400 uppercase tracking-widest">SLIDE ${slide.slide || (idx + 1)}</div>
                         <h3 class="text-base font-black text-white leading-snug">${slide.title || '도서 카드뉴스'}</h3>
@@ -2338,7 +2437,6 @@
 
             if (indicatorCurrent) indicatorCurrent.textContent = currentDetailSlideIdx + 1;
             if (indicatorTotal) indicatorTotal.textContent = currentDetailSlides.length;
-
             container.style.transform = `translateX(-${currentDetailSlideIdx * 100}%)`;
         }
 
