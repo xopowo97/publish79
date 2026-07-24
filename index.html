@@ -2096,6 +2096,15 @@
                 return matchCategory && matchQuery;
             });
 
+            if (allProducts.length === 0) {
+                grid.innerHTML = `
+                <div class="col-span-full py-16 text-center theme-text-muted space-y-3">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-500 border-t-transparent mb-2"></div>
+                    <h4 class="font-black text-sm">실시간 펀딩 도서를 불러오는 중입니다...</h4>
+                </div>`;
+                return;
+            }
+
             if (filtered.length === 0) {
                 grid.innerHTML = `
                 <div class="col-span-full py-16 text-center theme-text-muted space-y-4">
@@ -2335,8 +2344,8 @@
 
             // Supabase REST API 직접 페치 (supabaseClient SDK 불필요)
             try {
-                const SUPA_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=id.asc&limit=20';
                 const SUPA_KEY = ['sb_secret_', 'MxXZ31S7g-dkjL0VLHQRiQ_k9pypavt'].join('');
+                const SUPA_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=id.asc&limit=20&apikey=' + SUPA_KEY;
                 const res = await fetch(SUPA_URL, {
                     headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
                 });
