@@ -2347,9 +2347,9 @@
                 const SUPA_KEY = ['sb_secret_', 'MxXZ31S7g-dkjL0VLHQRiQ_k9pypavt'].join('');
                 const SUPA_URL = 'https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=id.asc&limit=20&apikey=' + SUPA_KEY;
 
-                // 2단계: 3초 타임아웃 방어막 (Promise.race)
+                // 2단계: 10초 타임아웃 방어막 (Promise.race)
                 const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('SUPABASE_TIMEOUT_3S')), 3000)
+                    setTimeout(() => reject(new Error('SUPABASE_TIMEOUT_10S')), 10000)
                 );
 
                 const fetchPromise = fetch(SUPA_URL, {
@@ -2372,8 +2372,8 @@
                             is_funding_active: true,
                             funding_current: Math.floor(65 + (idx * 7) % 35),
                             funding_target: 100,
-                            image: dbItem.cover_url || null,
-                            cover_url: dbItem.cover_url,
+                            image: dbItem.cover_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=500&auto=format&fit=crop',
+                            cover_url: dbItem.cover_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=500&auto=format&fit=crop',
                             full_description: dbItem.full_description,
                             toc: dbItem.toc,
                             review_list: dbItem.review_list,
@@ -2385,13 +2385,29 @@
             } catch(err) {
                 console.warn('[loadProductsFromDB] REST API 페치 예외/타임아웃 감지:', err ? err.message : err);
             } finally {
-                // 3단계: Finally 강제 소등 및 무조건 렌더링 (로딩 스피너 영구 소등)
+                // 3단계: Finally 강제 소등 및 수집 20종 전체 도서 렌더링 (4열 5행 무결 20개 출력)
                 if (productsList.length === 0) {
                     productsList = [
-                        { id: 1666, title: '모순 :양귀자 장편소설', author: '양귀자', pubName: '쓰다', category: '소설', status: 'funding', is_funding_active: true, funding_current: 85, funding_target: 100, image: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg', cover_url: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg' },
-                        { id: 1667, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', category: '소설', status: 'funding', is_funding_active: true, funding_current: 92, funding_target: 100, image: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg', cover_url: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg' },
-                        { id: 1668, title: '홍학의 자리 :정해연 장편소설', author: '정해연', pubName: '엘릭시르', category: '소설', status: 'funding', is_funding_active: true, funding_current: 78, funding_target: 100, image: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg', cover_url: 'https://image.aladin.co.kr/product/36208/50/cover500/k712038303_2.jpg' },
-                        { id: 1680, title: '프로젝트 헤일메리', author: '앤디 위어', pubName: '알파고', category: '소설', status: 'funding', is_funding_active: true, funding_current: 88, funding_target: 100 }
+                        { id: 1666, title: '모순 :양귀자 장편소설', author: '양귀자', pubName: '쓰다', category: '소설', status: 'funding', is_funding_active: true, funding_current: 85, funding_target: 100, image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1667, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', category: '소설', status: 'funding', is_funding_active: true, funding_current: 92, funding_target: 100, image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1668, title: '홍학의 자리 :정해연 장편소설', author: '정해연', pubName: '엘릭시르', category: '소설', status: 'funding', is_funding_active: true, funding_current: 78, funding_target: 100, image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1669, title: '괴테는 모든 것을 말했다', author: '괴테', pubName: '시대인재', category: '소설', status: 'funding', is_funding_active: true, funding_current: 70, funding_target: 100, image: 'https://images.unsplash.com/photo-1463320726281-696a485928c7?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1463320726281-696a485928c7?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1679, title: '어른의 행복은 조용하다', author: '김달', pubName: '빅피시', category: '에세이', status: 'funding', is_funding_active: true, funding_current: 67, funding_target: 100, image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1680, title: '프로젝트 헤일메리', author: '앤디 위어', pubName: '알에이치코리아', category: '소설', status: 'funding', is_funding_active: true, funding_current: 88, funding_target: 100, image: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1687, title: '단 한 번의 삶', author: '서동주', pubName: '마음의숲', category: '에세이', status: 'funding', is_funding_active: true, funding_current: 74, funding_target: 100, image: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1693, title: '나의 완벽한 장례식', author: '조현선', pubName: '클레이', category: '소설', status: 'funding', is_funding_active: true, funding_current: 81, funding_target: 100, image: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1694, title: '가공범', author: '히가시노 게이고', pubName: '바움', category: '소설', status: 'funding', is_funding_active: true, funding_current: 89, funding_target: 100, image: 'https://images.unsplash.com/photo-1476275466078-4007374efbbe?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1476275466078-4007374efbbe?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1695, title: '불편한 편의점 2', author: '김호연', pubName: '나무옆의의자', category: '소설', status: 'funding', is_funding_active: true, funding_current: 95, funding_target: 100, image: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1696, title: '첫 여름, 완주', author: '김금희', pubName: '창비', category: '소설', status: 'funding', is_funding_active: true, funding_current: 76, funding_target: 100, image: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1697, title: '엄마가 유령이 되었어!', author: '노부미', pubName: '길벗어린이', category: '어린이', status: 'funding', is_funding_active: true, funding_current: 83, funding_target: 100, image: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1814, title: '위버멘쉬', author: '니체', pubName: '아카넷', category: '인문학', status: 'funding', is_funding_active: true, funding_current: 71, funding_target: 100, image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1815, title: '렛뎀 이론', author: '멜 로빈스', pubName: '포레스트북스', category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 79, funding_target: 100, image: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1816, title: '마흔에 읽는 쇼펜하우어', author: '강용수', pubName: '유노북스', category: '인문학', status: 'funding', is_funding_active: true, funding_current: 96, funding_target: 100, image: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1817, title: '아주 작은 습관의 힘', author: '제임스 클리어', pubName: '비즈니스북스', category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 98, funding_target: 100, image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1818, title: '도둑맞은 집중력', author: '요한 하리', pubName: '어크로스', category: '인문학', status: 'funding', is_funding_active: true, funding_current: 87, funding_target: 100, image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1819, title: '고전이 답했다', author: '고명환', pubName: '라곰', category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 82, funding_target: 100, image: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1820, title: '나쁜 일이 있어도 나쁜 날은 아니야', author: '이애경', pubName: '허밍버드', category: '에세이', status: 'funding', is_funding_active: true, funding_current: 75, funding_target: 100, image: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=500&auto=format&fit=crop' },
+                        { id: 1822, title: '너를 미워할 시간에 나를 사랑하기로 했다', author: '김유진', pubName: '서사원', category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 84, funding_target: 100, image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=500&auto=format&fit=crop', cover_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=500&auto=format&fit=crop' }
                     ];
                 }
                 allProducts = productsList;
