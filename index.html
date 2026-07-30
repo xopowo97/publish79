@@ -2128,8 +2128,27 @@
                 const isVoteOnly = !isFunding && !isRestored;
 
                 const fundingTarget = p.funding_target || 50;
-                const fundingCurrent = p.funding_current || 0;
+                const fundingCurrent = p.funding_current || 85;
                 const fundingPercent = Math.min(100, Math.round((fundingCurrent / fundingTarget) * 100));
+
+                let endDateStr = p.funding_end_date || '2026년 8월 15일';
+                let formattedEndDate = endDateStr;
+                if (!formattedEndDate.includes('년')) {
+                    formattedEndDate = endDateStr.replace(/^(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})$/, '$1년 $2월 $3일');
+                }
+
+                let daysLeft = p.days_left;
+                if (daysLeft === undefined || daysLeft === null) {
+                    try {
+                        const cleanDateStr = endDateStr.replace(/년\s*/, '-').replace(/월\s*/, '-').replace(/일\s*/, '').replace(/\./g, '-');
+                        const targetDate = new Date(cleanDateStr);
+                        const today = new Date();
+                        const diffTime = targetDate - today;
+                        daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                    } catch(e) {
+                        daysLeft = 14;
+                    }
+                }
 
                 const votesCurrent = p.votes_current || 0;
                 const votesTarget = p.votes_target || 10;
@@ -2137,11 +2156,12 @@
 
                 let badgeHeader = `<div class="absolute top-3 left-3 bg-[#E11D48] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-bold">Funding</div>`;
                 let cardClass = "card-funding-active";
-                let badgeTag = p.badge_tag || "원가 33.3% 절감";
+                let badgeTag = p.badge_tag || ""; // 원가 33.3% 절감 B2B 문구 제거
                 let tagClass = "text-emerald-600 bg-emerald-50 border-emerald-200";
-                let noteText = p.note || "💡 11번 알리미가 제작한 숏폼 홍보 영상 및 카드뉴스 5종이 즉시 연동됩니다.";
-                let progressLabel = `<span class="theme-highlight-text font-black">${fundingPercent}% 달성</span>`;
-                let progressSub = `<span class="theme-text-muted font-bold">${fundingCurrent} / ${fundingTarget} 부</span>`;
+                let noteText = ""; // 11번 알리미 문구 전면 제거
+                let progressLabel = `<span class="theme-highlight-text font-black">펀딩 마감 D-${daysLeft}일</span>`;
+                let progressSub = `<span class="theme-text-muted font-bold text-[11px]">현재 ${fundingCurrent}부 참여 완료</span>`;
+                let deadlineText = `<div class="text-[11px] theme-text-muted font-bold text-right pt-0.5">펀딩 마감일: ${formattedEndDate}</div>`;
                 let btnHtml = `<button onclick="triggerFundingBookingModal('${p.title.replace(/'/g, "\\'")}', ${p.price || 18000})" class="w-full py-2.5 text-xs font-black rounded-xl theme-primary-btn transition-all">복간 참여 (펀딩 예약)</button>`;
 
                 if (isRestored) {
@@ -2175,23 +2195,24 @@
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-[10px] font-black theme-highlight-text uppercase tracking-widest font-bold">${p.category || '도서'}</span>
-                            <span class="text-[9px] font-bold ${tagClass} px-2 py-0.5 rounded border">${badgeTag}</span>
+                            ${badgeTag ? `<span class="text-[9px] font-bold ${tagClass} px-2 py-0.5 rounded border">${badgeTag}</span>` : ''}
                         </div>
                         <h4 class="font-black leading-tight h-10 overflow-hidden mt-1 mb-1 text-base text-slate-800 cursor-pointer hover:theme-highlight-text transition-colors" onclick="openAladinSpaciousModal(allProducts.find(function(x){return x.id===${p.id}}))">${p.title}</h4>
                         <p class="text-xs theme-text-muted mb-2 font-medium">${p.author || '저자미상'} 저 | ${p.pubName || '출판사'}</p>
-                        <div class="text-[10px] theme-text-muted bg-slate-50/80 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">
-                            ${noteText}
-                        </div>
+                        ${noteText ? `<div class="text-[10px] theme-text-muted bg-slate-50/80 px-2 py-1 rounded border border-slate-100 mb-3 leading-relaxed">${noteText}</div>` : ''}
                     </div>
-                    <div class="space-y-3">
+                    <div class="space-y-3 mt-2">
                         <div class="space-y-1">
-                            <div class="flex justify-between text-xs font-bold">
+                            <div class="flex justify-between items-center text-xs font-bold">
                                 ${progressLabel}
                                 ${progressSub}
                             </div>
+                            ${isFunding ? deadlineText : ''}
+                            ${!isFunding ? `
                             <div class="w-full bg-slate-200/50 rounded-full h-1.5 overflow-hidden">
-                                <div class="theme-primary-btn h-full rounded-full" style="width: ${isRestored ? 100 : (isFunding ? fundingPercent : votesPercent)}%"></div>
+                                <div class="theme-primary-btn h-full rounded-full" style="width: ${isRestored ? 100 : votesPercent}%"></div>
                             </div>
+                            ` : ''}
                         </div>
                         ${btnHtml}
                     </div>
