@@ -3067,6 +3067,15 @@
             document.addEventListener('DOMContentLoaded', loadProductsFromDB);
         }
         loadProductsFromDB(); // 3중 무결 직통 가동
+    
+        // 🚀 loadProductsFromDB 시동 실행 트리거
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            loadProductsFromDB();
+        } else {
+            document.addEventListener('DOMContentLoaded', loadProductsFromDB);
+        }
+        loadProductsFromDB();
+
     </script>
 
 </body>
