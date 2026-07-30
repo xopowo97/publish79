@@ -2151,13 +2151,19 @@
         
         // [개발 명령서 이식] B2C 펀딩 카드 클릭 ➔ 모달 직통 연결 헬퍼 함수
         function openBookModalById(bookId) {
-            if (!bookId || !window.allProducts) return;
+            const products = (typeof window.allProducts !== 'undefined' && Array.isArray(window.allProducts) && window.allProducts.length > 0)
+                ? window.allProducts
+                : (typeof allProducts !== 'undefined' ? allProducts : []);
+
+            if (!bookId || !products || !Array.isArray(products) || products.length === 0) return;
             
             // ID 타입 불일치(숫자 vs 문자열) 완전 방어 검색
-            const targetBook = window.allProducts.find(p => String(p.id) === String(bookId) || p.id == bookId);
+            const targetBook = products.find(p => String(p.id) === String(bookId) || p.id == bookId);
             
             if (targetBook) {
-                if (typeof window.openAladinSpaciousModal === 'function') {
+                if (typeof openAladinSpaciousModal === 'function') {
+                    openAladinSpaciousModal(targetBook);
+                } else if (typeof window.openAladinSpaciousModal === 'function') {
                     window.openAladinSpaciousModal(targetBook);
                 } else if (typeof window.openB2CBookDetailModal === 'function') {
                     window.openB2CBookDetailModal(targetBook.id, targetBook.isbn || targetBook.id, targetBook.title, targetBook.author, targetBook.pubName, targetBook.price, true, false);
@@ -2521,6 +2527,7 @@
                             story_quotes: dbItem.story_quotes
                         };
                     });
+                    window.allProducts = allProducts;
                     renderProductGrid();
                     console.log('[SUPABASE 20종 REAL-DATA] 10단계 파이프라인 20종 카드 0.05초 즉시 렌더링 완료!');
                 }
