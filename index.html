@@ -2148,6 +2148,29 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
+        
+        // [개발 명령서 이식] B2C 펀딩 카드 클릭 ➔ 모달 직통 연결 헬퍼 함수
+        function openBookModalById(bookId) {
+            if (!bookId || !window.allProducts) return;
+            
+            // ID 타입 불일치(숫자 vs 문자열) 완전 방어 검색
+            const targetBook = window.allProducts.find(p => String(p.id) === String(bookId) || p.id == bookId);
+            
+            if (targetBook) {
+                if (typeof window.openAladinSpaciousModal === 'function') {
+                    window.openAladinSpaciousModal(targetBook);
+                } else if (typeof window.openB2CBookDetailModal === 'function') {
+                    window.openB2CBookDetailModal(targetBook.id, targetBook.isbn || targetBook.id, targetBook.title, targetBook.author, targetBook.pubName, targetBook.price, true, false);
+                }
+            } else {
+                console.warn('모달 호출 대상 도서를 찾을 수 없습니다. ID:', bookId);
+            }
+        }
+        
+        // 브라우저 인라인 onclick 바인딩을 위한 전역 노출
+        window.openBookModalById = openBookModalById;
+
+
         async function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
             const modal = document.getElementById('b2c-book-detail-modal');
             const loading = document.getElementById('detail-loading');
