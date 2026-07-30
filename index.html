@@ -2169,6 +2169,162 @@
         
         // 브라우저 인라인 onclick 바인딩을 위한 전역 노출
         window.openBookModalById = openBookModalById;
+        // ============================================================
+        // 📚 4계절 알라딘 대형 모달 핵심 엔진 함수
+        // ============================================================
+        let currentAladinSlideIdx = 0;
+        let ALADIN_CAROUSEL_IMAGES = [
+            'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg',
+            'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg',
+            'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg',
+            'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1669.jpg',
+            'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1679.jpg'
+        ];
+
+        function openAladinSpaciousModal(bookTitleObj, author, pubName, cat, fullDesc, tocText, reviewText, authorInfo, quotesText) {
+            let data;
+            let daysLeft = 14;
+            let fundingCurrent = 85;
+            let formattedEndDate = '2026년 8월 15일';
+
+            if (typeof bookTitleObj === 'object' && bookTitleObj !== null) {
+                const b = bookTitleObj;
+                let titleStr = b.title || '도서 명작';
+                
+                daysLeft = b.days_left !== undefined ? b.days_left : 14;
+                fundingCurrent = b.funding_current !== undefined ? b.funding_current : (b.fundingCurrent || 85);
+                formattedEndDate = b.funding_end_date || '2026년 8월 15일';
+
+                let rawDesc = (b.full_description && b.full_description.trim()) || (b.fullDescription && b.fullDescription.trim()) || (b.description && b.description.trim());
+                let rawToc = (b.toc && b.toc.trim());
+                let rawReview = (b.review_list && b.review_list.trim()) || (b.reviewList && b.reviewList.trim());
+                let rawAuthors = (b.authors_info && b.authors_info.trim()) || (b.authors && b.authors.trim());
+                let rawQuotes = (b.story_quotes && b.story_quotes.trim()) || (b.quotes && b.quotes.trim());
+
+                data = {
+                    title: titleStr,
+                    price: b.price || 18000,
+                    author: (b.author || '저자 미상') + (b.publisher ? ' | ' + b.publisher : (b.pubName ? ' | ' + b.pubName : ' | 출판친구')),
+                    category: b.category || '소설',
+                    fullDescription: rawDesc || ("작가와 도서에 대한 상세 소개글입니다.\n인류의 유산이자 독자들의 요청을 받은 명작 《" + titleStr + "》의 자율 복간 프로젝트가 펀딩으로 진행됩니다."),
+                    toc: rawToc || ("[《" + titleStr + "》 차례 및 목차]\n본 도서는 복간 검수를 거쳐 수록 목차가 차례대로 표출됩니다.\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 감동과 결언"),
+                    reviewList: rawReview || ('"이 시대에 반드시 다시 읽혀야 할 잊혀진 명작 《' + titleStr + '》의 재발견." - 독자 서평'),
+                    authors: rawAuthors || ((b.author || '저자 미상') + " (지은이)\n출판친구 복간 위원회와 독자 청원 모임의 지원으로 재탄생한 불후의 명작."),
+                    quotes: rawQuotes || ('1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."\n2. "기억의 불씨를 지키는 것, 그것이 《' + titleStr + '》 복간의 이유다."')
+                };
+                if (b.cover_url || b.image) {
+                    ALADIN_CAROUSEL_IMAGES[0] = b.cover_url || b.image;
+                }
+            } else {
+                const bookTitle = bookTitleObj || '';
+                data = {
+                    title: bookTitle || '도서 명작',
+                    price: 18000,
+                    author: (author || '저자 미상') + (pubName ? ' | ' + pubName : ' | 출판친구'),
+                    category: cat || '소설',
+                    fullDescription: fullDesc || ("[책소개]\n인류의 유산이자 독자들의 요청을 받은 명작 《" + (bookTitle || '도서') + "》의 자율 복간 프로젝트가 시작되었습니다."),
+                    toc: tocText || ("[《" + (bookTitle || '도서') + "》 목차]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 해제 및 결론"),
+                    reviewList: reviewText || '"독자들이 선정한 불후의 명저."',
+                    authors: authorInfo || ((author || '저자 미상') + " | " + (pubName || '출판친구')),
+                    quotes: quotesText || '"[책 속의 명문장]\n우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."'
+                };
+            }
+
+            const sfTitle = document.getElementById('sf-book-title');
+            if (sfTitle) sfTitle.textContent = data.title;
+            const el_bt = document.getElementById('aladin-book-title'); if (el_bt) el_bt.textContent = data.title;
+            const el_ba = document.getElementById('aladin-book-author'); if (el_ba) el_ba.textContent = data.author;
+            const el_bc = document.getElementById('aladin-book-cat'); if (el_bc) el_bc.textContent = data.category;
+            
+            const el_desc = document.getElementById('aladin-sec-desc'); if (el_desc) el_desc.textContent = data.fullDescription;
+            const el_toc = document.getElementById('aladin-sec-toc'); if (el_toc) el_toc.textContent = data.toc;
+            const el_review = document.getElementById('aladin-sec-review'); if (el_review) el_review.textContent = data.reviewList;
+            const el_author = document.getElementById('aladin-sec-author'); if (el_author) el_author.textContent = data.authors;
+            const el_quotes = document.getElementById('aladin-sec-quotes'); if (el_quotes) el_quotes.textContent = data.quotes;
+
+            const fundStatusEl = document.getElementById('aladin-fund-status');
+            const fundCountEl = document.getElementById('aladin-fund-count');
+            const modalBtnEl = document.getElementById('aladin-modal-btn');
+
+            if (fundStatusEl) fundStatusEl.textContent = "펀딩 마감 D-" + daysLeft + "일";
+            if (fundCountEl) fundCountEl.textContent = "현재 " + fundingCurrent + "부 참여 완료 (" + formattedEndDate + " 마감)";
+            if (modalBtnEl) {
+                modalBtnEl.setAttribute('onclick', "triggerFundingBookingModal('" + (data.title || '').replace(/'/g, "\'") + "', " + (data.price || 18000) + ")");
+            }
+
+            const modal = document.getElementById('aladin-spacious-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            
+            currentAladinSlideIdx = 0;
+            updateAladinSlideUI();
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        window.openAladinSpaciousModal = openAladinSpaciousModal;
+
+        function closeAladinSpaciousModal() {
+            const modal = document.getElementById('aladin-spacious-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+        window.closeAladinSpaciousModal = closeAladinSpaciousModal;
+
+        function switchMediaMode(mode) {
+            const viewSf = document.getElementById('view-mode-shortform');
+            const viewCn = document.getElementById('view-mode-cardnews');
+            const btnSf = document.getElementById('btn-media-sf');
+            const btnCn = document.getElementById('btn-media-cn');
+
+            if (mode === 'shortform') {
+                if (viewSf) viewSf.classList.remove('hidden');
+                if (viewCn) viewCn.classList.add('hidden');
+                if (btnSf) { btnSf.className = 'w-1/2 py-2 text-xs font-black rounded-xl bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1'; }
+                if (btnCn) { btnCn.className = 'w-1/2 py-2 text-xs font-black rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1'; }
+            } else {
+                if (viewSf) viewSf.classList.add('hidden');
+                if (viewCn) viewCn.classList.remove('hidden');
+                if (btnCn) { btnCn.className = 'w-1/2 py-2 text-xs font-black rounded-xl bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1'; }
+                if (btnSf) { btnSf.className = 'w-1/2 py-2 text-xs font-black rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1'; }
+            }
+        }
+        window.switchMediaMode = switchMediaMode;
+
+        function prevAladinSlide() {
+            currentAladinSlideIdx = (currentAladinSlideIdx - 1 + ALADIN_CAROUSEL_IMAGES.length) % ALADIN_CAROUSEL_IMAGES.length;
+            updateAladinSlideUI();
+        }
+        window.prevAladinSlide = prevAladinSlide;
+
+        function nextAladinSlide() {
+            currentAladinSlideIdx = (currentAladinSlideIdx + 1) % ALADIN_CAROUSEL_IMAGES.length;
+            updateAladinSlideUI();
+        }
+        window.nextAladinSlide = nextAladinSlide;
+
+        function updateAladinSlideUI() {
+            const imgEl = document.getElementById('cn-book-img');
+            if (imgEl && ALADIN_CAROUSEL_IMAGES[currentAladinSlideIdx]) {
+                imgEl.src = ALADIN_CAROUSEL_IMAGES[currentAladinSlideIdx];
+            }
+            const dotsContainer = document.getElementById('aladin-slide-dots');
+            if (dotsContainer) {
+                let dotsHtml = '';
+                for (let i = 0; i < ALADIN_CAROUSEL_IMAGES.length; i++) {
+                    if (i === currentAladinSlideIdx) {
+                        dotsHtml += '<span class="h-2 rounded-full transition-all bg-amber-500 w-5"></span>';
+                    } else {
+                        dotsHtml += '<span class="h-2 rounded-full transition-all bg-slate-300 w-2"></span>';
+                    }
+                }
+                dotsContainer.innerHTML = dotsHtml;
+            }
+        }
+
 
 
         async function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
