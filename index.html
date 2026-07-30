@@ -2555,5 +2555,132 @@
 
     </script>
 
+
+    <!-- 📚 4계절 알라딘 대형 뷰어 모달 (aladin-spacious-modal) -->
+    <div id="aladin-spacious-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 hidden items-center justify-center p-4 md:p-6 overflow-y-auto">
+        <div class="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] relative animate-fade-in border border-slate-100">
+            
+            <!-- 닫기 버튼 -->
+            <button onclick="closeAladinSpaciousModal()" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all shadow-sm">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- 좌측 5/12 미디어 라운지 파트 (숏폼 + 5장 카드뉴스) -->
+            <div class="w-full md:w-5/12 bg-slate-900 p-6 flex flex-col justify-between text-white relative border-r border-slate-800">
+                
+                <!-- 상단 토글 컨트롤러 (16:9 트레일러 / 카드뉴스 탭) -->
+                <div class="flex items-center justify-between mb-4 z-10">
+                    <span id="aladin-book-cat" class="text-xs font-black text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full uppercase tracking-wider">소설</span>
+                    <div class="flex bg-slate-800/80 p-1 rounded-2xl w-48 border border-slate-700/50">
+                        <button id="btn-media-sf" onclick="switchMediaMode('shortform')" class="w-1/2 py-2 text-xs font-black rounded-xl bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> 숏폼
+                        </button>
+                        <button id="btn-media-cn" onclick="switchMediaMode('cardnews')" class="w-1/2 py-2 text-xs font-black rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1">
+                            <i data-lucide="image" class="w-3.5 h-3.5"></i> 카드뉴스
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 16:9 트레일러 미디어 플레이어 -->
+                <div id="view-mode-shortform" class="relative aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden my-auto shadow-2xl border border-slate-800 flex items-center justify-center group">
+                    <video id="aladin-sf-video" class="w-full h-full object-cover" poster="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" loop playsinline></video>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
+                        <h4 id="sf-book-title" class="font-black text-sm text-white line-clamp-1">복간 명작 트레일러</h4>
+                        <p class="text-[11px] text-slate-300">세월이 지나도 변치 않는 불후의 명작을 만나보세요.</p>
+                    </div>
+                </div>
+
+                <!-- 3:4 카드뉴스 카루셀 (기본 hidden) -->
+                <div id="view-mode-cardnews" class="relative aspect-[3/4] bg-slate-950 rounded-2xl overflow-hidden my-auto shadow-2xl border border-slate-800 hidden flex items-center justify-center group">
+                    <img id="cn-book-img" src="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" class="w-full h-full object-cover transition-all duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-5">
+                        <p class="text-xs text-amber-300 font-bold leading-relaxed">"세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간."</p>
+                    </div>
+                    <!-- 카루셀 이전/다음 조작 버튼 -->
+                    <button onclick="prevAladinSlide()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-all">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="nextAladinSlide()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-all">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                    <!-- 인디케이터 도트 -->
+                    <div id="aladin-slide-dots" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+                        <span class="h-2 rounded-full transition-all bg-amber-500 w-5"></span>
+                        <span class="h-2 rounded-full transition-all bg-slate-300 w-2"></span>
+                        <span class="h-2 rounded-full transition-all bg-slate-300 w-2"></span>
+                        <span class="h-2 rounded-full transition-all bg-slate-300 w-2"></span>
+                        <span class="h-2 rounded-full transition-all bg-slate-300 w-2"></span>
+                    </div>
+                </div>
+
+                <!-- 하단 펀딩 참여 현황 바 -->
+                <div class="pt-4 border-t border-slate-800 space-y-2 z-10">
+                    <div class="flex justify-between items-center text-xs">
+                        <span id="aladin-fund-status" class="font-black text-amber-400">펀딩 마감 D-14일</span>
+                        <span id="aladin-fund-count" class="text-slate-400 font-bold text-[11px]">현재 85부 참여 완료 (2026년 8월 15일 마감)</span>
+                    </div>
+                    <button id="aladin-modal-btn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-900 font-black text-sm shadow-lg hover:shadow-amber-500/20 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="bookmark-plus" class="w-4 h-4"></i> 복간 펀딩 참여하기
+                    </button>
+                </div>
+            </div>
+
+            <!-- 우측 7/12 스크롤 가능한 5대 원문 뷰어 파트 -->
+            <div class="w-full md:w-7/12 p-6 md:p-8 overflow-y-auto max-h-[85vh] space-y-8 bg-white text-slate-800">
+                
+                <!-- 도서 제목 & 저자 정보 -->
+                <div class="border-b border-slate-100 pb-5">
+                    <h2 id="aladin-book-title" class="text-2xl md:text-3xl font-black text-slate-900 leading-tight">복간 신청 명작</h2>
+                    <p id="aladin-book-author" class="text-sm font-bold text-slate-500 mt-2">저자 미상 | 출판사 미상</p>
+                </div>
+
+                <!-- Part 1: 책소개 -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-black text-slate-900 border-l-4 border-amber-500 pl-3">책소개</h3>
+                    <div id="aladin-sec-desc" class="text-sm leading-relaxed text-slate-700 font-normal whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        인류의 유산이자 독자들의 요청을 받은 명작의 자율 복간 프로젝트가 펀딩으로 진행됩니다.
+                    </div>
+                </div>
+
+                <!-- Part 2: 목차 -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-black text-slate-900 border-l-4 border-amber-500 pl-3">목차</h3>
+                    <div id="aladin-sec-toc" class="text-sm leading-relaxed text-slate-700 font-normal whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100 font-mono">
+                        1장. 서론 및 작품 배경
+                        2장. 본문 전개 및 시대상
+                        3장. 감동과 결언
+                    </div>
+                </div>
+
+                <!-- Part 3: 명사서평 -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-black text-slate-900 border-l-4 border-amber-500 pl-3">명사서평</h3>
+                    <div id="aladin-sec-review" class="text-sm italic leading-relaxed text-slate-700 whitespace-pre-line bg-amber-50/50 p-4 rounded-2xl border border-amber-100/60">
+                        "이 시대에 반드시 다시 읽혀야 할 잊혀진 명작의 재발견." - 독자 서평
+                    </div>
+                </div>
+
+                <!-- Part 4: 작가소개 -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-black text-slate-900 border-l-4 border-amber-500 pl-3">작가소개</h3>
+                    <div id="aladin-sec-author" class="text-sm leading-relaxed text-slate-700 whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        지은이 소개 및 출판친구 복간 위원회 해설.
+                    </div>
+                </div>
+
+                <!-- Part 5: 책속의 명문장 TOP3 -->
+                <div class="space-y-3 pb-4">
+                    <h3 class="text-lg font-black text-slate-900 border-l-4 border-amber-500 pl-3">책속의 명문장 TOP3</h3>
+                    <div id="aladin-sec-quotes" class="text-sm leading-relaxed text-amber-900 font-medium whitespace-pre-line bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20">
+                        1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."
+                        2. "기억의 불씨를 지키는 것, 그것이 복간의 이유다."
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
 </body>
 </html>
