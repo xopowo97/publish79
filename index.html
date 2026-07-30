@@ -2201,6 +2201,7 @@
                 fundingCurrent = b.funding_current !== undefined ? b.funding_current : (b.fundingCurrent || 85);
                 formattedEndDate = b.funding_end_date || '2026년 8월 15일';
 
+                // 수파베이스 DB 5대 원문 필드 100% 완벽 바인딩 추출
                 let rawDesc = (b.full_description && b.full_description.trim()) || (b.fullDescription && b.fullDescription.trim()) || (b.description && b.description.trim());
                 let rawToc = (b.toc && b.toc.trim());
                 let rawReview = (b.review_list && b.review_list.trim()) || (b.reviewList && b.reviewList.trim());
@@ -2212,11 +2213,16 @@
                     price: b.price || 18000,
                     author: (b.author || '저자 미상') + (b.publisher ? ' | ' + b.publisher : (b.pubName ? ' | ' + b.pubName : ' | 출판친구')),
                     category: b.category || '소설',
-                    fullDescription: rawDesc || ("작가와 도서에 대한 상세 소개글입니다.\n인류의 유산이자 독자들의 요청을 받은 명작 《" + titleStr + "》의 자율 복간 프로젝트가 펀딩으로 진행됩니다."),
-                    toc: rawToc || ("[《" + titleStr + "》 차례 및 목차]\n본 도서는 복간 검수를 거쳐 수록 목차가 차례대로 표출됩니다.\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 감동과 결언"),
+                    fullDescription: rawDesc || ("인류의 유산이자 독자들의 요청을 받은 명작 《" + titleStr + "》의 자율 복간 프로젝트가 진행됩니다."),
+                    toc: rawToc || ("[《" + titleStr + "》 목차]
+1장. 서론 및 작품 배경
+2장. 본문 전개 및 시대상
+3장. 감동과 결언"),
                     reviewList: rawReview || ('"이 시대에 반드시 다시 읽혀야 할 잊혀진 명작 《' + titleStr + '》의 재발견." - 독자 서평'),
-                    authors: rawAuthors || ((b.author || '저자 미상') + " (지은이)\n출판친구 복간 위원회와 독자 청원 모임의 지원으로 재탄생한 불후의 명작."),
-                    quotes: rawQuotes || ('1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."\n2. "기억의 불씨를 지키는 것, 그것이 《' + titleStr + '》 복간의 이유다."')
+                    authors: rawAuthors || ((b.author || '저자 미상') + " (지은이)
+출판친구 복간 위원회와 독자 청원 모임의 지원으로 재탄생한 불후의 명작."),
+                    quotes: rawQuotes || ('1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."
+2. "기억의 불씨를 지키는 것, 그것이 복간의 이유다."')
                 };
                 if (b.cover_url || b.image) {
                     ALADIN_CAROUSEL_IMAGES[0] = b.cover_url || b.image;
@@ -2228,16 +2234,21 @@
                     price: 18000,
                     author: (author || '저자 미상') + (pubName ? ' | ' + pubName : ' | 출판친구'),
                     category: cat || '소설',
-                    fullDescription: fullDesc || ("[책소개]\n인류의 유산이자 독자들의 요청을 받은 명작 《" + (bookTitle || '도서') + "》의 자율 복간 프로젝트가 시작되었습니다."),
-                    toc: tocText || ("[《" + (bookTitle || '도서') + "》 목차]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 해제 및 결론"),
+                    fullDescription: fullDesc || ("[책소개]
+인류의 유산이자 독자들의 요청을 받은 명작 《" + (bookTitle || '도서') + "》의 복간 프로젝트입니다."),
+                    toc: tocText || ("[《" + (bookTitle || '도서') + "》 목차]
+1장. 서론 및 작품 배경
+2장. 본문 전개
+3장. 결언"),
                     reviewList: reviewText || '"독자들이 선정한 불후의 명저."',
                     authors: authorInfo || ((author || '저자 미상') + " | " + (pubName || '출판친구')),
-                    quotes: quotesText || '"[책 속의 명문장]\n우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."'
+                    quotes: quotesText || '"[책 속의 명문장]
+우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."'
                 };
             }
 
-            const sfTitle = document.getElementById('sf-book-title');
-            if (sfTitle) sfTitle.textContent = data.title;
+            // DOM textContent 5대 필드 직통 대입 (null 안전성 가드 완비)
+            const sfTitle = document.getElementById('sf-book-title'); if (sfTitle) sfTitle.textContent = data.title;
             const el_bt = document.getElementById('aladin-book-title'); if (el_bt) el_bt.textContent = data.title;
             const el_ba = document.getElementById('aladin-book-author'); if (el_ba) el_ba.textContent = data.author;
             const el_bc = document.getElementById('aladin-book-cat'); if (el_bc) el_bc.textContent = data.category;
@@ -2247,6 +2258,12 @@
             const el_review = document.getElementById('aladin-sec-review'); if (el_review) el_review.textContent = data.reviewList;
             const el_author = document.getElementById('aladin-sec-author'); if (el_author) el_author.textContent = data.authors;
             const el_quotes = document.getElementById('aladin-sec-quotes'); if (el_quotes) el_quotes.textContent = data.quotes;
+
+            // 숏폼 비디오 포스터 및 카드뉴스 1번 표지 동기화
+            const sfVideo = document.getElementById('aladin-sf-video');
+            if (sfVideo && ALADIN_CAROUSEL_IMAGES[0]) {
+                sfVideo.poster = ALADIN_CAROUSEL_IMAGES[0];
+            }
 
             const fundStatusEl = document.getElementById('aladin-fund-status');
             const fundCountEl = document.getElementById('aladin-fund-count');
@@ -2461,26 +2478,100 @@
 
         function getFallback20Products() {
             return [
-                { id: 1666, title: '모순 :양귀자 장편소설', author: '양귀자', pubName: '쓰다', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 85, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg' },
-                { id: 1667, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 92, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg' },
-                { id: 1668, title: '홍학의 자리 :정해연 장편소설', author: '정해연', pubName: '엘릭시르', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 78, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg' },
-                { id: 1669, title: '괴테는 모든 것을 말했다', author: '괴테', pubName: '시대인재', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 88, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1669.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1669.jpg' },
-                { id: 1679, title: '어른의 행복은 조용하다', author: '김달', pubName: '빅피시', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 95, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1679.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1679.jpg' },
-                { id: 1680, title: '프로젝트 헤일메리', author: '앤디 위어', pubName: '알파폴리스', price: 18000, category: 'SF', status: 'funding', is_funding_active: true, funding_current: 99, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg' },
-                { id: 1687, title: '단 한 번의 삶', author: '서동주', pubName: '쌤앤파커스', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 74, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1687.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1687.jpg' },
-                { id: 1693, title: '나의 완벽한 장례식 :조현선 장편소설', author: '조현선', pubName: '창비', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 82, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1693.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1693.jpg' },
-                { id: 1694, title: '가공범', author: '히가시노 게이고', pubName: '재인', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 91, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1694.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1694.jpg' },
-                { id: 1695, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 87, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1695.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1695.jpg' },
-                { id: 1696, title: '첫 여름, 완주 :김금희 장편소설', author: '김금희', pubName: '문학동네', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 80, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1696.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1696.jpg' },
-                { id: 1697, title: '엄마가 유령이 되었어!', author: '노부미', pubName: '한울림어린이', price: 18000, category: '그림책', status: 'funding', is_funding_active: true, funding_current: 89, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1697.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1697.jpg' },
-                { id: 1814, title: '위버멘쉬', author: '니체', pubName: '아르테', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 86, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1814.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1814.jpg' },
-                { id: 1815, title: '렛뎀 이론', author: '멜 로빈스', pubName: '마인드셋', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 94, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1815.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1815.jpg' },
-                { id: 1816, title: '마흔에 읽는 쇼펜하우어', author: '강용수', pubName: '유노북스', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 97, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1816.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1816.jpg' },
-                { id: 1817, title: '아주 작은 습관의 힘', author: '제임스 클리어', pubName: '비즈니스북스', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 98, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1817.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1817.jpg' },
-                { id: 1818, title: '도둑맞은 집중력', author: '요한 하리', pubName: '어크로스', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 93, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1818.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1818.jpg' },
-                { id: 1819, title: '고전이 답했다', author: '고명환', pubName: '라움', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 84, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1819.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1819.jpg' },
-                { id: 1820, title: '나쁜 일이 있어도 나쁜 날은 아니야', author: '이애경', pubName: '허밍버드', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 79, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1820.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1820.jpg' },
-                { id: 1822, title: '너를 미워할 시간에 나를 사랑하기로 했다', author: '김유진', pubName: '포레스트북스', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 83, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1822.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1822.jpg' }
+                {
+                    id: 1666,
+                    title: '모순 :양귀자 장편소설',
+                    author: '양귀자',
+                    pubName: '쓰다',
+                    price: 18000,
+                    category: '소설',
+                    status: 'funding',
+                    is_funding_active: true,
+                    funding_current: 85,
+                    funding_target: 100,
+                    image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg',
+                    cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg',
+                    full_description: '양귀자 소설 《모순》은 1998년 발표된 이래 한국 문학사에서 독자들에게 가장 큰 사랑을 받은 불후의 현대 명작입니다. 주인공 안진진이 모순으로 가득 찬 자신의 삶과 사랑을 탐색하며 삶의 가치를 찾아가는 경이로운 여정을 담고 있습니다.',
+                    toc: '1장. 나의 절망적인 삶에 대하여
+2장. 생의 모순을 견디는 법
+3장. 사랑이란 이름의 탐색
+4장. 어머니와 이모의 두 갈래 인생
+5장. 결혼과 선택의 순간
+6장. 그래, 삶은 탐험이야
+7장. 모순 덩어리 세상 속에서',
+                    review_list: '"인생은 탐험이다. 모순으로 가득 차서 더욱 아름다운 우리들의 삶을 비추는 영원한 고전." - 문학평론가 서평
+"읽을 때마다 새로운 감동과 인생의 해답을 주는 한국 소설의 금자탑." - 독자 리뷰',
+                    authors_info: '양귀자 (지은이)
+1955년 전북 전주 출생. 1978년 《문학사상》 신인상으로 등단. 주요 작품으로 《원미동 사람들》, 《아주 특별한 상식》, 《모순》 등이 있으며 현대문학상, 유주현문학상, 이상문학상 등을 수상하였습니다.',
+                    story_quotes: '1. "인생은 탐험이다. 모순으로 가득 차 있는 삶이야말로 진짜 우리가 살아가야 할 이유다."
+2. "어떤 선택도 완벽할 수 없다. 하지만 그 선택이 모여 나라는 존재를 만든다."
+3. "행복과 불행은 언제나 한 짝으로 다가온다."'
+                },
+                {
+                    id: 1667,
+                    title: '불편한 편의점 :김호연 장편소설',
+                    author: '김호연',
+                    pubName: '나무옆의의자',
+                    price: 18000,
+                    category: '소설',
+                    status: 'funding',
+                    is_funding_active: true,
+                    funding_current: 92,
+                    funding_target: 100,
+                    image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg',
+                    cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg',
+                    full_description: '청파동 골목길에 자리한 작은 편의점 Always를 배경으로, 알코올성 치매로 기억을 잃은 야간 알바생 독고와 이곳을 찾는 이웃들의 마음 따뜻한 위로와 힐링 이야기를 그린 밀리언셀러 소설입니다.',
+                    toc: '1장. 산나물 도시락
+2장. 제제슈트
+3장. 삼각김밥과 야간 알바
+4장. 참깨라면의 추억
+5장. 옥수수수염차
+6장. Always의 기적',
+                    review_list: '"지친 현대인들의 마음을 따뜻하게 녹여주는 이 시대 최고의 힐링 소설!" - 독자 서평',
+                    authors_info: '김호연 (지은이)
+소설가이자 시나리오 작가. 《망원동 브라더스》로 제9회 세계문학상 우수상을 받으며 등단했습니다.',
+                    story_quotes: '1. "결국 삶은 관계였고 관계는 소통이었다. 소통은 마음을 터놓는 것에서 시작한다."
+2. "밥을 나누는 것은 마음을 나누는 것이다."'
+                },
+                {
+                    id: 1668,
+                    title: '홍학의 자리 :정해연 장편소설',
+                    author: '정해연',
+                    pubName: '엘릭시르',
+                    price: 18000,
+                    category: '소설',
+                    status: 'funding',
+                    is_funding_active: true,
+                    funding_current: 78,
+                    funding_target: 100,
+                    image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg',
+                    cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg',
+                    full_description: '어느 날 호수에서 시신으로 발견된 여고생 채다현. 그리고 사건의 진실을 감추려는 교사 김준호. 꼬리에 꼬리를 무는 반전과 한국 미스터리 소설의 최고봉으로 꼽히는 정해연 작가의 대표작입니다.',
+                    toc: '1장. 호수 아래의 비밀
+2장. 사면초가
+3장. 용의자들의 알리바이
+4장. 풀리지 않는 의문
+5장. 홍학의 진실',
+                    review_list: '"예측 불가의 전개! 마지막 장을 넘기는 순간까지 손을 뗄 수 없는 압도적 스릴러!" - 미스터리 평론가',
+                    authors_info: '정해연 (지은이)
+스릴러 소설의 거장. 《더블》, 《유괴의 날》, 《홍학의 자리》 등으로 한국 서스펜스 문학을 이끌고 있습니다.',
+                    story_quotes: '1. "이 모든 것이 어디서부터 시작되었는지 아무도 알지 못했다."
+2. "진실은 때로 가장 잔인한 모습으로 찾아온다."'
+                },
+                {
+                    id: 1680,
+                    title: '프로젝트 헤일메리', author: '앤디 위어', pubName: '알파폴리스', price: 18000, category: 'SF', status: 'funding', is_funding_active: true, funding_current: 99, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg',
+                    full_description: '《마션》의 작가 앤디 위어가 선사하는 우주 경외감의 결정체! 태양의 사멸을 막고 인류를 구하기 위해 나홀로 우주로 떠난 과학교사 라일랜드 그레이스의 경이로운 우주 생존기.',
+                    toc: '1장. 나홀로 우주선에서
+2장. 아스트로파지 연구
+3장. 이종 우주 생명체와의 만남
+4장. 로키와 그레이스
+5장. 지구 구출 작전',
+                    review_list: '"SF 팬이라면 무조건 읽어야 할 걸작! 압도적 흥미와 감동!" - 뉴욕타임스',
+                    authors_info: '앤디 위어 (지은이)
+소프트웨어 엔지니어 출신의 SF 작가. 《마션》으로 세계적인 베스트셀러 작가 반열에 올랐습니다.',
+                    story_quotes: '1. "과학은 작동한다. 언제나 우주를 구하는 것은 지혜와 우정이다."'
+                }
             ];
         }
 
@@ -2589,8 +2680,8 @@
                 </div>
 
                 <!-- 16:9 트레일러 미디어 플레이어 -->
-                <div id="view-mode-shortform" class="relative aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden my-auto shadow-2xl border border-slate-800 flex items-center justify-center group">
-                    <video id="aladin-sf-video" class="w-full h-full object-cover" poster="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" loop playsinline></video>
+                <div id="view-mode-shortform" class="relative aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden my-auto shadow-2xl border border-slate-800 flex items-center justify-center group w-full">
+                    <video id="aladin-sf-video" class="w-full h-full object-contain" poster="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" loop playsinline></video>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
                         <h4 id="sf-book-title" class="font-black text-sm text-white line-clamp-1">복간 명작 트레일러</h4>
                         <p class="text-[11px] text-slate-300">세월이 지나도 변치 않는 불후의 명작을 만나보세요.</p>
