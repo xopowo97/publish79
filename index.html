@@ -2274,7 +2274,34 @@
             renderDetailSlides();
         }
 
-        async function loadProductsFromDB() {
+        async 
+        function getFallback20Products() {
+            return [
+                { id: 1666, title: '모순 :양귀자 장편소설', author: '양귀자', pubName: '쓰다', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 85, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg' },
+                { id: 1667, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 92, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1667.jpg' },
+                { id: 1668, title: '홍학의 자리 :정해연 장편소설', author: '정해연', pubName: '엘릭시르', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 78, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1668.jpg' },
+                { id: 1669, title: '괴테는 모든 것을 말했다', author: '괴테', pubName: '시대인재', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 88, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1669.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1669.jpg' },
+                { id: 1679, title: '어른의 행복은 조용하다', author: '김달', pubName: '빅피시', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 95, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1679.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1679.jpg' },
+                { id: 1680, title: '프로젝트 헤일메리', author: '앤디 위어', pubName: '알파폴리스', price: 18000, category: 'SF', status: 'funding', is_funding_active: true, funding_current: 99, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1680.jpg' },
+                { id: 1687, title: '단 한 번의 삶', author: '서동주', pubName: '쌤앤파커스', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 74, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1687.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1687.jpg' },
+                { id: 1693, title: '나의 완벽한 장례식 :조현선 장편소설', author: '조현선', pubName: '창비', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 82, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1693.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1693.jpg' },
+                { id: 1694, title: '가공범', author: '히가시노 게이고', pubName: '재인', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 91, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1694.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1694.jpg' },
+                { id: 1695, title: '불편한 편의점 :김호연 장편소설', author: '김호연', pubName: '나무옆의의자', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 87, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1695.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1695.jpg' },
+                { id: 1696, title: '첫 여름, 완주 :김금희 장편소설', author: '김금희', pubName: '문학동네', price: 18000, category: '소설', status: 'funding', is_funding_active: true, funding_current: 80, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1696.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1696.jpg' },
+                { id: 1697, title: '엄마가 유령이 되었어!', author: '노부미', pubName: '한울림어린이', price: 18000, category: '그림책', status: 'funding', is_funding_active: true, funding_current: 89, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1697.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1697.jpg' },
+                { id: 1814, title: '위버멘쉬', author: '니체', pubName: '아르테', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 86, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1814.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1814.jpg' },
+                { id: 1815, title: '렛뎀 이론', author: '멜 로빈스', pubName: '마인드셋', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 94, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1815.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1815.jpg' },
+                { id: 1816, title: '마흔에 읽는 쇼펜하우어', author: '강용수', pubName: '유노북스', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 97, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1816.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1816.jpg' },
+                { id: 1817, title: '아주 작은 습관의 힘', author: '제임스 클리어', pubName: '비즈니스북스', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 98, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1817.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1817.jpg' },
+                { id: 1818, title: '도둑맞은 집중력', author: '요한 하리', pubName: '어크로스', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 93, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1818.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1818.jpg' },
+                { id: 1819, title: '고전이 답했다', author: '고명환', pubName: '라움', price: 18000, category: '인문', status: 'funding', is_funding_active: true, funding_current: 84, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1819.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1819.jpg' },
+                { id: 1820, title: '나쁜 일이 있어도 나쁜 날은 아니야', author: '이애경', pubName: '허밍버드', price: 18000, category: '에세이', status: 'funding', is_funding_active: true, funding_current: 79, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1820.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1820.jpg' },
+                { id: 1822, title: '너를 미워할 시간에 나를 사랑하기로 했다', author: '김유진', pubName: '포레스트북스', price: 18000, category: '자기계발', status: 'funding', is_funding_active: true, funding_current: 83, funding_target: 100, image: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1822.jpg', cover_url: 'https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1822.jpg' }
+            ];
+        }
+
+
+        function loadProductsFromDB() {
             // [개발 명령서 반영] Supabase 2중 안전 인증 파이프라인 및 20종 카드 즉시 렌더링
             const pubKey = window.SUPABASE_ANON_KEY || 'sb_publishable_BOtAPo474zF0XsKOxhKxsQ_wBqY1pcn';
             const url = 'https://fquzouhstheqvuzzhxqs.supabase.co/rest/v1/reprint_candidates?select=*&order=id.asc&limit=20&apikey=' + pubKey;
@@ -2324,12 +2351,19 @@
                 console.error('Supabase Fetch Error:', err);
             })
             .finally(() => {
-                // 무한 로딩 스피너 100% 강제 소등 및 안전 렌더링 가드
+                // [개발 명령서 이식] 1. 로딩 스피너 엘리먼트 100% 강제 소등
                 const spinner = document.getElementById('loading-spinner') || document.querySelector('.spinner');
                 if (spinner) spinner.style.display = 'none';
-                if (allProducts && allProducts.length > 0) {
-                    renderProductGrid();
+
+                // [개발 명령서 이식] 2. API 예외/지연으로 데이터가 비어있을 경우 20종 실데이터 폴백 백업 세트 자동 적용
+                if (!allProducts || !Array.isArray(allProducts) || allProducts.length === 0) {
+                    if (typeof getFallback20Products === 'function') {
+                        allProducts = getFallback20Products();
+                    }
                 }
+
+                // [개발 명령서 이식] 3. 20종 도서 카드 렌더링 엔진 직통 가동
+                renderProductGrid();
             });
         }
 
