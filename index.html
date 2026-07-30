@@ -2148,7 +2148,7 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
+        async function openB2CBookDetailModal(id, isbn, title, author, publisher, price, isFunding, isVoteOnly) {
             const modal = document.getElementById('b2c-book-detail-modal');
             const loading = document.getElementById('detail-loading');
             const content = document.getElementById('detail-content');
