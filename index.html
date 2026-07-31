@@ -2,6 +2,8 @@
 <html lang="ko">
 
 <head>
+    <!-- 파비콘 404 방지 가드 -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>출판친구 - 절판도서 복간 전문 서점</title>
@@ -2213,16 +2215,11 @@
                     price: b.price || 18000,
                     author: (b.author || '저자 미상') + (b.publisher ? ' | ' + b.publisher : (b.pubName ? ' | ' + b.pubName : ' | 출판친구')),
                     category: b.category || '소설',
-                    fullDescription: rawDesc || ("인류의 유산이자 독자들의 요청을 받은 명작 《" + titleStr + "》의 자율 복간 프로젝트가 진행됩니다."),
-                    toc: rawToc || ("[《" + titleStr + "》 목차]
-1장. 서론 및 작품 배경
-2장. 본문 전개 및 시대상
-3장. 감동과 결언"),
-                    reviewList: rawReview || ('"이 시대에 반드시 다시 읽혀야 할 잊혀진 명작 《' + titleStr + '》의 재발견." - 독자 서평'),
-                    authors: rawAuthors || ((b.author || '저자 미상') + " (지은이)
-출판친구 복간 위원회와 독자 청원 모임의 지원으로 재탄생한 불후의 명작."),
-                    quotes: rawQuotes || ('1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."
-2. "기억의 불씨를 지키는 것, 그것이 복간의 이유다."')
+                    fullDescription: rawDesc || `인류의 유산이자 독자들의 요청을 받은 명작 《${titleStr}》의 자율 복간 프로젝트가 진행됩니다.`,
+                    toc: rawToc || `[《${titleStr}》 목차]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 감동과 결언`,
+                    reviewList: rawReview || (`"이 시대에 반드시 다시 읽혀야 할 잊혀진 명작 《` + titleStr + `》의 재발견." - 독자 서평`),
+                    authors: rawAuthors || ((b.author || '저자 미상') + ` (지은이)\n출판친구 복간 위원회와 독자 청원 모임의 지원으로 재탄생한 불후의 명작.`),
+                    quotes: rawQuotes || `1. "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."\n2. "기억의 불씨를 지키는 것, 그것이 복간의 이유다."`
                 };
                 if (b.cover_url || b.image) {
                     ALADIN_CAROUSEL_IMAGES[0] = b.cover_url || b.image;
@@ -2234,16 +2231,11 @@
                     price: 18000,
                     author: (author || '저자 미상') + (pubName ? ' | ' + pubName : ' | 출판친구'),
                     category: cat || '소설',
-                    fullDescription: fullDesc || ("[책소개]
-인류의 유산이자 독자들의 요청을 받은 명작 《" + (bookTitle || '도서') + "》의 복간 프로젝트입니다."),
-                    toc: tocText || ("[《" + (bookTitle || '도서') + "》 목차]
-1장. 서론 및 작품 배경
-2장. 본문 전개
-3장. 결언"),
+                    fullDescription: fullDesc || `[책소개]\n인류의 유산이자 독자들의 요청을 받은 명작 《${bookTitle || '도서'}》의 복간 프로젝트입니다.`,
+                    toc: tocText || `[《${bookTitle || '도서'}》 목차]\n1장. 서론 및 작품 배경\n2장. 본문 전개\n3장. 결언`,
                     reviewList: reviewText || '"독자들이 선정한 불후의 명저."',
                     authors: authorInfo || ((author || '저자 미상') + " | " + (pubName || '출판친구')),
-                    quotes: quotesText || '"[책 속의 명문장]
-우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."'
+                    quotes: quotesText || `[책 속의 명문장]\n우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다.`
                 };
             }
 
