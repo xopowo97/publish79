@@ -2823,9 +2823,8 @@
 
                     <!-- 통 스크롤 원문 파트 1: 책소개 (fullDescription / 출판사 서평) -->
                     <div class="space-y-2">
-                        <h3 id="aladin-sec-desc-title"
-                            class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2">
-                            책소개
+                        <h3 class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2 flex items-center gap-2">
+                            <span id="aladin-col-title-1">책소개</span>
                         </h3>
                         <div id="aladin-sec-desc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2837,9 +2836,8 @@
 
                     <!-- 통 스크롤 원문 파트 2: 목차 (toc - 차례 전체 텍스트) -->
                     <div class="space-y-2">
-                        <h3 id="aladin-sec-toc-title"
-                            class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2">
-                            목차
+                        <h3 class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2 flex items-center gap-2">
+                            <span id="aladin-col-title-2">목차</span>
                         </h3>
                         <div id="aladin-sec-toc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2851,9 +2849,8 @@
 
                     <!-- 통 스크롤 원문 파트 3: 명사 서평 (reviewList) -->
                     <div class="space-y-2">
-                        <h3 id="aladin-sec-review-title"
-                            class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2">
-                            명사 서평
+                        <h3 class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2 flex items-center gap-2">
+                            <span id="aladin-col-title-3">명사 서평</span>
                         </h3>
                         <div id="aladin-sec-review"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2865,9 +2862,8 @@
 
                     <!-- 통 스크롤 원문 파트 4: 작가소개 (authors) -->
                     <div class="space-y-2">
-                        <h3 id="aladin-sec-authors-title"
-                            class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2">
-                            작가소개
+                        <h3 class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2 flex items-center gap-2">
+                            <span id="aladin-col-title-4">작가소개</span>
                         </h3>
                         <div id="aladin-sec-author"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2879,9 +2875,8 @@
 
                     <!-- 통 스크롤 원문 파트 5: 책 속의 명문장 (주요 인용 구문) -->
                     <div class="space-y-2">
-                        <h3 id="aladin-sec-quote-title"
-                            class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2">
-                            책 속의 명문장
+                        <h3 class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2 flex items-center gap-2">
+                            <span id="aladin-col-title-5">책 속의 명문장</span>
                         </h3>
                         <div id="aladin-sec-quotes"
                             class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
@@ -3049,12 +3044,12 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             document.getElementById('aladin-sec-author').textContent = data.authors;
             document.getElementById('aladin-sec-quotes').textContent = data.quotes;
 
-            // 5대 컬럼 제목 강제 수복
-            setColTitle('aladin-sec-desc-title', '책소개');
-            setColTitle('aladin-sec-toc-title', '목차');
-            setColTitle('aladin-sec-review-title', '명사 서평');
-            setColTitle('aladin-sec-authors-title', '작가소개');
-            setColTitle('aladin-sec-quote-title', '책 속의 명문장');
+            // 5대 컬럼 제목 100% 강제 수복 바인딩
+            const colTitles = ['책소개', '목차', '명사 서평', '작가소개', '책 속의 명문장'];
+            colTitles.forEach((t, i) => {
+                const el = document.getElementById(`aladin-col-title-${i + 1}`);
+                if (el) el.textContent = t;
+            });
 
             window.currentActiveModalBook = data;
 
@@ -3068,11 +3063,6 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             updateAladinSlideUI();
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-
-        function setColTitle(id, title) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = title;
         }
 
         function closeAladinSpaciousModal() {
@@ -3101,7 +3091,7 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
         const ALADIN_CAROUSEL_IMAGES = ['book1.png', 'book2.png', 'book3.png', 'book4.png', 'book5.png'];
         let currentAladinSlideIdx = 0;
 
-        // 📜 카드뉴스용 정밀 문장 추출 헬퍼 (마침표 기준 완성 문장 추출)
+        // 📜 카드뉴스용 정밀 완성 문장 추출 헬퍼 (마침표/느낌표/물음표 기준 완성문 추출)
         function getSmartSummary(text, maxLen) {
             if (!text) return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
             const cleanText = text.replace(/\[.*?\]/g, '').trim();
@@ -3119,6 +3109,36 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             return result;
         }
 
+        // 🎯 카드뉴스 1~5번 데이터 인덱스 매핑 우선순위 엄격 교정 (목차 toc 전면 배제!)
+        function getCardNewsText(book, index) {
+            if (!book) return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
+
+            if (index === 0) {
+                // 1번 카드: 100% 줄거리/책소개 전용 (toc 목차 전면 배제!)
+                const desc = book.full_description || book.fullDescription || book.description;
+                return desc ? getSmartSummary(desc, 55) : "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
+            }
+            if (index === 1) {
+                // 2번 카드: 인문학적 작품세계 & 배경 요약
+                const subDesc = book.description || book.full_description || book.fullDescription;
+                return subDesc ? getSmartSummary(subDesc, 55) : "인류의 유산이자 독자들의 요청을 받은 불후의 명작입니다.";
+            }
+            if (index === 2) {
+                // 3번 카드: 명구문 또는 핵심 서평
+                const quote = book.story_quotes || book.quotes || book.key_quotes || book.review_list || book.reviewList;
+                return quote ? getSmartSummary(quote, 55) : "독자들이 선정한 이 시대 최고의 작품 세계 속으로 여러분을 초대합니다.";
+            }
+            if (index === 3) {
+                // 4번 카드: 펀딩 유도 고정 문구 1
+                return "수많은 독자들이 오랫동안 기억하고 다시 읽기를 손꼽아 기다려온 문학의 유산";
+            }
+            if (index === 4) {
+                // 5번 카드: 펀딩 유도 고정 문구 2
+                return "당신의 참여가 이 책을 다시 살려냅니다. 망설임 없이 복간 펀딩의 주인공이 되어주세요";
+            }
+            return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
+        }
+
         function updateAladinSlideUI() {
             const img = document.getElementById('cn-book-img');
             const title = document.getElementById('aladin-card-title');
@@ -3126,12 +3146,7 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             const dots = document.getElementById('aladin-slide-dots');
 
             const currentBook = window.currentActiveModalBook || {};
-            let cardText = "";
-            if (currentAladinSlideIdx === 0) cardText = getSmartSummary(currentBook.fullDescription || currentBook.description, 60);
-            else if (currentAladinSlideIdx === 1) cardText = getSmartSummary(currentBook.toc || currentBook.fullDescription, 60);
-            else if (currentAladinSlideIdx === 2) cardText = getSmartSummary(currentBook.quotes || currentBook.reviewList, 60);
-            else if (currentAladinSlideIdx === 3) cardText = "수많은 독자들이 오랫동안 기억하고 다시 읽기를 손꼽아 기다려온 문학의 유산";
-            else if (currentAladinSlideIdx === 4) cardText = "당신의 참여가 이 책을 다시 살려냅니다. 망설임 없이 복간 펀딩의 주인공이 되어주세요";
+            const cardText = getCardNewsText(currentBook, currentAladinSlideIdx);
 
             if (img) img.src = ALADIN_CAROUSEL_IMAGES[currentAladinSlideIdx];
             if (title) title.textContent = (currentBook.title || '도서 명작') + ` (${currentAladinSlideIdx + 1}/5)`;
