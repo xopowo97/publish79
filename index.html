@@ -2825,7 +2825,7 @@
                     <div class="space-y-2">
                         <h3
                             class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2">
-                            책소개 & 출판사 서평
+                            책소개
                         </h3>
                         <div id="aladin-sec-desc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2839,7 +2839,7 @@
                     <div class="space-y-2">
                         <h3
                             class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2">
-                            목차 (차례 전체 텍스트)
+                            목차
                         </h3>
                         <div id="aladin-sec-toc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2849,11 +2849,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 3: 추천의 글 / 서평 (reviewList) -->
+                    <!-- 통 스크롤 원문 파트 3: 명사 서평 (reviewList) -->
                     <div class="space-y-2">
                         <h3
                             class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2">
-                            추천의 글 / 명사 서평
+                            명사 서평
                         </h3>
                         <div id="aladin-sec-review"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2863,11 +2863,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 4: 저자 및 역자 소개 (authors) -->
+                    <!-- 통 스크롤 원문 파트 4: 작가소개 (authors) -->
                     <div class="space-y-2">
                         <h3
                             class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2">
-                            저자 및 역자 소개
+                            작가소개
                         </h3>
                         <div id="aladin-sec-author"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2877,11 +2877,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 5: 책 속에서 (주요 인용 구문) -->
+                    <!-- 통 스크롤 원문 파트 5: 책 속의 명문장 (주요 인용 구문) -->
                     <div class="space-y-2">
                         <h3
                             class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2">
-                            책 속에서 (주요 인용 구문)
+                            책 속의 명문장
                         </h3>
                         <div id="aladin-sec-quotes"
                             class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
@@ -3049,6 +3049,8 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             document.getElementById('aladin-sec-author').textContent = data.authors;
             document.getElementById('aladin-sec-quotes').textContent = data.quotes;
 
+            window.currentActiveModalBook = data;
+
             const modal = document.getElementById('aladin-spacious-modal');
             if (modal) {
                 modal.classList.remove('hidden');
@@ -3085,20 +3087,6 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
         }
 
         const ALADIN_CAROUSEL_IMAGES = ['book1.png', 'book2.png', 'book3.png', 'book4.png', 'book5.png'];
-        const ALADIN_CAROUSEL_TITLES = [
-            '📖 다시 만나는 명작',
-            '📝 핵심 줄거리 & 작품 배경',
-            '👥 출판사 서평 & 추천사',
-            '⚙️ 33.3% 인쇄 원가 최적화 공정',
-            '🌟 서포터즈 한정판 소장 혜택'
-        ];
-        const ALADIN_CAROUSEL_CONTENTS = [
-            '"저자의 잊혀진 걸작, 자율 복간 펀딩 프로젝트 개시!"',
-            '"아날로그 감성의 깊은 울림과 세월이 지나도 변치 않는 가치."',
-            '"출판친구 서상원 연구원 추천작 및 복간 위원회 서평."',
-            '"신국판에서 A5 판형 최적화로 제작비 절감 및 친환경 조판 완공."',
-            '"지금 참여하고 한정판 가변 VDP 보증서와 혜택을 소장하세요."'
-        ];
         let currentAladinSlideIdx = 0;
 
         function updateAladinSlideUI() {
@@ -3107,9 +3095,22 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             const content = document.getElementById('aladin-card-content');
             const dots = document.getElementById('aladin-slide-dots');
 
+            const currentBook = window.currentActiveModalBook || {};
+            const cleanDesc = (currentBook.fullDescription || '도서 핵심 줄거리').replace(/\[.*?\]/g, '').trim();
+            const cleanToc = (currentBook.toc || '목차 및 작품 세계').replace(/\[.*?\]/g, '').trim();
+            const cleanQuotes = (currentBook.quotes || '작품 명구문').replace(/\[.*?\]/g, '').trim();
+
+            const dynamicSlideContents = [
+                '"' + cleanDesc.slice(0, 52).replace(/\n/g, ' ') + '..."',
+                '"' + cleanToc.slice(0, 52).replace(/\n/g, ' ') + '..."',
+                '"' + cleanQuotes.slice(0, 52).replace(/\n/g, ' ') + '..."',
+                '"수많은 독자들이 오랫동안 기억하고 다시 읽기를 손꼽아 기다려온 문학의 유산"',
+                '"당신의 참여가 이 책을 다시 살려냅니다. 망설임 없이 복간 펀딩의 주인공이 되어주세요"'
+            ];
+
             if (img) img.src = ALADIN_CAROUSEL_IMAGES[currentAladinSlideIdx];
-            if (title) title.textContent = ALADIN_CAROUSEL_TITLES[currentAladinSlideIdx];
-            if (content) content.textContent = ALADIN_CAROUSEL_CONTENTS[currentAladinSlideIdx];
+            if (title) title.textContent = (currentBook.title || '도서 명작') + ` (${currentAladinSlideIdx + 1}/5)`;
+            if (content) content.textContent = dynamicSlideContents[currentAladinSlideIdx];
 
             if (dots) {
                 dots.innerHTML = ALADIN_CAROUSEL_IMAGES.map((_, idx) => `
