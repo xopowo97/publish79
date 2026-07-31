@@ -2649,7 +2649,6 @@
         } else {
             document.addEventListener('DOMContentLoaded', loadProductsFromDB);
         }
-        loadProductsFromDB();
 
     </script>
 
@@ -2681,7 +2680,7 @@
 
                 <!-- 16:9 트레일러 미디어 플레이어 -->
                 <div id="view-mode-shortform" class="relative aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden my-auto shadow-2xl border border-slate-800 flex items-center justify-center group w-full">
-                    <video id="aladin-sf-video" class="w-full h-full object-contain" poster="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" loop playsinline></video>
+                    <video id="aladin-sf-video" class="w-full h-full object-cover" poster="https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_1666.jpg" loop playsinline></video>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
                         <h4 id="sf-book-title" class="font-black text-sm text-white line-clamp-1">복간 명작 트레일러</h4>
                         <p class="text-[11px] text-slate-300">세월이 지나도 변치 않는 불후의 명작을 만나보세요.</p>
