@@ -2780,17 +2780,15 @@
                 <!-- (B) 📰 5-슬라이드 풀사이즈 비주얼 카드뉴스 뷰어 -->
                 <div id="view-mode-cardnews" class="hidden relative z-10 my-auto py-2 w-full">
                     <div
-                        class="w-full rounded-2xl theme-card border shadow-xl p-4 space-y-3 flex flex-col items-center">
+                        class="w-full rounded-2xl theme-card border shadow-xl p-3 flex flex-col items-center">
                         <div
-                            class="w-full aspect-[4/5] max-h-[260px] overflow-hidden rounded-xl bg-slate-100 relative shadow-inner border border-slate-200">
+                            class="w-full aspect-[4/5] max-h-[300px] overflow-hidden rounded-xl bg-slate-100 relative shadow-inner border border-slate-200 group">
                             <img id="cn-book-img" src="book1.png" alt="도서 카드뉴스 슬라이드"
                                 class="w-full h-full object-cover rounded-xl transition-all duration-300">
-                        </div>
-                        <div class="w-full text-center space-y-1">
-                            <h3 id="aladin-card-title" class="text-sm font-black theme-highlight-text leading-snug">📖
-                                다시 만나는 명작</h3>
-                            <p id="aladin-card-content" class="text-xs text-slate-700 leading-relaxed font-medium">"저자의
-                                잊혀진 걸작, 복간 펀딩 개시!"</p>
+                            <!-- 하단 반투명 오버레이 문구 (이미지와 일체화) -->
+                            <div class="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white text-xs text-center font-medium">
+                                <p id="aladin-card-content" class="leading-relaxed drop-shadow-md">"저자의 잊혀진 걸작, 복간 펀딩 개시!"</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2823,11 +2821,11 @@
                         <p id="aladin-book-author" class="text-sm theme-text-muted mt-1 font-bold">서상원 저 | 출판친구</p>
                     </div>
 
-                    <!-- 통 스크롤 원문 파트 1: 📖 책소개 (fullDescription / 출판사 서평) -->
+                    <!-- 통 스크롤 원문 파트 1: 책소개 (fullDescription / 출판사 서평) -->
                     <div class="space-y-2">
                         <h3
-                            class="text-sm font-black theme-highlight-text flex items-center gap-2 border-l-4 border-amber-500 pl-2">
-                            <span>📖</span> 책소개 & 출판사 서평
+                            class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2">
+                            책소개 & 출판사 서평
                         </h3>
                         <div id="aladin-sec-desc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2837,11 +2835,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 2: 📑 목차 (toc - 차례 전체 텍스트) -->
+                    <!-- 통 스크롤 원문 파트 2: 목차 (toc - 차례 전체 텍스트) -->
                     <div class="space-y-2">
                         <h3
-                            class="text-sm font-black text-sky-600 flex items-center gap-2 border-l-4 border-sky-500 pl-2">
-                            <span>📑</span> 목차 (차례 전체 텍스트)
+                            class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2">
+                            목차 (차례 전체 텍스트)
                         </h3>
                         <div id="aladin-sec-toc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2851,11 +2849,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 3: 💬 추천의 글 / 서평 (reviewList) -->
+                    <!-- 통 스크롤 원문 파트 3: 추천의 글 / 서평 (reviewList) -->
                     <div class="space-y-2">
                         <h3
-                            class="text-sm font-black text-emerald-600 flex items-center gap-2 border-l-4 border-emerald-500 pl-2">
-                            <span>💬</span> 추천의 글 / 명사 서평
+                            class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2">
+                            추천의 글 / 명사 서평
                         </h3>
                         <div id="aladin-sec-review"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2865,11 +2863,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 4: ✍️ 저자 및 역자 소개 (authors) -->
+                    <!-- 통 스크롤 원문 파트 4: 저자 및 역자 소개 (authors) -->
                     <div class="space-y-2">
                         <h3
-                            class="text-sm font-black text-indigo-600 flex items-center gap-2 border-l-4 border-indigo-500 pl-2">
-                            <span>✍️</span> 저자 및 역자 소개
+                            class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2">
+                            저자 및 역자 소개
                         </h3>
                         <div id="aladin-sec-author"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2879,11 +2877,11 @@
 
                     <hr class="border-slate-200/60">
 
-                    <!-- 통 스크롤 원문 파트 5: 📌 책 속에서 (주요 인용 구문) -->
+                    <!-- 통 스크롤 원문 파트 5: 책 속에서 (주요 인용 구문) -->
                     <div class="space-y-2">
                         <h3
-                            class="text-sm font-black text-purple-600 flex items-center gap-2 border-l-4 border-purple-500 pl-2">
-                            <span>📌</span> 책 속에서 (주요 인용 구문)
+                            class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2">
+                            책 속에서 (주요 인용 구문)
                         </h3>
                         <div id="aladin-sec-quotes"
                             class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
