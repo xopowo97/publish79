@@ -2823,7 +2823,7 @@
 
                     <!-- 통 스크롤 원문 파트 1: 책소개 (fullDescription / 출판사 서평) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2">
+                        <h3 class="text-sm font-black text-amber-600 border-l-4 border-amber-500 pl-2">
                             책소개
                         </h3>
                         <div id="aladin-sec-desc"
@@ -3050,6 +3050,8 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+                const rightScrollBox = modal.querySelector('.overflow-y-auto');
+                if (rightScrollBox) rightScrollBox.scrollTop = 0;
             }
 
             currentAladinSlideIdx = 0;
