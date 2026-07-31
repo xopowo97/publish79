@@ -20,7 +20,6 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;900&display=swap"
         rel="stylesheet">
     <style>
-
         /* --------------------------------------------------
            🎨 4계절 테마 CSS 변수 및 클래스 정밀 매핑 (Screenshot 2 100% 매칭)
         -------------------------------------------------- */
@@ -102,7 +101,7 @@
         .theme-card {
             background-color: var(--card-bg) !important;
             border-color: var(--card-border) !important;
-            box-shadow: 0 10px 30px -10px var(--shadow-color, rgba(0,0,0,0.04)) !important;
+            box-shadow: 0 10px 30px -10px var(--shadow-color, rgba(0, 0, 0, 0.04)) !important;
             color: var(--text-color) !important;
             transition: all 0.4s ease !important;
         }
@@ -133,6 +132,7 @@
             color: #ffffff !important;
             transition: all 0.3s ease !important;
         }
+
         .theme-primary-btn:hover {
             opacity: 0.9;
             transform: translateY(-2px);
@@ -156,7 +156,9 @@
         }
 
         /* 팝업 모달 내부 텍스트 가독성 고정 */
-        .fixed.inset-0 .text-white, .fixed.inset-0 h3, .fixed.inset-0 h2 {
+        .fixed.inset-0 .text-white,
+        .fixed.inset-0 h3,
+        .fixed.inset-0 h2 {
             color: #ffffff !important;
         }
 
@@ -263,23 +265,28 @@
 <body class="bg-slate-950 text-slate-100">
 
     <!-- 🎛️ 상단 고정형 4계절 테마 스위처 배너 (어드민 로그인 시에만 노출) -->
-    <div id="admin-theme-lounge" class="fixed top-0 left-0 right-0 z-50 hidden bg-slate-950 text-white border-b border-slate-800 px-6 py-2 flex-col sm:flex-row justify-between items-center gap-2 shadow-md transition-all h-[48px]">
+    <div id="admin-theme-lounge"
+        class="fixed top-0 left-0 right-0 z-50 hidden bg-slate-950 text-white border-b border-slate-800 px-6 py-2 flex-col sm:flex-row justify-between items-center gap-2 shadow-md transition-all h-[48px]">
         <div class="flex items-center gap-2">
             <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
             <span class="text-[10px] font-black tracking-wider uppercase font-outfit text-slate-400">Theme Lounge</span>
             <h4 class="text-xs font-bold text-white">4계절 순환 시안 체험관</h4>
         </div>
         <div class="flex items-center gap-1.5">
-            <button onclick="switchTheme('spring')" id="btn-spring" class="px-3.5 py-1 rounded-full text-[11px] font-black bg-teal-600 text-white border-2 border-white transition-all shadow-md">
+            <button onclick="switchTheme('spring')" id="btn-spring"
+                class="px-3.5 py-1 rounded-full text-[11px] font-black bg-teal-600 text-white border-2 border-white transition-all shadow-md">
                 🌸 봄
             </button>
-            <button onclick="switchTheme('summer')" id="btn-summer" class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
+            <button onclick="switchTheme('summer')" id="btn-summer"
+                class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
                 🌊 여름
             </button>
-            <button onclick="switchTheme('autumn')" id="btn-autumn" class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
+            <button onclick="switchTheme('autumn')" id="btn-autumn"
+                class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
                 🍂 가을
             </button>
-            <button onclick="switchTheme('winter')" id="btn-winter" class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
+            <button onclick="switchTheme('winter')" id="btn-winter"
+                class="px-3.5 py-1 rounded-full text-[11px] font-black bg-slate-900 text-slate-400 border border-slate-800 transition-all hover:bg-slate-800">
                 ❄️ 겨울
             </button>
         </div>
@@ -289,11 +296,12 @@
     <nav class="fixed top-0 w-full z-40 glass-nav border-b border-slate-800 transition-all">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center gap-8">
-                <a href="#" class="font-black text-2xl font-outfit tracking-tighter theme-logo-text flex items-center gap-2">
+                <a href="#"
+                    class="font-black text-2xl font-outfit tracking-tighter theme-logo-text flex items-center gap-2">
                     <span>출판친구</span>
                     <span class="theme-highlight-text text-sm">STORE</span>
                 </a>
-                
+
 
 
                 <div class="hidden md:flex items-center gap-6 text-sm font-bold theme-text-muted">
@@ -328,7 +336,8 @@
                         <span id="nav-user-info">서포터님 (0P)</span>
                     </button>
                     <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-rose-500 hover:text-rose-600 text-xs font-black transition-all" title="로그아웃">
+                        class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-rose-500 hover:text-rose-600 text-xs font-black transition-all"
+                        title="로그아웃">
                         <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                         <span>로그아웃</span>
                     </button>
@@ -336,7 +345,8 @@
 
                 <!-- Admin Control Center Shortcut (최고관리자 로그인 상태) -->
                 <div id="admin-shortcut-nav" class="hidden items-center gap-2">
-                    <div class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-xs font-black">
+                    <div
+                        class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-xs font-black">
                         <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
                         <span id="admin-nav-user-info" class="theme-text-muted">어드민대표 서포터님</span>
                     </div>
@@ -351,14 +361,17 @@
                         <span>⚙️ ERP</span>
                     </a>
                     <button onclick="handleB2CLogout()"
-                        class="flex items-center gap-1.5 px-3.5 py-2 theme-card border text-rose-500 hover:text-rose-600 rounded-full text-xs font-black transition-all" title="로그아웃">
+                        class="flex items-center gap-1.5 px-3.5 py-2 theme-card border text-rose-500 hover:text-rose-600 rounded-full text-xs font-black transition-all"
+                        title="로그아웃">
                         <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                         <span>로그아웃</span>
                     </button>
                 </div>
 
                 <!-- 나의서재 버튼 (어드민이 아닐 때만 노출) -->
-                <button id="nav-shopping-bag" onclick="openMyLibraryModal()" class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-xs font-black theme-text-muted hover:theme-highlight-text transition-all shadow-sm" title="나의 예약 도서함">
+                <button id="nav-shopping-bag" onclick="openMyLibraryModal()"
+                    class="flex items-center gap-1.5 px-3.5 py-2 theme-card border rounded-full text-xs font-black theme-text-muted hover:theme-highlight-text transition-all shadow-sm"
+                    title="나의 예약 도서함">
                     <i data-lucide="book-open" class="w-3.5 h-3.5 theme-highlight-text"></i>
                     <span>나의서재</span>
                 </button>
@@ -375,13 +388,13 @@
                 <h1 class="text-4xl md:text-[54px] font-black font-outfit leading-[1.15] tracking-tight">
                     세상에서 사라진<br><span class="theme-highlight-text">명작을 다시</span> 깨우다.
                 </h1>
-                
+
                 <!-- 대표님 UAT 확정 문구 완벽 적용 -->
                 <p class="text-sm md:text-base theme-text-muted max-w-2xl mx-auto leading-relaxed font-medium">
                     출판친구는 출판사와 독자가 함께 염원하는 절판 도서를 발굴하여,<br>
                     사장되고 잊혀 가던 우리의 소중한 문화 자산을 복원하고 새로운 생명을 불어넣습니다.
                 </p>
-                
+
                 <!-- 🔍 대형 검색창 (2배 크기 확장) 및 1열 카테고리 스크롤화 -->
                 <div class="space-y-6 max-w-4xl mx-auto pt-6">
                     <!-- 대폭 확장된 시인성 최고의 대형 검색창 -->
@@ -392,29 +405,45 @@
                     </div>
 
                     <!-- 1열로 시원하게 정렬된 가로 카테고리 바 (추천 태그 텍스트 영구 소거) -->
-                    <div class="flex overflow-x-auto whitespace-nowrap scrollbar-hide py-2 gap-2 justify-start md:justify-center w-full px-2 border-y theme-divider">
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-black theme-primary-btn transition-all">전체</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">소설</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">에세이</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">인문학</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">경제경영</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">사회과학</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">역사</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">과학</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">예술</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">자기계발</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">종교</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">어린이</button>
-                        <button class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">청소년</button>
+                    <div
+                        class="flex overflow-x-auto whitespace-nowrap scrollbar-hide py-2 gap-2 justify-start md:justify-center w-full px-2 border-y theme-divider">
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-black theme-primary-btn transition-all">전체</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">소설</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">에세이</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">인문학</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">경제경영</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">사회과학</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">역사</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">과학</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">예술</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">자기계발</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">종교</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">어린이</button>
+                        <button
+                            class="px-4.5 py-2.5 rounded-full text-xs font-bold theme-secondary-btn border transition-all">청소년</button>
                     </div>
                 </div>
 
                 <div class="flex flex-wrap gap-4 justify-center pt-2">
-                    <button class="theme-primary-btn px-7 py-4 rounded-2xl font-black text-sm transition-all shadow-lg flex items-center gap-2">
+                    <button
+                        class="theme-primary-btn px-7 py-4 rounded-2xl font-black text-sm transition-all shadow-lg flex items-center gap-2">
                         <i data-lucide="plus-circle" class="w-4 h-4"></i>
                         <span>새로운 복간 도서 제안하기</span>
                     </button>
-                    <button class="theme-secondary-btn border px-7 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-2">
+                    <button
+                        class="theme-secondary-btn border px-7 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-2">
                         <i data-lucide="bookmark" class="w-4 h-4"></i>
                         <span>나의 복간 도서관</span>
                     </button>
@@ -426,12 +455,15 @@
     <!-- 📊 실시간 복간 라이브 현황판 (빛나는 광원 테마 연동) -->
     <main class="max-w-7xl mx-auto px-6 py-12 space-y-24">
 
-        <section class="theme-card rounded-[32px] p-8 md:p-12 border shadow-2xl relative overflow-hidden transition-all">
+        <section
+            class="theme-card rounded-[32px] p-8 md:p-12 border shadow-2xl relative overflow-hidden transition-all">
             <div class="relative z-10 space-y-8">
                 <!-- 현황판 헤더 -->
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b theme-divider pb-6">
+                <div
+                    class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b theme-divider pb-6">
                     <div>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 theme-badge rounded-full text-[10px] font-black tracking-widest uppercase">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-3 py-1 theme-badge rounded-full text-[10px] font-black tracking-widest uppercase">
                             <span class="w-1.5 h-1.5 bg-current rounded-full animate-ping"></span>
                             Live Dashboard
                         </span>
@@ -441,24 +473,32 @@
                         출판친구와 독자님들이 함께 만들어 가는 실시간 예약 펀딩 실적 및 플랫폼 통계 지표입니다.
                     </p>
                 </div>
-                
+
                 <!-- 4열 카운터 그리드 -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                    <div
+                        class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
                         <div class="theme-text-muted text-xs font-black uppercase tracking-wider">구출 완료 도서</div>
-                        <div class="text-3xl font-black font-outfit" id="b2c-stat-books">357 <span class="text-xs text-slate-500 font-bold">종</span></div>
+                        <div class="text-3xl font-black font-outfit" id="b2c-stat-books">357 <span
+                                class="text-xs text-slate-500 font-bold">종</span></div>
                     </div>
-                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                    <div
+                        class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
                         <div class="theme-text-muted text-xs font-black uppercase tracking-wider">복간 진행률</div>
-                        <div class="text-3xl font-black font-outfit theme-highlight-text" id="b2c-stat-rate">98.2 <span class="text-xs text-slate-500 font-bold">%</span></div>
+                        <div class="text-3xl font-black font-outfit theme-highlight-text" id="b2c-stat-rate">98.2 <span
+                                class="text-xs text-slate-500 font-bold">%</span></div>
                     </div>
-                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                    <div
+                        class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
                         <div class="theme-text-muted text-xs font-black uppercase tracking-wider">누적 복간 예약부수</div>
-                        <div class="text-3xl font-black font-outfit" id="b2c-stat-copies">1,452 <span class="text-xs text-slate-500 font-bold">부</span></div>
+                        <div class="text-3xl font-black font-outfit" id="b2c-stat-copies">1,452 <span
+                                class="text-xs text-slate-500 font-bold">부</span></div>
                     </div>
-                    <div class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
+                    <div
+                        class="theme-card border rounded-2xl p-5 flex flex-col justify-between h-32 relative hover:-translate-y-1 transition-transform">
                         <div class="theme-text-muted text-xs font-black uppercase tracking-wider">참여 독자(서포터)</div>
-                        <div class="text-3xl font-black font-outfit" id="b2c-stat-supporters">8,914 <span class="text-xs text-slate-500 font-bold">명</span></div>
+                        <div class="text-3xl font-black font-outfit" id="b2c-stat-supporters">8,914 <span
+                                class="text-xs text-slate-500 font-bold">명</span></div>
                     </div>
                 </div>
             </div>
@@ -484,79 +524,97 @@
 
     <!-- 📝 Footer -->
     <footer class="border-t theme-divider py-16 text-center theme-text-muted text-xs space-y-4 transition-all">
-        <p class="font-bold">출판친구   A N T I - G R A V I T Y   4 - S E A S O N S   D E M O</p>
+        <p class="font-bold">출판친구 A N T I - G R A V I T Y 4 - S E A S O N S D E M O</p>
         <p>© 2026 출판친구. All rights reserved. 4계절 디자인 시안 교차 검증용 샌드박스 페이지.</p>
     </footer>
 
     <!-- 개인 로그인 모달 -->
-    <div id="b2c-login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="b2c-login-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
                     <i data-lucide="log-in" class="text-white"></i>
                     개인 로그인
                 </h3>
                 <p class="text-xs text-sky-200 mt-1">출판친구 서포터 계정으로 로그인해 주세요.</p>
-                <button onclick="closeB2CLoginModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                <button onclick="closeB2CLoginModal()"
+                    class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-login-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="email" id="b2c-login-email" placeholder="example@email.com"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
-                    <input type="password" id="b2c-login-password" placeholder="비밀번호를 입력해 주세요." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="password" id="b2c-login-password" placeholder="비밀번호를 입력해 주세요."
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div class="text-right">
-                    <button type="button" onclick="openResetPasswordModal()" class="text-[10px] text-sky-600 hover:text-sky-500 underline font-bold">비밀번호를 분실하셨나요?</button>
+                    <button type="button" onclick="openResetPasswordModal()"
+                        class="text-[10px] text-sky-600 hover:text-sky-500 underline font-bold">비밀번호를 분실하셨나요?</button>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeB2CLoginModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitB2CLogin()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인</button>
+                <button onclick="closeB2CLoginModal()"
+                    class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitB2CLogin()"
+                    class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">로그인</button>
             </div>
         </div>
     </div>
 
     <!-- B2C 비밀번호 재설정 모달 -->
-    <div id="b2c-reset-pw-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="b2c-reset-pw-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
                     <i data-lucide="key-round" class="text-white"></i>
                     비밀번호 재설정
                 </h3>
                 <p class="text-xs text-sky-200 mt-1">가입하신 이메일로 비밀번호 재설정 안내를 전송합니다.</p>
-                <button onclick="closeResetPasswordModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                <button onclick="closeResetPasswordModal()"
+                    class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
-                    <input type="email" id="b2c-reset-email" placeholder="example@email.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="email" id="b2c-reset-email" placeholder="example@email.com"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeResetPasswordModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitResetPasswordRequest()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">재설정 요청</button>
+                <button onclick="closeResetPasswordModal()"
+                    class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitResetPasswordRequest()"
+                    class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">재설정
+                    요청</button>
             </div>
         </div>
     </div>
 
     <!-- B2C 회원가입 모달 -->
-    <div id="b2c-register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="b2c-register-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
                     <i data-lucide="user-plus" class="text-white"></i>
                     서포터 회원가입
                 </h3>
                 <p class="text-xs text-sky-200 mt-1">회원가입 후 배송 정보 수집 및 마일리지가 적립됩니다.</p>
-                <button onclick="closeB2CRegisterModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                <button onclick="closeB2CRegisterModal()"
+                    class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -564,86 +622,113 @@
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">이메일 주소</label>
                     <div class="flex gap-2">
-                        <input type="email" id="b2c-register-email" oninput="resetEmailCheck()" placeholder="example@email.com" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
-                        <button type="button" onclick="checkEmailDuplicate()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all shadow-sm">중복확인</button>
+                        <input type="email" id="b2c-register-email" oninput="resetEmailCheck()"
+                            placeholder="example@email.com"
+                            class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                        <button type="button" onclick="checkEmailDuplicate()"
+                            class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black transition-all shadow-sm">중복확인</button>
                     </div>
                     <span id="email-check-msg" class="text-[10px] font-bold block mt-1 hidden"></span>
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호</label>
-                    <input type="password" id="b2c-register-password" placeholder="영문+숫자+특수문자 8자 이상" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="password" id="b2c-register-password" placeholder="영문+숫자+특수문자 8자 이상"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호 확인</label>
-                    <input type="password" id="b2c-register-password-confirm" placeholder="비밀번호 재입력" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="password" id="b2c-register-password-confirm" placeholder="비밀번호 재입력"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">서포터 성명 (실명)</label>
-                    <input type="text" id="b2c-register-name" placeholder="홍길동" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-name" placeholder="홍길동"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">연락처</label>
-                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-phone" placeholder="010-1234-5678"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">배송 주소</label>
                     <div class="flex gap-2 mb-2">
-                        <input type="text" id="b2c-register-zipcode" placeholder="우편번호" readonly class="w-24 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none">
-                        <button type="button" onclick="openDaumPostcode()" class="px-4 py-2.5 bg-sky-500 hover:bg-sky-650 text-white rounded-xl text-xs font-black transition-all shadow-sm">우편번호 검색</button>
+                        <input type="text" id="b2c-register-zipcode" placeholder="우편번호" readonly
+                            class="w-24 px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none">
+                        <button type="button" onclick="openDaumPostcode()"
+                            class="px-4 py-2.5 bg-sky-500 hover:bg-sky-650 text-white rounded-xl text-xs font-black transition-all shadow-sm">우편번호
+                            검색</button>
                     </div>
-                    <input type="text" id="b2c-register-address" placeholder="기본 주소 (검색 시 자동 입력)" readonly class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none mb-2">
-                    <input type="text" id="b2c-register-detail-address" placeholder="상세 주소 입력 (동, 호수 등)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <input type="text" id="b2c-register-address" placeholder="기본 주소 (검색 시 자동 입력)" readonly
+                        class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none mb-2">
+                    <input type="text" id="b2c-register-detail-address" placeholder="상세 주소 입력 (동, 호수 등)"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <!-- 약관 동의 체크박스 추가 -->
                 <div class="space-y-2 pt-2 border-t border-slate-100">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="register-agree-terms" class="rounded text-sky-500 focus:ring-sky-500">
+                        <input type="checkbox" id="register-agree-terms"
+                            class="rounded text-sky-500 focus:ring-sky-500">
                         <label for="register-agree-terms" class="text-xs text-slate-600 font-bold">
                             <span class="text-sky-600">[필수]</span> 이용약관 동의
                         </label>
-                        <button onclick="viewTerms('terms')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
+                        <button onclick="viewTerms('terms')"
+                            class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="register-agree-privacy" class="rounded text-sky-500 focus:ring-sky-500">
+                        <input type="checkbox" id="register-agree-privacy"
+                            class="rounded text-sky-500 focus:ring-sky-500">
                         <label for="register-agree-privacy" class="text-xs text-slate-600 font-bold">
                             <span class="text-sky-600">[필수]</span> 개인정보 처리방침 동의
                         </label>
-                        <button onclick="viewTerms('privacy')" class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
+                        <button onclick="viewTerms('privacy')"
+                            class="text-[10px] text-sky-600 underline ml-auto font-black">약관보기</button>
                     </div>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeB2CRegisterModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitB2CRegister()" class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">가입 완료</button>
+                <button onclick="closeB2CRegisterModal()"
+                    class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitB2CRegister()"
+                    class="flex-1 py-3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black rounded-xl text-xs transition-all shadow-md">가입
+                    완료</button>
             </div>
         </div>
     </div>
 
     <!-- 약관 상세 모달 -->
-    <div id="terms-detail-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="terms-detail-modal"
+        class="fixed inset-0 z-[110] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-slate-950 text-white p-6 relative">
                 <h3 class="text-base font-black font-outfit" id="terms-title">약관 상세</h3>
-                <button onclick="closeTermsDetailModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+                <button onclick="closeTermsDetailModal()"
+                    class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="p-6">
-                <textarea id="terms-content-area" readonly class="w-full h-64 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-600 leading-relaxed outline-none resize-none"></textarea>
+                <textarea id="terms-content-area" readonly
+                    class="w-full h-64 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-600 leading-relaxed outline-none resize-none"></textarea>
             </div>
             <div class="bg-slate-50 p-6 flex justify-end border-t border-slate-100">
-                <button onclick="closeTermsDetailModal()" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">확인</button>
+                <button onclick="closeTermsDetailModal()"
+                    class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">확인</button>
             </div>
         </div>
     </div>
 
     <!-- B2C 도서 상세 소개 모달 (온라인 서점 카드뉴스 스타일) -->
-    <div id="b2c-book-detail-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto relative p-6 text-white shadow-2xl">
-            <button onclick="closeB2CBookDetailModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors z-[20]">
+    <div id="b2c-book-detail-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div
+            class="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto relative p-6 text-white shadow-2xl">
+            <button onclick="closeB2CBookDetailModal()"
+                class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors z-[20]">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            
+
             <div id="detail-loading" class="flex flex-col items-center justify-center py-20">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500 mb-3"></div>
                 <p class="text-xs text-slate-400">도서 상세 정보를 불러오는 중...</p>
@@ -651,27 +736,32 @@
 
             <div id="detail-content" class="hidden">
                 <!-- 5장 카드뉴스 캐러셀 들어갈 자리 -->
-                <div class="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 aspect-[3/4] mb-4">
+                <div
+                    class="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 aspect-[3/4] mb-4">
                     <div id="carousel-slides" class="w-full h-full flex transition-transform duration-300 ease-out">
                         <!-- 동적으로 slide들이 들어갑니다 -->
                     </div>
-                    
+
                     <!-- 이전/다음 컨트롤러 -->
-                    <button onclick="prevSlide()" class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
+                    <button onclick="prevSlide()"
+                        class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
                         <i data-lucide="chevron-left" class="w-4 h-4"></i>
                     </button>
-                    <button onclick="nextSlide()" class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
+                    <button onclick="nextSlide()"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 p-2.5 rounded-full text-white transition-all z-[10]">
                         <i data-lucide="chevron-right" class="w-4 h-4"></i>
                     </button>
 
                     <!-- 인디케이터 (1/5 등) -->
-                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-3.5 py-1 rounded-full text-[10px] font-black text-slate-300 z-[10]">
+                    <div
+                        class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-3.5 py-1 rounded-full text-[10px] font-black text-slate-300 z-[10]">
                         <span id="carousel-indicator-current">1</span> / <span id="carousel-indicator-total">5</span>
                     </div>
                 </div>
 
                 <!-- 도서 기본 설명 및 펀딩 연결부 -->
-                <div class="flex justify-between items-center gap-4 bg-slate-900/40 p-4 border border-slate-800/40 rounded-2xl">
+                <div
+                    class="flex justify-between items-center gap-4 bg-slate-900/40 p-4 border border-slate-800/40 rounded-2xl">
                     <div class="flex-1">
                         <h2 id="detail-title" class="font-black text-lg mb-1.5 text-white leading-tight">도서 제목</h2>
                         <p id="detail-info" class="text-xs text-slate-400 font-bold">저자 | 출판사</p>
@@ -688,21 +778,25 @@
 
 
     <!-- 나의 복간 도서관 (마일리지 & 참여 이력) 모달 -->
-    <div id="my-library-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="my-library-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-slate-900 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
                     <i data-lucide="bookmark-check" class="text-sky-400"></i>
                     나의 복간 도서관
                 </h3>
                 <p class="text-xs text-slate-400 mt-1">내가 지켜낸 도서 목록과 복간 포인트 상태</p>
-                <button onclick="closeMyLibraryModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+                <button onclick="closeMyLibraryModal()"
+                    class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="p-6 space-y-6">
                 <!-- 프로필 요약 카드 -->
-                <div class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 flex justify-between items-center border border-slate-200/60">
+                <div
+                    class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 flex justify-between items-center border border-slate-200/60">
                     <div class="space-y-1">
                         <div class="text-sm font-black text-slate-800" id="library-username">홍길동 서포터님</div>
                         <div class="text-xs text-slate-500" id="library-useremail">example@email.com</div>
@@ -721,49 +815,60 @@
                         <i data-lucide="list" class="w-3.5 h-3.5"></i>
                         참여한 복간 프로젝트
                     </h4>
-                    <div class="max-h-48 overflow-y-auto border border-slate-150 rounded-xl divide-y divide-slate-100" id="my-joined-books-list">
+                    <div class="max-h-48 overflow-y-auto border border-slate-150 rounded-xl divide-y divide-slate-100"
+                        id="my-joined-books-list">
                         <!-- 동적으로 로드되는 참여 내역 목록 -->
                         <div class="p-4 text-center text-xs text-slate-400 py-8">아직 참여한 복간 프로젝트가 없습니다.</div>
                     </div>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex justify-end border-t border-slate-100">
-                <button onclick="closeMyLibraryModal()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">닫기</button>
+                <button onclick="closeMyLibraryModal()"
+                    class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition-all shadow-md">닫기</button>
             </div>
         </div>
     </div>
 
     <!-- 새로운 복간 도서 제안 모달 -->
-    <div id="proposal-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="proposal-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="bg-sky-900 text-white p-6 relative">
                 <h3 class="text-lg font-black font-outfit flex items-center gap-2">
                     <i data-lucide="plus-circle" class="text-sky-400"></i>
                     새로운 복간 도서 제안
                 </h3>
                 <p class="text-xs text-sky-200 mt-1">국립중앙도서관 API를 기반으로 자동 딥서치 분석이 시작됩니다. (제안 성공 시 200P)</p>
-                <button onclick="closeProposalModal()" class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
+                <button onclick="closeProposalModal()"
+                    class="absolute top-5 right-5 text-sky-200 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 제목 <span class="text-rose-500">*</span></label>
-                    <input type="text" id="propose-book-title" placeholder="다시 만나고 싶은 책 제목" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 제목 <span
+                            class="text-rose-500">*</span></label>
+                    <input type="text" id="propose-book-title" placeholder="다시 만나고 싶은 책 제목"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-black text-slate-500 mb-1.5">저자명</label>
-                        <input type="text" id="propose-book-author" placeholder="저자 이름" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                        <input type="text" id="propose-book-author" placeholder="저자 이름"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-black text-slate-500 mb-1.5">출판사명</label>
-                        <input type="text" id="propose-book-publisher" placeholder="출판사 이름" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                        <input type="text" id="propose-book-publisher" placeholder="출판사 이름"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 분야 <span class="text-rose-500">*</span></label>
-                    <select id="propose-book-category" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                    <label class="block text-xs font-black text-slate-500 mb-1.5">도서 분야 <span
+                            class="text-rose-500">*</span></label>
+                    <select id="propose-book-category"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all">
                         <option value="소설">소설</option>
                         <option value="에세이">에세이</option>
                         <option value="인문학">인문학</option>
@@ -780,12 +885,15 @@
                 </div>
                 <div>
                     <label class="block text-xs font-black text-slate-500 mb-1.5">제안 이유 / 기대 평</label>
-                    <textarea id="propose-book-reason" rows="2" placeholder="왜 이 책이 복간되어야 하는지 독자님의 이유를 적어주세요." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all resize-none"></textarea>
+                    <textarea id="propose-book-reason" rows="2" placeholder="왜 이 책이 복간되어야 하는지 독자님의 이유를 적어주세요."
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-sky-500 transition-all resize-none"></textarea>
                 </div>
             </div>
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeProposalModal()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitProposal()" id="propose-submit-btn" class="flex-1 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5">
+                <button onclick="closeProposalModal()"
+                    class="flex-1 py-3 bg-slate-200 text-slate-700 font-black rounded-xl text-xs hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitProposal()" id="propose-submit-btn"
+                    class="flex-1 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5">
                     <i data-lucide="send" class="w-3.5 h-3.5"></i>
                     <span>제안서 제출</span>
                 </button>
@@ -794,8 +902,10 @@
     </div>
 
     <!-- 빌링키 결제 예약 등록 모달 -->
-    <div id="billing-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div id="billing-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <!-- 모달 헤더 -->
             <div class="bg-slate-900 text-white p-6 relative">
                 <h3 class="text-xl font-black font-outfit flex items-center gap-2">
@@ -803,14 +913,16 @@
                     출판친구 빌링키 예약 결제 등록
                 </h3>
                 <p class="text-xs text-slate-400 mt-1">안전한 펀딩 예약 및 간편 결제 시스템</p>
-                <button onclick="closeBillingModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+                <button onclick="closeBillingModal()"
+                    class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <!-- 모달 바디 -->
             <div class="p-6 space-y-6">
                 <!-- 안내문 -->
-                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3 text-orange-800 text-xs leading-relaxed">
+                <div
+                    class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3 text-orange-800 text-xs leading-relaxed">
                     <i data-lucide="alert-circle" class="w-5 h-5 text-orange-600 shrink-0 mt-0.5"></i>
                     <div>
                         <strong class="block mb-0.5">※ 필독: 안심 예약제 안내</strong>
@@ -821,7 +933,8 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-black text-slate-500 mb-1.5">카드사 선택</label>
-                        <select class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                        <select
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
                             <option>국민카드</option>
                             <option>신한카드</option>
                             <option>현대카드</option>
@@ -833,39 +946,51 @@
                     <div>
                         <label class="block text-xs font-black text-slate-500 mb-1.5">카드 번호</label>
                         <div class="grid grid-cols-4 gap-2">
-                            <input type="text" maxlength="4" placeholder="1234" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="password" maxlength="4" placeholder="••••" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="password" maxlength="4" placeholder="••••" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                            <input type="text" maxlength="4" placeholder="5678" class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="text" maxlength="4" placeholder="1234"
+                                class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="password" maxlength="4" placeholder="••••"
+                                class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="password" maxlength="4" placeholder="••••"
+                                class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="text" maxlength="4" placeholder="5678"
+                                class="w-full text-center px-2 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-black text-slate-500 mb-1.5">유효 기간 (MM/YY)</label>
-                            <input type="text" placeholder="MM/YY" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
+                            <input type="text" placeholder="MM/YY"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
                         </div>
                         <div>
                             <label class="block text-xs font-black text-slate-500 mb-1.5">비밀번호 앞 2자리</label>
-                            <input type="password" maxlength="2" placeholder="••" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
+                            <input type="password" maxlength="2" placeholder="••"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all text-center">
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-black text-slate-500 mb-1.5">생년월일 (YYMMDD) 또는 사업자번호</label>
-                        <input type="text" placeholder="주민번호 앞 6자리 또는 사업자등록번호" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
+                        <input type="text" placeholder="주민번호 앞 6자리 또는 사업자등록번호"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all">
                     </div>
                 </div>
             </div>
             <!-- 모달 푸터 -->
             <div class="bg-slate-50 p-6 flex gap-3 border-t border-slate-100">
-                <button onclick="closeBillingModal()" class="flex-1 py-3.5 bg-slate-200 text-slate-700 font-black rounded-xl text-sm hover:bg-slate-300 transition-all">취소</button>
-                <button onclick="submitBilling()" class="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black rounded-xl text-sm transition-all shadow-md">예약 등록 완료</button>
+                <button onclick="closeBillingModal()"
+                    class="flex-1 py-3.5 bg-slate-200 text-slate-700 font-black rounded-xl text-sm hover:bg-slate-300 transition-all">취소</button>
+                <button onclick="submitBilling()"
+                    class="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black rounded-xl text-sm transition-all shadow-md">예약
+                    등록 완료</button>
             </div>
         </div>
     </div>
 
     <!-- 성공 안내 모달 -->
-    <div id="success-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 p-8 text-center space-y-6 animate-in fade-in zoom-in duration-200">
+    <div id="success-modal"
+        class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div
+            class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 p-8 text-center space-y-6 animate-in fade-in zoom-in duration-200">
             <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
                 <i data-lucide="check-circle-2" class="w-10 h-10"></i>
             </div>
@@ -876,7 +1001,8 @@
                     목표 수량 달성 시 자동 결제됩니다.
                 </p>
             </div>
-            <button onclick="closeSuccessModal()" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-sm transition-all shadow-md">확인</button>
+            <button onclick="closeSuccessModal()"
+                class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-sm transition-all shadow-md">확인</button>
         </div>
     </div>
 
@@ -949,7 +1075,7 @@
                 alert('이메일 주소를 입력해 주세요.');
                 return;
             }
-            
+
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 alert('올바른 이메일 형식이 아닙니다.');
@@ -972,7 +1098,7 @@
                         .select('email')
                         .eq('email', email)
                         .maybeSingle();
-                    
+
                     if (error) throw error;
                     if (data) {
                         msgEl.textContent = '이미 등록된 이메일 주소입니다. (DB)';
@@ -1082,7 +1208,7 @@
         // 다음 우편번호 검색 팝업 실행 함수
         function openDaumPostcode() {
             new daum.Postcode({
-                oncomplete: function(data) {
+                oncomplete: function (data) {
                     let addr = '';
                     if (data.userSelectedType === 'R') {
                         addr = data.roadAddress;
@@ -1185,7 +1311,7 @@
                     adminShortcutNav.classList.remove('flex');
                     adminShortcutNav.classList.add('hidden');
                     if (shoppingBagBtn) shoppingBagBtn.classList.remove('hidden');
-                    
+
                     // 어드민이 아닐 경우 일반 로그인 여부에 따라 토글
                     if (b2cUser.isLoggedIn) {
                         if (loggedOutNav) loggedOutNav.classList.add('hidden');
@@ -1262,11 +1388,11 @@
             b2cUser.name = name;
             b2cUser.phone = registeredPhone;
             b2cUser.address = localStorage.getItem(`b2c_address_${email}`) || '';
-            
+
             // Load or initialize points
             const storedPointsKey = `b2c_points_${email}`;
             const storedJoinedKey = `b2c_joined_${email}`;
-            
+
             b2cUser.points = parseInt(localStorage.getItem(storedPointsKey) || '0', 10);
             try {
                 b2cUser.joinedBooks = JSON.parse(localStorage.getItem(storedJoinedKey) || '[]');
@@ -1284,7 +1410,7 @@
 
             updateB2CUserUI();
             closeB2CLoginModal();
-            
+
             // Re-render to update grid buttons (vote/fund require login)
             renderProductGrid();
         }
@@ -1369,7 +1495,7 @@
                     adminShortcutNav.classList.remove('flex');
                     adminShortcutNav.classList.add('hidden');
                     if (shoppingBagBtn) shoppingBagBtn.classList.remove('hidden');
-                    
+
                     // 어드민이 아닐 경우 일반 로그인 여부에 따라 토글
                     if (b2cUser.isLoggedIn) {
                         if (loggedOutNav) loggedOutNav.classList.add('hidden');
@@ -1412,7 +1538,7 @@
             b2cUser.points += amount;
             const storedPointsKey = `b2c_points_${b2cUser.email}`;
             localStorage.setItem(storedPointsKey, b2cUser.points);
-            
+
             if (b2cUser.isLoggedIn) {
                 syncUserProfileWithSupabase(b2cUser.email, b2cUser.name, b2cUser.points);
             }
@@ -1634,7 +1760,7 @@
                 hash |= 0;
             }
             const signatureHex = 'HMAC-SHA256: ' + Math.abs(hash).toString(16).toUpperCase() + 'FC79';
-            
+
             page.drawText(signatureHex, {
                 x: 25,
                 y: 120,
@@ -1750,7 +1876,7 @@
                 }
             } catch (err) {
                 console.warn('[Proposal API Failure, falling back to client-only mode]', err);
-                
+
                 // Fallback client simulation if serverless function not active/deployed yet
                 // Generate simulated signature on client
                 const fakeId = Date.now();
@@ -1778,7 +1904,7 @@
                     const parsed = JSON.parse(rawData);
                     parsed.products.push(proposedProduct);
                     localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                } catch(e){}
+                } catch (e) { }
 
                 alert(`🎉 [데모 모드] 도서 제안 완료!\n\n1번 살피미 에이전트가 국립중앙도서관 API를 딥서치한 것으로 시뮬레이션하였습니다. 200P 포인트가 적립되었습니다.`);
                 updateUserPoints(200);
@@ -1886,7 +2012,7 @@
                             masterBook.status = targetBook.status;
                         }
                         localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                    } catch(e){}
+                    } catch (e) { }
                 }
 
                 alert(`🗳️ [데모 모드] 복간 요청 투표 완료!\n\n서포터 마일리지 100P가 적립되었습니다.`);
@@ -2008,7 +2134,7 @@
                 // Fallback simulation
                 targetBook.funding_current = (targetBook.funding_current || 0) + 1;
                 const fundingPercent = Math.min(100, Math.round((targetBook.funding_current / (targetBook.funding_target || 50)) * 100));
-                
+
                 // Sync in local storage
                 const rawData = localStorage.getItem('MASTER_DATA');
                 if (rawData) {
@@ -2019,7 +2145,7 @@
                             masterBook.funding_current = targetBook.funding_current;
                         }
                         localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                    } catch(e){}
+                    } catch (e) { }
                 }
 
                 // Add to user local history
@@ -2044,7 +2170,7 @@
                 }
 
                 localStorage.setItem('latestStoreLog', `결제 예약 성공(시뮬레이션): "${targetBook.title}" 1건 예약 완료. (서포터: ${b2cUser.name})`);
-                
+
                 // 펀딩 100% 성공(목표수량 도달) 시 출판사 챗봇(erp-chat.js)에 감지 신호 송신
                 if (targetBook.title === '마녀' && targetBook.funding_current >= (targetBook.funding_target || 50)) {
                     localStorage.setItem('store-event-funding-completed', JSON.stringify({ book: targetBook.title, timestamp: Date.now() }));
@@ -2066,7 +2192,7 @@
 
         function filterByCategory(category) {
             currentCategory = category;
-            
+
             // Highlight selected tag visually
             const buttons = document.querySelectorAll('#hero-search-input + div button, div.flex-wrap button');
             buttons.forEach(btn => {
@@ -2089,10 +2215,10 @@
 
             let filtered = allProducts.filter(p => {
                 const matchCategory = (currentCategory === 'all' || p.category === currentCategory);
-                const matchQuery = (!currentSearchQuery || 
-                                    p.title.toLowerCase().includes(currentSearchQuery) || 
-                                    (p.author && p.author.toLowerCase().includes(currentSearchQuery)) ||
-                                    (p.pubName && p.pubName.toLowerCase().includes(currentSearchQuery)));
+                const matchQuery = (!currentSearchQuery ||
+                    p.title.toLowerCase().includes(currentSearchQuery) ||
+                    (p.author && p.author.toLowerCase().includes(currentSearchQuery)) ||
+                    (p.pubName && p.pubName.toLowerCase().includes(currentSearchQuery)));
                 return matchCategory && matchQuery;
             });
 
@@ -2145,7 +2271,7 @@
                         const today = new Date();
                         const diffTime = targetDate - today;
                         daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                    } catch(e) {
+                    } catch (e) {
                         daysLeft = 14;
                     }
                 }
@@ -2188,9 +2314,9 @@
                     <div>
                         <div class="aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 mb-4 relative flex items-center justify-center cursor-pointer" onclick="openAladinSpaciousModal(allProducts.find(function(x){return x.id===${p.id}}))">
                             ${p.image
-                                ? `<img src="${p.image}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover rounded-2xl hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-teal-800 via-slate-800 to-slate-900 text-white rounded-2xl border border-teal-500/30 shadow-inner text-left font-serif\'><div class=\'text-[10px] uppercase font-sans tracking-widest text-teal-300 font-bold\'>출판친구 복간본</div><div><h5 class=\'font-black text-sm leading-snug line-clamp-3 text-white mb-1\'>${(p.title || '').replace(/'/g, "\\'")}</h5><p class=\'text-[11px] text-teal-200/90 font-sans truncate\'>${(p.author || '').replace(/'/g, "\\'")}</p></div><div class=\'text-[9px] font-sans text-teal-300/80 border-t border-teal-500/20 pt-2 font-bold\'>📖 5대 원문 수집 완료</div></div>';">`
-                                : `<div class="w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-teal-800 via-slate-800 to-slate-900 text-white rounded-2xl border border-teal-500/30 shadow-inner text-left font-serif"><div class="text-[10px] uppercase font-sans tracking-widest text-teal-300 font-bold">출판친구 복간본</div><div><h5 class="font-black text-sm leading-snug line-clamp-3 text-white mb-1">${(p.title || '').replace(/'/g, "\'")}</h5><p class="text-[11px] text-teal-200/90 font-sans truncate">${(p.author || '').replace(/'/g, "\'")}</p></div><div class="text-[9px] font-sans text-teal-300/80 border-t border-teal-500/20 pt-2 font-bold">📖 5대 원문 수집 완료</div></div>`
-                            }
+                        ? `<img src="${p.image}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover rounded-2xl hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-teal-800 via-slate-800 to-slate-900 text-white rounded-2xl border border-teal-500/30 shadow-inner text-left font-serif\'><div class=\'text-[10px] uppercase font-sans tracking-widest text-teal-300 font-bold\'>출판친구 복간본</div><div><h5 class=\'font-black text-sm leading-snug line-clamp-3 text-white mb-1\'>${(p.title || '').replace(/'/g, "\\'")}</h5><p class=\'text-[11px] text-teal-200/90 font-sans truncate\'>${(p.author || '').replace(/'/g, "\\'")}</p></div><div class=\'text-[9px] font-sans text-teal-300/80 border-t border-teal-500/20 pt-2 font-bold\'>📖 5대 원문 수집 완료</div></div>';">`
+                        : `<div class="w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-teal-800 via-slate-800 to-slate-900 text-white rounded-2xl border border-teal-500/30 shadow-inner text-left font-serif"><div class="text-[10px] uppercase font-sans tracking-widest text-teal-300 font-bold">출판친구 복간본</div><div><h5 class="font-black text-sm leading-snug line-clamp-3 text-white mb-1">${(p.title || '').replace(/'/g, "\'")}</h5><p class="text-[11px] text-teal-200/90 font-sans truncate">${(p.author || '').replace(/'/g, "\'")}</p></div><div class="text-[9px] font-sans text-teal-300/80 border-t border-teal-500/20 pt-2 font-bold">📖 5대 원문 수집 완료</div></div>`
+                    }
                             ${badgeHeader}
                         </div>
                         <div class="flex items-center justify-between">
@@ -2235,7 +2361,7 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            
+
             if (loading) loading.classList.remove('hidden');
             if (content) content.classList.add('hidden');
 
@@ -2254,7 +2380,7 @@
                         const resData = await response.json();
                         if (resData.success) marketingAsset = resData.data;
                     }
-                } catch(err) {
+                } catch (err) {
                     console.warn('[B2C] 마케팅 에셋 조회 실패:', err);
                 }
             }
@@ -2340,13 +2466,13 @@
             container.style.transform = `translateX(-${currentDetailSlideIdx * 100}%)`;
         }
 
-        window.prevSlide = function() {
+        window.prevSlide = function () {
             if (currentDetailSlides.length === 0) return;
             currentDetailSlideIdx = (currentDetailSlideIdx - 1 + currentDetailSlides.length) % currentDetailSlides.length;
             renderDetailSlides();
         }
 
-        window.nextSlide = function() {
+        window.nextSlide = function () {
             if (currentDetailSlides.length === 0) return;
             currentDetailSlideIdx = (currentDetailSlideIdx + 1) % currentDetailSlides.length;
             renderDetailSlides();
@@ -2361,7 +2487,7 @@
                     if (Array.isArray(parsed.products) && parsed.products.length > 0) {
                         productsList = parsed.products;
                     }
-                } catch(e){}
+                } catch (e) { }
             }
 
             try {
@@ -2406,7 +2532,7 @@
                         });
                     }
                 }
-            } catch(err) {
+            } catch (err) {
                 console.warn('[loadProductsFromDB] REST API 페치 예외/타임아웃 감지:', err ? err.message : err);
             } finally {
                 // Supabase Storage 버킷 공용 20종 원본 표지 100% 무결 바인딩 (.jpg)
@@ -2492,26 +2618,26 @@
         function updateStoreLiveDashboard() {
             const baseCopies = 5420;
             const baseSupporters = 342;
-            
+
             let addFund = parseInt(localStorage.getItem('simulated_fund_added') || '0', 10);
-            
+
             const currentCopies = baseCopies + addFund;
             const currentSupporters = baseSupporters + (addFund > 0 ? 1 : 0);
-            
+
             const copiesEl = document.getElementById('stat-copies-count');
             const supportersEl = document.getElementById('stat-supporters-count');
             const salesVolumeEl = document.getElementById('stat-sales-volume');
             const achievementRateEl = document.getElementById('stat-achievement-rate');
-            
+
             if (copiesEl) copiesEl.textContent = currentCopies.toLocaleString();
             if (supportersEl) supportersEl.textContent = currentSupporters.toLocaleString();
-            
+
             if (salesVolumeEl) {
                 // 평균 18,000원 가정하여 백만원 단위로 계산
                 const salesVolume = ((currentCopies * 18000) / 1000000).toFixed(2);
                 salesVolumeEl.textContent = parseFloat(salesVolume).toLocaleString();
             }
-            
+
             if (achievementRateEl) {
                 const achievementRate = (112.5 + (addFund * 0.1)).toFixed(1);
                 achievementRateEl.textContent = achievementRate;
@@ -2528,7 +2654,7 @@
                         if (data.book === '마녀') {
                             const rawData = localStorage.getItem('MASTER_DATA') || '{"products":[]}';
                             const parsed = JSON.parse(rawData);
-                            
+
                             // MASTER_DATA 내에 마녀 책이 있으면 펀딩 활성화, 없으면 생성해서 등록
                             let maryeoBook = parsed.products.find(p => p.title === '마녀');
                             if (!maryeoBook) {
@@ -2557,9 +2683,9 @@
                                 parsed.products = parsed.products.filter(p => p.title !== '마녀');
                                 parsed.products.unshift(maryeoBook);
                             }
-                            
+
                             localStorage.setItem('MASTER_DATA', JSON.stringify(parsed));
-                            
+
                             // 메모리 내 상품 리스트와 그리드 즉시 강제 갱신
                             if (typeof allProducts !== 'undefined') {
                                 allProducts = parsed.products;
@@ -2567,7 +2693,7 @@
                             renderProductGrid();
                             console.log('[스토어] 대표 승인 ➔ 마녀 도서 B2C 펀딩 카드 라이브 성공 (49/50부 세팅 완료)');
                         }
-                    } catch(err) {
+                    } catch (err) {
                         console.error('[스토어] 승인 처리 연동 실패:', err);
                     }
                     localStorage.removeItem('admin-event-funding-approved');
@@ -2602,10 +2728,10 @@
                     buttons[key].style.backgroundColor = '#0f172a';
                 }
             }
-            try { localStorage.setItem('selected_theme', theme); } catch(e){}
+            try { localStorage.setItem('selected_theme', theme); } catch (e) { }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const saved = localStorage.getItem('selected_theme') || 'spring';
             switchTheme(saved);
         });
@@ -2613,51 +2739,58 @@
 
 
     <!-- 🌸 4계절 감성 연동 알라딘 대형 뷰어 모달 (16:9 와이드 비디오 + 🔴 Play 버튼 + ❌ 선명한 닫기 버튼 + 5대 원문 통 스크롤 뷰) -->
-    <div id="aladin-spacious-modal" class="fixed inset-0 z-[110] hidden bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-3 md:p-6">
-        <div class="theme-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row w-full max-w-5xl max-h-[92vh] relative text-slate-800 transition-colors duration-300">
-            
+    <div id="aladin-spacious-modal"
+        class="fixed inset-0 z-[110] hidden bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-3 md:p-6">
+        <div
+            class="theme-card border rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row w-full max-w-5xl max-h-[92vh] relative text-slate-800 transition-colors duration-300">
+
             <!-- ❌ 우측 상단 선명하고 큼직한 닫기 버튼 -->
-            <button onclick="closeAladinSpaciousModal()" class="absolute top-4 right-4 z-50 px-3 py-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs flex items-center gap-1 shadow-md transition-all">
+            <button onclick="closeAladinSpaciousModal()"
+                class="absolute top-4 right-4 z-50 px-3 py-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs flex items-center gap-1 shadow-md transition-all">
                 <span>❌ 닫기</span>
             </button>
 
             <!-- 좌측: 🎬 16:9 와이드 숏폼 영상 & 📰 5-템플릿 카드뉴스 듀얼 상영관 -->
-            <div class="w-full md:w-5/12 p-6 flex flex-col justify-between relative overflow-hidden theme-hero min-h-[440px] border-r border-slate-200/60">
+            <div
+                class="w-full md:w-5/12 p-6 flex flex-col justify-between relative overflow-hidden theme-hero min-h-[440px] border-r border-slate-200/60">
                 <!-- 듀얼 상영관 스위처 탭 -->
                 <div class="relative z-10 flex justify-between items-center bg-black/10 p-1 rounded-2xl mb-4 pr-12">
-                    <button onclick="switchMediaMode('shortform')" id="btn-media-sf" class="w-1/2 py-2 text-xs font-black rounded-xl bg-white text-slate-900 shadow-sm transition-all">🎬 16:9 숏폼 영상</button>
-                    <button onclick="switchMediaMode('cardnews')" id="btn-media-cn" class="w-1/2 py-2 text-xs font-black rounded-xl text-slate-600 hover:text-slate-900 transition-all">📰 카드뉴스</button>
+                    <button onclick="switchMediaMode('shortform')" id="btn-media-sf"
+                        class="w-1/2 py-2 text-xs font-black rounded-xl bg-white text-slate-900 shadow-sm transition-all">🎬
+                        16:9 숏폼 영상</button>
+                    <button onclick="switchMediaMode('cardnews')" id="btn-media-cn"
+                        class="w-1/2 py-2 text-xs font-black rounded-xl text-slate-600 hover:text-slate-900 transition-all">📰
+                        카드뉴스</button>
                 </div>
 
                 <!-- (A) 🎬 16:9 와이드 시네마틱 비디오 플레이어 스크린 -->
-                <div id="view-mode-shortform" class="relative z-10 my-auto py-2 flex flex-col items-center justify-center space-y-3 w-full">
-                    <div class="w-full aspect-[16/9] bg-slate-950 rounded-2xl shadow-2xl border-2 border-amber-400/80 overflow-hidden relative group cursor-pointer flex flex-col justify-end p-3 text-white" onclick="toggleWideVideoTrailer()">
-                        <!-- 깨끗한 비디오 스크린 (이미지를 가리는 중앙 버튼 및 TPL-01 문구 전면 제거) -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-between p-3 pointer-events-none">
-                            <div class="flex justify-between items-center text-[11px] font-bold text-amber-300">
-                                <span>16:9 WIDE TRAILER</span>
-                                <span class="bg-red-600/90 text-white px-2 py-0.5 rounded text-[10px] font-black">LIVE</span>
-                            </div>
-                            <div>
-                                <h4 id="sf-book-title" class="font-black text-sm text-white drop-shadow-md">도서 제목</h4>
-                            </div>
-                        </div>
+                <div id="view-mode-shortform"
+                    class="relative z-10 my-auto py-2 flex flex-col items-center justify-center space-y-3 w-full">
+                    <div class="w-full aspect-[16/9] bg-slate-950 rounded-2xl shadow-2xl border-2 border-amber-400/80 overflow-hidden relative group cursor-pointer flex flex-col justify-end p-3 text-white"
+                        onclick="toggleWideVideoTrailer()">
+                        <!-- 16:9 비디오 스크린 내부 오버레이 글자 전면 소거 (대표님 1차 핀포인트 저격) -->
                     </div>
                     <!-- 🔴 하단 재생/일시정지 전용 조작 컨트롤러 -->
-                    <button id="sf-play-control-btn" onclick="toggleWideVideoTrailer()" class="w-full py-2.5 px-4 rounded-xl theme-primary-btn flex items-center justify-center gap-2 font-black text-xs transition-all shadow-md">
+                    <button id="sf-play-control-btn" onclick="toggleWideVideoTrailer()"
+                        class="w-full py-2.5 px-4 rounded-xl theme-primary-btn flex items-center justify-center gap-2 font-black text-xs transition-all shadow-md">
                         <span>▶ 트레일러 재생</span>
                     </button>
                 </div>
 
                 <!-- (B) 📰 5-슬라이드 풀사이즈 비주얼 카드뉴스 뷰어 -->
                 <div id="view-mode-cardnews" class="hidden relative z-10 my-auto py-2 w-full">
-                    <div class="w-full rounded-2xl theme-card border shadow-xl p-4 space-y-3 flex flex-col items-center">
-                        <div class="w-full aspect-[4/5] max-h-[260px] overflow-hidden rounded-xl bg-slate-100 relative shadow-inner border border-slate-200">
-                            <img id="cn-book-img" src="book1.png" alt="도서 카드뉴스 슬라이드" class="w-full h-full object-cover rounded-xl transition-all duration-300">
+                    <div
+                        class="w-full rounded-2xl theme-card border shadow-xl p-4 space-y-3 flex flex-col items-center">
+                        <div
+                            class="w-full aspect-[4/5] max-h-[260px] overflow-hidden rounded-xl bg-slate-100 relative shadow-inner border border-slate-200">
+                            <img id="cn-book-img" src="book1.png" alt="도서 카드뉴스 슬라이드"
+                                class="w-full h-full object-cover rounded-xl transition-all duration-300">
                         </div>
                         <div class="w-full text-center space-y-1">
-                            <h3 id="aladin-card-title" class="text-sm font-black theme-highlight-text leading-snug">📖 다시 만나는 명작</h3>
-                            <p id="aladin-card-content" class="text-xs text-slate-700 leading-relaxed font-medium">"저자의 잊혀진 걸작, 복간 펀딩 개시!"</p>
+                            <h3 id="aladin-card-title" class="text-sm font-black theme-highlight-text leading-snug">📖
+                                다시 만나는 명작</h3>
+                            <p id="aladin-card-content" class="text-xs text-slate-700 leading-relaxed font-medium">"저자의
+                                잊혀진 걸작, 복간 펀딩 개시!"</p>
                         </div>
                     </div>
                 </div>
@@ -2665,9 +2798,13 @@
                 <!-- 하단 카드뉴스 인디케이터 컨트롤러 -->
                 <div class="relative z-10 pt-3 border-t border-slate-200/60 space-y-2">
                     <div class="flex justify-between items-center">
-                        <button onclick="prevAladinSlide()" class="px-3.5 py-1.5 rounded-lg theme-secondary-btn border text-xs font-bold transition-all">◄ 이전</button>
+                        <button onclick="prevAladinSlide()"
+                            class="px-3.5 py-1.5 rounded-lg theme-secondary-btn border text-xs font-bold transition-all">◄
+                            이전</button>
                         <div class="flex gap-1.5 items-center" id="aladin-slide-dots"></div>
-                        <button onclick="nextAladinSlide()" class="px-3.5 py-1.5 rounded-lg theme-secondary-btn border text-xs font-bold transition-all">다음 ►</button>
+                        <button onclick="nextAladinSlide()"
+                            class="px-3.5 py-1.5 rounded-lg theme-secondary-btn border text-xs font-bold transition-all">다음
+                            ►</button>
                     </div>
                 </div>
             </div>
@@ -2676,20 +2813,24 @@
             <div class="w-full md:w-7/12 p-6 flex flex-col justify-between theme-card">
                 <!-- 1개 통 스크롤 영역 (마우스 드래그로 쭉 감상하는 5대 원문) -->
                 <div class="overflow-y-auto max-h-[70vh] pr-4 space-y-8 scrollbar-hide">
-                    
+
                     <!-- 도서 헤더 -->
                     <div class="border-b-2 border-slate-200/80 pb-5">
-                        <span id="aladin-book-cat" class="px-3 py-1 rounded-full theme-badge text-[11px] font-black uppercase tracking-wider">소설</span>
-                        <h2 id="aladin-book-title" class="text-2xl md:text-3xl font-black leading-tight mt-2 text-slate-900">도서 제목</h2>
+                        <span id="aladin-book-cat"
+                            class="px-3 py-1 rounded-full theme-badge text-[11px] font-black uppercase tracking-wider">소설</span>
+                        <h2 id="aladin-book-title"
+                            class="text-2xl md:text-3xl font-black leading-tight mt-2 text-slate-900">도서 제목</h2>
                         <p id="aladin-book-author" class="text-sm theme-text-muted mt-1 font-bold">서상원 저 | 출판친구</p>
                     </div>
 
                     <!-- 통 스크롤 원문 파트 1: 📖 책소개 (fullDescription / 출판사 서평) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black theme-highlight-text flex items-center gap-2 border-l-4 border-amber-500 pl-2">
+                        <h3
+                            class="text-sm font-black theme-highlight-text flex items-center gap-2 border-l-4 border-amber-500 pl-2">
                             <span>📖</span> 책소개 & 출판사 서평
                         </h3>
-                        <div id="aladin-sec-desc" class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
+                        <div id="aladin-sec-desc"
+                            class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
                             도서 상세 소개글이 등록되어 있습니다.
                         </div>
                     </div>
@@ -2698,10 +2839,12 @@
 
                     <!-- 통 스크롤 원문 파트 2: 📑 목차 (toc - 차례 전체 텍스트) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-sky-600 flex items-center gap-2 border-l-4 border-sky-500 pl-2">
+                        <h3
+                            class="text-sm font-black text-sky-600 flex items-center gap-2 border-l-4 border-sky-500 pl-2">
                             <span>📑</span> 목차 (차례 전체 텍스트)
                         </h3>
-                        <div id="aladin-sec-toc" class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
+                        <div id="aladin-sec-toc"
+                            class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
                             1장. 개론\n2장. 본론과 탐구\n3장. 통찰과 결론
                         </div>
                     </div>
@@ -2710,10 +2853,12 @@
 
                     <!-- 통 스크롤 원문 파트 3: 💬 추천의 글 / 서평 (reviewList) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-emerald-600 flex items-center gap-2 border-l-4 border-emerald-500 pl-2">
+                        <h3
+                            class="text-sm font-black text-emerald-600 flex items-center gap-2 border-l-4 border-emerald-500 pl-2">
                             <span>💬</span> 추천의 글 / 명사 서평
                         </h3>
-                        <div id="aladin-sec-review" class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
+                        <div id="aladin-sec-review"
+                            class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
                             "이 시대에 반드시 다시 읽혀야 할 불후의 명작!" - 문학평론가
                         </div>
                     </div>
@@ -2722,10 +2867,12 @@
 
                     <!-- 통 스크롤 원문 파트 4: ✍️ 저자 및 역자 소개 (authors) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-indigo-600 flex items-center gap-2 border-l-4 border-indigo-500 pl-2">
+                        <h3
+                            class="text-sm font-black text-indigo-600 flex items-center gap-2 border-l-4 border-indigo-500 pl-2">
                             <span>✍️</span> 저자 및 역자 소개
                         </h3>
-                        <div id="aladin-sec-author" class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
+                        <div id="aladin-sec-author"
+                            class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
                             저자 프로필 및 출판친구 복간 위원회 약력
                         </div>
                     </div>
@@ -2734,10 +2881,12 @@
 
                     <!-- 통 스크롤 원문 파트 5: 📌 책 속에서 (주요 인용 구문) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-purple-600 flex items-center gap-2 border-l-4 border-purple-500 pl-2">
+                        <h3
+                            class="text-sm font-black text-purple-600 flex items-center gap-2 border-l-4 border-purple-500 pl-2">
                             <span>📌</span> 책 속에서 (주요 인용 구문)
                         </h3>
-                        <div id="aladin-sec-quotes" class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
+                        <div id="aladin-sec-quotes"
+                            class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
                             "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아난다."
                         </div>
                     </div>
@@ -2750,7 +2899,8 @@
                         <span class="theme-highlight-text font-black" id="aladin-fund-status">펀딩 진행률 98% 달성</span>
                         <span class="theme-text-muted" id="aladin-fund-count">49 / 50 부 예약 완료</span>
                     </div>
-                    <button onclick="triggerFundingBookingModal('마녀', 18000)" class="w-full py-3 bg-[#E11D48] hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2">
+                    <button onclick="triggerFundingBookingModal('마녀', 18000)"
+                        class="w-full py-3 bg-[#E11D48] hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2">
                         <i data-lucide="credit-card" class="w-4 h-4"></i>
                         <span>복간 참여 (펀딩 결제 예약)</span>
                     </button>
@@ -2887,11 +3037,14 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
                 };
             }
 
-            document.getElementById('sf-book-title').textContent = data.title;
+            const sfTitleEl = document.getElementById('sf-book-title');
+            if (sfTitleEl) {
+                sfTitleEl.textContent = data.title;
+            }
             document.getElementById('aladin-book-title').textContent = data.title;
             document.getElementById('aladin-book-author').textContent = data.author;
             document.getElementById('aladin-book-cat').textContent = data.category;
-            
+
             document.getElementById('aladin-sec-desc').textContent = data.fullDescription;
             document.getElementById('aladin-sec-toc').textContent = data.toc;
             document.getElementById('aladin-sec-review').textContent = data.reviewList;
@@ -2903,7 +3056,7 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
             }
-            
+
             currentAladinSlideIdx = 0;
             updateAladinSlideUI();
 
@@ -2982,7 +3135,7 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             const cnView = document.getElementById('view-mode-cardnews');
             const btnSf = document.getElementById('btn-media-sf');
             const btnCn = document.getElementById('btn-media-cn');
-            
+
             if (mode === 'shortform') {
                 sfView.classList.remove('hidden');
                 cnView.classList.add('hidden');
@@ -3009,4 +3162,5 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
     </script>
 
 </body>
+
 </html>
