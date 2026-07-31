@@ -2823,8 +2823,8 @@
 
                     <!-- 통 스크롤 원문 파트 1: 책소개 (fullDescription / 출판사 서평) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2 flex items-center gap-2">
-                            <span id="aladin-col-title-1">책소개</span>
+                        <h3 class="text-sm font-black theme-highlight-text border-l-4 border-amber-500 pl-2">
+                            책소개
                         </h3>
                         <div id="aladin-sec-desc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2836,8 +2836,8 @@
 
                     <!-- 통 스크롤 원문 파트 2: 목차 (toc - 차례 전체 텍스트) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2 flex items-center gap-2">
-                            <span id="aladin-col-title-2">목차</span>
+                        <h3 class="text-sm font-black text-sky-600 border-l-4 border-sky-500 pl-2">
+                            목차
                         </h3>
                         <div id="aladin-sec-toc"
                             class="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-3">
@@ -2849,8 +2849,8 @@
 
                     <!-- 통 스크롤 원문 파트 3: 명사 서평 (reviewList) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2 flex items-center gap-2">
-                            <span id="aladin-col-title-3">명사 서평</span>
+                        <h3 class="text-sm font-black text-emerald-600 border-l-4 border-emerald-500 pl-2">
+                            명사 서평
                         </h3>
                         <div id="aladin-sec-review"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2862,8 +2862,8 @@
 
                     <!-- 통 스크롤 원문 파트 4: 작가소개 (authors) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2 flex items-center gap-2">
-                            <span id="aladin-col-title-4">작가소개</span>
+                        <h3 class="text-sm font-black text-indigo-600 border-l-4 border-indigo-500 pl-2">
+                            작가소개
                         </h3>
                         <div id="aladin-sec-author"
                             class="text-xs text-slate-600 leading-relaxed whitespace-pre-line pl-3">
@@ -2875,8 +2875,8 @@
 
                     <!-- 통 스크롤 원문 파트 5: 책 속의 명문장 (주요 인용 구문) -->
                     <div class="space-y-2">
-                        <h3 class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2 flex items-center gap-2">
-                            <span id="aladin-col-title-5">책 속의 명문장</span>
+                        <h3 class="text-sm font-black text-purple-600 border-l-4 border-purple-500 pl-2">
+                            책 속의 명문장
                         </h3>
                         <div id="aladin-sec-quotes"
                             class="text-xs text-slate-700 italic leading-relaxed whitespace-pre-line pl-3">
@@ -3044,13 +3044,6 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             document.getElementById('aladin-sec-author').textContent = data.authors;
             document.getElementById('aladin-sec-quotes').textContent = data.quotes;
 
-            // 5대 컬럼 제목 직통 고정
-            const colTitles = ['책소개', '목차', '명사 서평', '작가소개', '책 속의 명문장'];
-            colTitles.forEach((title, idx) => {
-                const el = document.getElementById(`aladin-col-title-${idx + 1}`);
-                if (el) el.textContent = title;
-            });
-
             window.currentActiveModalBook = data;
 
             const modal = document.getElementById('aladin-spacious-modal');
@@ -3091,38 +3084,21 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
         const ALADIN_CAROUSEL_IMAGES = ['book1.png', 'book2.png', 'book3.png', 'book4.png', 'book5.png'];
         let currentAladinSlideIdx = 0;
 
-        // 📜 카드뉴스 인덱스별 100% 차별화 데이터 매핑 (1번: 책소개, 2번: 명사서평, 3번: 명문장)
+        // 🎯 Supabase DB 리얼 데이터 100% 원문 통표출 (55자 자르기 전면 철거!)
         function getCardNewsText(book, index) {
-            const getCleanSentence = (txt, max) => {
-                if (!txt) return '';
-                const clean = txt.replace(/\[.*?\]/g, '').replace(/[\r\n]+/g, ' ').trim();
-                const sentences = clean.split(/(?<=[.!?])\s+/);
-                let res = sentences[0] || '';
-                if (res.length < 20 && sentences[1]) res += ' ' + sentences[1];
-                if (res.length > max) {
-                    const lastDot = res.lastIndexOf('.', max);
-                    if (lastDot > 20) res = res.substring(0, lastDot + 1);
-                    else res = res.substring(0, max).trim();
-                }
-                return res;
-            };
-
             if (!book) return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
 
             if (index === 0) {
-                // 1번 카드: 📖 책소개 요약
-                const desc = book.full_description || book.fullDescription || book.description;
-                return desc ? getCleanSentence(desc, 55) : "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
+                // 1번 카드: 📖 책소개 (DB 리얼 데이터 원문 통표출)
+                return book.full_description || book.fullDescription || book.description || "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
             }
             if (index === 1) {
-                // 2번 카드: 💬 명사 서평 요약 (목차 toc 100% 전면 배제!)
-                const review = book.review_list || book.reviewList || book.review_text;
-                return review ? getCleanSentence(review, 55) : "독자들과 명사들이 입을 모아 극찬한 이 시대 최고의 명저.";
+                // 2번 카드: 💬 명사 서평 (DB 리얼 데이터 원문 통표출 - 목차 toc 100% 배제!)
+                return book.review_list || book.reviewList || book.review_text || "독자들과 명사들이 입을 모아 극찬한 이 시대 최고의 명저.";
             }
             if (index === 2) {
-                // 3번 카드: 📌 책 속의 명문장 요약
-                const quote = book.story_quotes || book.quotes || book.key_quotes;
-                return quote ? getCleanSentence(quote, 55) : "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아납니다.";
+                // 3번 카드: 📌 책 속의 명문장 (DB 리얼 데이터 원문 통표출)
+                return book.story_quotes || book.quotes || book.key_quotes || "세상에서 사라진 명작은 우리가 기억할 때 비로소 다시 살아납니다.";
             }
             if (index === 3) {
                 // 4번 카드: 펀딩 유도 고정 문구 1
@@ -3144,9 +3120,12 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             const currentBook = window.currentActiveModalBook || {};
             const cardText = getCardNewsText(currentBook, currentAladinSlideIdx);
 
+            // 2중 큰따옴표 (""..."") 정제 및 깔끔한 1겹 감싸기
+            const cleanText = (cardText || '').replace(/^["'“”]+|["'“”]+$/g, '').replace(/[\r\n]+/g, ' ').trim();
+
             if (img) img.src = ALADIN_CAROUSEL_IMAGES[currentAladinSlideIdx];
             if (title) title.textContent = (currentBook.title || '도서 명작') + ` (${currentAladinSlideIdx + 1}/5)`;
-            if (content) content.textContent = '"' + cardText + '"';
+            if (content) content.textContent = '"' + cleanText + '"';
 
             if (dots) {
                 dots.innerHTML = ALADIN_CAROUSEL_IMAGES.map((_, idx) => `
