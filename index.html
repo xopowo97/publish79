@@ -3044,11 +3044,11 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             document.getElementById('aladin-sec-author').textContent = data.authors;
             document.getElementById('aladin-sec-quotes').textContent = data.quotes;
 
-            // 5대 컬럼 제목 100% 강제 수복 바인딩
+            // 5대 컬럼 제목 직통 고정
             const colTitles = ['책소개', '목차', '명사 서평', '작가소개', '책 속의 명문장'];
-            colTitles.forEach((t, i) => {
-                const el = document.getElementById(`aladin-col-title-${i + 1}`);
-                if (el) el.textContent = t;
+            colTitles.forEach((title, idx) => {
+                const el = document.getElementById(`aladin-col-title-${idx + 1}`);
+                if (el) el.textContent = title;
             });
 
             window.currentActiveModalBook = data;
@@ -3091,42 +3091,38 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
         const ALADIN_CAROUSEL_IMAGES = ['book1.png', 'book2.png', 'book3.png', 'book4.png', 'book5.png'];
         let currentAladinSlideIdx = 0;
 
-        // 📜 카드뉴스용 정밀 완성 문장 추출 헬퍼 (마침표/느낌표/물음표 기준 완성문 추출)
-        function getSmartSummary(text, maxLen) {
-            if (!text) return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
-            const cleanText = text.replace(/\[.*?\]/g, '').trim();
-            const sentences = cleanText.split(/(?<=[.!?])\s+/);
-            let result = sentences[0] || '';
-            if (result.length < 25 && sentences[1]) result += ' ' + sentences[1];
-            if (result.length > maxLen) {
-                const lastDot = result.lastIndexOf('.', maxLen);
-                if (lastDot > 20) {
-                    result = result.substring(0, lastDot + 1);
-                } else {
-                    result = result.substring(0, maxLen).trim() + '..';
-                }
-            }
-            return result;
-        }
-
-        // 🎯 카드뉴스 1~5번 데이터 인덱스 매핑 우선순위 엄격 교정 (목차 toc 전면 배제!)
+        // 📜 카드뉴스 인덱스별 100% 차별화 데이터 매핑 및 완결문 파싱 헬퍼
         function getCardNewsText(book, index) {
+            const getCleanSentence = (txt, max) => {
+                if (!txt) return '';
+                const clean = txt.replace(/\[.*?\]/g, '').replace(/[\r\n]+/g, ' ').trim();
+                const sentences = clean.split(/(?<=[.!?])\s+/);
+                let res = sentences[0] || '';
+                if (res.length < 20 && sentences[1]) res += ' ' + sentences[1];
+                if (res.length > max) {
+                    const lastDot = res.lastIndexOf('.', max);
+                    if (lastDot > 20) res = res.substring(0, lastDot + 1);
+                    else res = res.substring(0, max).trim();
+                }
+                return res;
+            };
+
             if (!book) return "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
 
             if (index === 0) {
-                // 1번 카드: 100% 줄거리/책소개 전용 (toc 목차 전면 배제!)
+                // 1번 카드: 책소개 / 작품 줄거리 전용
                 const desc = book.full_description || book.fullDescription || book.description;
-                return desc ? getSmartSummary(desc, 55) : "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
+                return desc ? getCleanSentence(desc, 55) : "세월이 지나도 변치 않는 불후의 명작을 다시 만나는 시간.";
             }
             if (index === 1) {
-                // 2번 카드: 인문학적 작품세계 & 배경 요약
-                const subDesc = book.description || book.full_description || book.fullDescription;
-                return subDesc ? getSmartSummary(subDesc, 55) : "인류의 유산이자 독자들의 요청을 받은 불후의 명작입니다.";
+                // 2번 카드: 목차 / 인문학적 구성 전용 (1번과 완전히 다른 데이터 참조)
+                const toc = book.toc || book.author_intro || book.description;
+                return toc ? getCleanSentence(toc, 55) : "인류의 유산이자 독자들의 요청을 받은 명작입니다.";
             }
             if (index === 2) {
-                // 3번 카드: 명구문 또는 핵심 서평
+                // 3번 카드: 서평 / 명문장 전용
                 const quote = book.story_quotes || book.quotes || book.key_quotes || book.review_list || book.reviewList;
-                return quote ? getSmartSummary(quote, 55) : "독자들이 선정한 이 시대 최고의 작품 세계 속으로 여러분을 초대합니다.";
+                return quote ? getCleanSentence(quote, 55) : "독자들이 선정한 불후의 명저 속으로 여러분을 초대합니다.";
             }
             if (index === 3) {
                 // 4번 카드: 펀딩 유도 고정 문구 1
