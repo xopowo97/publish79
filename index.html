@@ -3037,7 +3037,10 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
                 };
             }
 
-            document.getElementById('sf-book-title').textContent = data.title;
+            const sfTitleEl = document.getElementById('sf-book-title');
+            if (sfTitleEl) {
+                sfTitleEl.textContent = data.title;
+            }
             document.getElementById('aladin-book-title').textContent = data.title;
             document.getElementById('aladin-book-author').textContent = data.author;
             document.getElementById('aladin-book-cat').textContent = data.category;
