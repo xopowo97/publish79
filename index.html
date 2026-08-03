@@ -2032,6 +2032,24 @@
             }
         }
 
+        // Trigger Funding Booking Modal helper
+        function triggerFundingBookingModal(bookTitleOrId, price) {
+            let targetBook = allProducts.find(p => p.id == bookTitleOrId || p.title === bookTitleOrId);
+            if (!targetBook && window.currentActiveModalBook) {
+                targetBook = allProducts.find(p => p.id == window.currentActiveModalBook.id || p.title === window.currentActiveModalBook.title);
+            }
+            if (!targetBook && allProducts.length > 0) {
+                targetBook = allProducts[0];
+            }
+            closeAladinSpaciousModal();
+            closeB2CBookDetailModal();
+            if (targetBook) {
+                openBillingModal(targetBook.id);
+            } else {
+                openBillingModal(1666);
+            }
+        }
+
         // Open Funding billing modal
         function openBillingModal(productId) {
             if (!b2cUser.isLoggedIn) {
@@ -2887,12 +2905,15 @@
                 </div>
 
                 <!-- 하단 알라딘 북펀드형 결제 예약 결합 바 -->
-                <div class="border-t border-slate-200/80 pt-4 mt-4 space-y-3">
-                    <div class="flex justify-between items-center text-xs font-bold">
-                        <span class="theme-highlight-text font-black" id="aladin-fund-status">펀딩 진행률 98% 달성</span>
-                        <span class="theme-text-muted" id="aladin-fund-count">49 / 50 부 예약 완료</span>
+                <div class="border-t border-slate-200/80 pt-4 mt-4 space-y-2">
+                    <div class="space-y-1 text-xs font-bold">
+                        <div class="flex justify-between items-center">
+                            <span class="theme-highlight-text font-black" id="aladin-fund-status">펀딩 마감 D-12일</span>
+                            <span class="theme-text-muted font-bold text-[11px]" id="aladin-fund-count">현재 85부 참여 완료</span>
+                        </div>
+                        <div class="text-[11px] theme-text-muted font-bold text-right pt-0.5" id="aladin-fund-deadline">펀딩 마감일: 2026년 8월 15일</div>
                     </div>
-                    <button onclick="triggerFundingBookingModal('마녀', 18000)"
+                    <button onclick="triggerFundingBookingModal((window.currentActiveModalBook && window.currentActiveModalBook.title) || '마녀', (window.currentActiveModalBook && window.currentActiveModalBook.price) || 18000)"
                         class="w-full py-3 bg-[#E11D48] hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2">
                         <i data-lucide="credit-card" class="w-4 h-4"></i>
                         <span>복간 참여 (펀딩 결제 예약)</span>
@@ -3003,10 +3024,35 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             let data;
             if (typeof bookTitleObj === 'object' && bookTitleObj !== null) {
                 const b = bookTitleObj;
+                let endDateStr = b.funding_end_date || '2026년 8월 15일';
+                let formattedEndDate = endDateStr;
+                if (!formattedEndDate.includes('년')) {
+                    formattedEndDate = endDateStr.replace(/^(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})$/, '$1년 $2월 $3일');
+                }
+
+                let daysLeft = b.days_left;
+                if (daysLeft === undefined || daysLeft === null) {
+                    try {
+                        const cleanDateStr = endDateStr.replace(/년\s*/, '-').replace(/월\s*/, '-').replace(/일\s*/, '').replace(/\./g, '-');
+                        const targetDate = new Date(cleanDateStr);
+                        const today = new Date();
+                        const diffTime = targetDate - today;
+                        daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                    } catch (e) {
+                        daysLeft = 12;
+                    }
+                }
+                const fundingCurrent = b.funding_current || 85;
+
                 data = {
+                    id: b.id,
                     title: b.title || '도서 명작',
                     author: (b.author || '서상원 저') + (b.publisher ? ' | ' + b.publisher : (pubName ? ' | ' + pubName : ' | 출판친구')),
                     category: b.category || cat || '소설',
+                    price: b.price || 18000,
+                    daysLeft: daysLeft,
+                    fundingCurrent: fundingCurrent,
+                    formattedEndDate: formattedEndDate,
                     fullDescription: b.full_description || b.fullDescription || `[출판사 서평 & 독자 청원 배경]\n인류의 유산이자 독자들의 요청을 받은 명작 《${b.title || '도서'}》의 자율 복간 프로젝트가 시작되었습니다.`,
                     toc: b.toc || `[전체 차례]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 해제 및 결론`,
                     reviewList: b.review_list || b.reviewList || `"독자들이 선정한 불후의 명저."`,
@@ -3018,15 +3064,20 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
                 }
             } else {
                 const bookTitle = bookTitleObj;
-                data = ALADIN_BOOK_DATABASE[bookTitle] || {
+                const dbEntry = ALADIN_BOOK_DATABASE[bookTitle] || {};
+                data = {
                     title: bookTitle || '도서 명작',
                     author: (author || '서상원 저') + (pubName ? ' | ' + pubName : ' | 출판친구'),
                     category: cat || '소설',
-                    fullDescription: fullDesc || `[출판사 서평 & 독자 청원 배경]\n인류의 유산이자 독자들의 요청을 받은 명작 《${bookTitle || '도서'}》의 자율 복간 프로젝트가 시작되었습니다.`,
-                    toc: tocText || `[전체 차례]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 해제 및 결론`,
-                    reviewList: reviewText || `"독자들이 선정한 불후의 명저."`,
-                    authors: authorInfo || `${author || '저자미상'} | ${pubName || '출판친구'}`,
-                    quotes: quotesText || `"[책 속의 명구문]\n우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."`
+                    price: dbEntry.price || 18000,
+                    daysLeft: 12,
+                    fundingCurrent: dbEntry.fundingCurrent || 85,
+                    formattedEndDate: '2026년 8월 15일',
+                    fullDescription: fullDesc || dbEntry.fullDescription || `[출판사 서평 & 독자 청원 배경]\n인류의 유산이자 독자들의 요청을 받은 명작 《${bookTitle || '도서'}》의 자율 복간 프로젝트가 시작되었습니다.`,
+                    toc: tocText || dbEntry.toc || `[전체 차례]\n1장. 서론 및 작품 배경\n2장. 본문 전개 및 시대상\n3장. 해제 및 결론`,
+                    reviewList: reviewText || dbEntry.reviewList || `"독자들이 선정한 불후의 명저."`,
+                    authors: authorInfo || dbEntry.authors || `${author || '저자미상'} | ${pubName || '출판친구'}`,
+                    quotes: quotesText || dbEntry.quotes || `"[책 속의 명구문]\n우리가 지키려했던 것은 책이 아닌, 그 안에 담긴 기억의 불씨였다."`
                 };
             }
 
@@ -3043,6 +3094,15 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
             document.getElementById('aladin-sec-review').textContent = data.reviewList;
             document.getElementById('aladin-sec-author').textContent = data.authors;
             document.getElementById('aladin-sec-quotes').textContent = data.quotes;
+
+            const statusEl = document.getElementById('aladin-fund-status');
+            if (statusEl) statusEl.textContent = `펀딩 마감 D-${data.daysLeft || 12}일`;
+
+            const countEl = document.getElementById('aladin-fund-count');
+            if (countEl) countEl.textContent = `현재 ${data.fundingCurrent || 85}부 참여 완료`;
+
+            const deadlineEl = document.getElementById('aladin-fund-deadline');
+            if (deadlineEl) deadlineEl.textContent = `펀딩 마감일: ${data.formattedEndDate || '2026년 8월 15일'}`;
 
             window.currentActiveModalBook = data;
 
