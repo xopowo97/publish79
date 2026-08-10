@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // [1번 살피미 에이전트] 국립중앙도서관 딥서치 클라이언트 모듈
 // ============================================================
 // ⚠️ 중요: 이 함수는 절대 국립중앙도서관 API를 직접 호출하지 않습니다.
@@ -427,7 +427,16 @@ function enterApp(role, userId) {
     window._isLoggingIn = true;
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
-    if (userId) sessionStorage.setItem('userId', userId);
+    if (userId) {
+        sessionStorage.setItem('userId', userId);
+        if (role === 'publisher' && typeof MASTER !== 'undefined' && MASTER.partners) {
+            const p = MASTER.partners.find(x => x.id === userId || x.name === userId) || MASTER.partners[0];
+            if (p && p.name) sessionStorage.setItem('userPubName', p.name);
+        } else if ((role === 'printer' || role === 'printer_worker') && typeof MASTER !== 'undefined' && MASTER.printers) {
+            const pr = MASTER.printers.find(x => x.id === userId || x.name === userId) || MASTER.printers[0];
+            if (pr && pr.name) sessionStorage.setItem('userPrinterName', pr.name);
+        }
+    }
 
     if (role === 'judge') {
         window.location.href = 'control.html';
@@ -701,7 +710,7 @@ async function initMaster() {
 
 // 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
 function renderAll() {
-    if (typeof applyRoleVisibility === 'function') applyRoleVisibility();
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
     const activeBtn = document.querySelector('.sidebar-item.active');
     if (activeBtn) {
         const pageId = activeBtn.id.replace('btn-', '');
@@ -713,6 +722,7 @@ function renderAll() {
             showPage('spec');
         }
     }
+
     if (window.lucide) lucide.createIcons();
 }
 
@@ -1406,7 +1416,9 @@ function showPage(p, isEdit = false) {
     // 수정 모드 명시적 제어
     if (!isEdit) {
         editingOrderId = null;
-        if (p === 'order') { resetOrderForm(); }
+        if (p === 'order' && typeof resetOrderForm === 'function') {
+            resetOrderForm();
+        }
     }
 
     // 페이지 제목 매핑
@@ -1474,6 +1486,11 @@ function showPage(p, isEdit = false) {
     }
     if (p === 'order') {
         renderOrder();
+        // 신규 작성 시 renderOrder 직후 폼과 DOM 요소 100% 빈 작성창으로 초기화
+        if (!isEdit && typeof resetOrderForm === 'function') {
+            resetOrderForm();
+        }
+
         // 버튼 문구 리셋 로직 추가: 수정 모드가 아니면 '제작', 수정 모드면 '수정'으로 표시
         const submitBtn = document.getElementById('btn-submit-order');
         if (submitBtn) {
@@ -1484,8 +1501,9 @@ function showPage(p, isEdit = false) {
         // 등록 도서 불러오기 옵션 렌더링
         const loadSelect = document.getElementById('ord-load-product');
         if (loadSelect) {
+            const availableProds = getAvailableProductsForPublisher();
             loadSelect.innerHTML = `<option value="">도서를 선택하면 사양이 자동으로 입력됩니다.</option>` +
-                MASTER.products.map(p => `<option value="${p.id}">${p.title} (${p.spec} / ${p.pages}P)</option>`).join('');
+                availableProds.map(p => `<option value="${p.id}">${p.title} ${p.pubName ? "[" + p.pubName + "] " : ""}(${p.spec} / ${p.pages}P)</option>`).join('');
         }
     }
     if (p === 'store-mgmt') renderStoreMgmt();
@@ -2820,7 +2838,7 @@ async function submitOrderSheet() {
     // 파일 상태 초기화
     currentFiles = { inner: null, cover: null };
     resetFileUI();
-    resetOrderForm();
+    if (typeof resetOrderForm === 'function') resetOrderForm();
 
     showPage('settlement');
 }
@@ -3540,7 +3558,7 @@ function updateChart(range = 'week') {
         }
     });
 }
-let currentUserRole = 'admin'; // 'admin', 'printer', 'publisher' 중 설정 가능
+let currentUserRole = sessionStorage.getItem('userRole') || 'admin'; // 'admin', 'printer', 'publisher' 중 설정 가능
 
 // 역할 전환 및 사이드바 가시성 제어 로직
 function switchRole(newRole) {
@@ -3561,18 +3579,18 @@ function switchRole(newRole) {
 }
 
 function applyRoleVisibility() {
-    const role = currentUserRole;
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
 
     // 1. 사이드바 메뉴 노출 매핑 (재고관리, 용지구매, 구인구직 추가하여 권한 제어)
     const menuVisibility = {
-        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
+        admin: ['btn-goto-store', 'btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
         publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job'],
         printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
         printer_worker: ['btn-production'],
         judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 심사위원은 재고/용지/구인구직/사양/단가/설정 노출 제외
     };
 
-    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+    const allMenus = ['btn-goto-store', 'btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
     const allowed = menuVisibility[role] || allMenus;
 
     // 2. 사이드바 엘리먼트 노출 제어 및 명칭 치환
@@ -3584,8 +3602,10 @@ function applyRoleVisibility() {
             if (id === 'btn-partner') {
                 if (role === 'publisher') {
                     const userId = sessionStorage.getItem('userId');
-                    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-                    el.innerHTML = `<i data-lucide="user-cog" class="w-4 h-4 mr-3"></i>${myPartner ? myPartner.name : '출판사'} 정보관리`;
+                    const myPartner = MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0];
+                    const pubName = myPartner ? myPartner.name : (sessionStorage.getItem('userPubName') || '출판사');
+                    if (myPartner && myPartner.name) sessionStorage.setItem('userPubName', myPartner.name);
+                    el.innerHTML = `<i data-lucide="user-cog" class="w-4 h-4 mr-3"></i>${pubName} 정보관리`;
                 } else {
                     el.innerHTML = `<i data-lucide="users" class="w-4 h-4 mr-3"></i>파트너사관리`;
                 }
@@ -3593,8 +3613,10 @@ function applyRoleVisibility() {
             if (id === 'btn-printer-mgmt') {
                 if (role === 'printer' || role === 'printer_worker') {
                     const userId = sessionStorage.getItem('userId');
-                    const myPrinter = MASTER.printers.find(p => p.id === userId) || MASTER.printers[0];
-                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${myPrinter ? myPrinter.name : '인쇄소'} 정보관리`;
+                    const myPrinter = MASTER.printers.find(p => p.id === userId || p.name === userId) || MASTER.printers[0];
+                    const printerName = myPrinter ? myPrinter.name : (sessionStorage.getItem('userPrinterName') || '인쇄소');
+                    if (myPrinter && myPrinter.name) sessionStorage.setItem('userPrinterName', myPrinter.name);
+                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${printerName} 정보관리`;
                 } else {
                     el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>인쇄소관리`;
                 }
@@ -3602,12 +3624,6 @@ function applyRoleVisibility() {
         }
     });
 
-
-    // ?ㅽ넗??諛붾줈媛湲?踰꾪듉 沅뚰븳蹂??몄텧 ?쒖뼱 (?ㅼ쭅 admin 理쒓퀬愿由ъ옄留??몄텧, 異쒗뙋???몄뇙?뚮뒗 ?먮룞 ?④?)
-    const gotoStoreBtn = document.getElementById('btn-goto-store');
-    if (gotoStoreBtn) {
-        gotoStoreBtn.style.display = (role === 'admin') ? 'flex' : 'none';
-    }
     if (window.lucide) lucide.createIcons();
 
     // 3. 헤더 테스트 버튼 스타일 업데이트
@@ -5684,7 +5700,8 @@ function loadProductToOrder() {
     const prodId = document.getElementById('ord-load-product').value;
     if (!prodId) return alert("불러올 도서를 선택해주세요.");
 
-    const prod = MASTER.products.find(p => p.id === prodId);
+    const availableProds = getAvailableProductsForPublisher();
+    const prod = availableProds.find(p => p.id === prodId) || MASTER.products.find(p => p.id === prodId);
     if (!prod) return;
 
     // [추가] 도서 모드(낱장/연속지)에 맞춰 자동으로 탭 전환
@@ -8446,25 +8463,94 @@ async function triggerSelfHealingPipeline(payload) {
     }
 }
 
-// 二쇰Ц ??100% 鍮??쒖떇 ?먮룞 珥덇린???ы띁 (?섏젙 ?꾨즺 ??諛??좉퇋 二쇰Ц 吏꾩엯 ???붿뿬 ?곗씠???뚭굅)
+
+// 로그인 출판사 전용 과거 주문 및 등록 도서 통합 조회 헬퍼
+function getAvailableProductsForPublisher() {
+    const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+    let targetPub = '';
+
+    if (role === 'publisher') {
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = (typeof MASTER !== 'undefined' && MASTER.partners) ? (MASTER.partners.find(p => p.id === userId) || MASTER.partners[0]) : null;
+        if (myPartner) targetPub = myPartner.name;
+    } else {
+        const pubSelect = document.getElementById('order-pub-name');
+        if (pubSelect) targetPub = pubSelect.value || '';
+    }
+
+    let list = (typeof MASTER !== 'undefined' && MASTER.products) ? [...MASTER.products] : [];
+
+    // MASTER.orders 내의 과거 주문 도서 통합
+    if (typeof MASTER !== 'undefined' && Array.isArray(MASTER.orders)) {
+        MASTER.orders.forEach(o => {
+            if (!o || !o.bookTitle) return;
+            const exists = list.some(p => p.title === o.bookTitle && p.pubName === o.pubName);
+            if (!exists && o.data) {
+                const data = o.data;
+                list.push({
+                    id: o.id,
+                    title: o.bookTitle,
+                    pubName: o.pubName,
+                    manager: o.managerName || '',
+                    mode: o.mode || 'sheet',
+                    spec: data['ord-spec'] || 'A5(148x210)',
+                    pages: data['ord-tp'] || '200',
+                    customSize: data['ord-custom-size'] || '',
+                    details: {
+                        innerPaper: data['ord-inner'] || '',
+                        innerPrint: data['ord-inner-print'] || '',
+                        partialColor: data['ord-cp'] || '0',
+                        coverPaper: data['ord-cover'] || '',
+                        coverPrint: data['ord-printing'] || '',
+                        coating: data['ord-coating'] || '',
+                        binding: data['ord-binding'] || '',
+                        wing: data['ord-wing'] || '',
+                        facePaper: data['ord-face'] || '없음',
+                        faceInsert: data['ord-face-insert'] || '없음'
+                    }
+                });
+            }
+        });
+    }
+
+    if (targetPub && targetPub !== '기본출판사' && targetPub !== '선택하세요') {
+        list = list.filter(p => p.pubName === targetPub || !p.pubName);
+    }
+
+    return list;
+}
+
+
+// 주문 폼 100% 빈 서식 자동 초기화 헬퍼 (수정 완료 후 및 신규 주문 진입 시 잔여 데이터 소거)
 function resetOrderForm() {
     editingOrderId = null;
     if (typeof MASTER !== 'undefined' && MASTER.orderPersistence) {
         MASTER.orderPersistence['sheet'] = {};
         MASTER.orderPersistence['roll'] = {};
     }
-    const bookTitleInput = document.getElementById('ord-book-title');
-    if (bookTitleInput) bookTitleInput.value = '';
 
-    const customSizeInput = document.getElementById('ord-custom-size');
-    if (customSizeInput) customSizeInput.value = '';
+    const titleEl = document.getElementById('ord-book-title');
+    if (titleEl) titleEl.value = '';
 
-    const qtyInput = document.getElementById('ord-qty');
-    if (qtyInput) qtyInput.value = '100';
+    const customSizeEl = document.getElementById('ord-custom-size');
+    if (customSizeEl) customSizeEl.value = '';
+
+    const qtyEl = document.getElementById('ord-qty');
+    if (qtyEl) qtyEl.value = '100';
+
+    const tpEl = document.getElementById('ord-tp');
+    if (tpEl) tpEl.value = '200';
+
+    const cpEl = document.getElementById('ord-cp');
+    if (cpEl) cpEl.value = '0';
+
+    const bpEl = document.getElementById('ord-bp');
+    if (bpEl) bpEl.value = '200';
 
     const loadSelect = document.getElementById('ord-load-product');
     if (loadSelect) loadSelect.value = '';
 
     if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
     if (typeof resetFileUI === 'function') resetFileUI();
+    if (typeof sync === 'function') sync();
 }
