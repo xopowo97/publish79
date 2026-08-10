@@ -2214,6 +2214,7 @@ function promptTracking(id) {
                 <div>
                     <div class="text-xs font-black text-slate-800">${d.recipient} (${d.qty}부)</div>
                     <div class="text-[10px] text-slate-400 mt-0.5">${d.address} ${d.addressDetail || ''}</div>
+${d.memo ? `<div class="text-[10px] text-amber-600 font-bold mt-1">📌 [배송메모] ${d.memo}</div>` : ''}
                 </div>
                 ${role === 'printer' ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
             </div>
@@ -2724,6 +2725,10 @@ function addDeliveryRow(data = null) {
                 </div>
             </div>
         </div>
+        <div>
+            <label class="text-[10px] font-bold text-slate-400 mb-1 block">배송 메모 / 요청사항</label>
+            <input type="text" class="input-pptx d-memo w-full bg-white" placeholder="예: 퀵배송 요청 (오토바이/다마스/1톤) 또는 택배 발송" value="${data ? (data.memo || '') : ''}">
+        </div>
     `;
     container.appendChild(row);
     if (window.lucide) lucide.createIcons();
@@ -2784,6 +2789,7 @@ async function submitOrderSheet() {
         address: row.querySelector('.d-address').value,
         addressDetail: row.querySelector('.d-address-detail').value,
         qty: row.querySelector('.d-qty').value,
+        memo: row.querySelector('.d-memo')?.value || '',
         trackingList: [] // 다중 송장 구조로 초기화
     }));
 
