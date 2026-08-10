@@ -2227,13 +2227,28 @@ function promptTracking(id) {
     lucide.createIcons();
 }
 
+function updateTrackingPlaceholder(selectEl) {
+    const row = selectEl.closest('.tracking-row-item');
+    if (!row) return;
+    const input = row.querySelector('.t-code');
+    if (!input) return;
+    const val = selectEl.value;
+    if (val === '직접배송' || (val && val.startsWith('퀵'))) {
+        input.placeholder = '기사님 연락처 (선택)';
+    } else {
+        input.placeholder = '송장번호';
+    }
+}
+
 function renderTrackingRow(dIdx, tIdx, data) {
     const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
     const isPrinter = role === 'printer';
+    const isQuickOrDirect = data.courier === '직접배송' || (data.courier && data.courier.startsWith('퀵'));
+    const placeholderText = isQuickOrDirect ? '기사님 연락처 (선택)' : '송장번호';
 
     return `
         <div class="flex gap-2 items-center tracking-row-item" data-didx="${dIdx}">
-            <select class="t-courier input-pptx py-1.5 text-[11px] w-24" ${!isPrinter ? 'disabled' : ''}>
+            <select class="t-courier input-pptx py-1.5 text-[11px] w-28" onchange="updateTrackingPlaceholder(this)" ${!isPrinter ? 'disabled' : ''}>
                 <option value="CJ대한통운" ${data.courier === 'CJ대한통운' ? 'selected' : ''}>CJ대한통운</option>
                 <option value="로젠택배" ${data.courier === '로젠택배' ? 'selected' : ''}>로젠택배</option>
                 <option value="한진택배" ${data.courier === '한진택배' ? 'selected' : ''}>한진택배</option>
@@ -2241,8 +2256,11 @@ function renderTrackingRow(dIdx, tIdx, data) {
                 <option value="우체국택배" ${data.courier === '우체국택배' ? 'selected' : ''}>우체국택배</option>
                 <option value="경동택배" ${data.courier === '경동택배' ? 'selected' : ''}>경동택배</option>
                 <option value="직접배송" ${data.courier === '직접배송' ? 'selected' : ''}>직접배송</option>
+                <option value="퀵 (오토바이)" ${data.courier === '퀵 (오토바이)' ? 'selected' : ''}>퀵 (오토바이)</option>
+                <option value="퀵 (다마스)" ${data.courier === '퀵 (다마스)' ? 'selected' : ''}>퀵 (다마스)</option>
+                <option value="퀵 (1톤 트럭)" ${data.courier === '퀵 (1톤 트럭)' ? 'selected' : ''}>퀵 (1톤 트럭)</option>
             </select>
-            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="송장번호" ${!isPrinter ? 'readonly' : ''}>
+            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="${placeholderText}" ${!isPrinter ? 'readonly' : ''}>
             <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isPrinter ? 'readonly' : ''}>
             <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isPrinter ? 'readonly' : ''}>
             ${isPrinter ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
