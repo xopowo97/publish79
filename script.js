@@ -423,6 +423,32 @@ function handleLogin() {
     alert('아이디 또는 비밀번호가 올바르지 않습니다.');
 }
 
+// [UX 개선] 로그인 모달 아이디/비밀번호 엔터키(Enter) 입력 시 자동 로그인 실행
+(function initLoginEnterKey() {
+    const bindKeys = () => {
+        ['login-id', 'login-pw'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el._enterBound) {
+                el._enterBound = true;
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLogin();
+                    }
+                });
+            }
+        });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindKeys);
+    } else {
+        bindKeys();
+    }
+    // 추가 딜레이 후 2차 안전 바인딩
+    setTimeout(bindKeys, 500);
+    setTimeout(bindKeys, 1500);
+})();
+
 function enterApp(role, userId) {
     window._isLoggingIn = true;
     sessionStorage.setItem('isLoggedIn', 'true');
