@@ -3505,6 +3505,142 @@
     </script>
 
 
+    <!-- 🏢 [1단계] B2C 스토어 정품 푸터 (Footer) - 스크린샷 1번 패러디 디자인 -->
+    <footer class="w-full bg-slate-900 border-t border-slate-800 text-slate-400 py-10 px-4 md:px-12 mt-16 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto space-y-8">
+            <!-- 🔗 상단 퀵 탭 & 정책 링크 바 -->
+            <div class="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-800 text-xs font-bold">
+                <div class="flex flex-wrap items-center gap-6">
+                    <button onclick="openPolicyModal('terms')" class="text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1">
+                        <span>출판친구 정책·약관</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="openPolicyModal('privacy')" class="text-slate-200 hover:text-white transition-colors flex items-center gap-1 font-black">
+                        <span>개인정보처리방침</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="alert('📢 [공지사항] 2026년 8월 5일 Supabase DB 20종 원작 표지 및 실데이터 1:1 직통 동적 바인딩 시스템 완공!')" class="hover:text-slate-200 transition-colors">
+                        공지사항 ↗
+                    </button>
+                    <button onclick="alert('🤝 [제휴 및 Q&A 문의] 출판사 및 저작자 분들의 복간 펀딩 제휴 문의: partner@publish79.kr')" class="hover:text-slate-200 transition-colors">
+                        제휴/Q&A 문의 ↗
+                    </button>
+                </div>
+                <div class="text-[11px] text-slate-400">
+                    ⓒ <span class="font-black text-slate-300">publish79 Co., Ltd.</span> All rights reserved.
+                </div>
+            </div>
+
+            <!-- 🏢 하단 고객센터 & 사업자 상세 정보 (가변 뼈대 구조) -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-8 text-xs leading-relaxed">
+                <!-- 📞 고객센터 (3컬럼) -->
+                <div class="md:col-span-4 space-y-2">
+                    <div class="font-black text-sm text-slate-200 flex items-center gap-1.5">
+                        <i data-lucide="help-circle" class="w-4 h-4 text-amber-400"></i>
+                        <span>고객센터 & 독자 지원</span>
+                    </div>
+                    <div class="space-y-1 text-slate-400">
+                        <p class="hover:text-slate-200 cursor-pointer transition-colors" onclick="alert('💬 채팅 상담: 평일 09:00 ~ 18:00 (11번 알리미 실시간 응대)')">💬 채팅 상담 (11번 알리미) ↗</p>
+                        <p class="hover:text-slate-200 cursor-pointer transition-colors" onclick="openProposalModal()">📌 독자 복간 청원 등록 ↗</p>
+                        <p class="hover:text-slate-200 cursor-pointer transition-colors" onclick="openMyLibraryModal()">📚 나의 복간 서재 / 마이페이지 ↗</p>
+                    </div>
+                </div>
+
+                <!-- 🏢 가변 사업자 정보 (8컬럼) -->
+                <div class="md:col-span-8 space-y-3 theme-text-muted">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-300 font-medium">
+                        <span><strong class="text-slate-200">(주)출판친구</strong> (또는 모두데이터)</span>
+                        <span>대표이사: <strong>서상원</strong></span>
+                        <span>사업자등록번호: <strong>258-87-01370</strong></span>
+                        <span>통신판매업신고번호: <strong>2026-서울강남-0790</strong></span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">
+                        주소: 경기 성남시 분당구 판교로 (가변 주소지) | 이메일 상담: info@publish79.kr | 대표전화: 1661-9056
+                    </p>
+                    <p class="text-[11px] text-slate-400 leading-normal pt-1 border-t border-slate-800/80">
+                        🛡️ <strong>[통신판매중개 면책 고지]</strong> 출판친구는 절판 도서 복간을 위한 사전 결제 예약 및 수주 매칭을 제공하는 통신판매중개자이며 통신판매 당사자가 아닙니다. 복간 도서의 인쇄 제작, POD 배송 및 품질 보증의 책임은 계약된 파트너 출판사에 있습니다.<br>
+                        🚫 <strong>[저작권 경고]</strong> 출판친구 사이트의 16:9 와이드 비디오, 카드뉴스 콘텐츠, 도서 데이터의 무단 크롤링 및 수집 행위는 저작권법 및 콘텐츠산업 진흥법에 의하여 엄격히 금지됩니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 🏛️ [2단계] 와디즈 스타일 8대 전문 정책 센터 대형 모달 (스크린샷 2번 패러디) -->
+    <div id="policy-center-modal" class="fixed inset-0 z-[120] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 md:p-6">
+        <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col w-full max-w-5xl h-[88vh] relative text-slate-900 border border-slate-200">
+            <!-- 🔝 모달 헤더 바 -->
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 rounded-lg bg-amber-500 text-white font-black text-xs">출판친구 정품</span>
+                    <h3 class="font-black text-base text-slate-900 flex items-center gap-1.5">
+                        <span>🏛️ 출판친구 통합 정책 & 약관 센터</span>
+                    </h3>
+                </div>
+                <button onclick="closePolicyModal()" class="px-3 py-1.5 rounded-full bg-slate-200 hover:bg-slate-300 font-black text-xs text-slate-700 transition-all">
+                    ❌ 닫기
+                </button>
+            </div>
+
+            <!-- 🏛️ 2열 레이아웃 바디 (좌측 8대 탭 사이드바 + 우측 묵직한 약관 전문 뷰어) -->
+            <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
+                <!-- 👈 좌측 8대 전문 정책 탭 사이드바 -->
+                <div class="w-full md:w-64 bg-slate-100/80 border-r border-slate-200 p-4 space-y-1 overflow-y-auto shrink-0">
+                    <div class="text-[11px] font-black text-slate-400 px-3 py-1 uppercase tracking-wider mb-2">
+                        출판친구 정책/이용약관
+                    </div>
+                    
+                    <button onclick="switchPolicyTab('terms')" id="policy-tab-terms"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-between bg-amber-500 text-white shadow-sm">
+                        <span>1. 👤 서포터 이용약관</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('maker')" id="policy-tab-maker"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>2. 🏢 메이커 이용약관</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('audit')" id="policy-tab-audit"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>3. 🔍 복간 심사 정책</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    
+                    <button onclick="switchPolicyTab('delivery')" id="policy-tab-delivery"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>4. 📦 POD 배송&환불 정책</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('fee')" id="policy-tab-fee"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>5. 💰 수수료&정산 정책</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('copyright')" id="policy-tab-copyright"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>6. ⚖️ 저작권 침해 정책</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('community')" id="policy-tab-community"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>7. 💬 독자 청원 운영정책</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                    <button onclick="switchPolicyTab('privacy')" id="policy-tab-privacy"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between">
+                        <span>8. 🛡️ 개인정보 처리방침</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-40"></i>
+                    </button>
+                </div>
+
+                <!-- 👉 우측 약관 전문 뷰어 패널 (와디즈 스크린샷 2번 100% 재현) -->
+                <div id="policy-content-panel" class="flex-1 p-6 overflow-y-auto text-slate-800 space-y-6 text-sm leading-relaxed">
+                    <!-- JS 스위칭으로 1~8번 약관 전문 렌더링 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 🌸 4계절 감성 연동 알라딘 대형 뷰어 모달 (16:9 와이드 비디오 + 🔴 Play 버튼 + ❌ 선명한 닫기 버튼 + 5대 원문 통 스크롤 뷰) -->
     <div id="aladin-spacious-modal"
         class="fixed inset-0 z-[110] hidden bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-3 md:p-6">
@@ -4153,7 +4289,111 @@ POD 인쇄 단가 최적화 및 폰트 나눔명조 임베딩 가조판을 완�
         } else {
             document.addEventListener('DOMContentLoaded', loadProductsFromDB);
         }
-        loadProductsFromDB(); // 3중 무결 직통 가동
+        
+        // ============================================================
+        // 🏛️ [출판친구 정품] 통합 정책 & 약관 센터 제어 모듈
+        // ============================================================
+        let currentPolicyTab = 'terms';
+
+        function openPolicyModal(defaultTab) {
+            const modal = document.getElementById('policy-center-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            switchPolicyTab(defaultTab || 'terms');
+        }
+
+        function closePolicyModal() {
+            const modal = document.getElementById('policy-center-modal');
+            if (modal) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
+        function switchPolicyTab(tabKey) {
+            currentPolicyTab = tabKey;
+            const tabs = ['terms', 'maker', 'audit', 'delivery', 'fee', 'copyright', 'community', 'privacy'];
+            
+            tabs.forEach(function(t) {
+                const btn = document.getElementById('policy-tab-' + t);
+                if (btn) {
+                    if (t === tabKey) {
+                        btn.className = "w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-between bg-amber-500 text-white shadow-sm";
+                    } else {
+                        btn.className = "w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-between";
+                    }
+                }
+            });
+
+            renderPolicyContent(tabKey);
+        }
+
+        function renderPolicyContent(tabKey) {
+            const panel = document.getElementById('policy-content-panel');
+            if (!panel) return;
+
+            if (tabKey === 'terms') {
+                let html = '<div class="border-b pb-4 mb-4">';
+                html += '<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-xs">시행일자: 2026년 7월 8일</span>';
+                html += '<h2 class="font-black text-xl text-slate-900 mt-2">1. 👤 출판친구 서포터 이용약관</h2>';
+                html += '<p class="text-xs text-slate-500 mt-1">본 약관은 출판친구(이하 "회사")가 제공하는 절판 도서 복간 크라우드 펀딩 및 제반 서비스의 이용 조건과 절차를 규정합니다.</p>';
+                html += '</div>';
+                html += '<div class="space-y-6 text-xs text-slate-700">';
+                html += '<div class="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 space-y-1 text-amber-900">';
+                html += '<div class="font-black text-xs">📌 주요 펀딩 핵심 안내</div>';
+                html += '<p class="text-[11px] leading-relaxed">본 플랫폼의 펀딩은 사전 결제 예약 방식으로 진행되며, 목표 부수가 달성될 경우에만 결제 및 POD 개별 맞춤 제작이 실행됩니다. 미달 시 펀딩은 취소되며 결제는 발생하지 않습니다.</p>';
+                html += '</div>';
+                html += '<div><h4 class="font-black text-sm text-slate-900 mb-2">제 1 장 총칙</h4><div class="space-y-2 pl-2">';
+                html += '<p><strong>제 1 조 (목적)</strong> 본 약관은 (주)출판친구(이하 "회사")가 운영하는 인터넷 사이트(publish79.kr)를 통하여 제공하는 B2C 절판 도서 복간 크라우드 펀딩 서비스(이하 "서비스")를 이용함에 있어 회사와 회원의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>';
+                html += '<p><strong>제 2 조 (용어의 정의)</strong><br>1. "서비스"라 함은 회사가 독자와 절판 도서를 연결하여 사전 예약을 통해 실물 책으로 부활시키는 펀딩 플랫폼 및 이에 부수되는 제반 서비스를 말합니다.<br>2. "서포터(회원)"라 함은 본 약관에 동의하고 가입하여 펀딩 참여, 복간 요청 투표, 독자 청원 등을 신청하는 자를 말합니다.<br>3. "사전 결제 예약"이라 함은 펀딩 신청 시점에 즉시 결제되지 않고, 목표 달성 시점에 자동 결제가 예약되는 방식을 말합니다.</p>';
+                html += '<p><strong>제 3 조 (약관의 효력 및 개정)</strong> 회사는 본 약관의 내용을 회원이 쉽게 알 수 있도록 서비스 화면에 게시하며, 관계 법령을 위배하지 않는 범위에서 약관을 개정할 수 있습니다.</p>';
+                html += '</div></div>';
+                html += '<div><h4 class="font-black text-sm text-slate-900 mb-2">제 2 장 서비스 이용 및 펀딩 규정</h4><div class="space-y-2 pl-2">';
+                html += '<p><strong>제 4 조 (회원가입 및 정보 관리)</strong> 회원은 본인의 실명 정보(성명, 이메일, 배송지 주소, 연락처)를 정확히 등록해야 하며, 타인의 명의를 도용한 경우 법적 처벌을 받을 수 있습니다.</p>';
+                html += '<p><strong>제 5 조 (펀딩의 성립과 사전 결제)</strong><br>1. 서포터의 펀딩 참여는 목표 수량 달성을 조건으로 하는 사전 결제 예약 계약입니다.<br>2. 목표 기간 내 펀딩 목표 부수가 100% 달성되면 펀딩이 성공 처리되며, 등록된 결제 수단으로 결제가 실행됩니다.</p>';
+                html += '<p><strong>제 6 조 (목표 미달 시 자동 취소)</strong> 펀딩 마감일까지 목표 부수가 달성되지 않을 경우 프로젝트는 자동 취소되며, 서포터에게 결제가 청구되지 않습니다.</p>';
+                html += '<p><strong>제 7 조 (서포터 마일리지 제도)</strong> 회사는 펀딩 참여, 독자 청원 등록, 복간 투표 시 서포터 마일리지(P)를 지급하며, 관련 환급 기준은 마일리지 운영 정책에 따릅니다.</p>';
+                html += '</div></div>';
+                html += '<div><h4 class="font-black text-sm text-slate-900 mb-2">제 3 장 POD 주문 제작 및 배송/환불</h4><div class="space-y-2 pl-2">';
+                html += '<p><strong>제 8 조 (맞춤 제작 및 철회 제한)</strong> 복간 도서는 펀딩 성공 후 1:1 맞춤 주문 제작(POD) 방식으로 인쇄되므로, 인쇄 공정이 개시된 이후에는 서포터의 단순 변심에 의한 취소 및 환불이 제한될 수 있습니다.</p>';
+                html += '<p><strong>제 9 조 (불량 도서 교환 및 재발송)</strong> 파손, 쇄락, 인쇄 불량 등 제작 결함이 있는 도서를 수령한 경우, 회사는 100% 무료 재발송 및 교환 조치를 이행합니다.</p>';
+                html += '<p><strong>제 10 조 (배송 지연에 대한 고지)</strong> POD 인쇄 일정이나 원작 저작권자와의 최종 조율로 인해 배송이 지연될 경우, 회사는 알림톡 및 공지사항을 통해 서포터에게 사전 안내합니다.</p>';
+                html += '</div></div>';
+                html += '<div><h4 class="font-black text-sm text-slate-900 mb-2">제 4 장 계약 당사자의 의무 및 면책</h4><div class="space-y-2 pl-2">';
+                html += '<p><strong>제 11 조 (저작권의 보호)</strong> 회사가 제공하는 16:9 와이드 비디오, 카드뉴스, 도서 DB 및 콘텐츠의 저작권은 회사 및 원작자에 귀속되며 무단 크롤링 및 복제를 금합니다.</p>';
+                html += '<p><strong>제 12 조 (통신판매중개 면책)</strong> 회사는 독자와 출판사를 연결하는 통신판매중개자로서 천재지변, 원작 출판사의 부득이한 사정 등 불가항력적 사유로 인한 손해에 대해 책임을 면합니다.</p>';
+                html += '<p><strong>제 13 조 (분쟁 해결 및 관할 법원)</strong> 본 약관과 관련하여 발생한 분쟁은 회사의 본사 소재지 관할 법원을 전속 관할로 합니다.</p>';
+                html += '</div></div>';
+                html += '<div class="pt-4 border-t text-[11px] text-slate-400">부칙: 본 서포터 이용약관은 2026년 7월 8일부터 적용되며, 회원 가입 및 펀딩 신청 시 동의한 것으로 간주됩니다.</div></div>';
+                panel.innerHTML = html;
+            } else if (tabKey === 'privacy') {
+                let phtml = '<div class="border-b pb-4 mb-4"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-xs">시행일자: 2026년 7월 8일</span><h2 class="font-black text-xl text-slate-900 mt-2">8. 🛡️ 출판친구 개인정보 처리방침</h2><p class="text-xs text-slate-500 mt-1">(주)출판친구는 서포터의 개인정보를 소중히 다루며 개인정보보호법 등 관련 법령을 엄격히 준수합니다.</p></div>';
+                phtml += '<div class="space-y-4 text-xs text-slate-700 leading-relaxed">';
+                phtml += '<p><strong>1. 개인정보 수집 및 이용 목적</strong><br>- 회원 가입 및 본인 확인, 사전 결제 예약 관리, POD 복간 도서 실물 배송, 서포터 마일리지 적립.</p>';
+                phtml += '<p><strong>2. 수집하는 개인정보 항목</strong><br>- 필수항목: 성명, 이메일 주소, 비밀번호, 배송지 주소, 휴대전화번호, 사전 결제 식별자.</p>';
+                phtml += '<p><strong>3. 개인정보의 보유 및 이용 기간</strong><br>- 회원 탈퇴 시 즉시 파기. 단, 전자상거래법 등 관계 법령에 따라 대금결제 및 재화 공급 기록은 5년간 보관.</p>';
+                phtml += '<p><strong>4. 제3자 제공에 관한 사항</strong><br>- 펀딩 성공 시 실물 도서 제작 및 택배 배송을 위하여 혜람인쇄소 및 지정 택배사에 필요 최소한의 성명/주소/연락처 제공.</p>';
+                phtml += '<p><strong>5. 개인정보의 파기 절차 및 방법</strong><br>- 전자적 파일 형태의 정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 즉시 암호화 삭제.</p></div>';
+                panel.innerHTML = phtml;
+            } else {
+                const names = {
+                    maker: '2. 🏢 메이커 (출판사/저작자) 이용약관',
+                    audit: '3. 🔍 복간 심사 & 타당성 검증 정책',
+                    delivery: '4. 📦 POD 배송 & 취소/환불 정책',
+                    fee: '5. 💰 수수료 & 투명 정산 정책',
+                    copyright: '6. ⚖️ 저작권 보호 & 침해 신고 정책',
+                    community: '7. 💬 독자 청원 운영정책'
+                };
+                let ohtml = '<div class="border-b pb-4 mb-4"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-xs">순차 확충 예정 정책</span><h2 class="font-black text-xl text-slate-900 mt-2">' + (names[tabKey] || '상세 정책') + '</h2><p class="text-xs text-slate-500 mt-1">본 정책 조항은 2단계 순차 확충 진행 항목입니다.</p></div>';
+                ohtml += '<div class="py-12 text-center text-slate-400 space-y-3"><i data-lucide="file-text" class="w-12 h-12 mx-auto opacity-40"></i><div class="font-bold text-sm text-slate-600">' + (names[tabKey] || '') + ' 세부 조항 개정 준비 중</div><p class="text-xs max-w-md mx-auto">1번 서포터 이용약관 검증 후, 본 정책 조항을 순차적으로 촘촘히 채워 넣을 예정입니다.</p></div>';
+                panel.innerHTML = ohtml;
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+loadProductsFromDB(); // 3중 무결 직통 가동
     </script>
 
 </body>
