@@ -701,6 +701,7 @@ async function initMaster() {
 
 // 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
 function renderAll() {
+    if (typeof applyRoleVisibility === 'function') applyRoleVisibility();
     const activeBtn = document.querySelector('.sidebar-item.active');
     if (activeBtn) {
         const pageId = activeBtn.id.replace('btn-', '');
