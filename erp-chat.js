@@ -100,7 +100,7 @@
             </div>
 
             <!-- 헤더 -->
-            <div class="cs-panel-header">
+            <div class="cs-panel-header" id="cs-header" style="cursor: move; user-select: none;">
                 <div class="cs-panel-avatar">🤖</div>
                 <div class="cs-panel-title">
                     <strong>상담이 — CS 매니저</strong>
@@ -143,11 +143,68 @@
         // 전송 버튼
         document.getElementById('cs-send-btn').addEventListener('click', handleSend);
         // 엔터키
+        initDraggableHeader();
         inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
             }
+        });
+    }
+
+
+    // ── 드래그 앤 드롭 이동 및 화면 이탈 방지 헬퍼 ───────────
+    function initDraggableHeader() {
+        const headerEl = document.getElementById('cs-header');
+        const containerEl = document.getElementById('cs-panel');
+        if (!headerEl || !containerEl) return;
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let initialX = 0, initialY = 0;
+
+        headerEl.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            const rect = containerEl.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+
+            containerEl.style.position = 'fixed';
+            containerEl.style.left = initialX + 'px';
+            containerEl.style.top = initialY + 'px';
+            containerEl.style.bottom = 'auto';
+            containerEl.style.right = 'auto';
+
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            let dx = e.clientX - startX;
+            let dy = e.clientY - startY;
+
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            const margin = 10;
+            const maxX = window.innerWidth - containerEl.offsetWidth - margin;
+            const maxY = window.innerHeight - containerEl.offsetHeight - margin;
+
+            newX = Math.max(margin, Math.min(newX, maxX));
+            newY = Math.max(margin, Math.min(newY, maxY));
+
+            containerEl.style.left = newX + 'px';
+            containerEl.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
         });
     }
 
