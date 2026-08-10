@@ -1405,6 +1405,7 @@ function showPage(p, isEdit = false) {
     // 수정 모드 명시적 제어
     if (!isEdit) {
         editingOrderId = null;
+        if (p === 'order') { resetOrderForm(); }
     }
 
     // 페이지 제목 매핑
@@ -2818,6 +2819,7 @@ async function submitOrderSheet() {
     // 파일 상태 초기화
     currentFiles = { inner: null, cover: null };
     resetFileUI();
+    resetOrderForm();
 
     showPage('settlement');
 }
@@ -8441,4 +8443,27 @@ async function triggerSelfHealingPipeline(payload) {
     } catch (e) {
         console.error("자가치유 엔진 호출 실패:", e);
     }
+}
+
+// 二쇰Ц ??100% 鍮??쒖떇 ?먮룞 珥덇린???ы띁 (?섏젙 ?꾨즺 ??諛??좉퇋 二쇰Ц 吏꾩엯 ???붿뿬 ?곗씠???뚭굅)
+function resetOrderForm() {
+    editingOrderId = null;
+    if (typeof MASTER !== 'undefined' && MASTER.orderPersistence) {
+        MASTER.orderPersistence['sheet'] = {};
+        MASTER.orderPersistence['roll'] = {};
+    }
+    const bookTitleInput = document.getElementById('ord-book-title');
+    if (bookTitleInput) bookTitleInput.value = '';
+
+    const customSizeInput = document.getElementById('ord-custom-size');
+    if (customSizeInput) customSizeInput.value = '';
+
+    const qtyInput = document.getElementById('ord-qty');
+    if (qtyInput) qtyInput.value = '100';
+
+    const loadSelect = document.getElementById('ord-load-product');
+    if (loadSelect) loadSelect.value = '';
+
+    if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
+    if (typeof resetFileUI === 'function') resetFileUI();
 }
