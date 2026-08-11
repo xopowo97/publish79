@@ -302,7 +302,7 @@ function getBasePriceData() {
         { id: 1, n: '36판(103x182)', bw: 0, cl: 0, face: 0 }, { id: 2, n: '국반판(105x148)', bw: 0, cl: 0, face: 0 },
         { id: 3, n: '30절판(125x205)', bw: 0, cl: 0, face: 0 }, { id: 4, n: 'B6(128x182)', bw: 0, cl: 0, face: 0 },
         { id: 5, n: '46판(128x188)', bw: 0, cl: 0, face: 0 }, { id: 6, n: '다찌판(128x210)', bw: 0, cl: 0, face: 0 },
-        { id: 7, n: 'A5국판(148x210)', bw: 0, cl: 0, face: 0 }, { id: 8, n: '크라운판(176x248)', bw: 0, cl: 0, face: 0 },
+        { id: 7, n: 'A5국판(148x210)', bw: 0, cl: 0, face: 0 }, { id: 7.5, n: '신국판(152x225)', bw: 12, cl: 50, face: 50 }, { id: 8, n: '크라운판(176x248)', bw: 0, cl: 0, face: 0 },
         { id: 9, n: 'B5(182x257)', bw: 0, cl: 0, face: 0 }, { id: 10, n: '46배판(188x257)', bw: 0, cl: 0, face: 0 },
         { id: 11, n: '국배판(210x297)', bw: 0, cl: 0, face: 0 }
     ];
@@ -1773,11 +1773,11 @@ function setMode(m) {
     if (ms) ms.className = m === 'sheet' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
     if (mr) mr.className = m === 'roll' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
 
-    // Toggle Face Paper views
+    // Toggle Face Paper views (상시 노출)
     const sheetFace = document.getElementById('ord-face-sheet-view');
     const rollFace = document.getElementById('ord-face-roll-view');
-    if (sheetFace) sheetFace.className = m === 'sheet' ? 'space-y-4' : 'hidden';
-    if (rollFace) rollFace.className = m === 'roll' ? 'space-y-1 text-[11px] font-bold leading-relaxed text-emerald-800 italic' : 'hidden';
+    if (sheetFace) sheetFace.className = 'space-y-4';
+    if (rollFace) rollFace.className = 'hidden';
 
     // Update Submit Button Text (수정 모드 여부에 따라 문구 변경)
     const submitBtn = document.getElementById('btn-submit-order');
@@ -1844,6 +1844,8 @@ function sync() {
                 if (w && !isNaN(w)) {
                     if (w <= 148) {
                         currentSpec = priceData.sheetSpecs.find(s => s.n.includes('A5국판')) || spec;
+                    } else if (w <= 152) {
+                        currentSpec = priceData.sheetSpecs.find(s => s.n.includes('신국판')) || spec;
                     } else if (w <= 176) {
                         currentSpec = priceData.sheetSpecs.find(s => s.n.includes('크라운판')) || spec;
                     } else {
@@ -2008,6 +2010,35 @@ function sync() {
                     addLog(`${group.name} (${val})`, cost);
                 }
             });
+
+            // 면지 설정 (디지털 연속지 연동)
+            const facePaper = document.getElementById('ord-face')?.value;
+            const faceInsert = document.getElementById('ord-face-insert')?.value;
+
+            if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                let multiplier = 0;
+                if (faceInsert.includes('4P')) multiplier = 4;
+                else if (faceInsert.includes('8P')) multiplier = 8;
+
+                let faceUnitPrice = 0;
+                if (priceData.rollCommons) {
+                    const rollKey = Object.keys(priceData.rollCommons).find(k => k.includes('면지'));
+                    if (rollKey !== undefined && priceData.rollCommons[rollKey] > 0) {
+                        faceUnitPrice = priceData.rollCommons[rollKey];
+                    }
+                }
+                if (!faceUnitPrice) {
+                    const commonItem = (priceData.commons || []).find(c => c.n && c.n.includes('면지'));
+                    if (commonItem && commonItem.v > 0) faceUnitPrice = commonItem.v;
+                }
+                if (!faceUnitPrice && typeof currentSpec !== 'undefined' && currentSpec && currentSpec.face) {
+                    faceUnitPrice = currentSpec.face;
+                }
+
+                let faceCost = faceUnitPrice * multiplier;
+                each += faceCost;
+                addLog(`면지 추가 (${faceInsert})`, faceCost);
+            }
         }
     }
 
