@@ -498,35 +498,65 @@ function ensureGradeData() {
     if (!MASTER.pricesByGrade) MASTER.pricesByGrade = {};
     if (!MASTER.grades || MASTER.grades.length === 0) MASTER.grades = [...DEFAULT_GRADES];
     
-    MASTER.grades.forEach(g => {
+    const base = getBasePriceData();
+    const allGradeKeys = Array.from(new Set([...MASTER.grades, ...Object.keys(MASTER.pricesByGrade)]));
+
+    allGradeKeys.forEach(g => {
         if (!MASTER.pricesByGrade[g]) {
-            const base = getBasePriceData();
             MASTER.pricesByGrade[g] = {
                 commons: base.commons,
-                sheetSpecs: base.sheetSpecs,
-                rollSpecs: base.rollSpecs,
+                sheetSpecs: JSON.parse(JSON.stringify(base.sheetSpecs)),
+                rollSpecs: JSON.parse(JSON.stringify(base.rollSpecs)),
                 sheetCommons: {},
                 rollCommons: {}
             };
         } else {
-            const base = getBasePriceData();
             if (!MASTER.pricesByGrade[g].commons) MASTER.pricesByGrade[g].commons = base.commons;
-            if (!MASTER.pricesByGrade[g].sheetSpecs) MASTER.pricesByGrade[g].sheetSpecs = base.sheetSpecs;
-            if (!MASTER.pricesByGrade[g].rollSpecs) MASTER.pricesByGrade[g].rollSpecs = base.rollSpecs;
+            if (!MASTER.pricesByGrade[g].sheetSpecs) MASTER.pricesByGrade[g].sheetSpecs = JSON.parse(JSON.stringify(base.sheetSpecs));
+            if (!MASTER.pricesByGrade[g].rollSpecs) MASTER.pricesByGrade[g].rollSpecs = JSON.parse(JSON.stringify(base.rollSpecs));
             if (!MASTER.pricesByGrade[g].sheetCommons) MASTER.pricesByGrade[g].sheetCommons = {};
             if (!MASTER.pricesByGrade[g].rollCommons) MASTER.pricesByGrade[g].rollCommons = {};
+
+            // 모든 등급에 기본 규격(신국판 등)이 없으면 크기 순서(크라운판/사용자규격 앞)에 맞추어 위치 삽입
+            base.sheetSpecs.forEach(baseSpec => {
+                if (!MASTER.pricesByGrade[g].sheetSpecs.some(s => s.n === baseSpec.n)) {
+                    const list = MASTER.pricesByGrade[g].sheetSpecs;
+                    const targetIx = list.findIndex(s => s.n.includes('크라운판') || s.n.includes('사용자규격'));
+                    if (targetIx !== -1) {
+                        list.splice(targetIx, 0, JSON.parse(JSON.stringify(baseSpec)));
+                    } else {
+                        list.push(JSON.parse(JSON.stringify(baseSpec)));
+                    }
+                }
+            });
+            base.rollSpecs.forEach(baseSpec => {
+                if (!MASTER.pricesByGrade[g].rollSpecs.some(s => s.n === baseSpec.n)) {
+                    const list = MASTER.pricesByGrade[g].rollSpecs;
+                    const targetIx = list.findIndex(s => s.n.includes('크라운판') || s.n.includes('사용자규격'));
+                    if (targetIx !== -1) {
+                        list.splice(targetIx, 0, JSON.parse(JSON.stringify(baseSpec)));
+                    } else {
+                        list.push(JSON.parse(JSON.stringify(baseSpec)));
+                    }
+                }
+            });
         }
     });
 
     if (!MASTER.pricesByGrade['인쇄소 협약단가']) {
-        const base = getBasePriceData();
         MASTER.pricesByGrade['인쇄소 협약단가'] = {
             commons: base.commons,
-            sheetSpecs: base.sheetSpecs,
-            rollSpecs: base.rollSpecs,
+            sheetSpecs: JSON.parse(JSON.stringify(base.sheetSpecs)),
+            rollSpecs: JSON.parse(JSON.stringify(base.rollSpecs)),
             sheetCommons: {},
             rollCommons: {}
         };
+    } else {
+        base.sheetSpecs.forEach(baseSpec => {
+            if (!MASTER.pricesByGrade['인쇄소 협약단가'].sheetSpecs.some(s => s.n === baseSpec.n)) {
+                MASTER.pricesByGrade['인쇄소 협약단가'].sheetSpecs.push(JSON.parse(JSON.stringify(baseSpec)));
+            }
+        });
     }
 }
 
@@ -589,6 +619,7 @@ async function initMaster() {
             const d = configData.data;
             MASTER.grades = d.grades || MASTER.grades;
             MASTER.pricesByGrade = d.pricesByGrade || MASTER.pricesByGrade;
+            ensureGradeData();
             MASTER.coverPapers = d.coverPapers || MASTER.coverPapers;
             MASTER.innerPapers = d.innerPapers || MASTER.innerPapers;
             MASTER.facePapers = d.facePapers || MASTER.facePapers;
