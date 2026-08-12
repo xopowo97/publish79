@@ -90,6 +90,11 @@ export default async function handler(req, res) {
             }
         }
 
+        // 0. 전체 펀딩 후보 도서 (기본 20종) 조회
+        const reqLimit = parseInt(req.query.limit || '20', 10);
+        const limitVal = isNaN(reqLimit) || reqLimit <= 0 ? 20 : reqLimit;
+        const allCandidatesUrl = `${base}/reprint_candidates?select=*${categoryFilter}&order=id.asc&limit=${limitVal}`;
+
         // 1. 복간 점수(reprint_score) 높은 순으로 상위 3개 조회
         const top3Url = `${base}/reprint_candidates?select=*${categoryFilter}&order=reprint_score.desc&limit=3`;
         // 2. 최신 등록일(created_at) 순으로 상위 8개 조회
@@ -105,7 +110,8 @@ export default async function handler(req, res) {
 
         // 1. 복간 점수 및 통계 쿼리 실행
 
-        const [top3Res, latestRes, totalRes, oopRes, expRes, assetRes, partnerRes, logsRes] = await Promise.all([
+        const [allCandidatesRes, top3Res, latestRes, totalRes, oopRes, expRes, assetRes, partnerRes, logsRes] = await Promise.all([
+            fetch(allCandidatesUrl, { method: 'GET', headers }),
             fetch(top3Url, { method: 'GET', headers }),
             fetch(latestUrl, { method: 'GET', headers }),
             fetch(totalBooksUrl, { method: 'GET', headers }),
@@ -125,6 +131,7 @@ export default async function handler(req, res) {
             throw new Error(`Supabase LATEST 조회 실패 (${latestRes.status}): ${errText}`);
         }
 
+        let allCandidatesData = allCandidatesRes.ok ? await allCandidatesRes.json() : [];
         let top3Data = await top3Res.json();
         let latestData = await latestRes.json();
         
@@ -142,6 +149,9 @@ export default async function handler(req, res) {
         const partnersCount = Array.isArray(partnerData) ? partnerData.length : 3;
 
         // 0건 또는 비정상 데이터 방지용 Null/Undefined 폴백 가드레일 장착
+        if (!Array.isArray(allCandidatesData)) {
+            allCandidatesData = [];
+        }
         if (!Array.isArray(top3Data)) {
             top3Data = [];
         }
@@ -149,10 +159,14 @@ export default async function handler(req, res) {
             latestData = [];
         }
 
+        const mainCandidates = allCandidatesData.length > 0 ? allCandidatesData : (latestData.length > 0 ? latestData : top3Data);
+
         return res.status(200).json({
             success: true,
-            count: top3Data.length,
-            data: top3Data, // 하위 호환용 기존 필드
+            count: mainCandidates.length,
+            data: mainCandidates,
+            candidates: mainCandidates,
+            products: mainCandidates,
             top3: top3Data,
             latest: latestData,
             stats: {
