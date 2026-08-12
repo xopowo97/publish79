@@ -2260,8 +2260,9 @@ function promptTracking(id) {
     document.getElementById('tracking-modal-book-title').innerText = order.bookTitle;
 
     const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const isCanEditTracking = (role === 'printer' || role === 'admin');
     const saveBtn = document.getElementById('btn-save-tracking');
-    if (role === 'printer') {
+    if (isCanEditTracking) {
         saveBtn.innerText = "출고 처리 완료";
         saveBtn.className = "flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all";
         saveBtn.onclick = () => saveTrackingNumbers(id);
@@ -2278,7 +2279,7 @@ function promptTracking(id) {
                     <div class="text-[10px] text-slate-400 mt-0.5">${d.address} ${d.addressDetail || ''}</div>
 ${d.memo ? `<div class="text-[10px] text-amber-600 font-bold mt-1">📌 [배송메모] ${d.memo}</div>` : ''}
                 </div>
-                ${role === 'printer' ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
+                ${isCanEditTracking ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
             </div>
             <div id="tracking-rows-${idx}" class="space-y-2">
                 ${((d.trackingList && d.trackingList.length > 0) ? d.trackingList : [{ courier: 'CJ대한통운', code: d.trackingNum || '' }]).map((t, tIdx) => renderTrackingRow(idx, tIdx, t)).join('')}
@@ -2305,13 +2306,13 @@ function updateTrackingPlaceholder(selectEl) {
 
 function renderTrackingRow(dIdx, tIdx, data) {
     const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
-    const isPrinter = role === 'printer';
+    const isCanEditTracking = (role === 'printer' || role === 'admin');
     const isQuickOrDirect = data.courier === '직접배송' || (data.courier && data.courier.startsWith('퀵'));
     const placeholderText = isQuickOrDirect ? '기사님 연락처 (선택)' : '송장번호';
 
     return `
         <div class="flex gap-2 items-center tracking-row-item" data-didx="${dIdx}">
-            <select class="t-courier input-pptx py-1.5 text-[11px] w-28" onchange="updateTrackingPlaceholder(this)" ${!isPrinter ? 'disabled' : ''}>
+            <select class="t-courier input-pptx py-1.5 text-[11px] w-28" onchange="updateTrackingPlaceholder(this)" ${!isCanEditTracking ? 'disabled' : ''}>
                 <option value="CJ대한통운" ${data.courier === 'CJ대한통운' ? 'selected' : ''}>CJ대한통운</option>
                 <option value="로젠택배" ${data.courier === '로젠택배' ? 'selected' : ''}>로젠택배</option>
                 <option value="한진택배" ${data.courier === '한진택배' ? 'selected' : ''}>한진택배</option>
@@ -2323,10 +2324,10 @@ function renderTrackingRow(dIdx, tIdx, data) {
                 <option value="퀵 (다마스)" ${data.courier === '퀵 (다마스)' ? 'selected' : ''}>퀵 (다마스)</option>
                 <option value="퀵 (1톤 트럭)" ${data.courier === '퀵 (1톤 트럭)' ? 'selected' : ''}>퀵 (1톤 트럭)</option>
             </select>
-            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="${placeholderText}" ${!isPrinter ? 'readonly' : ''}>
-            <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isPrinter ? 'readonly' : ''}>
-            <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isPrinter ? 'readonly' : ''}>
-            ${isPrinter ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
+            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="${placeholderText}" ${!isCanEditTracking ? 'readonly' : ''}>
+            <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isCanEditTracking ? 'readonly' : ''}>
+            <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isCanEditTracking ? 'readonly' : ''}>
+            ${isCanEditTracking ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
         </div>
     `;
 }
