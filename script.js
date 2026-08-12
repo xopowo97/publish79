@@ -1820,27 +1820,91 @@ function setMode(m) {
     renderOrder();
 }
 
-function calculatePages() {
+let pendingInnerPrintValue = null;
+let pendingOrderData = null;
+
+function calculatePages(userAction = 'user_input') {
     const tpInput = document.getElementById('ord-tp');
     const cpInput = document.getElementById('ord-cp');
     const bpInput = document.getElementById('ord-bp');
-    const innerPrint = document.getElementById('ord-inner-print')?.value || '';
+    const innerPrintEl = document.getElementById('ord-inner-print');
+    const innerPrint = innerPrintEl?.value || '';
 
     const tp = parseInt(tpInput.value) || 0;
+    let cp = parseInt(cpInput.value) || 0;
 
-    // 내지 인쇄 방식에 따라 cp 자동 설정 (부분컬러 모드일 때는 사용자 입력 허용)
-    if (!innerPrint.includes('부분컬러')) {
-        if (innerPrint.includes('컬러')) {
-            cpInput.value = tp;
-        } else if (innerPrint.includes('흑백')) {
-            cpInput.value = 0;
+    if (cp > tp) {
+        cp = tp;
+        cpInput.value = cp;
+    }
+
+    // 사용자가 부분컬러(cp > 0)를 직접 입력했으나 내지인쇄가 부분컬러가 아닐 때 스마트 매핑
+    if (userAction === 'user_input' && cp > 0 && !innerPrint.includes('부분컬러')) {
+        const isSingleSide = innerPrint.includes('단면');
+        const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
+        if (innerPrintEl) {
+            for (let opt of innerPrintEl.options) {
+                if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                    innerPrintEl.value = opt.value;
+                    break;
+                }
+            }
+        }
+    } else if (userAction === 'user_input' && cp === 0 && innerPrint.includes('부분컬러')) {
+        if (innerPrintEl) {
+            const targetVal = innerPrint.includes('단면') ? '내지-흑백단면' : '내지-흑백양면';
+            for (let opt of innerPrintEl.options) {
+                if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                    innerPrintEl.value = opt.value;
+                    break;
+                }
+            }
         }
     }
 
-    const cp = parseInt(cpInput.value) || 0;
     let bp = tp - cp;
     if (bp < 0) bp = 0;
     bpInput.value = bp;
+}
+
+function checkPartialColorSelection(selectEl) {
+    const cp = parseInt(document.getElementById('ord-cp')?.value || '0', 10);
+    const selectedVal = selectEl.value;
+    const selectedText = selectEl.options[selectEl.selectedIndex]?.text || selectedVal;
+
+    if (cp > 0 && !selectedVal.includes('부분컬러')) {
+        pendingInnerPrintValue = selectedVal;
+        const msgEl = document.getElementById('partial-color-guide-msg');
+        if (msgEl) {
+            msgEl.innerHTML = `
+                <div class="font-bold text-amber-900">📌 부분컬러 페이지가 <span class="text-red-600 font-black">${cp}P</span> 입력되어 있습니다.</div>
+                <div>선택하신 <span class="font-bold text-slate-800">[${selectedText}]</span> 옵션을 유지하시면, 입력하신 부분컬러 <b>${cp}P</b>도 모두 <b>${selectedVal.includes('컬러') ? '전면 컬러' : '흑백'}</b>으로 인쇄될 수 있습니다.</div>
+                <div class="pt-1 text-[11px] text-amber-800 font-bold">👉 오인쇄 방지를 위해 <b>[내지-부분컬러 양면]</b>으로 인쇄 옵션을 변경하시겠습니까?</div>
+            `;
+        }
+        document.getElementById('modal-partial-color-guide')?.classList.remove('hidden');
+    } else {
+        sync();
+    }
+}
+
+function closePartialColorGuideModal(acceptChange) {
+    const guideModal = document.getElementById('modal-partial-color-guide');
+    if (guideModal) guideModal.classList.add('hidden');
+
+    const innerPrintEl = document.getElementById('ord-inner-print');
+    if (acceptChange && innerPrintEl) {
+        const isSingleSide = pendingInnerPrintValue && pendingInnerPrintValue.includes('단면');
+        const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
+        for (let opt of innerPrintEl.options) {
+            if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                innerPrintEl.value = opt.value;
+                break;
+            }
+        }
+    }
+    pendingInnerPrintValue = null;
+    sync();
 }
 
 function sync() {
@@ -2875,85 +2939,183 @@ async function submitOrderSheet() {
         status: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).status : '접수대기'
     };
 
-    // Supabase 직접 저장
-    const { error } = await _supabase.from('orders').upsert(orderData);
+    // 🎯 [발주서 확인서 미리보기 모달 격발]
+    openOrderPreviewModal(orderData);
+}
 
-    if (error) {
-        alert("온라인 저장 실패: " + error.message);
-        return;
+function openOrderPreviewModal(orderData) {
+    pendingOrderData = orderData;
+    const contentEl = document.getElementById('order-preview-content');
+    if (!contentEl) return;
+
+    const data = orderData.data || {};
+    const tp = data['ord-tp'] || '0';
+    const cp = data['ord-cp'] || '0';
+    const bp = data['ord-bp'] || '0';
+    const spec = data['ord-spec'] || 'A5국판(148x210)';
+    const customSize = data['ord-custom-size'] || '';
+
+    const deliveriesHtml = (orderData.deliveries || []).map((d, i) => `
+        <div class="p-3 bg-slate-50 rounded-xl text-xs space-y-1 border border-slate-100">
+            <div class="font-bold text-slate-800">${i + 1}. 수령인: ${d.recipient || '미지정'} (${d.contact || ''}) - <span class="text-blue-600 font-bold">${d.qty}부</span></div>
+            <div class="text-slate-500">${d.address} ${d.addressDetail || ''}</div>
+            ${d.memo ? `<div class="text-amber-600 font-bold">📌 배송메모: ${d.memo}</div>` : ''}
+        </div>
+    `).join('');
+
+    contentEl.innerHTML = `
+        <div class="bg-slate-50 p-4 rounded-2xl space-y-3 text-xs text-slate-700 border border-slate-200">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span class="font-black text-base text-slate-900">📖 ${orderData.bookTitle}</span>
+                <span class="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-700 font-bold text-[11px]">${orderData.pubName} (${orderData.managerName || '담당자'})</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><span class="text-slate-400">도서 규격:</span> <span class="font-bold text-slate-800">${spec} ${customSize ? `(${customSize})` : ''}</span></div>
+                <div><span class="text-slate-400">제작 부수:</span> <span class="font-black text-sky-600">${orderData.qty}부</span></div>
+                <div><span class="text-slate-400">페이지 구성:</span> <span class="font-bold text-slate-800">총 ${tp}P (부분컬러 ${cp}P / 흑백 ${bp}P)</span></div>
+                <div><span class="text-slate-400">제본 방식:</span> <span class="font-bold text-slate-800">${data['ord-binding'] || '무선제본'}</span></div>
+                <div class="col-span-2"><span class="text-slate-400">표지 사양:</span> <span class="font-bold text-slate-800">${data['ord-cover'] || '스노우지'}, ${data['ord-printing'] || '표지4도'}, ${data['ord-coating'] || '무광'}, 날개(${data['ord-wing'] || '없음'})</span></div>
+                <div class="col-span-2"><span class="text-slate-400">내지 사양:</span> <span class="font-bold text-amber-700">${data['ord-inner'] || '백모조80g'}, ${data['ord-inner-print'] || '내지-흑백양면'}</span></div>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <div class="text-xs font-bold text-slate-800 flex justify-between items-center">
+                <span>📦 배송지 정보 (${(orderData.deliveries || []).length}곳)</span>
+                <span class="text-[10px] text-slate-400 font-normal">총 ${(orderData.deliveries || []).reduce((s, x) => s + (parseInt(x.qty) || 0), 0)}부 배송</span>
+            </div>
+            ${deliveriesHtml}
+        </div>
+        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <div>
+                <div class="text-[11px] text-emerald-600 font-bold">권당 제작 단가: ${orderData.unitPrice}원</div>
+                <div class="text-xs font-black text-emerald-900">최종 펀딩/주문 결제 금액</div>
+            </div>
+            <div class="text-xl font-black text-emerald-600">${orderData.totalPrice}원</div>
+        </div>
+    `;
+
+    document.getElementById('modal-order-preview')?.classList.remove('hidden');
+}
+
+function closeOrderPreviewModal() {
+    document.getElementById('modal-order-preview')?.classList.add('hidden');
+}
+
+async function confirmFinalOrderSubmit() {
+    if (!pendingOrderData) return;
+    const confirmBtn = document.getElementById('btn-confirm-final-submit');
+    if (confirmBtn) {
+        confirmBtn.innerText = '⏳ 주문 처리 중...';
+        confirmBtn.disabled = true;
     }
 
-    // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
     try {
-        // 동일 출판사의 동일 도서명이 있는지 확인
-        const { data: existingProds } = await _supabase
-            .from('products')
-            .select('id, image')
-            .eq('pubName', pubName)
-            .eq('title', bookTitle)
-            .maybeSingle();
+        const orderData = pendingOrderData;
+        const isEdit = !!editingOrderId;
+        const pubName = orderData.pubName;
+        const bookTitle = orderData.bookTitle;
+        const managerName = orderData.managerName;
+        const today = orderData.date;
 
-        const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
-        const persistence = MASTER.orderPersistence[mode];
+        // Supabase 직접 저장
+        const { error } = await _supabase.from('orders').upsert(orderData);
 
-        const productData = {
-            id: prodId,
-            title: bookTitle,
-            pubName: pubName,
-            manager: managerName,
-            mode: mode, // 낱장/연속지 구분 정보 추가
-            spec: persistence['ord-spec'] || '',
-            pages: persistence['ord-tp'] || '0',
-            customSize: persistence['ord-custom-size'] || '',
-            image: existingProds ? existingProds.image : null, // 기존 이미지가 있으면 유지
-            details: {
-                innerPaper: persistence['ord-inner'] || '',
-                innerPrint: persistence['ord-inner-print'] || '',
-                partialColor: persistence['ord-cp'] || '0',
-                coverPaper: persistence['ord-cover'] || '',
-                coverPrint: persistence['ord-printing'] || '',
-                coating: persistence['ord-coating'] || '',
-                binding: persistence['ord-binding'] || '',
-                wing: persistence['ord-wing'] || '',
-                facePaper: persistence['ord-face'] || '없음',
-                faceInsert: persistence['ord-face-insert'] || '없음'
-            },
-            date: today
-        };
+        if (error) {
+            alert("온라인 저장 실패: " + error.message);
+            return;
+        }
 
-        // products 테이블에 사양 정보만 저장 (파일은 제외)
-        await _supabase.from('products').upsert(productData);
-        
-        // 메모리 데이터 즉시 반영 (중복 제거 후 최상단 추가)
-        if (!MASTER.products) MASTER.products = [];
-        MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
-        MASTER.products.unshift(productData);
-        
-        console.log("도서 사양이 라이브러리에 자동 등록/갱신되었습니다.");
-    } catch (prodErr) {
-        console.warn("도서 라이브러리 자동 등록 중 오류 (주문은 정상 처리됨):", prodErr);
+        // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
+        try {
+            const { data: existingProds } = await _supabase
+                .from('products')
+                .select('id, image')
+                .eq('pubName', pubName)
+                .eq('title', bookTitle)
+                .maybeSingle();
+
+            const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
+            const persistence = MASTER.orderPersistence[mode];
+
+            const productData = {
+                id: prodId,
+                title: bookTitle,
+                pubName: pubName,
+                manager: managerName,
+                mode: mode,
+                spec: persistence['ord-spec'] || '',
+                pages: persistence['ord-tp'] || '0',
+                customSize: persistence['ord-custom-size'] || '',
+                image: existingProds ? existingProds.image : null,
+                details: {
+                    innerPaper: persistence['ord-inner'] || '',
+                    innerPrint: persistence['ord-inner-print'] || '',
+                    partialColor: persistence['ord-cp'] || '0',
+                    coverPaper: persistence['ord-cover'] || '',
+                    coverPrint: persistence['ord-printing'] || '',
+                    coating: persistence['ord-coating'] || '',
+                    binding: persistence['ord-binding'] || '',
+                    wing: persistence['ord-wing'] || '',
+                    facePaper: persistence['ord-face'] || '없음',
+                    faceInsert: persistence['ord-face-insert'] || '없음'
+                },
+                date: today
+            };
+
+            await _supabase.from('products').upsert(productData);
+
+            if (!MASTER.products) MASTER.products = [];
+            MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
+            MASTER.products.unshift(productData);
+
+        } catch (prodErr) {
+            console.warn("도서 라이브러리 자동 등록 중 오류:", prodErr);
+        }
+
+        // 메모리 갱신
+        if (isEdit) {
+            const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
+            if (idx !== -1) MASTER.orders[idx] = orderData;
+            editingOrderId = null;
+        } else {
+            MASTER.orders.unshift(orderData);
+        }
+
+        renderSettlementTable();
+        updateSettlementStats();
+        closeOrderPreviewModal();
+
+        alert(isEdit ? "주문 수정이 완료되었습니다." : "제작 등록 신청이 완료되었습니다. 생산진행 탭에서 진행 현황을 확인하실 수 있습니다.");
+
+        // 서식 초기화
+        const bookTitleInput = document.getElementById('ord-book-title');
+        if (bookTitleInput) bookTitleInput.value = '';
+        const customSizeInput = document.getElementById('ord-custom-size');
+        if (customSizeInput) customSizeInput.value = '';
+        const qtyEl = document.getElementById('ord-qty');
+        if (qtyEl) qtyEl.value = '100';
+        const tpEl = document.getElementById('ord-tp');
+        if (tpEl) tpEl.value = '200';
+        const cpEl = document.getElementById('ord-cp');
+        if (cpEl) cpEl.value = '0';
+        const bpEl = document.getElementById('ord-bp');
+        if (bpEl) bpEl.value = '200';
+
+        if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
+        if (typeof resetFileUI === 'function') resetFileUI();
+        if (typeof sync === 'function') sync();
+        if (typeof showPage === 'function') showPage('settlement');
+
+    } catch (err) {
+        console.error('[confirmFinalOrderSubmit Error]', err);
+        alert('주문 등록 중 오류가 발생했습니다.');
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.innerText = '🚀 제작 등록 완료';
+            confirmBtn.disabled = false;
+        }
+        pendingOrderData = null;
     }
-
-    // 메모리 갱신
-    if (isEdit) {
-        const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
-        if (idx !== -1) MASTER.orders[idx] = orderData;
-        editingOrderId = null;
-    } else {
-        MASTER.orders.unshift(orderData);
-    }
-
-    renderSettlementTable();
-    updateSettlementStats();
-
-    alert(isEdit ? "주문 수정이 완료되었습니다." : "제작 등록 신청이 완료되었습니다.");
-
-    // 파일 상태 초기화
-    currentFiles = { inner: null, cover: null };
-    resetFileUI();
-    if (typeof resetOrderForm === 'function') resetOrderForm();
-
-    showPage('settlement');
 }
 
 const STORAGE_BUCKET = 'print_files';
