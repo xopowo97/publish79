@@ -1886,48 +1886,51 @@
             const spinner = document.getElementById('loading-spinner') || document.querySelector('.spinner');
             productsList = [];
 
-            if (window.location.protocol === 'file:') {
-                console.warn('📁 로컬 file:// 환경 감지: 비상 20종 샘플 카드를 0.001초 직통 렌더링합니다.');
-            } else const API_URL = '/api/reprint-candidates?limit=20';
+            try {
+                if (window.location.protocol === 'file:') {
+                    console.warn('📁 로컬 file:// 환경 감지: 비상 20종 샘플 카드를 0.001초 직통 렌더링합니다.');
+                } else {
+                    const API_URL = '/api/reprint-candidates?limit=20';
 
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('API_TIMEOUT_10S')), 10000)
-                );
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-                const fetchPromise = fetch(API_URL, {
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
+                    const res = await fetch(API_URL, {
+                        method: 'GET',
+                        headers: { 'Cache-Control': 'no-cache' },
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
 
-                const res = await Promise.race([fetchPromise, timeoutPromise]);
-
-                if (res && res.ok) {
-                    const result = await res.json();
-                    const dbData = Array.isArray(result) ? result : (result.data || result.products || result.candidates || result.top3 || []);
-                    if (Array.isArray(dbData) && dbData.length > 0) {
-                        productsList = dbData.map((dbItem, idx) => {
-                            const storageUrl = `https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_${dbItem.id}.jpg`;
-                            const cover = dbItem.cover_url || storageUrl;
-                            return {
-                                id: dbItem.id,
-                                title: dbItem.title || '복간 신청 명작',
-                                author: dbItem.author || '저자 미상',
-                                publisher: dbItem.publisher || '출판사 미상',
-                                pubName: dbItem.publisher || '출판사 미상',
-                                price: dbItem.price || 18000,
-                                category: dbItem.category || '소설',
-                                status: 'funding',
-                                is_funding_active: true,
-                                funding_current: dbItem.funding_current || Math.floor(65 + (idx * 7) % 35),
-                                funding_target: dbItem.funding_target || 100,
-                                image: cover,
-                                cover_url: cover,
-                                full_description: dbItem.full_description,
-                                toc: dbItem.toc,
-                                review_list: dbItem.review_list,
-                                authors_info: dbItem.authors_info,
-                                story_quotes: dbItem.story_quotes
-                            };
-                        });
+                    if (res && res.ok) {
+                        const result = await res.json();
+                        const dbData = Array.isArray(result) ? result : (result.data || result.products || result.candidates || result.top3 || []);
+                        if (Array.isArray(dbData) && dbData.length > 0) {
+                            productsList = dbData.map((dbItem, idx) => {
+                                const storageUrl = `https://fquzouhstheqvuzzhxqs.supabase.co/storage/v1/object/public/assets/cover_candidate_${dbItem.id}.jpg`;
+                                const cover = dbItem.cover_url || storageUrl;
+                                return {
+                                    id: dbItem.id,
+                                    title: dbItem.title || '복간 신청 명작',
+                                    author: dbItem.author || '저자 미상',
+                                    publisher: dbItem.publisher || '출판사 미상',
+                                    pubName: dbItem.publisher || '출판사 미상',
+                                    price: dbItem.price || 18000,
+                                    category: dbItem.category || '소설',
+                                    status: 'funding',
+                                    is_funding_active: true,
+                                    funding_current: dbItem.funding_current || Math.floor(65 + (idx * 7) % 35),
+                                    funding_target: dbItem.funding_target || 100,
+                                    image: cover,
+                                    cover_url: cover,
+                                    full_description: dbItem.full_description,
+                                    toc: dbItem.toc,
+                                    review_list: dbItem.review_list,
+                                    authors_info: dbItem.authors_info,
+                                    story_quotes: dbItem.story_quotes
+                                };
+                            });
+                        }
                     }
                 }
             } catch (err) {
