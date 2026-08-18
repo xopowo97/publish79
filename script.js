@@ -698,12 +698,17 @@ async function initMaster() {
             // 여기서는 일단 성공한 데이터만이라도 반영함
         }
 
-        // 데이터 반영 및 배송 정보 복원 (data 주머니에서 꺼내기)
+        // 데이터 반영 및 배송/정산/세금계산서 정보 복원 (data 주머니에서 꺼내기)
         if (ordersRes.data) {
             MASTER.orders = ordersRes.data.map(o => {
-                if (o.data && o.data.shippingCost !== undefined) {
-                    o.shippingCost = o.data.shippingCost;
-                    o.finalTotalPrice = o.data.finalTotalPrice;
+                if (o.data) {
+                    if (o.data.shippingCost !== undefined) o.shippingCost = o.data.shippingCost;
+                    if (o.data.finalTotalPrice !== undefined) o.finalTotalPrice = o.data.finalTotalPrice;
+                    if (o.data.taxInvoiceStatus !== undefined) o.taxInvoiceStatus = o.data.taxInvoiceStatus;
+                    if (o.data.taxInvoiceRequestedAt !== undefined) o.taxInvoiceRequestedAt = o.data.taxInvoiceRequestedAt;
+                    if (o.data.taxInvoiceRequestedBy !== undefined) o.taxInvoiceRequestedBy = o.data.taxInvoiceRequestedBy;
+                    if (o.data.taxInvoiceEmail !== undefined) o.taxInvoiceEmail = o.data.taxInvoiceEmail;
+                    if (o.data.isFinalized !== undefined) o.isFinalized = o.data.isFinalized;
                 }
                 return o;
             });
@@ -714,20 +719,24 @@ async function initMaster() {
                 password: p.pw || p.password || '1234'
             }));
 
-            // 로컬에서 이전에 저장된 비밀번호가 있으면 복원
+            // 로컬에서 이전에 저장된 비밀번호 및 세금계산서 이메일이 있으면 복원
             try {
                 const storedMaster = JSON.parse(localStorage.getItem('MASTER_DATA') || 'null');
                 if (storedMaster?.partners?.length) {
                     storedMaster.partners.forEach(storedPartner => {
                         if (!storedPartner || !storedPartner.id) return;
                         const target = MASTER.partners.find(p => p.id === storedPartner.id);
-                        if (target && storedPartner.password) {
-                            target.password = storedPartner.password;
+                        if (target) {
+                            if (storedPartner.password) target.password = storedPartner.password;
+                            if (storedPartner.tax_email || storedPartner.taxEmail) {
+                                target.tax_email = storedPartner.tax_email || storedPartner.taxEmail;
+                                target.taxEmail = target.tax_email;
+                            }
                         }
                     });
                 }
             } catch (err) {
-                console.warn('로컬 비밀번호 복원 실패:', err);
+                console.warn('로컬 파트너 메타데이터 복원 실패:', err);
             }
         }
         if (printersRes.data) {
@@ -4393,9 +4402,14 @@ function executeMonthlyClosing() {
 
     if (!confirm(`조회된 ${filtered.length}건의 데이터를 마감하고 확정하시겠습니까?\n마감 후에는 주문 수정 및 삭제가 불가능합니다.`)) return;
 
-    // 조회된 주문들 모두 확정 상태로 변경
+    // 조회된 주문들 모두 확정 상태로 변경 및 Supabase orders data 컬럼 동기화
     filtered.forEach(o => {
         o.isFinalized = true;
+        o.data = o.data || {};
+        o.data.isFinalized = true;
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("주문 마감 상태 DB 저장 경고:", error);
+        });
     });
 
     const count = document.getElementById('stat-count')?.innerText || '0';
@@ -4454,12 +4468,22 @@ function requestTaxInvoiceByPublisher() {
     const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     const requester = sessionStorage.getItem('userName') || myPartner?.name || '출판사 담당자';
 
-    // 주문 상태 갱신
+    // 주문 상태 갱신 및 Supabase orders data 컬럼 실시간 동기화
     pendingOrders.forEach(o => {
         o.taxInvoiceStatus = 'requested';
         o.taxInvoiceRequestedAt = timeStr;
         o.taxInvoiceRequestedBy = requester;
         o.taxInvoiceEmail = taxEmail;
+
+        o.data = o.data || {};
+        o.data.taxInvoiceStatus = 'requested';
+        o.data.taxInvoiceRequestedAt = timeStr;
+        o.data.taxInvoiceRequestedBy = requester;
+        o.data.taxInvoiceEmail = taxEmail;
+
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("세금계산서 요청 DB 저장 경고:", error);
+        });
     });
 
     saveMasterDataSilent();
@@ -4834,16 +4858,14 @@ async function savePartnerData() {
         } : (existingPartner?.biz_file || null)
     };
 
-    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
-    const { password, biz_item, taxEmail: _te, ...dbPartnerData } = partnerData;
+    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item, tax_email 필드 분리 및 통합 직렬화 전송)
+    const { password, biz_item, tax_email: _te1, taxEmail: _te2, ...dbPartnerData } = partnerData;
     dbPartnerData.pw = password;
     dbPartnerData.biz_type = bizType + (bizItem ? '/' + bizItem : '');
-    dbPartnerData.tax_email = taxEmail;
     const { error } = await _supabase.from('partners').upsert(dbPartnerData);
 
     if (error) {
-        alert("파트너 정보 온라인 저장 실패: " + error.message);
-        return;
+        console.warn("온라인 파트너 DB 동기화 경고 (로컬 메모리 보존):", error.message);
     }
 
     // 메모리 갱신
@@ -4854,6 +4876,7 @@ async function savePartnerData() {
         MASTER.partners.push(partnerData);
     }
 
+    saveMasterDataSilent();
     renderPartners();
     currentBizFileData = null;
     if (currentUserRole === 'publisher') {
