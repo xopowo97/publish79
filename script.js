@@ -1585,6 +1585,23 @@ function showPage(p, isEdit = false) {
             return;
         }
 
+        const btnClose = document.getElementById('btn-monthly-closing') || document.getElementById('btn-monthly-closing2');
+        const btnReqTax = document.getElementById('btn-pub-request-tax') || document.getElementById('btn-pub-request-tax2');
+        if (btnClose) {
+            if (role === 'publisher' || role === 'printer' || role === 'printer_worker') {
+                btnClose.classList.add('hidden');
+            } else {
+                btnClose.classList.remove('hidden');
+            }
+        }
+        if (btnReqTax) {
+            if (role === 'publisher') {
+                btnReqTax.classList.remove('hidden');
+            } else {
+                btnReqTax.classList.add('hidden');
+            }
+        }
+
         renderSettlementTable();
         if (document.getElementById('dashboard-section') && !document.getElementById('dashboard-section').classList.contains('hidden')) {
             updateChart();
@@ -3365,11 +3382,20 @@ function renderSettlementTable() {
         const badgeClass = isSheet ? 'badge badge-blue' : 'badge badge-outline';
         const badgeText = isSheet ? '디지털 낱장' : '디지털 연속지';
         const finalizedBadge = o.isFinalized ? '<span class="badge" style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0;">🔒 정산확정</span>' : '';
+        
+        let taxInvoiceBadge = '';
+        if (o.taxInvoiceStatus === 'requested') {
+            taxInvoiceBadge = `<span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;" title="요청일시: ${o.taxInvoiceRequestedAt || '-'}">🟡 계산서 발행요청</span>`;
+        } else if (o.taxInvoiceStatus === 'issued') {
+            taxInvoiceBadge = `<span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="발행완료">🟢 계산서 발행완료</span>`;
+        }
 
         const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+        const isPublisher = (role === 'publisher');
         const isPrinter = (role === 'printer' || role === 'printer_worker');
-        const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
-        const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
+        const isLocked = isPublisher ? (o.isFinalized || o.taxInvoiceStatus === 'requested' || o.taxInvoiceStatus === 'issued') : o.isFinalized;
+        const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
+        const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
 
         const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
         const computedCost = computePurchaseCost(o);
@@ -3391,9 +3417,10 @@ function renderSettlementTable() {
                 <td class="td-style">${o.date}</td>
                 <td class="td-style font-bold">${o.pubName}</td>
                 <td class="td-style">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span class="${badgeClass}">${badgeText}</span>
                         ${finalizedBadge}
+                        ${taxInvoiceBadge}
                     </div>
                     <div class="book-title">${o.bookTitle}</div>
                 </td>
@@ -4377,6 +4404,68 @@ function executeMonthlyClosing() {
     alert(`[마감 완료] 총 ${count}건, ${total}원이 최종 정산 확정되었습니다.\n세금계산서 발행 리스트로 전송되었습니다.`);
     saveMasterDataSilent();
     renderSettlementTable();
+}
+
+function requestTaxInvoiceByPublisher() {
+    const filtered = getFilteredOrders();
+    if (filtered.length === 0) return alert("발행 요청할 주문 내역이 없습니다.");
+
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+    const pubName = myPartner?.name || (filtered[0] ? filtered[0].pubName : '출판사');
+    const taxEmail = myPartner?.tax_email || myPartner?.taxEmail || myPartner?.email || '';
+
+    if (!taxEmail) {
+        if (confirm("⚠️ 세금계산서 대표 이메일이 등록되어 있지 않습니다.\n[파트너사 관리] 메뉴에서 먼저 이메일을 등록하시겠습니까?")) {
+            showPage('partner');
+            return;
+        }
+    }
+
+    // 이미 요청/발행 완료된 건 제외한 대기 건 필터링
+    const pendingOrders = filtered.filter(o => o.taxInvoiceStatus !== 'requested' && o.taxInvoiceStatus !== 'issued');
+
+    if (pendingOrders.length === 0) {
+        return alert(`[안내] 현재 조회된 ${filtered.length}건의 주문은 이미 세금계산서 발행 요청이 완료된 상태입니다.`);
+    }
+
+    // 합계 금액 계산
+    const totalAmount = pendingOrders.reduce((sum, o) => {
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        return sum + finalPrice;
+    }, 0);
+    const vatAmount = Math.round(totalAmount * 0.1);
+    const totalWithVat = totalAmount + vatAmount;
+
+    // 안내 팝업 메시지
+    const confirmMsg = `📢 [출판사 거래내역 확인 및 세금계산서 발행 요청]\n\n` +
+        `• 대상 출판사: ${pubName}\n` +
+        `• 확인 건수: 총 ${pendingOrders.length}건 (전체 ${filtered.length}건 중)\n` +
+        `• 공급가액 합계: ${totalAmount.toLocaleString()}원\n` +
+        `• 부가세(VAT 10%): ${vatAmount.toLocaleString()}원\n` +
+        `• 총 청구금액: ${totalWithVat.toLocaleString()}원 (VAT 포함)\n` +
+        `• 세금계산서 수신처: ${taxEmail || '(미지정)'}\n\n` +
+        `위 거래내역을 최종 확인하셨습니까?\n확인 완료 시 '세금계산서 발행 진행중' 상태로 전환되며 타임스탬프가 기록됩니다.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // 타임스탬프 생성
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const requester = sessionStorage.getItem('userName') || myPartner?.name || '출판사 담당자';
+
+    // 주문 상태 갱신
+    pendingOrders.forEach(o => {
+        o.taxInvoiceStatus = 'requested';
+        o.taxInvoiceRequestedAt = timeStr;
+        o.taxInvoiceRequestedBy = requester;
+        o.taxInvoiceEmail = taxEmail;
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+
+    alert(`✅ [세금계산서 발행 요청 완료]\n\n총 ${pendingOrders.length}건의 거래내역 확인이 완료되었습니다.\n상태가 '🟡 계산서 발행요청'으로 전환되었으며 관리자에게 전달되었습니다.\n(수신 이메일: ${taxEmail || '등록 필요'})`);
 }
 
 function setMonthlyGoal() {

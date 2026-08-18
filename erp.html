@@ -689,9 +689,13 @@
                                         class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all hover:bg-emerald-700">
                                         <i data-lucide="file-text" class="w-4 h-4"></i> 거래명세서 전체 다운로드
                                     </button>
-                                    <button onclick="executeMonthlyClosing()"
+                                    <button id="btn-monthly-closing" onclick="executeMonthlyClosing()"
                                         class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-rose-100 flex items-center gap-2 transition-all hover:bg-rose-700">
                                         <i data-lucide="lock" class="w-4 h-4"></i> 월별 마감 정산 확정
+                                    </button>
+                                    <button id="btn-pub-request-tax" onclick="requestTaxInvoiceByPublisher()"
+                                        class="hidden bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-sky-100 flex items-center gap-2 transition-all hover:bg-sky-700">
+                                        <i data-lucide="receipt" class="w-4 h-4"></i> 세금계산서 발행 요청 (거래내역 확인완료)
                                     </button>
                                 </div>
                             </div>
@@ -1492,10 +1496,14 @@
                                         class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all hover:bg-emerald-700">
                                         <i data-lucide="file-text" class="w-4 h-4"></i> 거래명세서 전체 다운로드
                                     </button>
-                                    <button onclick="executeMonthlyClosing()"
+                                    <button id="btn-monthly-closing2" onclick="executeMonthlyClosing()"
                                         class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-rose-100 flex items-center gap-2 transition-all hover:bg-rose-700">
                                         <i data-lucide="lock" class="w-4 h-4"></i> 월별 마감 정산 확정
                                     </button>
+                                    <button id="btn-pub-request-tax2" onclick="requestTaxInvoiceByPublisher()"
+                                        class="hidden bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-sky-100 flex items-center gap-2 transition-all hover:bg-sky-700">
+                                        <i data-lucide="receipt" class="w-4 h-4"></i> 세금계산서 발행 요청 (거래내역 확인완료)
+                                     </button>
                                 </div>
                             </div>
 
