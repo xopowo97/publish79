@@ -667,6 +667,10 @@ async function initMaster() {
                 }
             });
 
+            if (configData.partnerTaxEmails) {
+                MASTER.partnerTaxEmails = configData.partnerTaxEmails;
+            }
+
             if (needsHealing) {
                 setTimeout(() => saveMasterDataSilent(), 1000);
             }
@@ -718,6 +722,16 @@ async function initMaster() {
                 ...p,
                 password: p.pw || p.password || '1234'
             }));
+
+            // 온라인 master_config에 저장된 파트너사 세금계산서 이메일 맵 1:1 복원
+            if (MASTER.partnerTaxEmails) {
+                MASTER.partners.forEach(p => {
+                    if (MASTER.partnerTaxEmails[p.id]) {
+                        p.tax_email = MASTER.partnerTaxEmails[p.id];
+                        p.taxEmail = p.tax_email;
+                    }
+                });
+            }
 
             // 로컬에서 이전에 저장된 비밀번호 및 세금계산서 이메일이 있으면 복원
             try {
@@ -818,7 +832,8 @@ async function saveData() {
             innerPrinting: MASTER.innerPrinting,
             faceInsert: MASTER.faceInsert,
             customGroups: MASTER.customGroups,
-            auth: MASTER.auth
+            auth: MASTER.auth,
+            partnerTaxEmails: MASTER.partnerTaxEmails || {}
             // products는 별도 테이블로 관리하므로 config에서는 제외 (동기화 이슈 방지)
         };
 
@@ -4875,6 +4890,10 @@ async function savePartnerData() {
     } else {
         MASTER.partners.push(partnerData);
     }
+
+    // 온라인 master_config에 파트너사 세금계산서 이메일 맵 실시간 동기화
+    MASTER.partnerTaxEmails = MASTER.partnerTaxEmails || {};
+    MASTER.partnerTaxEmails[id] = taxEmail;
 
     saveMasterDataSilent();
     renderPartners();
