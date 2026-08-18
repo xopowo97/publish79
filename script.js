@@ -3620,7 +3620,7 @@ function renderRoleDashboard(count, qty, sales, filteredOrders) {
                 <div class="summary-value">${qty.toLocaleString()}<small>부</small></div>
             </div>
             <div class="summary-card highlight">
-                <span class="summary-label">총 하청 매출액 (정산예정액)</span>
+                <span class="summary-label">정산 예정액</span>
                 <div class="summary-value">${purchase.toLocaleString()}<small>원</small></div>
             </div>
         `;
@@ -3963,7 +3963,7 @@ function applyRoleVisibility() {
             if (id === 'btn-printer-mgmt') {
                 if (role === 'printer' || role === 'printer_worker') {
                     const userId = sessionStorage.getItem('userId');
-                    const myPrinter = MASTER.printers.find(p => p.id === userId || p.name === userId) || MASTER.printers[0];
+                    const myPrinter = MASTER.printers.find(p => p.id === userId || p.name === userId);
                     const printerName = myPrinter ? myPrinter.name : (sessionStorage.getItem('userPrinterName') || '인쇄소');
                     if (myPrinter && myPrinter.name) sessionStorage.setItem('userPrinterName', myPrinter.name);
                     el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${printerName} 정보관리`;
@@ -5888,9 +5888,22 @@ async function downloadTransactionStatementExcel() {
     });
 
     // Add data rows
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    const isPrinter = (role === 'printer' || role === 'printer_worker');
+
     let totalSupply = 0;
     filteredData.forEach(item => {
-        const supply = item.totalPrice || 0;
+        const rawQty = parseInt(String(item.qty).replace(/[^0-9]/g, '')) || 0;
+        const computedCost = computePurchaseCost(item);
+
+        const supply = isPrinter 
+            ? computedCost 
+            : (parseInt(String(item.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const unitPrice = isPrinter 
+            ? (rawQty > 0 ? Math.round(computedCost / rawQty) : 0) 
+            : (parseInt(String(item.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
         const tax = Math.floor(supply * 0.1);
         const total = supply + tax;
 
@@ -5899,8 +5912,8 @@ async function downloadTransactionStatementExcel() {
             item.pubName,
             item.bookTitle,
             item.managerName,
-            item.unitPrice,
-            item.qty,
+            unitPrice,
+            rawQty,
             supply,
             tax,
             total
