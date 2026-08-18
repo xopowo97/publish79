@@ -2621,6 +2621,35 @@
     </div>
 </div>
 
+<!-- 🧾 세금계산서 최종 발행 옵션 선택 모달 (어드민 전용 다크 메탈 스타일) -->
+<div id="modal-tax-invoice-option" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl text-white">
+        <h3 class="text-lg font-bold text-amber-400 mb-2">🧾 세금계산서 최종 발행 옵션 조율</h3>
+        <p class="text-xs text-slate-400 mb-4" id="modal-pub-subtitle">출판사 담당자별 발주 내역 소계 및 발행 방식을 선택하세요.</p>
+        
+        <!-- 담당자별 소계 리스트 영역 -->
+        <div id="tax-invoice-manager-list" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-1"></div>
+        
+        <!-- 발행 옵션 라디오 선택 -->
+        <div class="bg-slate-800/80 rounded-xl p-4 mb-6 space-y-2 border border-slate-700">
+            <label class="flex items-center space-x-3 cursor-pointer">
+                <input type="radio" name="tax-issue-option" value="combined" checked class="text-amber-500 focus:ring-amber-400">
+                <span class="text-sm font-medium text-white">🔘 [통합 발행] 모든 담당자 건을 하나로 묶어 세금계산서 1장 발행</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer">
+                <input type="radio" name="tax-issue-option" value="split" class="text-amber-500 focus:ring-amber-400">
+                <span class="text-sm font-medium text-white">🔘 [담당자별 분할 발행] 담당자별 소계 금액으로 각각 쪼개어 N장 발행</span>
+            </label>
+        </div>
+        
+        <!-- 액션 버튼 -->
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeTaxInvoiceOptionModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition">취소</button>
+            <button id="btn-submit-tax-invoice" onclick="submitTaxInvoiceOption()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow-lg shadow-emerald-900/30">최종 발행 승인 완료</button>
+        </div>
+    </div>
+</div>
+
 <!-- ============================================================
      17번 고객응대_상담이 챗봇 뷰어 — 완전 격리 독립 모듈
      기존 ERP 엔진(script.js)을 일절 수정하지 않습니다.

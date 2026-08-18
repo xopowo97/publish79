@@ -9149,7 +9149,7 @@ function renderAdminSettlementTrafficLight() {
                 actionBtn = `<span class="text-xs text-slate-400 font-bold">발행완료 🔒</span>`;
             } else if (p.status === 'yellow') {
                 lightBadge = `<span class="badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>🟡 요청완료</span>`;
-                actionBtn = `<button onclick="approveTaxInvoiceIssue('${p.name}')" class="btn-table" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0; font-weight:bold; padding: 6px 12px; border-radius: 8px;">🟢 발행 완료 승인</button>`;
+                actionBtn = `<button onclick="openTaxInvoiceOptionModal('${p.name}')" class="btn-table" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0; font-weight:bold; padding: 6px 12px; border-radius: 8px;">🟢 발행 완료 승인</button>`;
             } else {
                 lightBadge = `<span class="badge" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-slate-400"></span>⚪ 미확인</span>`;
                 actionBtn = `<span class="text-xs text-slate-400">출판사 확인 대기중</span>`;
@@ -9180,35 +9180,103 @@ function renderAdminSettlementTrafficLight() {
 }
 
 // -------------------------------------------------------------
-// [어드민 전용] 특정 출판사의 세금계산서 발행 완료 처리 승인 함수
+// [어드민 전용] 다중 담당자 정산 조율용 옵션 모달 전역 변수 및 제어 로직
 // -------------------------------------------------------------
-function approveTaxInvoiceIssue(pubName) {
-    const filtered = getFilteredOrders();
-    const targets = filtered.filter(o => o.pubName === pubName && o.isFinalized && o.taxInvoiceStatus === 'requested');
+let currentTargetPubForTax = null;
+
+// 1. 세금계산서 발행 옵션 모달 열기 및 담당자 소계 집계
+function openTaxInvoiceOptionModal(pubName) {
+    currentTargetPubForTax = pubName;
+    const modal = document.getElementById('modal-tax-invoice-option');
+    const subtitle = document.getElementById('modal-pub-subtitle');
+    const listContainer = document.getElementById('tax-invoice-manager-list');
+    if (!modal || !listContainer) return;
+
+    subtitle.textContent = `[${pubName}] 출판사의 담당자별 발주 내역을 확인하고 발행 형태를 선택하세요.`;
+    
+    // 계산서 요청 상태인 주문만 안전하게 필터링
+    const targetOrders = (MASTER.orders || []).filter(o => o.pubName === pubName && o.taxInvoiceStatus === 'requested');
+    const managerMap = {};
+    
+    targetOrders.forEach(o => {
+        const mName = o.managerName || '담당자미지정';
+        if (!managerMap[mName]) managerMap[mName] = { count: 0, total: 0 };
+        
+        // 1원 오차 방지: 기존 정산 합산 수식과 100% 일치
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        
+        managerMap[mName].count += 1;
+        managerMap[mName].total += finalPrice;
+    });
+
+    let html = '';
+    for (const [mName, info] of Object.entries(managerMap)) {
+        html += `
+            <div class="flex items-center justify-between bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl text-xs">
+                <span class="font-semibold text-slate-200">👤 담당자: ${mName}</span>
+                <span class="text-slate-300">${info.count}건 / <strong class="text-amber-400">${info.total.toLocaleString()}원</strong></span>
+            </div>
+        `;
+    }
+    listContainer.innerHTML = html || '<p class="text-xs text-slate-400 text-center py-4">조회된 발행 요청 건이 없습니다.</p>';
+    modal.classList.remove('hidden');
+}
+
+// 2. 세금계산서 발행 옵션 모달 닫기
+function closeTaxInvoiceOptionModal() {
+    const modal = document.getElementById('modal-tax-invoice-option');
+    if (modal) modal.classList.add('hidden');
+    currentTargetPubForTax = null;
+}
+
+// 3. 인라인 클릭 중계 함수
+function submitTaxInvoiceOption() {
+    if (!currentTargetPubForTax) return;
+    const selectedRadio = document.querySelector('input[name="tax-issue-option"]:checked');
+    const optionType = selectedRadio ? selectedRadio.value : 'combined';
+    approveTaxInvoiceIssueWithOptions(currentTargetPubForTax, optionType);
+}
+
+// 4. 최종 세금계산서 발행 완료 처리 및 Supabase/로컬 데이터 동기화
+function approveTaxInvoiceIssueWithOptions(pubName, optionType) {
+    const orders = MASTER.orders || [];
+    const targets = orders.filter(o => o.pubName === pubName && o.taxInvoiceStatus === 'requested');
 
     if (targets.length === 0) {
+        closeTaxInvoiceOptionModal();
         return alert("발행 요청된 주문 내역이 없습니다.");
     }
 
-    if (!confirm(`[${pubName}]의 ${targets.length}건 정산 건에 대해 세금계산서 발행 승인(완료)을 처리하시겠습니까?\n완료 후에는 정산 확인이 최종 종결(🟢 마감완료)됩니다.`)) {
+    if (!confirm(`[${pubName}]의 ${targets.length}건 정산 건에 대해 세금계산서 최종 발행 승인(완료)을 처리하시겠습니까?\n발행 옵션: ${optionType === 'combined' ? '통합 발행(1장)' : '담당자별 분할(N장)'}`)) {
         return;
     }
 
+    const timestamp = new Date().toISOString();
+    
+    // Supabase DB 업데이트 요청들을 병렬 처리
     const promises = targets.map(o => {
         o.taxInvoiceStatus = 'issued';
+        o.taxInvoiceType = optionType;
+        o.taxInvoiceIssuedAt = timestamp;
+        
         o.data = o.data || {};
         o.data.taxInvoiceStatus = 'issued';
+        o.data.taxInvoiceType = optionType;
+        o.data.taxInvoiceIssuedAt = timestamp;
 
         return _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
-            if (error) {
-                console.warn(`주문ID ${o.id} 계산서 발행 상태 DB 저장 경고:`, error);
-            }
+            if (error) console.warn(`주문ID ${o.id} 승인 DB 저장 경고:`, error);
         });
     });
 
     Promise.all(promises).then(() => {
         saveMasterDataSilent();
-        renderSettlementTable();
-        alert(`[${pubName}] 세금계산서 발행 및 최종 정산 마감 승인이 완료되었습니다.`);
+        renderSettlementTable(); // 신호등 및 테이블 새로고침
+        if (typeof showToast === 'function') {
+            showToast(`[${pubName}] 세금계산서 발행 완료 (${optionType === 'combined' ? '통합' : '분할'})`, 'success');
+        } else {
+            alert(`[${pubName}] 세금계산서 발행 승인이 완료되었습니다.`);
+        }
+        closeTaxInvoiceOptionModal();
     });
 }
