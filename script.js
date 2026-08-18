@@ -492,6 +492,14 @@ function logout() {
 
 let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
 let agentControlPollingIntervalId = null; // 에이전트 통제실 실시간 폴링 타이머 ID
+let currentBizFileData = null; // 현재 선택된 사업자등록증 파일 데이터 (Base64 전역)
+let mode = 'sheet';
+let editingOrderId = null;
+let settlementChart = null; // 차트 인스턴스 저장용
+let partnerCurrentPage = 1;
+const partnerItemsPerPage = 5;
+let settlementCurrentPage = 1;
+const settlementItemsPerPage = 10;
 
 // 초기 등급 데이터 세팅
 function ensureGradeData() {
@@ -868,12 +876,6 @@ async function saveMasterData() {
 async function saveMasterDataSilent() {
     await saveData();
 }
-
-let mode = 'sheet';
-let editingOrderId = null;
-let settlementChart = null; // 차트 인스턴스 저장용
-let partnerCurrentPage = 1;
-const partnerItemsPerPage = 5;
 
 // ---------------------------------------------------------
 // 1. 등급 관리 기능 (고정 등급 삭제 방어 로직 포함)
@@ -3361,8 +3363,6 @@ function downloadOrderFile(orderId, type) {
     }
 }
 
-let settlementCurrentPage = 1;
-const settlementItemsPerPage = 10;
 
 function getFilteredOrders() {
     const startDate = document.getElementById('search-start-date')?.value;
@@ -3387,6 +3387,7 @@ function getFilteredOrders() {
 }
 
 function renderSettlementTable() {
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
     const tableBody = document.getElementById('settlement-data-rows');
     if (!tableBody) return;
 
@@ -3414,12 +3415,14 @@ function renderSettlementTable() {
             taxInvoiceBadge = `<span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="발행완료">🟢 계산서 발행완료</span>`;
         }
 
-        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
         const isPublisher = (role === 'publisher');
         const isPrinter = (role === 'printer' || role === 'printer_worker');
         const isLocked = isPublisher ? (o.isFinalized || o.taxInvoiceStatus === 'requested' || o.taxInvoiceStatus === 'issued') : o.isFinalized;
         const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
         const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
+        const adminFinalizeBtn = (role === 'admin') 
+            ? `<button onclick="toggleOrderFinalize('${o.id}')" class="btn-table" style="${o.isFinalized ? 'background:#fffbeb; color:#d97706; border-color:#fde68a;' : 'background:#fef2f2; color:#dc2626; border-color:#fecaca;'}" title="${o.isFinalized ? '마감 해제' : '마감 확정'}">${o.isFinalized ? '해제' : '마감'}</button>`
+            : '';
 
         const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
         const computedCost = computePurchaseCost(o);
@@ -3458,12 +3461,29 @@ function renderSettlementTable() {
                     <div class="btn-group">
                         ${editBtn}
                         <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                        ${adminFinalizeBtn}
                         ${deleteBtn}
                     </div>
                 </td>
             </tr>
         `;
     }).join('');
+
+    // 어드민 상단 마감/해제 버튼 상태 동적 갱신
+    const btnClose = document.getElementById('btn-monthly-closing') || document.getElementById('btn-monthly-closing2');
+    if (btnClose && role === 'admin') {
+        const allFinalized = filtered.length > 0 && filtered.every(o => o.isFinalized);
+        if (allFinalized) {
+            btnClose.innerHTML = `<i data-lucide="unlock" class="w-4 h-4"></i> 정산 마감 해제 (수정 허용)`;
+            btnClose.className = "bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-100 flex items-center gap-2 transition-all hover:bg-amber-700";
+            btnClose.onclick = executeMonthlyReopen;
+        } else {
+            btnClose.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> 월별 마감 정산 확정`;
+            btnClose.className = "bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-rose-100 flex items-center gap-2 transition-all hover:bg-rose-700";
+            btnClose.onclick = executeMonthlyClosing;
+        }
+        if (window.lucide) lucide.createIcons();
+    }
 
     updateSettlementStats(filtered);
     renderSettlementPagination(totalItems);
@@ -4435,6 +4455,60 @@ function executeMonthlyClosing() {
     renderSettlementTable();
 }
 
+function executeMonthlyReopen() {
+    const filtered = getFilteredOrders();
+    if (filtered.length === 0) return alert("해제할 주문 내역이 없습니다.");
+
+    if (!confirm(`조회된 ${filtered.length}건의 정산 마감을 해제하시겠습니까?\n해제 후에는 출판사 및 어드민에서 주문 사양 수정과 삭제가 다시 가능해집니다.`)) return;
+
+    filtered.forEach(o => {
+        o.isFinalized = false;
+        o.taxInvoiceStatus = 'none';
+        o.data = o.data || {};
+        o.data.isFinalized = false;
+        delete o.data.taxInvoiceStatus;
+        delete o.data.taxInvoiceRequestedAt;
+        delete o.data.taxInvoiceRequestedBy;
+        delete o.data.taxInvoiceEmail;
+
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("주문 마감 해제 DB 저장 경고:", error);
+        });
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+    alert(`[마감 해제 완료] 총 ${filtered.length}건의 정산 마감이 안전하게 해제되었습니다.`);
+}
+
+function toggleOrderFinalize(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const willFinalize = !order.isFinalized;
+    order.isFinalized = willFinalize;
+    order.data = order.data || {};
+    order.data.isFinalized = willFinalize;
+
+    if (!willFinalize) {
+        order.taxInvoiceStatus = 'none';
+        delete order.data.taxInvoiceStatus;
+        delete order.data.taxInvoiceRequestedAt;
+        delete order.data.taxInvoiceRequestedBy;
+        delete order.data.taxInvoiceEmail;
+    }
+
+    _supabase.from('orders').update({ data: order.data }).eq('id', id).then(({ error }) => {
+        if (error) console.warn("단건 마감 토글 DB 저장 경고:", error);
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+
+    const actionName = willFinalize ? '정산 마감 확정(잠금)' : '정산 마감 해제(수정허용)';
+    alert(`[${order.bookTitle}] 주문이 ${actionName}되었습니다.`);
+}
+
 function requestTaxInvoiceByPublisher() {
     const filtered = getFilteredOrders();
     if (filtered.length === 0) return alert("발행 요청할 주문 내역이 없습니다.");
@@ -4526,8 +4600,7 @@ function setMonthlyGoal() {
 // ---------------------------------------------------------
 // 파트너사 관리 모듈 로직
 // ---------------------------------------------------------
-// 사업자등록증 파일 처리 함수
-let currentBizFileData = null; // 현재 선택된 파일 데이터 (Base64)
+// 사업자등록증 파일 처리 함수 (currentBizFileData는 최상단 전역 변수로 관리)
 
 function handleBizFileSelect(input) {
     const file = input.files[0];
