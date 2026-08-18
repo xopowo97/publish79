@@ -4568,6 +4568,8 @@ function clearPartnerFields() {
     document.getElementById('u_ceoName').value = '';
     document.getElementById('u_bizType').value = '';
     document.getElementById('u_bizItem').value = '';
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    if (taxEmailEl) taxEmailEl.value = '';
     document.getElementById('u_addr').value = '';
     document.getElementById('u_addrDetail').value = '';
     document.querySelector('#managerTable tbody').innerHTML = '';
@@ -4618,6 +4620,8 @@ function selectPartner(id) {
     const parts = storedBizType.split('/');
     document.getElementById('u_bizType').value = parts[0] || '';
     document.getElementById('u_bizItem').value = partner.biz_item || partner.bizItem || (parts.length > 1 ? parts.slice(1).join('/') : '');
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    if (taxEmailEl) taxEmailEl.value = partner.tax_email || partner.taxEmail || '';
     document.getElementById('u_addr').value = partner.addr || '';
     document.getElementById('u_addrDetail').value = partner.addr_detail || partner.addrDetail || '';
 
@@ -4708,6 +4712,8 @@ async function savePartnerData() {
     const bizItem = document.getElementById('u_bizItem').value;
     const addr = document.getElementById('u_addr').value;
     const addrDetail = document.getElementById('u_addrDetail').value;
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    const taxEmail = taxEmailEl ? taxEmailEl.value.trim() : '';
 
     if (!id || !name) return alert('아이디와 업체명은 필수입니다.');
     if (!MASTER.grades.includes(grade)) return alert('존재하지 않는 등급입니다. 단가 관리에서 먼저 등급을 생성해주세요.');
@@ -4726,6 +4732,8 @@ async function savePartnerData() {
         ceo_name: ceoName,
         biz_type: bizType,
         biz_item: bizItem,
+        tax_email: taxEmail,
+        taxEmail: taxEmail,
         addr: addr,
         addr_detail: addrDetail,
         managers: managers,
@@ -4738,9 +4746,10 @@ async function savePartnerData() {
     };
 
     // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
-    const { password, biz_item, ...dbPartnerData } = partnerData;
+    const { password, biz_item, taxEmail: _te, ...dbPartnerData } = partnerData;
     dbPartnerData.pw = password;
     dbPartnerData.biz_type = bizType + (bizItem ? '/' + bizItem : '');
+    dbPartnerData.tax_email = taxEmail;
     const { error } = await _supabase.from('partners').upsert(dbPartnerData);
 
     if (error) {
