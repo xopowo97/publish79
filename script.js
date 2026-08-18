@@ -3487,6 +3487,10 @@ function renderSettlementTable() {
 
     updateSettlementStats(filtered);
     renderSettlementPagination(totalItems);
+    // 어드민 전용 정산 관제 신호등 집계 뷰 결합
+    if (typeof renderAdminSettlementTrafficLight === 'function') {
+        renderAdminSettlementTrafficLight();
+    }
 }
 
 function renderSettlementPagination(totalItems) {
@@ -9041,4 +9045,170 @@ function resetOrderForm() {
     if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
     if (typeof resetFileUI === 'function') resetFileUI();
     if (typeof sync === 'function') sync();
+}
+
+// -------------------------------------------------------------
+// [어드민 전용] 실시간 정산 관제 신호등 집계 뷰 렌더러 함수 (Isolation)
+// -------------------------------------------------------------
+function renderAdminSettlementTrafficLight() {
+    const containers = document.querySelectorAll('.admin-traffic-light-container');
+    if (containers.length === 0) return;
+
+    // 권한 검증: 어드민이 아닐 경우 컨테이너를 비우고 즉시 퇴장
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
+    if (role !== 'admin') {
+        containers.forEach(el => el.innerHTML = '');
+        return;
+    }
+
+    // 현재 상단 날짜 필터 기준으로 필터링된 주문 리스트 수집
+    const filtered = getFilteredOrders();
+
+    // 출판사별 집계 맵 구성
+    const publisherMap = {};
+
+    // MASTER 파트너 리스트로 초기화하여 거래가 없는 달이라도 출판사 목록이 관제 테이블에 일관되게 잡히도록 함
+    if (MASTER && MASTER.partners && Array.isArray(MASTER.partners)) {
+        MASTER.partners.forEach(p => {
+            publisherMap[p.name] = {
+                name: p.name,
+                totalAmount: 0,
+                orders: [],
+                status: 'white' // 기본: 미확인
+            };
+        });
+    }
+
+    // 필터링된 주문 데이터 누적 집계
+    filtered.forEach(o => {
+        if (!publisherMap[o.pubName]) {
+            publisherMap[o.pubName] = {
+                name: o.pubName,
+                totalAmount: 0,
+                orders: [],
+                status: 'white'
+            };
+        }
+        
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        publisherMap[o.pubName].totalAmount += finalPrice;
+        publisherMap[o.pubName].orders.push(o);
+    });
+
+    // 주문이 있는 출판사들만 추출
+    const list = Object.values(publisherMap).filter(p => p.orders.length > 0);
+
+    // 각 출판사 정산 신호등 상태 판정
+    list.forEach(p => {
+        const allFinalized = p.orders.every(o => o.isFinalized);
+        const allRequested = p.orders.every(o => o.taxInvoiceStatus === 'requested');
+        const allIssued = p.orders.every(o => o.taxInvoiceStatus === 'issued');
+
+        if (allFinalized && allIssued) {
+            p.status = 'green';
+        } else if (allFinalized && allRequested) {
+            p.status = 'yellow';
+        } else {
+            p.status = 'white';
+        }
+    });
+
+    // HTML 테이블 구조 생성
+    let tableHtml = `
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                <h4 class="text-base font-black text-slate-800" style="margin:0;">🚨 실시간 출판사별 정산 관제 신호등 (어드민 전용)</h4>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <th class="th-style" style="text-align: left; padding: 12px 16px;">출판사명</th>
+                            <th class="th-style" style="text-align: right; padding: 12px 16px;">조회월 정산합계</th>
+                            <th class="th-style" style="text-align: center; padding: 12px 16px;">정산 확인 상태 (신호등)</th>
+                            <th class="th-style" style="text-align: center; padding: 12px 16px;">조치</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    if (list.length === 0) {
+        tableHtml += `
+            <tr>
+                <td colspan="4" class="td-style text-center text-slate-400 py-6">선택한 조회 기간에 등록된 주문 내역이 없습니다.</td>
+            </tr>
+        `;
+    } else {
+        list.forEach(p => {
+            let lightBadge = '';
+            let actionBtn = '';
+
+            if (p.status === 'green') {
+                lightBadge = `<span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>🟢 마감완료</span>`;
+                actionBtn = `<span class="text-xs text-slate-400 font-bold">발행완료 🔒</span>`;
+            } else if (p.status === 'yellow') {
+                lightBadge = `<span class="badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>🟡 요청완료</span>`;
+                actionBtn = `<button onclick="approveTaxInvoiceIssue('${p.name}')" class="btn-table" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0; font-weight:bold; padding: 6px 12px; border-radius: 8px;">🟢 발행 완료 승인</button>`;
+            } else {
+                lightBadge = `<span class="badge" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-slate-400"></span>⚪ 미확인</span>`;
+                actionBtn = `<span class="text-xs text-slate-400">출판사 확인 대기중</span>`;
+            }
+
+            tableHtml += `
+                <tr style="border-bottom: 1px solid #f1f5f9; hover:bg-slate-50 transition-all;">
+                    <td class="td-style font-bold text-slate-700" style="padding: 12px 16px; text-align: left;">${p.name}</td>
+                    <td class="td-style font-black text-sky-600" style="padding: 12px 16px; text-align: right;">${p.totalAmount.toLocaleString()}원</td>
+                    <td class="td-style" style="padding: 12px 16px; text-align: center;">${lightBadge}</td>
+                    <td class="td-style" style="padding: 12px 16px; text-align: center;">${actionBtn}</td>
+                </tr>
+            `;
+        });
+    }
+
+    tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // 모든 반응형 컨테이너 영역에 HTML 동적 주입
+    containers.forEach(el => {
+        el.innerHTML = tableHtml;
+    });
+}
+
+// -------------------------------------------------------------
+// [어드민 전용] 특정 출판사의 세금계산서 발행 완료 처리 승인 함수
+// -------------------------------------------------------------
+function approveTaxInvoiceIssue(pubName) {
+    const filtered = getFilteredOrders();
+    const targets = filtered.filter(o => o.pubName === pubName && o.isFinalized && o.taxInvoiceStatus === 'requested');
+
+    if (targets.length === 0) {
+        return alert("발행 요청된 주문 내역이 없습니다.");
+    }
+
+    if (!confirm(`[${pubName}]의 ${targets.length}건 정산 건에 대해 세금계산서 발행 승인(완료)을 처리하시겠습니까?\n완료 후에는 정산 확인이 최종 종결(🟢 마감완료)됩니다.`)) {
+        return;
+    }
+
+    const promises = targets.map(o => {
+        o.taxInvoiceStatus = 'issued';
+        o.data = o.data || {};
+        o.data.taxInvoiceStatus = 'issued';
+
+        return _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) {
+                console.warn(`주문ID ${o.id} 계산서 발행 상태 DB 저장 경고:`, error);
+            }
+        });
+    });
+
+    Promise.all(promises).then(() => {
+        saveMasterDataSilent();
+        renderSettlementTable();
+        alert(`[${pubName}] 세금계산서 발행 및 최종 정산 마감 승인이 완료되었습니다.`);
+    });
 }
