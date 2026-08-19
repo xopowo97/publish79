@@ -99,7 +99,7 @@ window.addEventListener('load', async () => {
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
 // Vercel Serverless Function 프록시 API 경로 정의
 const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
-    ? 'https://publish79.vercel.app/api/send-error' 
+    ? 'https://publish79.vercel.app/api/send-error'
     : '/api/send-error';
 
 async function reportSystemError(errorData) {
@@ -134,7 +134,7 @@ const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '�
 
 // 전역 안전 권한/세션 조회기 (전역 변수 참조 에러 원천 차단)
 Object.defineProperty(window, 'currentUserRole', {
-    get: function() { return sessionStorage.getItem('userRole') || 'admin'; }
+    get: function () { return sessionStorage.getItem('userRole') || 'admin'; }
 });
 
 // --- [로그인 버그 수정] DOMContentLoaded: 세션 복원만 처리 ---
@@ -168,10 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // AI 헬퍼 (영업이) send 버튼 클릭 이벤트 및 Enter 키 연동
     const sendBtnErp = document.getElementById('ai-send-btn-erp');
     const aiInputErp = document.getElementById('ai-input-erp');
-    
+
     if (sendBtnErp) {
         sendBtnErp.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        
+
         const clientMaskPII = (text) => {
             if (!text || typeof text !== 'string') return text;
             let masked = text;
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     const data = await response.json();
                     const replyText = data.responseText;
-                    
+
                     // 세션 유지를 위해 logId 보존
                     if (data.logId) {
                         _erpChatLogId = data.logId;
@@ -505,7 +505,7 @@ const settlementItemsPerPage = 10;
 function ensureGradeData() {
     if (!MASTER.pricesByGrade) MASTER.pricesByGrade = {};
     if (!MASTER.grades || MASTER.grades.length === 0) MASTER.grades = [...DEFAULT_GRADES];
-    
+
     const base = getBasePriceData();
     const allGradeKeys = Array.from(new Set([...MASTER.grades, ...Object.keys(MASTER.pricesByGrade)]));
 
@@ -2476,7 +2476,7 @@ async function saveTrackingNumbers(id) {
     order.finalTotalPrice = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) + totalShippingCost;
 
     order.status = '출고완료';
-    
+
     // [보완] DB 컬럼 부족 오류 방지를 위해 배송 정보를 'data' 주머니 안에 포함
     if (!order.data) order.data = {};
     order.data.shippingCost = totalShippingCost;
@@ -2484,10 +2484,10 @@ async function saveTrackingNumbers(id) {
 
     // [중요] Supabase DB에 배송정보 및 상태 업데이트 반영
     // (shippingCost, finalTotalPrice 컬럼 대신 data 컬럼 활용)
-    const { error } = await _supabase.from('orders').update({ 
+    const { error } = await _supabase.from('orders').update({
         status: '출고완료',
         deliveries: order.deliveries,
-        data: order.data 
+        data: order.data
     }).eq('id', id);
 
     if (error) {
@@ -2527,7 +2527,7 @@ function openOrderDetails(id) {
 
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
     const isPrinter = (role === 'printer' || role === 'printer_worker');
-    
+
     const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
     const computedTotal = computePurchaseCost(order);
     const computedUnit = Math.round(computedTotal / rawQty);
@@ -3167,7 +3167,7 @@ let currentFiles = { inner: null, cover: null };
 async function handleFileSelect(type, input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
-        
+
         // 1. 용량 제한 체크 (Supabase 무료 티어 기준: 50MB)
         const maxSize = 50 * 1024 * 1024; // 50MB
         if (file.size > maxSize) {
@@ -3178,12 +3178,12 @@ async function handleFileSelect(type, input) {
 
         const area = document.getElementById(`file-${type}-area`);
         const status = document.getElementById(`${type}-file-status`);
-        
+
         if (area && status) {
             // 업로드 준비 상태 UI (프로그레스 바 포함 프리미엄 감성)
             area.classList.remove('bg-slate-50', 'bg-emerald-50', 'border-emerald-200');
             area.classList.add('bg-sky-50/50', 'border-sky-300');
-            
+
             // 기존 내부 버튼 및 라벨 유지하면서 진행률 표시 컨테이너 추가
             status.innerHTML = `
                 <div class="flex flex-col gap-1 w-full mt-2">
@@ -3209,7 +3209,7 @@ async function handleFileSelect(type, input) {
         let progress = 0;
         const pBar = document.getElementById(`${type}-progress-bar`);
         const pTxt = document.getElementById(`${type}-progress-txt`);
-        
+
         const interval = setInterval(() => {
             if (progress < 90) {
                 progress += Math.floor(Math.random() * 10) + 5;
@@ -3268,12 +3268,12 @@ async function handleFileSelect(type, input) {
         } catch (err) {
             clearInterval(interval);
             console.error("Storage Upload Error:", err);
-            
+
             // --- AI Helper 연동 ---
             if (window.triggerAIError) {
                 window.triggerAIError(err.message || 'Storage Upload Failed');
             }
-            
+
             // 버킷 미생성 또는 권한 오류 시 자가 복구/안내 모드
             if (area && status) {
                 area.classList.remove('bg-sky-50/50', 'border-sky-300');
@@ -3407,7 +3407,7 @@ function renderSettlementTable() {
         const badgeClass = isSheet ? 'badge badge-blue' : 'badge badge-outline';
         const badgeText = isSheet ? '디지털 낱장' : '디지털 연속지';
         const finalizedBadge = o.isFinalized ? '<span class="badge" style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0;">🔒 정산확정</span>' : '';
-        
+
         let taxInvoiceBadge = '';
         if (o.taxInvoiceStatus === 'requested') {
             taxInvoiceBadge = `<span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;" title="요청일시: ${o.taxInvoiceRequestedAt || '-'}">🟡 계산서 발행요청</span>`;
@@ -3420,23 +3420,23 @@ function renderSettlementTable() {
         const isLocked = isPublisher ? (o.isFinalized || o.taxInvoiceStatus === 'requested' || o.taxInvoiceStatus === 'issued') : o.isFinalized;
         const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
         const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
-        const adminFinalizeBtn = (role === 'admin') 
+        const adminFinalizeBtn = (role === 'admin')
             ? `<button onclick="toggleOrderFinalize('${o.id}')" class="btn-table" style="${o.isFinalized ? 'background:#fffbeb; color:#d97706; border-color:#fde68a;' : 'background:#fef2f2; color:#dc2626; border-color:#fecaca;'}" title="${o.isFinalized ? '마감 해제' : '마감 확정'}">${o.isFinalized ? '해제' : '마감'}</button>`
             : '';
 
         const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
         const computedCost = computePurchaseCost(o);
 
-        const displayUnitPrice = isPrinter 
-            ? Math.round(computedCost / rawQty) 
+        const displayUnitPrice = isPrinter
+            ? Math.round(computedCost / rawQty)
             : (parseInt(String(o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
-        const displayTotalPrice = isPrinter 
-            ? computedCost 
+        const displayTotalPrice = isPrinter
+            ? computedCost
             : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
-        const displayFinalPrice = isPrinter 
-            ? (computedCost + (o.shippingCost || 0)) 
+        const displayFinalPrice = isPrinter
+            ? (computedCost + (o.shippingCost || 0))
             : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
 
         return `
@@ -4036,7 +4036,7 @@ function editOrder(id) {
         mode = order.mode;
         // 해당 모드의 영속성 데이터를 주문 데이터로 덮어쓰기
         MASTER.orderPersistence[mode] = JSON.parse(JSON.stringify(order.data));
-        
+
         // 기존 주문 데이터에 ord-book-title 누락 시 최상위 도서명으로 자동 보정 복원
         if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
         MASTER.orderPersistence[mode]['ord-book-title'] = order.bookTitle;
@@ -4153,18 +4153,35 @@ async function downloadExcel(id) {
 
         // 1. [상단 정보 매칭]
         worksheet.getCell('C4').value = order.date;
-        worksheet.getCell('F4').value = pub.biz_num || pub.bizNum || '';
-        worksheet.getCell('C5').value = order.managerName;
-        worksheet.getCell('F5').value = pub.name || order.pubName;
-        worksheet.getCell('J5').value = pub.ceo_name || pub.ceoName || '';
+        if (isPrinter) {
+            worksheet.getCell('C5').value = "서 상 원";               // 담당자명
+            worksheet.getCell('F4').value = "486-87-00700";         // 등록번호
+            worksheet.getCell('F5').value = "(주)한국리더십센터";     // 상호
+            worksheet.getCell('J5').value = "이 재 용";               // 대표자
+            worksheet.getCell('F6').value = "서울시 금천구 가산디지털2로 144,B204호(가산동, 현대테라타워 가산DK)"; // 주소
+            worksheet.getCell('F6').font = { size: 9 };             // 폰트 크기 축소
+            worksheet.getCell('F7').value = "교육서비스";             // 업태
+            worksheet.getCell('J7').value = "교육컨텐츠 인쇄 및 제작"; // 업종
+        } else {
+            worksheet.getCell('C5').value = order.managerName;
+            worksheet.getCell('F4').value = pub.biz_num || pub.bizNum || '';
+            worksheet.getCell('F5').value = pub.name || order.pubName;
+            worksheet.getCell('J5').value = pub.ceo_name || pub.ceoName || '';
+            worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
+            const storedBizTypeStr = pub.biz_type || pub.bizType || '';
+            const bizTypeParts = storedBizTypeStr.split('/');
+            worksheet.getCell('F7').value = bizTypeParts[0] || '';
+            worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        }
         worksheet.getCell('C6').value = order.qty;
-        worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
         const customSize = d['ord-custom-size'];
         worksheet.getCell('C7').value = customSize ? `${d['ord-spec']} [정사이즈: ${customSize}]` : (d['ord-spec'] || '');
         const storedBizTypeStr = pub.biz_type || pub.bizType || '';
         const bizTypeParts = storedBizTypeStr.split('/');
-        worksheet.getCell('F7').value = bizTypeParts[0] || '';
-        worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        if (!isPrinter) {
+            worksheet.getCell('F7').value = bizTypeParts[0] || '';
+            worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        }
 
         const innerType = d['ord-inner-print'] || '';
         worksheet.getCell('C8').value = `${tp}P(${innerType}${cp}P/흑백페이지${bp}P)`;
@@ -4184,7 +4201,7 @@ async function downloadExcel(id) {
             const rollSpec = (priceData.rollSpecs || []).find(r => r.n === specName);
             let bracketBw = 0;
             let bracketCl = 0;
-            
+
             if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
                 let targetSpec = rollSpec;
                 if (specName.includes('사용자규격') || specName.includes('변형')) {
@@ -4219,19 +4236,19 @@ async function downloadExcel(id) {
                 innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
                 if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
             }
-            
+
             let paperSur = 0;
             if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
             else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
-            
+
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
-            
+
             const innerPrintKey = '내지인쇄_' + innerType;
             if (priceData.rollCommons && priceData.rollCommons[innerPrintKey] !== undefined) {
                 innerUnit1 += priceData.rollCommons[innerPrintKey];
             }
-            
+
         } else {
             coverUnit += getSC('표지날개', d['ord-wing']);
             coverUnit += getSC('표지인쇄', d['ord-printing']);
@@ -4264,14 +4281,14 @@ async function downloadExcel(id) {
                 innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
                 if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
             }
-            
+
             let paperSur = 0;
             if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
             else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
-            
+
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
-            
+
             innerUnit1 += getSC('내지인쇄', innerType);
         }
 
@@ -4300,7 +4317,7 @@ async function downloadExcel(id) {
         let innerVat2 = 0;
         if (hasPartColor) {
             worksheet.getCell('C16').value = `${d['ord-inner'] || ''}/내지-흑백(부분)/용지할증`;
-            
+
             innerSupply2 = innerUnit2 * qty;
             innerVat2 = Math.floor(innerSupply2 / 10);
             worksheet.getCell('D16').value = innerUnit2;
@@ -4347,10 +4364,10 @@ async function downloadExcel(id) {
                 totalBoxes += (parseInt(t.box) || 0);
             });
         });
-        if (totalBoxes === 0) totalBoxes = 1; 
+        if (totalBoxes === 0) totalBoxes = 1;
 
         const shipSupply = parseInt(order.shippingCost || 0) || 0;
-        const shipUnit = Math.floor(shipSupply / totalBoxes); 
+        const shipUnit = Math.floor(shipSupply / totalBoxes);
         const shipVat = Math.floor(shipSupply / 10);
 
         worksheet.getCell('D18').value = shipUnit;
@@ -4376,21 +4393,21 @@ async function downloadExcel(id) {
                 worksheet.getCell(`B${row}`).value = `${dl.address || ''} ${dl.addressDetail || ''}`;
                 worksheet.getCell(`E${row}`).value = dl.recipient || '';
                 worksheet.getCell(`G${row}`).value = dl.contact || dl.tel || '';
-                
+
                 // 송장번호 포맷 개선: 중복된 택배사 이름 제거, 번호만 줄바꿈으로 표시
-                const trackingText = (dl.trackingList || []).length > 0 
-                    ? dl.trackingList.map(t => t.code).join('\n') 
+                const trackingText = (dl.trackingList || []).length > 0
+                    ? dl.trackingList.map(t => t.code).join('\n')
                     : (dl.trackingNum || '');
-                
+
                 const trackingCell = worksheet.getCell(`I${row}`);
                 trackingCell.value = trackingText;
                 // 자동 줄바꿈 및 중앙 정렬 설정
                 trackingCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
-                
+
                 // 택배사 정보 (중복 제거하여 K열에 통합 표시)
                 const uniqueCouriers = [...new Set((dl.trackingList || []).map(t => t.courier))].join(', ');
                 worksheet.getCell(`K${row}`).value = uniqueCouriers || dl.courier || '';
-                
+
                 // 해당 배송지의 총 박스 수량 계산
                 const dBoxSum = (dl.trackingList || []).reduce((sum, t) => sum + (parseInt(t.box) || 0), 0);
                 worksheet.getCell(`L${row}`).value = dBoxSum || dl.boxCount || '';
@@ -4558,7 +4575,7 @@ function requestTaxInvoiceByPublisher() {
 
     // 타임스탬프 생성
     const now = new Date();
-    const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const requester = sessionStorage.getItem('userName') || myPartner?.name || '출판사 담당자';
 
     // 주문 상태 갱신 및 Supabase orders data 컬럼 실시간 동기화
@@ -5265,11 +5282,11 @@ async function openPrinterPriceModal() {
         saveBtn.onclick = closeTrackingModal;
 
         const today = new Date().toLocaleDateString();
-        
+
         // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
         const commons = priceData.sheetCommons || {};
         const getCommonVal = (key) => commons[key] || 0;
-        
+
         const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
         const baseBinding = getCommonVal('제본방식_무선제본') || 0;
         const wingYes = getCommonVal('표지날개_날개 있음') || getCommonVal('표지날개_날개있음') || 0;
@@ -5336,10 +5353,10 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
                         ${[
-                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
-                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
-                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
-                        ].map(item => `
+                { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5350,9 +5367,9 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
                         ${[
-                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
-                            { key: '용지할증_백모조120g', label: '백모조120g' }
-                        ].map(item => `
+                { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                { key: '용지할증_백모조120g', label: '백모조120g' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5363,8 +5380,8 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
                         ${[
-                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
-                        ].map(item => `
+                { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5515,7 +5532,7 @@ async function openPriceTableModal(grade) {
         // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
         const commons = priceData.sheetCommons || {};
         const getCommonVal = (key) => commons[key] || 0;
-        
+
         // 날개 옵션의 텍스트가 정확한지 확인 (기본 데이터: '날개 있음', '날개 없음')
         const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
         const baseBinding = getCommonVal('제본방식_무선제본') || 0;
@@ -5586,10 +5603,10 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
                         ${[
-                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
-                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
-                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
-                        ].map(item => `
+                { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5600,9 +5617,9 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
                         ${[
-                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
-                            { key: '용지할증_백모조120g', label: '백모조120g' }
-                        ].map(item => `
+                { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                { key: '용지할증_백모조120g', label: '백모조120g' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5613,8 +5630,8 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
                         ${[
-                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
-                        ].map(item => `
+                { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5666,7 +5683,7 @@ async function resetPassword() {
 
     if (confirm(`[${partner.name}] 업체의 비밀번호를 초기값 '1234'로 변경하시겠습니까?`)) {
         partner.password = '1234';
-        
+
         const { error } = await _supabase
             .from('partners')
             .update({ pw: '1234' })
@@ -5878,8 +5895,12 @@ async function downloadTransactionStatementExcel() {
     worksheet.getCell('A3').value = `출력일시: ${new Date().toLocaleString()}`;
     worksheet.getCell('A3').alignment = { horizontal: 'right' };
 
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    const isPrinter = (role === 'printer' || role === 'printer_worker');
+    const companyHeaderLabel = isPrinter ? '회사명' : '출판사명';
+
     // Add columns header
-    const headerRow = worksheet.addRow(['일자', '출판사명', '도서명', '담당자', '단가(원)', '수량(부)', '공급가액(원)', '세액(원)', '합계금액(원)']);
+    const headerRow = worksheet.addRow(['일자', companyHeaderLabel, '도서명', '담당자', '단가(원)', '수량(부)', '공급가액(원)', '세액(원)', '합계금액(원)']);
     headerRow.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
         cell.font = { bold: true };
@@ -5888,30 +5909,30 @@ async function downloadTransactionStatementExcel() {
     });
 
     // Add data rows
-    const role = sessionStorage.getItem('userRole') || 'admin';
-    const isPrinter = (role === 'printer' || role === 'printer_worker');
-
     let totalSupply = 0;
     filteredData.forEach(item => {
         const rawQty = parseInt(String(item.qty).replace(/[^0-9]/g, '')) || 0;
         const computedCost = computePurchaseCost(item);
 
-        const supply = isPrinter 
-            ? computedCost 
+        const supply = isPrinter
+            ? computedCost
             : (parseInt(String(item.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
-        const unitPrice = isPrinter 
-            ? (rawQty > 0 ? Math.round(computedCost / rawQty) : 0) 
+        const unitPrice = isPrinter
+            ? (rawQty > 0 ? Math.round(computedCost / rawQty) : 0)
             : (parseInt(String(item.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
         const tax = Math.floor(supply * 0.1);
         const total = supply + tax;
 
+        const displayCompanyName = isPrinter ? "(주)한국리더십센터" : item.pubName;
+        const displayManagerName = isPrinter ? "서 상 원" : item.managerName;
+
         const row = worksheet.addRow([
             item.date,
-            item.pubName,
+            displayCompanyName,
             item.bookTitle,
-            item.managerName,
+            displayManagerName,
             unitPrice,
             rawQty,
             supply,
@@ -6735,13 +6756,13 @@ function initAgentControlChart() {
 }
 
 const AC_LOG_POOL = [
-    { type: 'success', agent: '[살피미]',       msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
-    { type: 'info',    agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
-    { type: 'warn',    agent: '[다듬이]',        msg: '절판 도서 {n}건 필터링 처리 중' },
-    { type: 'success', agent: '[눈치왕]',        msg: '에러 감지 0건 · 시스템 정상 운영 중' },
-    { type: 'info',    agent: '[알림이]',        msg: '복간 후보 보고서 초안 생성 완료' },
-    { type: 'success', agent: '[보안관]',        msg: '비정상 API 호출 0건 · 보안 이상 없음' },
-    { type: 'info',    agent: '[지킴이]',        msg: 'SQL Injection 스캔 완료 · 위협 없음' },
+    { type: 'success', agent: '[살피미]', msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
+    { type: 'info', agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
+    { type: 'warn', agent: '[다듬이]', msg: '절판 도서 {n}건 필터링 처리 중' },
+    { type: 'success', agent: '[눈치왕]', msg: '에러 감지 0건 · 시스템 정상 운영 중' },
+    { type: 'info', agent: '[알림이]', msg: '복간 후보 보고서 초안 생성 완료' },
+    { type: 'success', agent: '[보안관]', msg: '비정상 API 호출 0건 · 보안 이상 없음' },
+    { type: 'info', agent: '[지킴이]', msg: 'SQL Injection 스캔 완료 · 위협 없음' },
 ];
 
 let acLogIntervalId = null;
@@ -6800,7 +6821,7 @@ async function _fetchAndRenderAuditLogs() {
             const levelMap = { success: 'success', error: 'error', warn: 'warn', info: 'info' };
             const level = levelMap[log.log_level] || 'info';
             const dt = new Date(log.created_at);
-            const time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+            const time = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`;
 
             const div = document.createElement('div');
             div.className = `ac-log-entry ac-log-${level}`;
@@ -6822,7 +6843,7 @@ function _appendSimulatedLog(el) {
     const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
     const n = Math.floor(Math.random() * 50) + 50;
     const now = new Date();
-    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const div = document.createElement('div');
     div.className = `ac-log-entry ac-log-${pool.type}`;
     div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
@@ -6898,8 +6919,8 @@ function renderDynamicAgentOrgTree(agents) {
     if (!container) return;
 
     const deptMapping = {
-        'Front':    '📡 가치 창출 및 자율 서비스 본부',
-        'Back':     '⚙️ 인프라 엔진 및 행정 지원 본부',
+        'Front': '📡 가치 창출 및 자율 서비스 본부',
+        'Back': '⚙️ 인프라 엔진 및 행정 지원 본부',
         'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
     };
 
@@ -7074,11 +7095,11 @@ function renderDynamicReprintFeed(latestCandidates) {
         const author = (c.author || '미상').replace(/<\/?[^>]+(>|$)/g, "");
         const category = c.category || '미분류';
         const catClass = categoryStyles[category] || 'bg-slate-50 text-slate-500 border border-slate-200';
-        
+
         const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const publisher = c.publisher || '출판사 미상';
         const score = c.reprint_score || 0;
-        
+
         const simulatedBadge = c.is_simulated
             ? `<span class="inline-block bg-amber-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black animate-pulse align-middle shadow-sm ml-1.5">통계 보정 중</span>`
             : '';
@@ -7121,7 +7142,7 @@ function renderDynamicReprintFeed(latestCandidates) {
     window._latestFeedCandidates = latestCandidates;
 }
 
-window.startBookSimulationByFeedIsbn = function(isbn) {
+window.startBookSimulationByFeedIsbn = function (isbn) {
     const book = window._latestFeedCandidates?.find(b => b.isbn === isbn);
     if (book) {
         window.startBookSimulationByBook(book);
@@ -7133,11 +7154,11 @@ window.startBookSimulationByFeedIsbn = function(isbn) {
 // ============================================================
 
 let _flashlightModeActive = false;
-let _flashlightTimerId    = null;
+let _flashlightTimerId = null;
 
-window.toggleFlashlightMode = function() {
+window.toggleFlashlightMode = function () {
     const pageEl = document.getElementById('page-agent-control');
-    const btn    = document.getElementById('btn-flashlight-mode');
+    const btn = document.getElementById('btn-flashlight-mode');
 
     _flashlightModeActive = !_flashlightModeActive;
 
@@ -7145,9 +7166,9 @@ window.toggleFlashlightMode = function() {
         if (pageEl) pageEl.classList.add('ac-flashlight-active');
         if (btn) { btn.textContent = '⚡ 플래시 라이트 ON — 클릭 시 해제'; btn.classList.add('btn-flashlight-on'); }
 
-        const msgEl   = document.getElementById('orchestrator-msg');
+        const msgEl = document.getElementById('orchestrator-msg');
         const scoreEl = document.getElementById('orchestrator-score');
-        if (msgEl)   msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
+        if (msgEl) msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
         if (scoreEl) scoreEl.innerHTML = '67<span>%</span>';
 
         _insertWarningLogs();
@@ -7168,14 +7189,14 @@ function _insertWarningLogs() {
     const logEl = document.getElementById('ac-log-stream');
     if (!logEl) return;
     const warnings = [
-        { l: 'error',   a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
-        { l: 'warn',    a: '[살피미]',         m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
-        { l: 'warn',    a: '[보안관]',         m: '과부하 대응 2단계 방어 루틴 가동 완료' },
-        { l: 'success', a: '[눈치왕]',         m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
+        { l: 'error', a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
+        { l: 'warn', a: '[살피미]', m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
+        { l: 'warn', a: '[보안관]', m: '과부하 대응 2단계 방어 루틴 가동 완료' },
+        { l: 'success', a: '[눈치왕]', m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
     ];
     warnings.forEach(w => {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = `ac-log-entry ac-log-${w.l}`;
         div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">${w.a}</span><span>${w.m}</span>`;
@@ -7188,19 +7209,19 @@ function _autoRecoverFromFlashlight() {
     if (_flashlightTimerId) { clearInterval(_flashlightTimerId); _flashlightTimerId = null; }
     _flashlightModeActive = false;
     const pageEl = document.getElementById('page-agent-control');
-    const btn    = document.getElementById('btn-flashlight-mode');
+    const btn = document.getElementById('btn-flashlight-mode');
     if (pageEl) pageEl.classList.remove('ac-flashlight-active');
     if (btn) { btn.textContent = '⚡ 플래시 라이트 모드 시연'; btn.classList.remove('btn-flashlight-on'); }
 
-    const msgEl   = document.getElementById('orchestrator-msg');
+    const msgEl = document.getElementById('orchestrator-msg');
     const scoreEl = document.getElementById('orchestrator-score');
-    if (msgEl)   msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
+    if (msgEl) msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
     if (scoreEl) scoreEl.innerHTML = '95<span>%</span>';
 
     const logEl = document.getElementById('ac-log-stream');
     if (logEl) {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = 'ac-log-entry ac-log-success';
         div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>✅ 시스템 안정화 완료 — 전 에이전트 정상 운영 상태 복귀</span>`;
@@ -7212,11 +7233,11 @@ function _autoRecoverFromFlashlight() {
 // 🚀 파이프라인 수동 트리거 — 대시보드 버튼 연동
 // ============================================================
 
-window.triggerPipeline = async function() {
-    const pipeBtn  = document.getElementById('btn-trigger-pipeline');
+window.triggerPipeline = async function () {
+    const pipeBtn = document.getElementById('btn-trigger-pipeline');
     const statusEl = document.getElementById('pipeline-status-text');
-    const kwInput  = document.getElementById('pipeline-keyword-input');
-    const kw       = kwInput?.value?.trim() || '절판 도서';
+    const kwInput = document.getElementById('pipeline-keyword-input');
+    const kw = kwInput?.value?.trim() || '절판 도서';
 
     if (pipeBtn) { pipeBtn.disabled = true; pipeBtn.textContent = '⏳ 실행 중...'; }
     if (statusEl) { statusEl.textContent = `🔄 "${kw}" 검색 → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = '#f59e0b'; }
@@ -7226,7 +7247,7 @@ window.triggerPipeline = async function() {
             ? 'https://publish79.vercel.app/api/pipeline'
             : '/api/pipeline';
 
-        const res  = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
+        const res = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
         const data = await res.json();
 
         if (res.ok && data.success) {
@@ -7264,7 +7285,7 @@ window.triggerPipeline = async function() {
 
 let _approvalCheckInterval = null;
 
-window.startApprovalWatchdog = function(prId) {
+window.startApprovalWatchdog = function (prId) {
     if (_approvalCheckInterval) clearInterval(_approvalCheckInterval);
     const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'https://publish79.vercel.app/api/deploy-status'
@@ -7272,7 +7293,7 @@ window.startApprovalWatchdog = function(prId) {
 
     _approvalCheckInterval = setInterval(async () => {
         try {
-            const res  = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
+            const res = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
             if (!res.ok) return;
             const data = await res.json();
             if (data.status === 'APPROVED') {
@@ -7280,22 +7301,22 @@ window.startApprovalWatchdog = function(prId) {
                 _approvalCheckInterval = null;
                 _triggerApprovalCompleteAnimation();
             }
-        } catch (_) {}
+        } catch (_) { }
     }, 3000);
 };
 
 function _triggerApprovalCompleteAnimation() {
-    const msgEl   = document.getElementById('orchestrator-msg');
+    const msgEl = document.getElementById('orchestrator-msg');
     const scoreEl = document.getElementById('orchestrator-score');
-    if (msgEl)   msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
+    if (msgEl) msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
     if (scoreEl) scoreEl.innerHTML = '100<span>%</span>';
 
     document.querySelectorAll('.ac-agent-row').forEach((row, i) => {
         setTimeout(() => {
             row.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error');
             row.classList.add('ac-agent-active');
-            const dot     = row.querySelector('.ac-dot');
-            const taskEl  = row.querySelector('.ac-agent-task');
+            const dot = row.querySelector('.ac-dot');
+            const taskEl = row.querySelector('.ac-agent-task');
             if (dot && !dot.classList.contains('ac-dot-purple')) dot.className = 'ac-dot ac-dot-green';
             if (taskEl && (taskEl.textContent.includes('대기') || taskEl.textContent.includes('처리'))) {
                 taskEl.textContent = '🟢 조치 완료';
@@ -7306,7 +7327,7 @@ function _triggerApprovalCompleteAnimation() {
     const logEl = document.getElementById('ac-log-stream');
     if (logEl) {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = 'ac-log-entry ac-log-success';
         div.style.fontWeight = '900';
@@ -7322,7 +7343,7 @@ function _triggerApprovalCompleteAnimation() {
 // pdf-lib 및 fontkit 라이브러리 동적 로드 함수
 async function ensurePDFLibLoaded() {
     if (window.PDFLib && window.fontkit) return window.PDFLib;
-    
+
     const loadFontkit = () => new Promise((resolve, reject) => {
         if (window.fontkit) return resolve();
         const script = document.createElement('script');
@@ -7379,14 +7400,14 @@ async function writeAuditLogInDB(agentId, agentName, logLevel, message, metadata
 function updateLocalAgentStatus(agentId, status, role) {
     const container = document.getElementById('ac-org-tree');
     if (!container) return;
-    
+
     const rows = container.querySelectorAll('.ac-agent-row');
     rows.forEach(r => {
         if (r.textContent.includes(`${agentId}번`)) {
             r.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error', 'ac-agent-active');
             const dot = r.querySelector('.ac-dot');
             const task = r.querySelector('.ac-agent-task');
-            
+
             if (status === 'running') {
                 r.classList.add('ac-agent-running');
                 if (dot) dot.className = 'ac-dot ac-dot-amber';
@@ -7406,13 +7427,13 @@ function updateLocalAgentStatus(agentId, status, role) {
 }
 
 // 복간 후보 책선택 시뮬레이션 개시 메인 진입점
-window.startBookSimulationByIndex = async function(index) {
+window.startBookSimulationByIndex = async function (index) {
     const book = window._currentCandidates[index];
     if (!book) return;
     return window.startBookSimulationByBook(book);
 };
 
-window.startBookSimulationByBook = async function(book) {
+window.startBookSimulationByBook = async function (book) {
     if (!book) return;
 
     // Clean title and author of any HTML tags (e.g. search highlight span tags from API)
@@ -7578,7 +7599,7 @@ window.startBookSimulationByBook = async function(book) {
             error: 'text-rose-400 font-bold'
         };
         const color = colorMap[type] || 'text-slate-300';
-        
+
         const line = document.createElement('div');
         line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
         consoleEl.appendChild(line);
@@ -7592,7 +7613,7 @@ window.startBookSimulationByBook = async function(book) {
 
     // 2. 파이프라인 상태 시뮬레이션 시작
     logConsole(`[오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '오케스트레이터');
-    
+
     // Step 1 & 2 완료 상태로 리셋
     await updateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
     await updateAgentStatusInDB(1, 'success', '도서관 API 데이터 수집 완료');
@@ -7610,7 +7631,7 @@ window.startBookSimulationByBook = async function(book) {
         const step3Icon = document.getElementById('step-node-3-icon');
         const step3Text = document.getElementById('step-node-3-text');
         const step3Status = document.getElementById('step-node-3-status');
-        
+
         if (step3Icon) {
             step3Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
             step3Status.textContent = '진행중 (🟡)';
@@ -7626,10 +7647,10 @@ window.startBookSimulationByBook = async function(book) {
             const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'https://publish79.vercel.app/api/typeset'
                 : '/api/typeset';
-                
+
             // 글자수를 도서마다 다르게 시뮬레이션 (수요지수 기반으로 비례 계산해서 10만자 ~ 22만자)
             const simulatedChars = Math.floor((book.reprint_score || 50) * 1500 + 80000);
-            
+
             const typesetRes = await fetch(typesetEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -7669,7 +7690,7 @@ window.startBookSimulationByBook = async function(book) {
                 const step4Icon = document.getElementById('step-node-4-icon');
                 const step4Text = document.getElementById('step-node-4-text');
                 const step4Status = document.getElementById('step-node-4-status');
-                
+
                 if (step4Icon) {
                     step4Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
                     step4Status.textContent = '진행중 (🟡)';
@@ -7712,7 +7733,7 @@ window.startBookSimulationByBook = async function(book) {
                         if (s.specName.includes('A5국판')) rollSpecName = 'A5국판';
                         else if (s.specName.includes('46배판형')) rollSpecName = '46배판';
                         else if (s.specName.includes('국배판')) rollSpecName = '국배판';
-                        
+
                         const match = gradeData?.rollSpecs?.find(x => x.n && x.n.includes(rollSpecName));
                         if (match && match.ivs) {
                             const interval = match.ivs.find(iv => qty >= iv.s && qty <= iv.e);
@@ -7733,13 +7754,13 @@ window.startBookSimulationByBook = async function(book) {
                     const totalBindingCost = qty * bindingCost;
 
                     const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
-                    const unitCost  = Math.round(totalCost / qty);
+                    const unitCost = Math.round(totalCost / qty);
 
                     let retailPrice = 15000;
-                    if (s.specName.includes('국배판'))  retailPrice = 24000;
+                    if (s.specName.includes('국배판')) retailPrice = 24000;
                     else if (s.specName.includes('46배판형')) retailPrice = 21000;
                     else if (s.specName.includes('신국판')) retailPrice = 18500;
-                    else if (s.specName.includes('A5국판'))  retailPrice = 16800;
+                    else if (s.specName.includes('A5국판')) retailPrice = 16800;
                     else retailPrice = 14800;
 
                     const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
@@ -7772,7 +7793,7 @@ window.startBookSimulationByBook = async function(book) {
                     const step5Icon = document.getElementById('step-node-5-icon');
                     const step5Text = document.getElementById('step-node-5-text');
                     const step5Status = document.getElementById('step-node-5-status');
-                    
+
                     if (step5Icon) {
                         step5Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
                         step5Status.textContent = '대기중 (🟡)';
@@ -7788,18 +7809,18 @@ window.startBookSimulationByBook = async function(book) {
                     const decisionGrid = document.getElementById('sim-decision-grid');
                     if (decisionArea && decisionGrid) {
                         decisionArea.classList.remove('hidden');
-                        
+
                         // Save calculated specs globally to prevent quote escaping bugs
                         window._currentCalculatedSpecs = calculatedSpecs;
 
                         decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => {
-                            const recommendBadge = s.isRecommended 
+                            const recommendBadge = s.isRecommended
                                 ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest shadow-md border border-sky-400">BEST RECOMMEND</span>`
                                 : '';
                             const borderClass = s.isRecommended
                                 ? 'border-sky-500 shadow-xl shadow-sky-500/5 ring-2 ring-sky-500/20 bg-sky-50/10'
                                 : 'border-slate-200 hover:border-slate-300';
-                            
+
                             return `
                             <div class="relative bg-white border ${borderClass} rounded-2xl p-5 flex flex-col justify-between h-72 transition-all duration-300 hover:-translate-y-1">
                                 ${recommendBadge}
@@ -7864,9 +7885,9 @@ window.startBookSimulationByBook = async function(book) {
 // ==========================================
 // STEP 6: CEO (대표님 승인 및 PDF/커버 렌더링)
 // ==========================================
-window.approveBookSpec = async function(specIndex) {
+window.approveBookSpec = async function (specIndex) {
     let title, specName, pages, spineMm, unitCost, retailPrice, marginRate;
-    
+
     if (typeof specIndex === 'number' || !isNaN(specIndex)) {
         const book = window._currentSimBook;
         const spec = window._currentCalculatedSpecs[specIndex];
@@ -7875,7 +7896,7 @@ window.approveBookSpec = async function(specIndex) {
             return;
         }
         window._approvedSpec = spec;
-        
+
         title = book.title;
         specName = spec.specName;
         pages = spec.pages;
@@ -7892,7 +7913,7 @@ window.approveBookSpec = async function(specIndex) {
         unitCost = arguments[4];
         retailPrice = arguments[5];
         marginRate = arguments[6];
-        
+
         window._approvedSpec = {
             specName,
             pages,
@@ -7979,7 +8000,7 @@ window.approveBookSpec = async function(specIndex) {
     const step6Icon = document.getElementById('step-node-6-icon');
     const step6Text = document.getElementById('step-node-6-text');
     const step6Status = document.getElementById('step-node-6-status');
-    
+
     if (step6Icon) {
         step6Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
         step6Status.textContent = '조판 중 (🟡)';
@@ -7994,10 +8015,10 @@ window.approveBookSpec = async function(specIndex) {
     const compArea = document.getElementById('sim-compilation-area');
     const compProgress = document.getElementById('sim-compilation-progress');
     const compStatus = document.getElementById('sim-compilation-status');
-    
+
     if (compArea) {
         compArea.classList.remove('hidden');
-        
+
         // 스크롤 이동
         const body = document.getElementById('simulation-body');
         if (body) {
@@ -8024,13 +8045,13 @@ window.approveBookSpec = async function(specIndex) {
                 logConsole(`[VDP_조판사] 쪽번호 및 머리말 폰트 아웃라인 컴파일 및 CMYK 색상 보정 중...`, 'info', 4, 'VDP_조판사');
             } else if (progress >= 100) {
                 clearInterval(interval);
-                
+
                 // 조판 API 최종 통보
                 try {
                     const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                         ? 'https://publish79.vercel.app/api/typeset'
                         : '/api/typeset';
-                        
+
                     await fetch(typesetEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -8040,7 +8061,7 @@ window.approveBookSpec = async function(specIndex) {
                             selectedSpec: specName
                         })
                     });
-                } catch (_) {}
+                } catch (_) { }
 
                 logConsole(`[VDP_조판사] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, 'VDP_조판사');
                 updateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${specName})`);
@@ -8068,7 +8089,7 @@ window.approveBookSpec = async function(specIndex) {
                     const coverArea = document.getElementById('sim-cover-area');
                     if (coverArea) {
                         coverArea.classList.remove('hidden');
-                        
+
                         // 스크롤 이동
                         const body = document.getElementById('simulation-body');
                         if (body) {
@@ -8076,14 +8097,14 @@ window.approveBookSpec = async function(specIndex) {
                                 body.scrollTo({
                                     top: coverArea.offsetTop - 20,
                                     behavior: 'smooth'
-                                    });
+                                });
                             }, 300);
                         }
 
                         // Canvas 기반 북 커버 실시간 드로잉
                         drawBookCoverCanvas(title, specName, spineMm);
                         logConsole(`[디자이너] 책등 폭 ${spineMm}mm를 포함하는 북 커버 전개도(앞표지 + 책등 + 뒤표지) 디자인 최종 렌더링 완료.`, 'success', 6, '디자이너');
-                        
+
                         // Step 6 최종 조판/디자인 완료 처리
                         if (step6Icon) {
                             step6Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
@@ -8091,7 +8112,7 @@ window.approveBookSpec = async function(specIndex) {
                             step6Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
                         }
                         updateLocalAgentStatus(6, 'success', '표지 디자인 완료');
-                        
+
                         // 13번 오케스트레이터 완료 처리
                         updateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
                         logConsole(`[오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '오케스트레이터');
@@ -8150,20 +8171,20 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.strokeStyle = '#64748b'; // 차분한 슬레이트 회색선
     ctx.lineWidth = 0.8;
     ctx.setLineDash([]); // 실선
-    
+
     // 네 모퉁이 재단선 (Trim 경계 표시)
     // Top-Left (20, 20)
     ctx.beginPath(); ctx.moveTo(20, 3); ctx.lineTo(20, 15); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(3, 20); ctx.lineTo(15, 20); ctx.stroke();
-    
+
     // Top-Right (20 + totalWidth, 20)
     ctx.beginPath(); ctx.moveTo(20 + totalWidth, 3); ctx.lineTo(20 + totalWidth, 15); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20); ctx.lineTo(20 + totalWidth + 17, 20); ctx.stroke();
-    
+
     // Bottom-Left (20, 20 + height)
     ctx.beginPath(); ctx.moveTo(20, 20 + height + 5); ctx.lineTo(20, 20 + height + 17); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(3, 20 + height); ctx.lineTo(15, 20 + height); ctx.stroke();
-    
+
     // Bottom-Right (20 + totalWidth, 20 + height)
     ctx.beginPath(); ctx.moveTo(20 + totalWidth, 20 + height + 5); ctx.lineTo(20 + totalWidth, 20 + height + 17); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20 + height); ctx.lineTo(20 + totalWidth + 17, 20 + height); ctx.stroke();
@@ -8203,7 +8224,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.beginPath(); ctx.moveTo(xSpineRight, 20); ctx.lineTo(xSpineRight, height + 20); ctx.stroke();
     // 접지선 4: 앞표지 - 앞날개 경계
     ctx.beginPath(); ctx.moveTo(xRightWing, 20); ctx.lineTo(xRightWing, height + 20); ctx.stroke();
-    
+
     ctx.setLineDash([]); // 대시 리셋
 
     // 텍스트 랩핑 헬퍼 함수
@@ -8238,7 +8259,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '700 8px sans-serif';
     ctx.fillText('출판친구 복간 프로젝트 v1.2', xLeftWing + 20, 45);
-    
+
     // 바코드 모의 드로잉
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(xLeftWing + 20, height - 50, 60, 35);
@@ -8256,7 +8277,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.rotate(Math.PI / 2);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    
+
     if (spineMm >= 10) {
         ctx.font = '700 9px sans-serif';
         ctx.fillText(title.substring(0, 15), 0, 3);
@@ -8307,7 +8328,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.moveTo(xSpineLeft, height + 28);
     ctx.lineTo(xSpineRight, height + 28);
     ctx.stroke();
-    
+
     // 치수 보조선
     ctx.beginPath();
     ctx.moveTo(xSpineLeft, height + 24); ctx.lineTo(xSpineLeft, height + 32);
@@ -8321,10 +8342,10 @@ function drawBookCoverCanvas(title, specName, spineMm) {
 }
 
 // 북 커버 이미지 다운로드 (하위 호환성 유지)
-window.downloadCoverImage = function() {
+window.downloadCoverImage = function () {
     const canvas = document.getElementById('sim-cover-canvas');
     if (!canvas) return;
-    
+
     const link = document.createElement('a');
     link.download = `북커버_펼침면_디자인.png`;
     link.href = canvas.toDataURL('image/png');
@@ -8332,30 +8353,30 @@ window.downloadCoverImage = function() {
 };
 
 // 북 커버 펼침면 PDF 다운로드 (Step 8)
-window.downloadCoverPDF = async function() {
+window.downloadCoverPDF = async function () {
     const canvas = document.getElementById('sim-cover-canvas');
     if (!canvas) return;
-    
+
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
-        
+
         // 캔버스 실시간 디자인 이미지를 PNG 데이터로 변환하여 임베딩
         const imgDataUrl = canvas.toDataURL('image/png');
         const pngImage = await pdfDoc.embedPng(imgDataUrl);
-        
+
         // 캔버스 비율/해상도를 1:1로 보존하여 펼침면 단일 페이지 PDF 생성
         const width = canvas.width;
         const height = canvas.height;
         const page = pdfDoc.addPage([width, height]);
-        
+
         page.drawImage(pngImage, {
             x: 0,
             y: 0,
             width: width,
             height: height
         });
-        
+
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
@@ -8371,7 +8392,7 @@ window.downloadCoverPDF = async function() {
 // ==========================================
 // pdf-lib 기반 고해상도 PDF 다운로드 컴파일러 (Step 7)
 // ==========================================
-window.generateAndDownloadReprintPDF = async function(title, specName, pages, spineMm) {
+window.generateAndDownloadReprintPDF = async function (title, specName, pages, spineMm) {
     if (!title) {
         const book = window._currentSimBook;
         const spec = window._approvedSpec;
@@ -8384,16 +8405,16 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
-        
+
         // fontkit 등록 (TTF 폰트 파일 파싱 및 임베딩에 반드시 필요)
         if (window.fontkit) {
             pdfDoc.registerFontkit(window.fontkit);
         }
-        
+
         // 나눔명조/나눔고딕 한글 폰트 동적 로딩 루프 (CORS 및 로딩 속도 최적화, fallback 방지)
         let customFont;
         let useFallback = false;
-        
+
         const fontUrls = [
             './NanumMyeongjo.ttf', // 1순위: 로컬 호스팅 (CORS 및 CSP 블로킹 우회 및 초고속 로딩)
             'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
@@ -8402,7 +8423,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf',
             'https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
         ];
-        
+
         for (const url of fontUrls) {
             try {
                 console.log(`[PDF] 한글 폰트 로드 시도: ${url}`);
@@ -8417,7 +8438,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 console.warn(`[PDF] 한글 폰트 로드 실패 (${url}):`, e.message);
             }
         }
-        
+
         if (!customFont) {
             console.warn("[PDF] 모든 한글 폰트 로드 실패, ASCII 대체 모드로 전환합니다.");
             useFallback = true;
@@ -8429,14 +8450,14 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             const r = parseInt(hex.substring(0, 2), 16) / 255;
             const g = parseInt(hex.substring(2, 4), 16) / 255;
             const b = parseInt(hex.substring(4, 6), 16) / 255;
-            
+
             const options = {
                 x: x,
                 y: y,
                 size: size,
                 color: PDFLib.rgb(r, g, b)
             };
-            
+
             if (useFallback || !customFont) {
                 const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
                 page.drawText(asciiText, options);
@@ -8459,10 +8480,10 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             '46판': { w: 128, h: 188 },
             '국배판': { w: 210, h: 297 }
         };
-        
+
         let trimWidthMm = 152;
         let trimHeightMm = 225;
-        
+
         for (const key in specDimensions) {
             if (specName.includes(key)) {
                 trimWidthMm = specDimensions[key].w;
@@ -8470,17 +8491,17 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 break;
             }
         }
-        
+
         const mmToPt = 72 / 25.4;
         const trimWidth = trimWidthMm * mmToPt;
         const trimHeight = trimHeightMm * mmToPt;
-        
+
         const pageW = 595.275; // A4 가로 (pt)
         const pageH = 841.889; // A4 세로 (pt)
-        
+
         const xOffset = (pageW - trimWidth) / 2;
         const yOffset = (pageH - trimHeight) / 2;
-        
+
         // 십자형 재단선 드로잉 헬퍼
         const drawCropMarkAtCorner = (page, cx, cy) => {
             // 가로선
@@ -8510,7 +8531,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 color: PDFLib.rgb(0.39, 0.45, 0.55),
             });
         };
-        
+
         const applyPageLayoutAndDielines = (page) => {
             // 1. 실제 재단 영역 (Trim Box: 회색 점선)
             page.drawRectangle({
@@ -8549,7 +8570,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         // 본문 텍스트가 Centered Trim Box 내부로 가도록 위치 자동 계산
         const page1ContentX = xOffset + 30;
         const page1ContentY = yOffset + trimHeight - 60;
-        
+
         drawTextSafely(page1, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
         drawTextSafely(page1, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page1ContentX, page1ContentY, 11, '#475569');
         drawTextSafely(page1, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page1ContentX, page1ContentY - 30, 9, '#64748b');
@@ -8561,7 +8582,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         link.href = URL.createObjectURL(blob);
         link.download = `[인쇄용_최종조판]_${title}_${specName}.pdf`;
         link.click();
-        
+
     } catch (err) {
         alert('PDF 생성 오류: ' + err.message);
     }
@@ -8570,7 +8591,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
 // ==========================================
 // 마스터 도서 리스트 최종 적재 및 모달 닫기
 // ==========================================
-window.autoRegisterProductToMASTER = async function(title, specName, pages, spineMm, unitCost, retailPrice) {
+window.autoRegisterProductToMASTER = async function (title, specName, pages, spineMm, unitCost, retailPrice) {
     if (!title) {
         const book = window._currentSimBook;
         const spec = window._approvedSpec;
@@ -8584,7 +8605,7 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
     }
     // 1. 중복 검사
     const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
-    
+
     // 앞표지만 크롭하여 고도로 최적화된 저용량 JPEG 썸네일 이미지 생성 (웹 로딩 속도 최적화)
     let frontCoverImage = '';
     const mainCanvas = document.getElementById('sim-cover-canvas');
@@ -8594,31 +8615,31 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
             tempCanvas.width = 300;
             tempCanvas.height = 400;
             const tempCtx = tempCanvas.getContext('2d');
-            
+
             // 5단 전개도에서 앞표지의 정확한 좌표 및 너비/높이 산출
             const wingWidth = 100;
             const baseWidth = 200;
             const spineWidth = Math.max(spineMm * 3.5, 12);
-            
+
             const sourceX = 20 + wingWidth + baseWidth + spineWidth;
             const sourceY = 20;
             const sourceWidth = baseWidth;
             const sourceHeight = 240;
-            
+
             // 앞표지 영역 크롭 및 리사이징
             tempCtx.drawImage(
-                mainCanvas, 
-                sourceX, sourceY, sourceWidth, sourceHeight, 
+                mainCanvas,
+                sourceX, sourceY, sourceWidth, sourceHeight,
                 0, 0, 300, 400
             );
-            
+
             // 85% 품질의 가벼운 JPEG로 압축 변환 (평균 25~35KB 수준)
             frontCoverImage = tempCanvas.toDataURL('image/jpeg', 0.85);
         } catch (e) {
             console.error("Failed to crop front cover image:", e);
         }
     }
-    
+
     const productData = {
         id: 'prod_' + Date.now(),
         title: title,
@@ -8683,14 +8704,14 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
     // 마스터 데이터 세이브 및 UI 갱신
     await saveMasterDataSilent();
     closeSimulationModal();
-    
+
     // 판매 도서 리스트를 띄우고 있는 경우 갱신
     if (typeof renderProductList === 'function') renderProductList();
 
     alert(`'${title}' (${specName}) 도서가 마스터 상품 카탈로그 DB에 성공적으로 등록되었습니다. 대형 온라인 서점 API 실시간 드롭쉬핑 연동 대기 상태입니다.`);
 };
 
-window.closeSimulationModal = function() {
+window.closeSimulationModal = function () {
     const modal = document.getElementById('simulation-modal');
     if (modal) {
         modal.classList.add('fade-out');
@@ -9102,7 +9123,7 @@ function renderAdminSettlementTrafficLight() {
                 status: 'white'
             };
         }
-        
+
         const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
         publisherMap[o.pubName].totalAmount += finalPrice;
         publisherMap[o.pubName].orders.push(o);
@@ -9206,18 +9227,18 @@ function openTaxInvoiceOptionModal(pubName) {
     if (!modal || !listContainer) return;
 
     subtitle.textContent = `[${pubName}] 출판사의 담당자별 발주 내역을 확인하고 발행 형태를 선택하세요.`;
-    
+
     // 계산서 요청 상태인 주문만 안전하게 필터링
     const targetOrders = (MASTER.orders || []).filter(o => o.pubName === pubName && o.taxInvoiceStatus === 'requested');
     const managerMap = {};
-    
+
     targetOrders.forEach(o => {
         const mName = o.managerName || '담당자미지정';
         if (!managerMap[mName]) managerMap[mName] = { count: 0, total: 0 };
-        
+
         // 1원 오차 방지: 기존 정산 합산 수식과 100% 일치
         const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
-        
+
         managerMap[mName].count += 1;
         managerMap[mName].total += finalPrice;
     });
@@ -9265,13 +9286,13 @@ function approveTaxInvoiceIssueWithOptions(pubName, optionType) {
     }
 
     const timestamp = new Date().toISOString();
-    
+
     // Supabase DB 업데이트 요청들을 병렬 처리
     const promises = targets.map(o => {
         o.taxInvoiceStatus = 'issued';
         o.taxInvoiceType = optionType;
         o.taxInvoiceIssuedAt = timestamp;
-        
+
         o.data = o.data || {};
         o.data.taxInvoiceStatus = 'issued';
         o.data.taxInvoiceType = optionType;
