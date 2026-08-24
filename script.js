@@ -2004,16 +2004,18 @@ function sync() {
             addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
             each += innerPrintCost;
 
-            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 등급별 sheetCommons 직접 조회
             const innerPaper = document.getElementById('ord-inner')?.value || '';
-            if (innerPaper.includes('100g')) {
-                let surcharge = tp * findCommon('100g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (100g)', surcharge);
-            } else if (innerPaper.includes('120g')) {
-                let surcharge = tp * findCommon('120g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (120g)', surcharge);
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                const paperKey = '용지할증_' + innerPaper;
+                let surchargeRate = (priceData.sheetCommons[paperKey] !== undefined)
+                    ? priceData.sheetCommons[paperKey]
+                    : 0;
+                if (surchargeRate > 0) {
+                    let surcharge = tp * surchargeRate;
+                    each += surcharge;
+                    addLog(`내지 용지 할증 (${innerPaper})`, surcharge);
+                }
             }
 
             // [하이브리드 개편] 기존 5대 공통 그룹 합산
@@ -2098,16 +2100,18 @@ function sync() {
             addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
             each += innerPrintCost;
 
-            // 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            // 내지 용지 할증 (100g, 120g 대상) - 등급별 rollCommons 직접 조회
             const innerPaper = document.getElementById('ord-inner')?.value || '';
-            if (innerPaper.includes('100g')) {
-                let surcharge = tp * findCommon('100g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (100g)', surcharge);
-            } else if (innerPaper.includes('120g')) {
-                let surcharge = tp * findCommon('120g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (120g)', surcharge);
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                const paperKey = '용지할증_' + innerPaper;
+                let surchargeRate = (priceData.rollCommons && priceData.rollCommons[paperKey] !== undefined)
+                    ? priceData.rollCommons[paperKey]
+                    : 0;
+                if (surchargeRate > 0) {
+                    let surcharge = tp * surchargeRate;
+                    each += surcharge;
+                    addLog(`내지 용지 할증 (${innerPaper})`, surcharge);
+                }
             }
 
             // 1. 표지 관련 비용 (날개 유무에 따른 연속지 슬라이딩 단가 유지 - Hybrid)
@@ -3727,8 +3731,12 @@ function computePurchaseCost(order) {
             }
 
             let paperSur = 0;
-            if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
-            else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (costData.sheetCommons && costData.sheetCommons[paperKey] !== undefined)
+                    ? costData.sheetCommons[paperKey]
+                    : 0;
+            }
 
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -3782,8 +3790,12 @@ function computePurchaseCost(order) {
                 }
 
                 let paperSur = 0;
-                if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
-                else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+                const paperKey = '용지할증_' + innerPaper;
+                if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                    paperSur = (costData.rollCommons && costData.rollCommons[paperKey] !== undefined)
+                        ? costData.rollCommons[paperKey]
+                        : 0;
+                }
 
                 innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
                 if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -3793,7 +3805,22 @@ function computePurchaseCost(order) {
                     innerUnit1 += costData.rollCommons[innerPrintKey];
                 }
 
-                cost = coverUnit + innerUnit1 + innerUnit2;
+                let faceCost = 0;
+                const facePaper = order.data['ord-face'];
+                const faceInsert = order.data['ord-face-insert'];
+                if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                    let mult = String(faceInsert).includes('4P') ? 4 : (String(faceInsert).includes('8P') ? 8 : 0);
+                    let faceUnitPrice = 0;
+                    if (costData.rollCommons) {
+                        const rollKey = Object.keys(costData.rollCommons).find(k => k.includes('면지'));
+                        if (rollKey !== undefined && costData.rollCommons[rollKey] > 0) {
+                            faceUnitPrice = costData.rollCommons[rollKey];
+                        }
+                    }
+                    faceCost = faceUnitPrice * mult;
+                }
+
+                cost = coverUnit + innerUnit1 + innerUnit2 + faceCost;
             }
         }
     }
@@ -4238,8 +4265,13 @@ async function downloadExcel(id) {
             }
 
             let paperSur = 0;
-            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            const innerPaper = d['ord-inner'] || '';
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (priceData.sheetCommons && priceData.sheetCommons[paperKey] !== undefined)
+                    ? priceData.sheetCommons[paperKey]
+                    : 0;
+            }
 
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -4283,8 +4315,13 @@ async function downloadExcel(id) {
             }
 
             let paperSur = 0;
-            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
+            const innerPaper = d['ord-inner'] || '';
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (priceData.rollCommons && priceData.rollCommons[paperKey] !== undefined)
+                    ? priceData.rollCommons[paperKey]
+                    : 0;
+            }
 
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -4344,7 +4381,18 @@ async function downloadExcel(id) {
 
             if (faceInsert && faceInsert !== '없음') {
                 const mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
-                faceUnit = (spec.face || 0) * mult;
+                if (order.mode === 'roll') {
+                    let faceUnitPrice = 0;
+                    if (priceData.rollCommons) {
+                        const rollKey = Object.keys(priceData.rollCommons).find(k => k.includes('면지'));
+                        if (rollKey !== undefined && priceData.rollCommons[rollKey] > 0) {
+                            faceUnitPrice = priceData.rollCommons[rollKey];
+                        }
+                    }
+                    faceUnit = faceUnitPrice * mult;
+                } else {
+                    faceUnit = (spec.face || 0) * mult;
+                }
                 faceSupply = faceUnit * qty;
                 faceVat = Math.floor(faceSupply / 10);
             }
