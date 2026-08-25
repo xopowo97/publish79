@@ -4548,9 +4548,9 @@ async function downloadWorkRequestExcel(id) {
             innerWorker = '구의동';
         } else {
             innerWorker = '칼라미';
-            // 올컬러, 부분컬러 ➔ 캐논 / 올흑백 ➔ 인디고
-            const isColorOrPartColor = innerPrint.includes('컬러') || innerPrint.includes('칼라') || innerPrint.includes('부분');
-            innerDevice = isColorOrPartColor ? '캐논' : '인디고';
+            // 올컬러(부분컬러 제외) ➔ 캐논 / 부분컬러, 올흑백 ➔ 인디고
+            const isAllColor = (innerPrint.includes('컬러') || innerPrint.includes('칼라')) && !innerPrint.includes('부분');
+            innerDevice = isAllColor ? '캐논' : '인디고';
         }
 
         let coverWorker = '';
@@ -4658,8 +4658,7 @@ async function downloadWorkRequestExcel(id) {
         worksheet.getCell('N12').value = d['ord-spec'] || 'A5국판';
         worksheet.getCell('O12').value = parseInt(d['ord-tp']) || 0;
         
-        // 비고란 B13 행 높이를 120px로 동적으로 늘려주어 주소지가 잘리지 않게 방어
-        worksheet.getRow(13).height = 120;
+        // 비고란 B13 행 기입 (행 높이는 손상을 피하기 위해 템플릿 엑셀 자체에서 늘려서 관리)
         worksheet.getCell('B13').value = remarks;
 
         const safeTitle = (order.bookTitle || '작업요청서').replace(/[\\/:*?"<>|]/g, '_');
