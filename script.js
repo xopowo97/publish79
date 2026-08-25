@@ -4548,14 +4548,16 @@ async function downloadWorkRequestExcel(id) {
             innerWorker = '구의동';
         } else {
             innerWorker = '칼라미';
-            innerDevice = isColorInner ? '캐논' : '인디고';
+            // 올컬러, 부분컬러 ➔ 캐논 / 올흑백 ➔ 인디고
+            const isColorOrPartColor = innerPrint.includes('컬러') || innerPrint.includes('칼라') || innerPrint.includes('부분');
+            innerDevice = isColorOrPartColor ? '캐논' : '인디고';
         }
 
         let coverWorker = '';
         let coverExtra = '';
         if (hasWing) {
             coverWorker = '칼라미';
-            coverExtra = '날개 있음 (외주가공 입고분)';
+            coverExtra = '날개 있음';
         } else {
             coverWorker = isRoll ? '구의동' : '칼라미';
             coverExtra = '날개 없음';
@@ -4597,7 +4599,7 @@ async function downloadWorkRequestExcel(id) {
         const ddVal = String(todayDate.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}${mmVal}${ddVal}`;
 
-        worksheet.getCell('B1').value = `${order.pubName} _작업요청서_${todayStr}`;
+        worksheet.getCell('B1').value = `한국리더십센터 _작업요청서_${todayStr}`;
         worksheet.getCell('O3').value = todayDate; 
         worksheet.getCell('C4').value = order.pubName; 
         worksheet.getCell('F4').value = order.bookTitle; 
@@ -4614,9 +4616,7 @@ async function downloadWorkRequestExcel(id) {
         
         worksheet.getCell('M4').value = d['ord-delivery-method'] || '택배'; 
         
-        const partnerInfo = MASTER.partners.find(p => p.name === order.pubName) || {};
-        const managerContact = partnerInfo.managerContact || '';
-        worksheet.getCell('O4').value = `${order.managerName || ''}\n${managerContact}`; 
+        worksheet.getCell('O4').value = `권신애\n010-8182-8189`; 
         
         worksheet.getCell('B9').value = order.bookTitle;
         worksheet.getCell('C9').value = '표지';
@@ -4627,13 +4627,18 @@ async function downloadWorkRequestExcel(id) {
         worksheet.getCell('H9').value = '컬러';
         worksheet.getCell('I9').value = '단면';
         worksheet.getCell('J9').value = d['ord-cover'] || '스노우화이트';
-        worksheet.getCell('K9').value = parseInt(d['ord-cover-weight']) || 250;
+        
+        // 표지 용지명에서 평량 숫자 추출 가드 (예: 스노우지 250g -> 250)
+        const coverPaperText = d['ord-cover'] || '';
+        const coverWeightNum = parseInt(coverPaperText.replace(/[^0-9]/g, '')) || parseInt(d['ord-cover-weight']) || 250;
+        worksheet.getCell('K9').value = coverWeightNum;
+        
         worksheet.getCell('L9').value = parseInt(order.qty) || 0;
         worksheet.getCell('M9').value = coverExtra;
         worksheet.getCell('N9').value = d['ord-spec'] || 'A5국판';
         worksheet.getCell('O9').value = 4;
         
-        worksheet.getCell('B12').value = order.bookTitle;
+        // B12 (내지 교재명) 셀은 템플릿의 기존 수식(=B9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
         worksheet.getCell('C12').value = '내지';
         worksheet.getCell('D12').value = innerWorker;
         worksheet.getCell('E12').value = 'X';
@@ -4642,12 +4647,19 @@ async function downloadWorkRequestExcel(id) {
         worksheet.getCell('H12').value = isColorInner ? '컬러' : '흑백';
         worksheet.getCell('I12').value = '양면';
         worksheet.getCell('J12').value = d['ord-inner'] || '미색모조';
-        worksheet.getCell('K12').value = parseInt(d['ord-inner-weight']) || 80;
-        worksheet.getCell('L12').value = parseInt(order.qty) || 0;
+        
+        // 내지 용지명에서 평량 숫자 추출 가드 (예: 백모조 100g -> 100)
+        const innerPaperText = d['ord-inner'] || '';
+        const innerWeightNum = parseInt(innerPaperText.replace(/[^0-9]/g, '')) || parseInt(d['ord-inner-weight']) || 80;
+        worksheet.getCell('K12').value = innerWeightNum;
+        
+        // L12 (내지 부수) 셀은 템플릿의 기존 수식(=L9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
         worksheet.getCell('M12').value = coverExtra;
         worksheet.getCell('N12').value = d['ord-spec'] || 'A5국판';
         worksheet.getCell('O12').value = parseInt(d['ord-tp']) || 0;
         
+        // 비고란 B13 행 높이를 120px로 동적으로 늘려주어 주소지가 잘리지 않게 방어
+        worksheet.getRow(13).height = 120;
         worksheet.getCell('B13').value = remarks;
 
         const safeTitle = (order.bookTitle || '작업요청서').replace(/[\\/:*?"<>|]/g, '_');
