@@ -3457,6 +3457,16 @@ function renderSettlementTable() {
             ? `${o.date}<br><span style="color:#d97706; font-size:11px; font-weight:bold;">(납기: ${dDateShort})</span>`
             : o.date;
 
+        let btnHtml = '';
+        if (isPublisher) {
+            btnHtml = `<button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>`;
+        } else {
+            btnHtml = `
+                <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                <button onclick="downloadWorkRequestExcel('${o.id}')" class="btn-table btn-work-request" style="background:#0284c7; color:white; border:none; margin-left:4px;">작업요청서</button>
+            `;
+        }
+
         return `
             <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
                 <td class="td-style">${dateHtml}</td>
@@ -3478,7 +3488,7 @@ function renderSettlementTable() {
                 <td class="td-style text-center">
                     <div class="btn-group">
                         ${editBtn}
-                        <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                        ${btnHtml}
                         ${adminFinalizeBtn}
                         ${deleteBtn}
                     </div>
@@ -4497,6 +4507,162 @@ async function downloadExcel(id) {
     } catch (error) {
         console.error('Purchase Order Export Error:', error);
         alert('발주서 생성 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+function getDayOfWeek(dateStr) {
+    if (!dateStr) return '';
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const date = new Date(dateStr);
+    return days[date.getDay()];
+}
+
+async function downloadWorkRequestExcel(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return alert('주문 데이터를 찾을 수 없습니다.');
+
+    try {
+        const response = await fetch('/작업요청서.xlsx');
+        if (!response.ok) throw new Error('작업요청서 템플릿 파일을 서버에서 불러올 수 없습니다.');
+        const arrayBuffer = await response.arrayBuffer();
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
+        if (!worksheet) throw new Error('엑셀 파일 내 시트를 찾을 수 없습니다.');
+
+        const d = order.data || {};
+        const mode = order.mode; 
+        const isRoll = mode === 'roll';
+        
+        const wing = d['ord-wing'] || '날개 없음';
+        const hasWing = wing.includes('날개 있음');
+
+        const innerPrint = d['ord-inner-print'] || '흑백단면';
+        const isColorInner = innerPrint.includes('컬러');
+
+        let innerDevice = '';
+        let innerWorker = '';
+        if (isRoll) {
+            innerDevice = 'JP1160';
+            innerWorker = '구의동';
+        } else {
+            innerWorker = '칼라미';
+            innerDevice = isColorInner ? '캐논' : '인디고';
+        }
+
+        let coverWorker = '';
+        let coverExtra = '';
+        if (hasWing) {
+            coverWorker = '칼라미';
+            coverExtra = '날개 있음 (외주가공 입고분)';
+        } else {
+            coverWorker = isRoll ? '구의동' : '칼라미';
+            coverExtra = '날개 없음';
+        }
+
+        let remarks = '';
+        const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+            const memo = del.memo || '';
+            return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+        });
+        if (hasWrappingReq) {
+            remarks += `* 1권씩 래핑후 납품요청\n\n`;
+        }
+
+        remarks += `* [생산 공정 지시]\n`;
+        if (isRoll && hasWing) {
+            remarks += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.\n`;
+            remarks += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.\n`;
+            remarks += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.\n\n`;
+        } else if (!isRoll && !hasWing) {
+            remarks += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.\n\n`;
+        } else {
+            remarks += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]\n`;
+            remarks += `  - 제본 완료 후 최종 배송.\n\n`;
+        }
+
+        remarks += `* 배송처\n`;
+        if (order.deliveries && order.deliveries.length > 0) {
+            order.deliveries.forEach((del, index) => {
+                remarks += `${index + 1}. ${del.address} ${del.addressDetail || ''} / 수령인: ${del.recipient} (${del.contact}) - ${del.qty}부`;
+                if (del.memo) remarks += ` (메모: ${del.memo})`;
+                remarks += `\n`;
+            });
+        }
+
+        const todayDate = new Date();
+        const yyyy = todayDate.getFullYear();
+        const mmVal = String(todayDate.getMonth() + 1).padStart(2, '0');
+        const ddVal = String(todayDate.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}${mmVal}${ddVal}`;
+
+        worksheet.getCell('B1').value = `${order.pubName} _작업요청서_${todayStr}`;
+        worksheet.getCell('O3').value = todayDate; 
+        worksheet.getCell('C4').value = order.pubName; 
+        worksheet.getCell('F4').value = order.bookTitle; 
+        
+        const delDate = d['ord-delivery-date'] || '';
+        let formattedDelDate = '';
+        if (delDate) {
+            const mm = delDate.substring(5, 7);
+            const dd = delDate.substring(8, 10);
+            const dayOfWeek = getDayOfWeek(delDate);
+            formattedDelDate = `${mm}-${dd}(${dayOfWeek})까지 수령`;
+        }
+        worksheet.getCell('J4').value = formattedDelDate; 
+        
+        worksheet.getCell('M4').value = d['ord-delivery-method'] || '택배'; 
+        
+        const partnerInfo = MASTER.partners.find(p => p.name === order.pubName) || {};
+        const managerContact = partnerInfo.managerContact || '';
+        worksheet.getCell('O4').value = `${order.managerName || ''}\n${managerContact}`; 
+        
+        worksheet.getCell('B9').value = order.bookTitle;
+        worksheet.getCell('C9').value = '표지';
+        worksheet.getCell('D9').value = coverWorker;
+        worksheet.getCell('E9').value = `${d['ord-coating'] || '무광'}코팅`;
+        worksheet.getCell('F9').value = coverWorker;
+        worksheet.getCell('G9').value = '인디고';
+        worksheet.getCell('H9').value = '컬러';
+        worksheet.getCell('I9').value = '단면';
+        worksheet.getCell('J9').value = d['ord-cover'] || '스노우화이트';
+        worksheet.getCell('K9').value = parseInt(d['ord-cover-weight']) || 250;
+        worksheet.getCell('L9').value = parseInt(order.qty) || 0;
+        worksheet.getCell('M9').value = coverExtra;
+        worksheet.getCell('N9').value = d['ord-spec'] || 'A5국판';
+        worksheet.getCell('O9').value = 4;
+        
+        worksheet.getCell('B12').value = order.bookTitle;
+        worksheet.getCell('C12').value = '내지';
+        worksheet.getCell('D12').value = innerWorker;
+        worksheet.getCell('E12').value = 'X';
+        worksheet.getCell('F12').value = innerWorker;
+        worksheet.getCell('G12').value = innerDevice;
+        worksheet.getCell('H12').value = isColorInner ? '컬러' : '흑백';
+        worksheet.getCell('I12').value = '양면';
+        worksheet.getCell('J12').value = d['ord-inner'] || '미색모조';
+        worksheet.getCell('K12').value = parseInt(d['ord-inner-weight']) || 80;
+        worksheet.getCell('L12').value = parseInt(order.qty) || 0;
+        worksheet.getCell('M12').value = coverExtra;
+        worksheet.getCell('N12').value = d['ord-spec'] || 'A5국판';
+        worksheet.getCell('O12').value = parseInt(d['ord-tp']) || 0;
+        
+        worksheet.getCell('B13').value = remarks;
+
+        const safeTitle = (order.bookTitle || '작업요청서').replace(/[\\/:*?"<>|]/g, '_');
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `작업요청서_${safeTitle}_${order.id.slice(-6)}_${yyyy}-${mmVal}-${ddVal}.xlsx`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Work Request Export Error:', error);
+        alert('작업요청서 생성 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
