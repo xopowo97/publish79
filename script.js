@@ -2203,7 +2203,7 @@ function sync() {
         'order-pub-name', 'ord-manager', 'ord-book-title',
         'ord-spec', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp',
         'ord-cover', 'ord-printing', 'ord-coating', 'ord-wing', 'ord-binding',
-        'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert'
+        'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert', 'ord-delivery-date'
     ];
     MASTER.customGroups.forEach(g => ids.push(`ord-custom-${g.name}`));
 
@@ -2967,6 +2967,14 @@ async function submitOrderSheet() {
         trackingList: [] // 다중 송장 구조로 초기화
     }));
 
+    // 제출 직전 희망 납기일 동적 값 강제 주입 가드 (이벤트 리스너 누락 방어)
+    if (MASTER.orderPersistence[mode]) {
+        const deliveryDateEl = document.getElementById('ord-delivery-date');
+        if (deliveryDateEl) {
+            MASTER.orderPersistence[mode]['ord-delivery-date'] = deliveryDateEl.value;
+        }
+    }
+
     // 주문 상세 데이터 스냅샷 저장
     const orderData = {
         id: orderId,
@@ -3443,9 +3451,15 @@ function renderSettlementTable() {
             ? (computedCost + (o.shippingCost || 0))
             : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
 
+        const dDate = (o.data && o.data['ord-delivery-date']) ? o.data['ord-delivery-date'] : '';
+        const dDateShort = dDate ? dDate.substring(5) : ''; 
+        const dateHtml = dDateShort 
+            ? `${o.date}<br><span style="color:#d97706; font-size:11px; font-weight:bold;">(납기: ${dDateShort})</span>`
+            : o.date;
+
         return `
             <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
-                <td class="td-style">${o.date}</td>
+                <td class="td-style">${dateHtml}</td>
                 <td class="td-style font-bold">${o.pubName}</td>
                 <td class="td-style">
                     <div class="flex items-center gap-2 flex-wrap">
@@ -4091,6 +4105,13 @@ function editOrder(id) {
         // 3. 첨부파일 복원 및 UI 반영
         currentFiles.inner = order.innerFile || null;
         currentFiles.cover = order.coverFile || null;
+
+        // 3-2. 희망 납기일 복원 및 UI 반영
+        const deliveryDateEl = document.getElementById('ord-delivery-date');
+        if (deliveryDateEl) {
+            const savedData = MASTER.orderPersistence[mode] || {};
+            deliveryDateEl.value = savedData['ord-delivery-date'] || '';
+        }
 
         ['inner', 'cover'].forEach(type => {
             const fileData = currentFiles[type];
@@ -9095,6 +9116,39 @@ function getAvailableProductsForPublisher() {
 }
 
 
+// 영업일 기준 5일 뒤 계산 함수
+function getWorkdayAfter5Days(startDate) {
+    let date = new Date(startDate);
+    let workdaysAdded = 0;
+    while (workdaysAdded < 5) {
+        date.setDate(date.getDate() + 1);
+        let day = date.getDay();
+        if (day !== 0 && day !== 6) { // 토(6), 일(0) 제외
+            workdaysAdded++;
+        }
+    }
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+// 희망 납기일 DatePicker 초기화 헬퍼
+function initDeliveryDatePicker() {
+    const deliveryDateEl = document.getElementById('ord-delivery-date');
+    if (deliveryDateEl) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+        
+        const targetDateStr = getWorkdayAfter5Days(today);
+        deliveryDateEl.value = targetDateStr;
+        deliveryDateEl.min = todayStr;
+    }
+}
+
 // 주문 폼 100% 빈 서식 자동 초기화 헬퍼 (수정 완료 후 및 신규 주문 진입 시 잔여 데이터 소거)
 function resetOrderForm() {
     editingOrderId = null;
@@ -9126,6 +9180,7 @@ function resetOrderForm() {
 
     if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
     if (typeof resetFileUI === 'function') resetFileUI();
+    if (typeof initDeliveryDatePicker === 'function') initDeliveryDatePicker();
     if (typeof sync === 'function') sync();
 }
 
