@@ -4644,7 +4644,12 @@ async function downloadWorkRequestExcel(id) {
         worksheet.getCell('E12').value = 'X';
         worksheet.getCell('F12').value = innerWorker;
         worksheet.getCell('G12').value = innerDevice;
-        worksheet.getCell('H12').value = isColorInner ? '컬러' : '흑백';
+        worksheet.getCell('H12').value = (function() {
+            const rawPrint = d['ord-inner-print'] || '흑백단면';
+            if (rawPrint.includes('부분')) return '부분컬러';
+            if (rawPrint.includes('컬러') || rawPrint.includes('칼라')) return '컬러';
+            return '흑백';
+        })();
         worksheet.getCell('I12').value = '양면';
         worksheet.getCell('J12').value = d['ord-inner'] || '미색모조';
         
@@ -4660,6 +4665,9 @@ async function downloadWorkRequestExcel(id) {
         
         // 비고란 B13 행 기입 (행 높이는 손상을 피하기 위해 템플릿 엑셀 자체에서 늘려서 관리)
         worksheet.getCell('B13').value = remarks;
+
+        // 엑셀 저장 직전 Defined Names(명명된 범위)를 초기화하여 포맷 파손 복구 에러 팝업을 완치
+        workbook.definedNames.model = [];
 
         const safeTitle = (order.bookTitle || '작업요청서').replace(/[\\/:*?"<>|]/g, '_');
         const buffer = await workbook.xlsx.writeBuffer();
