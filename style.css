@@ -241,8 +241,8 @@ th {
 .summary-value { font-size: 24px; font-weight: 800; }
 .summary-value small { font-size: 14px; margin-left: 4px; font-weight: 500; }
 
-.th-style { padding: 15px; font-size: 12px; color: #64748b; font-weight: 800; border-bottom: 1px solid #e2e8f0; text-align: left; }
-.td-style { padding: 15px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.th-style { padding: 15px; font-size: 12px; color: #64748b; font-weight: 800; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+.td-style { padding: 15px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap; }
 .data-row:hover { background: #f8fafc; }
 
 
@@ -253,7 +253,7 @@ th {
 .badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-block; margin-bottom: 4px; }
 .badge-blue { background: #e0f2fe; color: #0369a1; }
 .badge-outline { border: 1px solid #0284c7; color: #0284c7; }
-.book-title { font-weight: 700; font-size: 14px; line-height: 1.4; color: #1e293b; }
+.book-title { font-weight: 700; font-size: 14px; line-height: 1.4; color: #1e293b; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: middle; }
 
 .btn-group { display: flex; gap: 4px; justify-content: center; }
 .btn-table { padding: 6px 10px; border: 1px solid #cbd5e1; background: white; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; color: #475569; }
@@ -1231,6 +1231,61 @@ th {
 
 #stat-supporters-count, #stat-pine-count, #stat-donation-count {
     animation: textGlowGreen 2.5s infinite ease-in-out;
+}
+
+/* ============================================================
+   🟢 [신규] B2B ERP 반응형 테이블 및 레이아웃 패치
+   ============================================================ */
+/* 등급 탭 찌그러짐 방지 */
+#grade-tabs-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
+}
+#grade-tabs-container button {
+    white-space: nowrap;
+}
+
+/* 생산진행 칸반보드 데스크톱 한 화면 꽉 찬 비율 핏 */
+#kanban-board {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    overflow-x: hidden; /* 가로 스크롤 제거 */
+}
+.kb-col-container {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 1400px) {
+    .th-style { padding: 10px 8px; font-size: 11px; }
+    .td-style { padding: 10px 8px; font-size: 12px; }
+    .book-title { font-size: 12px; max-width: 180px; }
+    .btn-table { padding: 4px 6px; font-size: 11px; }
+    .badge { font-size: 10px; padding: 2px 6px; }
+}
+
+@media (max-width: 1100px) {
+    .th-style { padding: 8px 4px; font-size: 10px; }
+    .td-style { padding: 8px 4px; font-size: 11px; }
+    .book-title { font-size: 11px; max-width: 140px; }
+    .btn-table { padding: 3px 4px; font-size: 10px; }
+    
+    /* 태블릿/모바일 가로 스크롤 없는 세로 칸반 변환 */
+    #kanban-board {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        height: auto;
+        gap: 20px;
+    }
+    .kb-col-container {
+        width: 100% !important;
+        flex-shrink: 0;
+        height: auto !important;
+    }
 }
 
 

@@ -2232,7 +2232,7 @@ function renderProductionBoard() {
     ];
 
     board.innerHTML = columns.map(col => `
-        <div class="flex-shrink-0 w-[300px] kb-col-${col.color} rounded-2xl p-4 flex flex-col h-full border border-slate-200 shadow-sm">
+        <div class="kb-col-container kb-col-${col.color} rounded-2xl p-4 flex flex-col h-full border border-slate-200 shadow-sm">
             <div class="flex items-center justify-between mb-4 px-1">
                 <div class="flex items-center gap-2">
                     <div class="w-3 h-3 rounded-full bg-${col.color}-500 shadow-sm"></div>
@@ -3467,7 +3467,7 @@ function renderSettlementTable() {
                         ${finalizedBadge}
                         ${taxInvoiceBadge}
                     </div>
-                    <div class="book-title">${o.bookTitle}</div>
+                    <div class="book-title" title="${o.bookTitle}">${o.bookTitle}</div>
                 </td>
                 <td class="td-style">${o.managerName}</td>
                 <td class="td-style text-right">${displayUnitPrice.toLocaleString()}원</td>
