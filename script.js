@@ -4348,8 +4348,130 @@ function liveFilterTable() {
     renderSettlementTable();
 }
 
+// 실시간 Supabase 주문 데이터 동기화 공통 함수 (with 로딩 애니메이션 피드백)
+async function syncLatestOrdersFromServer(targetPage) {
+    let btn = null;
+    let icon = null;
+    
+    if (targetPage === 'settlement') {
+        // 정산 탭 새로고침 버튼
+        btn = document.querySelector('#page-settlement .btn-search');
+        if (btn) icon = btn.querySelector('svg') || btn.querySelector('i');
+    } else if (targetPage === 'production') {
+        // 생산진행(칸반) 탭 새로고침 버튼
+        btn = document.querySelector('.btn-refresh-kanban');
+        if (btn) icon = btn.querySelector('svg') || btn.querySelector('i');
+    }
+    
+    // 회전 애니메이션 클래스 동적 부여, 강제 스핀 스타일 주입 및 버튼 비활성화
+    if (icon) {
+        icon.classList.add('animate-spin');
+        icon.style.animation = 'spin 1s linear infinite';
+    }
+    if (btn) btn.disabled = true;
+    
+    try {
+        // Supabase orders 테이블에서 최신 데이터 조회
+        const { data, error } = await _supabase.from('orders').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        
+        if (data) {
+            MASTER.orders = data.map(o => {
+                let parsedData = {};
+                try {
+                    parsedData = typeof o.data === 'string' ? JSON.parse(o.data) : (o.data || {});
+                } catch(e) {
+                    parsedData = o.data || {};
+                }
+                return {
+                    id: o.id,
+                    pubName: o.pubName || parsedData['ord-pub-name'] || '',
+                    bookTitle: o.bookTitle || parsedData['ord-book-title'] || '',
+                    qty: o.qty || parsedData['ord-qty'] || 0,
+                    status: o.status || '접수대기',
+                    date: o.date || '',
+                    isDeleted: o.isDeleted || false,
+                    isFinalized: o.isFinalized || false,
+                    unitPrice: o.unitPrice || 0,
+                    totalPrice: o.totalPrice || 0,
+                    managerName: o.managerName || parsedData['ord-manager-name'] || '',
+                    innerFile: o.innerFile || null,
+                    coverFile: o.coverFile || null,
+                    deliveries: o.deliveries || [],
+                    data: parsedData,
+                    mode: o.mode || parsedData['ord-mode'] || 'sheet',
+                    created_at: o.created_at
+                };
+            });
+        }
+        
+        // 화면 재렌더링
+        if (targetPage === 'settlement') {
+            renderSettlementTable();
+            if (document.getElementById('dashboard-section') && !document.getElementById('dashboard-section').classList.contains('hidden')) {
+                updateChart();
+            }
+        } else if (targetPage === 'production') {
+            renderProductionBoard();
+        }
+        
+        showCustomToast("🔄 최신 데이터가 실시간 동기화되었습니다!");
+        
+    } catch(err) {
+        console.error("실시간 동기화 실패:", err);
+        showCustomToast("❌ 서버 연결 오류로 실시간 동기화에 실패했습니다.", 'error');
+    } finally {
+        setTimeout(() => {
+            // [완치] finally 리셋 타이밍에 실시간으로 현재 DOM에 있는 최신 엘리먼트를 다시 조회(Refetch)하여 중지 처리
+            let activeBtn = null;
+            let activeIcon = null;
+            
+            if (targetPage === 'settlement') {
+                activeBtn = document.querySelector('#page-settlement .btn-search');
+                if (activeBtn) activeIcon = activeBtn.querySelector('svg') || activeBtn.querySelector('i');
+            } else if (targetPage === 'production') {
+                activeBtn = document.querySelector('.btn-refresh-kanban');
+                if (activeBtn) activeIcon = activeBtn.querySelector('svg') || activeBtn.querySelector('i');
+            }
+            
+            if (activeIcon) {
+                activeIcon.classList.remove('animate-spin');
+                activeIcon.style.animation = ''; // 강제 스핀 스타일 제거
+            }
+            if (activeBtn) activeBtn.disabled = false;
+        }, 600);
+    }
+}
+
+function showCustomToast(message, type = 'success') {
+    let oldToast = document.getElementById('custom-sync-toast');
+    if (oldToast) oldToast.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'custom-sync-toast';
+    toast.className = `fixed bottom-5 right-5 z-[9999] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold transition-all duration-300 transform translate-y-10 opacity-0`;
+    
+    if (type === 'success') {
+        toast.style.cssText = 'background: #10b981; color: white; border: 1px solid #059669; box-shadow: 0 10px 25px rgba(16,185,129,0.3);';
+    } else {
+        toast.style.cssText = 'background: #ef4444; color: white; border: 1px solid #dc2626; box-shadow: 0 10px 25px rgba(239,68,68,0.3);';
+    }
+    
+    toast.innerHTML = `<span style="font-size: 14px;">🔔</span> <span>${message}</span>`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.remove('translate-y-10', 'opacity-0');
+    }, 50);
+    
+    setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 function loadSettlementData() {
-    renderSettlementTable();
+    syncLatestOrdersFromServer('settlement');
 }
 
 function editOrder(id) {
