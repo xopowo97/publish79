@@ -2661,10 +2661,23 @@ function openOrderDetails(id) {
                         <i data-lucide="download" class="w-4 h-4"></i> 표지 다운로드
                     </button>
                 </div>
-                <button onclick="printJobTicket('${order.id}')" 
-                    class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
-                    <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
-                </button>
+                ${(role === 'admin' || role === 'printer' || role === 'printer_worker') ? `
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="printJobTicket('${order.id}')" 
+                            class="flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
+                            <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 인쇄
+                        </button>
+                        <button onclick="downloadWorkRequestExcel('${order.id}')" 
+                            class="flex items-center justify-center gap-2 py-4 rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-all text-xs font-black shadow-lg">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 작업요청서(Excel) 다운
+                        </button>
+                    </div>
+                ` : `
+                    <button onclick="printJobTicket('${order.id}')" 
+                        class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
+                        <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
+                    </button>
+                `}
             </div>
         </div>
 
@@ -2741,6 +2754,103 @@ function printJobTicket(orderId) {
 
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
 
+    // 스마트 공정 판정 로직 포팅 (PDF 인쇄용)
+    const dObj = order.data || {};
+    const mode = order.mode; 
+    const isRoll = mode === 'roll';
+    const wing = dObj['ord-wing'] || '날개 없음';
+    const hasWing = wing.includes('날개 있음');
+    const innerPrint = dObj['ord-inner-print'] || '흑백단면';
+
+    let innerDevice = '';
+    let innerWorker = '';
+    if (isRoll) {
+        innerDevice = 'JP1160';
+        innerWorker = '구의동';
+    } else {
+        innerWorker = '칼라미';
+        const isAllColor = (innerPrint.includes('컬러') || innerPrint.includes('칼라')) && !innerPrint.includes('부분');
+        innerDevice = isAllColor ? '캐논' : '인디고';
+    }
+
+    let coverWorker = '';
+    let coverExtra = '';
+    if (hasWing) {
+        coverWorker = '칼라미';
+        coverExtra = '날개 있음';
+    } else {
+        coverWorker = isRoll ? '구의동' : '칼라미';
+        coverExtra = '날개 없음';
+    }
+
+    let smartRemarks = '';
+    const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+        const memo = del.memo || '';
+        return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+    });
+    if (hasWrappingReq) {
+        smartRemarks += `* 1권씩 래핑후 납품요청<br><br>`;
+    }
+
+    smartRemarks += `* [생산 공정 지시]<br>`;
+    if (isRoll && hasWing) {
+        smartRemarks += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.<br>`;
+        smartRemarks += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.<br>`;
+        smartRemarks += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.<br>`;
+    } else if (!isRoll && !hasWing) {
+        smartRemarks += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.<br>`;
+    } else {
+        smartRemarks += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]<br>`;
+        smartRemarks += `  - 제본 완료 후 최종 배송.<br>`;
+    }
+
+    // 평량 및 납기일, 배송처를 포함한 스마트 지시서 추가 데이터 연산 (엑셀과 1:1)
+    const coverPaperText = dObj['ord-cover'] || '';
+    const coverWeightNum = parseInt(coverPaperText.replace(/[^0-9]/g, '')) || parseInt(dObj['ord-cover-weight']) || 250;
+
+    const innerPaperText = dObj['ord-inner'] || '';
+    const innerWeightNum = parseInt(innerPaperText.replace(/[^0-9]/g, '')) || parseInt(dObj['ord-inner-weight']) || 80;
+
+    const delDate = dObj['ord-delivery-date'] || '';
+    let formattedDelDate = '';
+    if (delDate) {
+        const mm = delDate.substring(5, 7);
+        const dd = delDate.substring(8, 10);
+        const dayOfWeek = getDayOfWeek(delDate);
+        formattedDelDate = `${mm}-${dd}(${dayOfWeek})까지 수령`;
+    }
+
+    // 단가 재연산
+    const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
+    const computedTotal = computePurchaseCost(order);
+    const computedUnit = Math.round(computedTotal / rawQty);
+
+    let smartRemarksForPrint = '';
+    if (hasWrappingReq) {
+        smartRemarksForPrint += `* 1권씩 래핑후 납품요청<br><br>`;
+    }
+
+    smartRemarksForPrint += `<b>* [생산 공정 지시]</b><br>`;
+    if (isRoll && hasWing) {
+        smartRemarksForPrint += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.<br>`;
+        smartRemarksForPrint += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.<br>`;
+        smartRemarksForPrint += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.<br><br>`;
+    } else if (!isRoll && !hasWing) {
+        smartRemarksForPrint += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.<br><br>`;
+    } else {
+        smartRemarksForPrint += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]<br>`;
+        smartRemarksForPrint += `  - 제본 완료 후 최종 배송.<br><br>`;
+    }
+
+    smartRemarksForPrint += `<b>* 배송처</b><br>`;
+    if (order.deliveries && order.deliveries.length > 0) {
+        order.deliveries.forEach((del, index) => {
+            smartRemarksForPrint += `${index + 1}. ${del.address} ${del.addressDetail || ''} / 수령인: ${del.recipient} (${del.contact}) - ${del.qty}부`;
+            if (del.memo) smartRemarksForPrint += ` (메모: ${del.memo})`;
+            smartRemarksForPrint += `<br>`;
+        });
+    }
+
     // 1. 기존에 생성된 투명 프레임이 있다면 제거 (항상 깨끗한 새 프레임 보장)
     let oldFrame = document.getElementById('hidden-print-frame');
     if (oldFrame) oldFrame.remove();
@@ -2759,102 +2869,270 @@ function printJobTicket(orderId) {
     // 3. iframe 내부 문서에 성공한 1장 압축 명세서 HTML 주입
     const doc = iframe.contentWindow.document;
     doc.open();
-    doc.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>작업지시서 - ${order.bookTitle}</title>
-            <style>
-                body {
-                    background: white !important;
-                    color: black !important;
-                    font-family: sans-serif !important;
-                    font-size: 11px !important;
-                    line-height: 1.4 !important;
-                    margin: 0 !important;
-                    padding: 12px !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                }
-                @page {
-                    size: A4 portrait;
-                    margin: 10mm;
-                }
-                * {
-                    color: black !important;
-                    border-color: black !important;
-                    box-sizing: border-box !important;
-                }
-                .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
-                .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
-                .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
-                .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
-                .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
-                .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
-                .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
-                .v-row:last-child { border-bottom: none; }
-                .v-row-lbl { font-weight: bold; }
-                .v-row-val { font-weight: 900; }
-                .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
-            </style>
-        </head>
-        <body>
-            <div class="v-header">
-                <div class="v-title">작업지시서 (Job Ticket)</div>
-                <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
-            </div>
 
-            <div class="v-badge-row">
-                <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
-                <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
-            </div>
-
-            <div class="v-book-title">${order.bookTitle}</div>
-
-            <div class="v-box">
-                ${rItem('출판사', order.pubName)}
-                ${rItem('담당자', order.managerName)}
-                <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
-                    <span class="v-row-lbl">제작부수</span>
-                    <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
+    if (role === 'admin' || role === 'printer' || role === 'printer_worker') {
+        // 인쇄소 및 어드민 로그인 시 - 엑셀 작업요청서와 1:1 대치되는 격자 표 서식
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>작업요청서 - ${order.bookTitle}</title>
+                <style>
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-family: sans-serif !important;
+                        font-size: 10px !important;
+                        line-height: 1.3 !important;
+                        margin: 0 !important;
+                        padding: 10px !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm;
+                    }
+                    * {
+                        color: black !important;
+                        border-color: black !important;
+                        box-sizing: border-box !important;
+                    }
+                    .wr-title-area {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        border-bottom: 2px solid black;
+                        padding-bottom: 5px;
+                        margin-bottom: 10px;
+                    }
+                    .wr-title {
+                        font-size: 16px;
+                        font-weight: 900;
+                    }
+                    .wr-date {
+                        font-size: 9px;
+                    }
+                    .wr-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 8px;
+                    }
+                    .wr-table th, .wr-table td {
+                        border: 1px solid black;
+                        padding: 5px 6px;
+                        text-align: center;
+                        font-size: 9px;
+                        vertical-align: middle;
+                    }
+                    .wr-table th {
+                        background-color: #f2f2f2 !important;
+                        font-weight: bold;
+                    }
+                    .wr-table td.left {
+                        text-align: left;
+                    }
+                    .wr-remarks-box {
+                        border: 1px solid black;
+                        padding: 8px;
+                        font-size: 8.5px;
+                        line-height: 1.4;
+                        white-space: pre-wrap;
+                        background-color: #fafafa;
+                        min-height: 120px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="wr-title-area">
+                    <div class="wr-title">한국리더십센터 _작업요청서_${order.id.slice(-6)}</div>
+                    <div class="wr-date">요청일자: ${new Date().toLocaleDateString()}</div>
                 </div>
-            </div>
 
-            <div class="v-sec-title">제작 사양 요약</div>
-            <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
-                ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
-                ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
-                ${rItem('표지용지', order.data['ord-cover'])}
-                ${rItem('표지인쇄', order.data['ord-printing'])}
-                ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
-                ${rItem('제본방식', order.data['ord-binding'])}
-                ${rItem('내지용지', order.data['ord-inner'])}
-                ${rItem('내지인쇄', order.data['ord-inner-print'])}
-                ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
-            </div>
-            ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+                <table class="wr-table">
+                    <tr>
+                        <th style="width: 10%;">발주사</th>
+                        <td style="width: 20%; font-weight: bold;">${order.pubName}</td>
+                        <th style="width: 10%;">교재명</th>
+                        <td style="width: 30%; font-weight: bold;" class="left">${order.bookTitle}</td>
+                        <th style="width: 10%;">희망납기일</th>
+                        <td style="width: 20%; font-weight: bold; color: #d97706 !important;">${formattedDelDate || '미정'}</td>
+                    </tr>
+                    <tr>
+                        <th>배송방법</th>
+                        <td>${dObj['ord-delivery-method'] || '택배'}</td>
+                        <th>발주담당자</th>
+                        <td class="left">권신애 (010-8182-8189)</td>
+                        <th>출력일시</th>
+                        <td>${new Date().toLocaleString()}</td>
+                    </tr>
+                </table>
 
-            <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
-            <div style="border:1px solid black; padding:6px; font-size:10px;">
-                <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
-                <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
-            </div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">■ 상세 생산 사양</div>
+                <table class="wr-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 6%;">구분</th>
+                            <th style="width: 10%;">작업처</th>
+                            <th style="width: 8%;">코팅</th>
+                            <th style="width: 10%;">출력장비</th>
+                            <th style="width: 10%;">인쇄도수</th>
+                            <th style="width: 8%;">인쇄방식</th>
+                            <th style="width: 22%;">용지명</th>
+                            <th style="width: 8%;">평량(g)</th>
+                            <th style="width: 10%;">부수</th>
+                            <th style="width: 8%;">규격</th>
+                            <th style="width: 8%;">페이지</th>
+                            <th style="width: 8%;">비고</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight: bold; background-color: #fafafa;">표지</td>
+                            <td>${coverWorker}</td>
+                            <td>${dObj['ord-coating'] || '무광'}코팅</td>
+                            <td style="font-weight: bold;">인디고</td>
+                            <td>컬러</td>
+                            <td>단면</td>
+                            <td class="left">${dObj['ord-cover'] || '스노우화이트'}</td>
+                            <td>${coverWeightNum}g</td>
+                            <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
+                            <td>${dObj['ord-spec'] || 'A5국판'}</td>
+                            <td>4</td>
+                            <td>${coverExtra}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; background-color: #fafafa;">내지</td>
+                            <td>${innerWorker}</td>
+                            <td>X</td>
+                            <td style="font-weight: bold; color: #0284c7 !important;">${innerDevice}</td>
+                            <td>${(function() {
+                                const rawPrint = dObj['ord-inner-print'] || '흑백단면';
+                                if (rawPrint.includes('부분')) return '부분컬러';
+                                if (rawPrint.includes('컬러') || rawPrint.includes('칼라')) return '컬러';
+                                return '흑백';
+                            })()}</td>
+                            <td>양면</td>
+                            <td class="left">${dObj['ord-inner'] || '미색모조'}</td>
+                            <td>${innerWeightNum}g</td>
+                            <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
+                            <td>${dObj['ord-spec'] || 'A5국판'}</td>
+                            <td>${parseInt(dObj['ord-tp']) || 0}</td>
+                            <td>${coverExtra}</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-            <div class="v-sec-title">배송 및 송장 정보</div>
-            ${deliveryHtml}
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">■ 생산 공정 및 물류 배송 지시 (비고)</div>
+                <div class="wr-remarks-box">${smartRemarksForPrint}</div>
 
-            ${role !== 'printer_worker' ? `
-                <div class="v-box" style="margin-top:8px; border-width:2px;">
-                    ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                ${role !== 'printer_worker' ? `
+                    <div style="margin-top: 8px; text-align: right; font-size: 9px; font-weight: bold;">
+                        ※ 권당 하청 단가: ₩ ${computedUnit.toLocaleString()}원 | 총 하청 합계 (VAT별도): <span style="font-size: 11px; font-weight: 900; text-decoration: underline;">₩ ${computedTotal.toLocaleString()}원</span>
+                    </div>
+                ` : ''}
+            </body>
+            </html>
+        `);
+    } else {
+        // 출판사 사장님 로그인 시 - 기존의 오리지널 세로형 작업지시서
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>작업지시서 - ${order.bookTitle}</title>
+                <style>
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-family: sans-serif !important;
+                        font-size: 11px !important;
+                        line-height: 1.4 !important;
+                        margin: 0 !important;
+                        padding: 12px !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm;
+                    }
+                    * {
+                        color: black !important;
+                        border-color: black !important;
+                        box-sizing: border-box !important;
+                    }
+                    .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
+                    .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+                    .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
+                    .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+                    .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
+                    .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
+                    .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
+                    .v-row:last-child { border-bottom: none; }
+                    .v-row-lbl { font-weight: bold; }
+                    .v-row-val { font-weight: 900; }
+                    .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="v-header">
+                    <div class="v-title">작업지시서 (Job Ticket)</div>
+                    <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
+                </div>
+
+                <div class="v-badge-row">
+                    <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                    <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
+                </div>
+
+                <div class="v-book-title">${order.bookTitle}</div>
+
+                <div class="v-box">
+                    ${rItem('출판사', order.pubName)}
+                    ${rItem('담당자', order.managerName)}
                     <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
-                        <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
-                        <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                        <span class="v-row-lbl">제작부수</span>
+                        <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
                     </div>
                 </div>
-            ` : ''}
-        </body>
-        </html>
-    `);
+
+                <div class="v-sec-title">제작 사양 요약</div>
+                <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
+                    ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
+                    ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
+                    ${rItem('표지용지', order.data['ord-cover'])}
+                    ${rItem('표지인쇄', order.data['ord-printing'])}
+                    ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
+                    ${rItem('제본방식', order.data['ord-binding'])}
+                    ${rItem('내지용지', order.data['ord-inner'])}
+                    ${rItem('내지인쇄', order.data['ord-inner-print'])}
+                    ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
+                </div>
+                ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+
+                <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
+                <div style="border:1px solid black; padding:6px; font-size:10px;">
+                    <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
+                    <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
+                </div>
+
+                <div class="v-sec-title">배송 및 송장 정보</div>
+                ${deliveryHtml}
+
+                ${role !== 'printer_worker' ? `
+                    <div class="v-box" style="margin-top:8px; border-width:2px;">
+                        ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                        <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                            <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
+                            <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                        </div>
+                    </div>
+                ` : ''}
+            </body>
+            </html>
+        `);
+    }
     doc.close();
 
     // 투명 프레임 렌더링 완료 후 조용히 인쇄 호출
