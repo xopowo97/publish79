@@ -469,14 +469,14 @@
                                                 placeholder="가로x세로mm" oninput="sync()"></div>
                                         <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">총
                                                 페이지</label><input type="number" id="ord-tp" value="200"
-                                                class="input-pptx" oninput="calculatePages(); sync();"></div>
+                                                class="input-pptx" oninput="calculatePages('tp_input'); sync();"></div>
                                         <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">제작
                                                 부수</label><input type="number" id="ord-qty" value="100"
                                                 class="input-pptx text-blue-600 font-bold" oninput="sync()"></div>
                                         <div><label
                                                 class="text-[10px] font-bold text-slate-400 mb-1 block">부분컬러페이지</label><input
                                                 type="number" id="ord-cp" value="0" class="input-pptx"
-                                                oninput="calculatePages('user_input'); sync();">
+                                                oninput="calculatePages('cp_input'); sync();">
                                             <span class="text-[9px] text-sky-600 font-bold mt-1 block">💡 흑백 페이지 0.001초 자동 차감</span>
                                         </div>
                                         <div><label
@@ -517,7 +517,7 @@
                                                     onchange="sync()"></select></div>
                                             <div><label class="text-[10px] font-bold text-slate-400 mb-1 block">내지
                                                     인쇄</label><select id="ord-inner-print" class="input-pptx"
-                                                    onchange="calculatePages(); sync();"></select></div>
+                                                    onchange="calculatePages('inner_print_change'); sync();"></select></div>
                                         </div>
                                     </div>
                                     <div class="card-common card-green-light">

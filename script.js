@@ -1873,33 +1873,54 @@ function calculatePages(userAction = 'user_input') {
     const innerPrintEl = document.getElementById('ord-inner-print');
     const innerPrint = innerPrintEl?.value || '';
 
-    const tp = parseInt(tpInput.value) || 0;
-    let cp = parseInt(cpInput.value) || 0;
+    const tp = parseInt(tpInput?.value) || 0;
+    let cp = parseInt(cpInput?.value) || 0;
 
-    if (cp > tp) {
-        cp = tp;
-        cpInput.value = cp;
+    // 1. 내지인쇄 옵션 변경 또는 총페이지 변경 시 스마트 동기화
+    if (userAction === 'inner_print_change' || userAction === 'tp_input') {
+        if (innerPrint.includes('컬러') && !innerPrint.includes('부분컬러')) {
+            // [올컬러 선택 시] 전체가 컬러이므로 부분컬러 = 총페이지, 흑백 = 0P 자동 매핑
+            cp = tp;
+            if (cpInput) cpInput.value = cp;
+        } else if (innerPrint.includes('흑백') && !innerPrint.includes('부분컬러')) {
+            // [올흑백 선택 시] 전체가 흑백이므로 부분컬러 = 0P, 흑백 = 총페이지 자동 매핑
+            cp = 0;
+            if (cpInput) cpInput.value = cp;
+        } else {
+            // [부분컬러 선택 시] 총페이지 한도 가드
+            if (cp > tp) cp = tp;
+            if (cpInput) cpInput.value = cp;
+        }
     }
 
-    // 사용자가 부분컬러(cp > 0)를 직접 입력했으나 내지인쇄가 부분컬러가 아닐 때 스마트 매핑
-    if (userAction === 'user_input' && cp > 0 && !innerPrint.includes('부분컬러')) {
-        const isSingleSide = innerPrint.includes('단면');
-        const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
-        if (innerPrintEl) {
-            for (let opt of innerPrintEl.options) {
-                if (opt.value === targetVal || opt.text.includes(targetVal)) {
-                    innerPrintEl.value = opt.value;
-                    break;
+    // 2. 사용자가 부분컬러 페이지(cp)를 직접 입력한 경우 스마트 매핑
+    if (userAction === 'cp_input' || userAction === 'user_input') {
+        if (cp > tp) {
+            cp = tp;
+            if (cpInput) cpInput.value = cp;
+        }
+
+        if (cp > 0 && !innerPrint.includes('부분컬러')) {
+            // 부분컬러 P를 입력했으나 내지인쇄가 부분컬러가 아닐 때 자동 전환
+            const isSingleSide = innerPrint.includes('단면');
+            const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
+            if (innerPrintEl) {
+                for (let opt of innerPrintEl.options) {
+                    if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                        innerPrintEl.value = opt.value;
+                        break;
+                    }
                 }
             }
-        }
-    } else if (userAction === 'user_input' && cp === 0 && innerPrint.includes('부분컬러')) {
-        if (innerPrintEl) {
-            const targetVal = innerPrint.includes('단면') ? '내지-흑백단면' : '내지-흑백양면';
-            for (let opt of innerPrintEl.options) {
-                if (opt.value === targetVal || opt.text.includes(targetVal)) {
-                    innerPrintEl.value = opt.value;
-                    break;
+        } else if (cp === 0 && innerPrint.includes('부분컬러')) {
+            // 부분컬러 P가 0인데 내지인쇄가 부분컬러일 때 흑백으로 자동 전환
+            if (innerPrintEl) {
+                const targetVal = innerPrint.includes('단면') ? '내지-흑백단면' : '내지-흑백양면';
+                for (let opt of innerPrintEl.options) {
+                    if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                        innerPrintEl.value = opt.value;
+                        break;
+                    }
                 }
             }
         }
@@ -1907,7 +1928,7 @@ function calculatePages(userAction = 'user_input') {
 
     let bp = tp - cp;
     if (bp < 0) bp = 0;
-    bpInput.value = bp;
+    if (bpInput) bpInput.value = bp;
 }
 
 function checkPartialColorSelection(selectEl) {
@@ -1992,8 +2013,18 @@ function sync() {
                 }
             }
 
-            // 1-2, 1-4, 1-5: 페이지 단가 (규격별 흑백/컬러 적용)
-            let innerPrintCost = (bp * currentSpec.bw) + (cp * currentSpec.cl);
+            // 1-2, 1-4, 1-5: 페이지 단가 (올컬러 / 올흑백 / 부분컬러 스마트 분기 적용)
+            let innerPrintCost = 0;
+            const isAllColor = innerPrint.includes('컬러') && !innerPrint.includes('부분컬러');
+            const isAllBw = innerPrint.includes('흑백') && !innerPrint.includes('부분컬러');
+
+            if (isAllColor) {
+                innerPrintCost = tp * (currentSpec.cl || 0);
+            } else if (isAllBw) {
+                innerPrintCost = tp * (currentSpec.bw || 0);
+            } else {
+                innerPrintCost = (bp * (currentSpec.bw || 0)) + (cp * (currentSpec.cl || 0));
+            }
 
             if (isSingleSided) {
                 innerPrintCost = innerPrintCost / 2;
@@ -2001,7 +2032,14 @@ function sync() {
                 each += surcharge;
                 addLog('내지 단면 할증', surcharge);
             }
-            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+
+            if (isAllColor) {
+                addLog(`내지 인쇄 (전체 컬러 ${tp}p)`, innerPrintCost);
+            } else if (isAllBw) {
+                addLog(`내지 인쇄 (전체 흑백 ${tp}p)`, innerPrintCost);
+            } else {
+                addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            }
             each += innerPrintCost;
 
             // 1-9: 내지 용지 할증 (100g, 120g 대상) - 등급별 sheetCommons 직접 조회
@@ -2088,8 +2126,18 @@ function sync() {
                 }
             }
 
-            // 2. 내지 관련 비용 (페이지 단가 + 용지 할증)
-            let innerPrintCost = (bp * bracket.bw) + (cp * bracket.cl);
+            // 2. 내지 관련 비용 (올컬러 / 올흑백 / 부분컬러 스마트 분기 적용)
+            let innerPrintCost = 0;
+            const isAllColor = innerPrint.includes('컬러') && !innerPrint.includes('부분컬러');
+            const isAllBw = innerPrint.includes('흑백') && !innerPrint.includes('부분컬러');
+
+            if (isAllColor) {
+                innerPrintCost = tp * (bracket.cl || 0);
+            } else if (isAllBw) {
+                innerPrintCost = tp * (bracket.bw || 0);
+            } else {
+                innerPrintCost = (bp * (bracket.bw || 0)) + (cp * (bracket.cl || 0));
+            }
 
             if (isSingleSided) {
                 innerPrintCost = innerPrintCost / 2;
@@ -2097,7 +2145,14 @@ function sync() {
                 each += surcharge;
                 addLog('내지 단면 할증', surcharge);
             }
-            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+
+            if (isAllColor) {
+                addLog(`내지 인쇄 (전체 컬러 ${tp}p)`, innerPrintCost);
+            } else if (isAllBw) {
+                addLog(`내지 인쇄 (전체 흑백 ${tp}p)`, innerPrintCost);
+            } else {
+                addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            }
             each += innerPrintCost;
 
             // 내지 용지 할증 (100g, 120g 대상) - 등급별 rollCommons 직접 조회
