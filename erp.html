@@ -33,9 +33,11 @@
 
             <div class="space-y-3">
                 <input type="text" id="login-id"
+                    onkeydown="if(event.key==='Enter') handleLogin()"
                     class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
                     placeholder="아이디">
                 <input type="password" id="login-pw"
+                    onkeydown="if(event.key==='Enter') handleLogin()"
                     class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
                     placeholder="비밀번호">
 
@@ -2662,5 +2664,6 @@
      ============================================================ -->
 <div id="cs-chatbot-root"></div>
 <script src="erp-chat.js"></script>
-
+<script src="script.js"></script>
+</body>
 </html>
