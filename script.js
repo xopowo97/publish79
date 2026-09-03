@@ -378,16 +378,16 @@ async function handleLogin() {
         return;
     }
 
-    // 1. Vercel 백엔드 인증 API 엔드포인트 호출
+    // 1. Vercel 통합 백엔드 인증 API 엔드포인트 호출
     const LOGIN_API_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
-        ? 'https://publish79.vercel.app/api/login'
-        : '/api/login';
+        ? 'https://publish79.vercel.app/api/control-helper?action=login'
+        : '/api/control-helper?action=login';
 
     try {
         const response = await fetch(LOGIN_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, password: pw })
+            body: JSON.stringify({ action: 'login', id, password: pw })
         });
 
         const result = await response.json();
