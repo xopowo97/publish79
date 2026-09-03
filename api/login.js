@@ -1,11 +1,6 @@
 // api/login.js — [15번 보안_보안관] Vercel 서버리스 백엔드 인증 및 세션 격리 API
-// 의존성 라이브러리 없이 네이티브 fetch로 Supabase REST API와 통신하여 Vercel 빌드 100% 무결성을 보장합니다.
+// Node 18+ 네이티브 전역 fetch 사용 (외부 라이브러리 0개 완벽 호환)
 
-import fetch from 'node-fetch';
-
-// ============================================================
-// [보안 방어벽] Rate Limiter — 무차별 대입(Brute Force) 공격 방어
-// ============================================================
 const _loginRateLimitMap = new Map();
 const LOGIN_RATE_LIMIT_MAX = 15;
 const LOGIN_RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -63,7 +58,7 @@ export default async function handler(req, res) {
             throw new Error('Supabase 서버 환경변수가 설정되지 않았습니다.');
         }
 
-        const base = rawUrl.replace(/\/$/, '') + '/rest/v1';
+        const base = rawUrl.replace(/\/+$/, '') + '/rest/v1';
         const headers = {
             'apikey': key,
             'Authorization': `Bearer ${key}`,
@@ -132,7 +127,6 @@ export default async function handler(req, res) {
                 if (matchedPartner) {
                     const targetPw = matchedPartner.password || matchedPartner.pw || '1234';
                     if (inputPw === targetPw) {
-                        // 🛡️ 보안 처리: 비밀번호 필드는 완전히 제거(Sanitize)하고 반환
                         const safeProfile = {
                             id: matchedPartner.id,
                             name: matchedPartner.name,
@@ -185,7 +179,6 @@ export default async function handler(req, res) {
                         });
                     }
 
-                    // 인쇄소 직속 매니저 서브 비밀번호 검증
                     if (matchedPrinter.managers && matchedPrinter.managers.length > 0) {
                         const matchedManager = matchedPrinter.managers.find(m => m.subPw === inputPw);
                         if (matchedManager) {
@@ -208,7 +201,6 @@ export default async function handler(req, res) {
             }
         }
 
-        // 6. 인증 실패 응답
         return res.status(401).json({
             success: false,
             error: '아이디 또는 비밀번호가 올바르지 않습니다.'
