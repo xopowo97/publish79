@@ -74,27 +74,12 @@ async function fetchLibraryData(keyword) {
 }
 
 // ============================================================
-// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (정상 + 강제 에러)
-// 테스트가 완료된 후에는 이 블록을 주석 처리하거나 제거하세요.
+// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (시연 완료 후 비활성화)
 // ============================================================
-window.addEventListener('load', async () => {
-    // --- 테스트 1: 정상 통신 검증 ---
-    console.log('');
-    console.log('============================================================');
-    console.log('[Proxy Test] 🚀 1번 살피미 에이전트 검증 테스트 시작');
-    console.log('============================================================');
-    await fetchLibraryData('출판');
-
-    // --- 테스트 2: 9번→12번 방어 루프 강제 작동 검증 ---
-    // XSS 악성 키워드를 주입하여 12번 보안관이 DANGER 판정을 내리는지 확인
-    console.log('');
-    console.log('[Proxy Test] ⚔️  보안 방어 루프 강제 테스트 시작 (XSS 키워드 주입)...');
-    await fetchLibraryData('<script>alert("공격")</script>');
-
-    console.log('');
-    console.log('[Proxy Test] ✅ 검증 테스트 완료. 위 로그에서 Success / 9번→12번 방어 작동 확인.');
-    console.log('============================================================');
-});
+// window.addEventListener('load', async () => {
+//     await fetchLibraryData('출판');
+//     await fetchLibraryData('<script>alert("공격")</script>');
+// });
 
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
 // Vercel Serverless Function 프록시 API 경로 정의
@@ -381,46 +366,72 @@ let MASTER = {
     }
 };
 
-// ✅ [로그인 버그 완전 수정] MASTER 선언 이후에 배치 → TDZ 원천 차단
-// handleLogin이 MASTER를 참조할 때 항상 초기화된 상태 보장
-function handleLogin() {
+// ✅ [15번 보안관] Vercel 서버리스 백엔드 인증 API 연동 및 세션 격리
+async function handleLogin() {
     window._isLoggingIn = true;
     const id = document.getElementById('login-id').value.trim();
     const pw = document.getElementById('login-pw').value.trim();
 
-    if (!MASTER.auth) {
-        MASTER.auth = {
-            admin: { id: 'admin', pw: '1234' },
-            publisher: { id: 'pub', pw: '1234' },
-            printer: { id: 'print', pw: '1234' }
-        };
+    if (!id || !pw) {
+        alert('아이디와 비밀번호를 모두 입력해주세요.');
+        window._isLoggingIn = false;
+        return;
     }
 
-    if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id); return; }
-    if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) { enterApp('admin', id); return; }
-    if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) { enterApp('publisher', id); return; }
-    if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) { enterApp('printer', id); return; }
+    // 1. Vercel 백엔드 인증 API 엔드포인트 호출
+    const LOGIN_API_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
+        ? 'https://publish79.vercel.app/api/login'
+        : '/api/login';
 
-    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
-    if (partner) {
-        if (partner.password === pw || (!partner.password && pw === '1234')) { enterApp('publisher', partner.id); return; }
-    }
+    try {
+        const response = await fetch(LOGIN_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, password: pw })
+        });
 
-    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
-    if (printer) {
-        if (printer.password === pw || (!printer.password && pw === '1234')) { enterApp('printer', printer.id); return; }
-        if (printer.managers && printer.managers.length > 0) {
-            const manager = printer.managers.find(m => m.subPw === pw);
-            if (manager) {
-                const isSettle = manager.perms && manager.perms.includes('settle');
-                enterApp(isSettle ? 'printer' : 'printer_worker', printer.id);
-                return;
-            }
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // ✅ 백엔드 인증 성공 — 단일 프로필 및 권한 세션 저장
+            enterApp(result.role, result.userId, result.profile);
+            return;
+        } else {
+            // 비밀번호 불일치 등 인증 실패
+            window._isLoggingIn = false;
+            alert(result.error || '아이디 또는 비밀번호가 올바르지 않습니다.');
+            return;
         }
-    }
+    } catch (apiErr) {
+        console.warn('[handleLogin] 백엔드 인증 통신 지연/오류 (로컬 안전 가드 가동):', apiErr.message);
 
-    window._isLoggingIn = false;
-    alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+        // 비상 로컬 fallback (네트워크 단절 환경 대비)
+        if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id, { id: 'culture', name: '공모전 심사위원단' }); return; }
+        if (MASTER.auth && id === MASTER.auth.admin?.id && pw === MASTER.auth.admin?.pw) { enterApp('admin', id, { id: 'admin', name: '최고관리자' }); return; }
+        if (MASTER.auth && id === MASTER.auth.publisher?.id && pw === MASTER.auth.publisher?.pw) { enterApp('publisher', id, { id: 'pub', name: '기본출판사', grade: '일반등급(표준)' }); return; }
+        if (MASTER.auth && id === MASTER.auth.printer?.id && pw === MASTER.auth.printer?.pw) { enterApp('printer', id, { id: 'print', name: '기본인쇄소' }); return; }
+
+        const partner = (MASTER.partners || []).find(p => p.id === id || p.name === id);
+        if (partner && (partner.password === pw || (!partner.password && pw === '1234'))) {
+            const safePartner = { ...partner };
+            delete safePartner.password;
+            delete safePartner.pw;
+            enterApp('publisher', partner.id, safePartner);
+            return;
+        }
+
+        const printer = (MASTER.printers || []).find(p => p.id === id || p.name === id);
+        if (printer && (printer.password === pw || (!printer.password && pw === '1234'))) {
+            const safePrinter = { ...printer };
+            delete safePrinter.password;
+            delete safePrinter.pw;
+            enterApp('printer', printer.id, safePrinter);
+            return;
+        }
+
+        window._isLoggingIn = false;
+        alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
 }
 
 // [UX 개선] 로그인 모달 아이디/비밀번호 엔터키(Enter) 입력 시 자동 로그인 실행
@@ -449,12 +460,26 @@ function handleLogin() {
     setTimeout(bindKeys, 1500);
 })();
 
-function enterApp(role, userId) {
+function enterApp(role, userId, profile = null) {
     window._isLoggingIn = true;
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
-    if (userId) {
-        sessionStorage.setItem('userId', userId);
+    if (userId) sessionStorage.setItem('userId', userId);
+
+    if (profile) {
+        sessionStorage.setItem('userProfile', JSON.stringify(profile));
+        if (profile.name) {
+            if (role === 'publisher') sessionStorage.setItem('userPubName', profile.name);
+            else if (role === 'printer' || role === 'printer_worker') sessionStorage.setItem('userPrinterName', profile.name);
+        }
+        if (profile.grade && typeof setGrade === 'function') {
+            setGrade(profile.grade);
+        }
+        // 🛡️ 출판사 로그인 시 타사 데이터 노출 차단을 위해 단일 프로필로 격리
+        if (role === 'publisher' && typeof MASTER !== 'undefined') {
+            MASTER.partners = [profile];
+        }
+    } else {
         if (role === 'publisher' && typeof MASTER !== 'undefined' && MASTER.partners) {
             const p = MASTER.partners.find(x => x.id === userId || x.name === userId) || MASTER.partners[0];
             if (p && p.name) sessionStorage.setItem('userPubName', p.name);
@@ -689,10 +714,32 @@ async function initMaster() {
         // 온라인 DB로부터 쿼리가 성공적으로 이루어졌으므로 로드 상태를 true로 설정 (네트워크 에러 시 false 유지)
         isConfigLoaded = true;
 
-        // 2. 각 테이블 병렬 로딩 (독립적 처리)
+        // 2. 각 테이블 병렬 로딩 (역할 기반 보안 격리 처리)
+        const currentUserRole = sessionStorage.getItem('userRole') || 'admin';
+        const currentUserId = sessionStorage.getItem('userId');
+        const userPubName = sessionStorage.getItem('userPubName');
+
+        let partnersPromise;
+        if (currentUserRole === 'publisher') {
+            // 🛡️ [보안 격리] 출판사는 타 파트너사 데이터를 조회하지 않고, 본인 프로필만 격리 사용
+            const storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
+            if (storedProfile) {
+                partnersPromise = Promise.resolve({ data: [storedProfile], error: null });
+            } else if (currentUserId) {
+                partnersPromise = _supabase.from('partners').select('*').eq('id', currentUserId);
+            } else {
+                partnersPromise = Promise.resolve({ data: [], error: null });
+            }
+        } else {
+            // 어드민/인쇄소는 전체 파트너사 목록 조회 허용
+            partnersPromise = _supabase.from('partners').select('*');
+        }
+
+        let ordersPromise = _supabase.from('orders').select('*').order('created_at', { ascending: false });
+
         const [ordersRes, partnersRes, printersRes, productsRes] = await Promise.all([
-            _supabase.from('orders').select('*').order('created_at', { ascending: false }),
-            _supabase.from('partners').select('*'),
+            ordersPromise,
+            partnersPromise,
             _supabase.from('printers').select('*'),
             _supabase.from('products').select('*')
         ]);
@@ -706,8 +753,6 @@ async function initMaster() {
 
         if (loadFailures.length > 0) {
             console.warn("일부 테이블 데이터 로딩 실패:", loadFailures.join(', '));
-            // 만약 모든 테이블이 로딩 실패했다면 진짜 오류로 간주할 수도 있지만, 
-            // 여기서는 일단 성공한 데이터만이라도 반영함
         }
 
         // 데이터 반영 및 배송/정산/세금계산서 정보 복원 (data 주머니에서 꺼내기)
@@ -726,10 +771,17 @@ async function initMaster() {
             });
         }
         if (partnersRes.data) {
-            MASTER.partners = partnersRes.data.map(p => ({
-                ...p,
-                password: p.pw || p.password || '1234'
-            }));
+            MASTER.partners = partnersRes.data.map(p => {
+                const partnerObj = { ...p };
+                // 🛡️ 출판사 로그인 시에는 비밀번호 필드를 원천 제거하여 콘솔 노출 차단
+                if (currentUserRole === 'publisher') {
+                    delete partnerObj.password;
+                    delete partnerObj.pw;
+                } else {
+                    partnerObj.password = p.pw || p.password || '1234';
+                }
+                return partnerObj;
+            });
 
             // 온라인 master_config에 저장된 파트너사 세금계산서 이메일 맵 1:1 복원
             if (MASTER.partnerTaxEmails) {
@@ -739,26 +791,6 @@ async function initMaster() {
                         p.taxEmail = p.tax_email;
                     }
                 });
-            }
-
-            // 로컬에서 이전에 저장된 비밀번호 및 세금계산서 이메일이 있으면 복원
-            try {
-                const storedMaster = JSON.parse(localStorage.getItem('MASTER_DATA') || 'null');
-                if (storedMaster?.partners?.length) {
-                    storedMaster.partners.forEach(storedPartner => {
-                        if (!storedPartner || !storedPartner.id) return;
-                        const target = MASTER.partners.find(p => p.id === storedPartner.id);
-                        if (target) {
-                            if (storedPartner.password) target.password = storedPartner.password;
-                            if (storedPartner.tax_email || storedPartner.taxEmail) {
-                                target.tax_email = storedPartner.tax_email || storedPartner.taxEmail;
-                                target.taxEmail = target.tax_email;
-                            }
-                        }
-                    });
-                }
-            } catch (err) {
-                console.warn('로컬 파트너 메타데이터 복원 실패:', err);
             }
         }
         if (printersRes.data) {
@@ -798,7 +830,7 @@ async function initMaster() {
 
 // 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
 function renderAll() {
-    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
+    const role = sessionStorage.getItem('userRole') || 'admin';
     const activeBtn = document.querySelector('.sidebar-item.active');
     if (activeBtn) {
         const pageId = activeBtn.id.replace('btn-', '');
