@@ -369,14 +369,37 @@ let MASTER = {
 // ✅ [15번 보안관] Vercel 서버리스 백엔드 인증 API 연동 및 세션 격리
 async function handleLogin() {
     window._isLoggingIn = true;
-    const id = document.getElementById('login-id').value.trim();
-    const pw = document.getElementById('login-pw').value.trim();
+    const id = document.getElementById('login-id')?.value.trim() || '';
+    const pw = document.getElementById('login-pw')?.value.trim() || '';
+    const submitBtn = document.getElementById('btn-login-submit') || document.querySelector('#login-overlay button[type="submit"]');
 
     if (!id || !pw) {
         alert('아이디와 비밀번호를 모두 입력해주세요.');
         window._isLoggingIn = false;
         return;
     }
+
+    // 🚀 즉각적인 시각적 피드백 (로딩 스피너 및 로그인 처리 중 표시)
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.75';
+        submitBtn.innerHTML = `<span class="inline-flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            로그인 처리 중...
+        </span>`;
+    }
+
+    const resetBtn = () => {
+        window._isLoggingIn = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.innerText = '로그인';
+        }
+    };
 
     // 1. Vercel 통합 백엔드 인증 API 엔드포인트 호출
     const LOGIN_API_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
@@ -398,7 +421,7 @@ async function handleLogin() {
             return;
         } else {
             // 비밀번호 불일치 등 인증 실패
-            window._isLoggingIn = false;
+            resetBtn();
             alert(result.error || '아이디 또는 비밀번호가 올바르지 않습니다.');
             return;
         }
@@ -429,36 +452,12 @@ async function handleLogin() {
             return;
         }
 
-        window._isLoggingIn = false;
+        resetBtn();
         alert('아이디 또는 비밀번호가 올바르지 않습니다.');
     }
 }
 
-// [UX 개선] 로그인 모달 아이디/비밀번호 엔터키(Enter) 입력 시 자동 로그인 실행
-(function initLoginEnterKey() {
-    const bindKeys = () => {
-        ['login-id', 'login-pw'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el && !el._enterBound) {
-                el._enterBound = true;
-                el.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleLogin();
-                    }
-                });
-            }
-        });
-    };
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bindKeys);
-    } else {
-        bindKeys();
-    }
-    // 추가 딜레이 후 2차 안전 바인딩
-    setTimeout(bindKeys, 500);
-    setTimeout(bindKeys, 1500);
-})();
+
 
 function enterApp(role, userId, profile = null) {
     window._isLoggingIn = true;
