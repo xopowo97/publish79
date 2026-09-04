@@ -462,6 +462,7 @@ async function handleLogin() {
 
 function enterApp(role, userId, profile = null) {
     window._isLoggingIn = true;
+    window.currentUserRole = role;
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     if (userId) sessionStorage.setItem('userId', userId);
@@ -497,6 +498,11 @@ function enterApp(role, userId, profile = null) {
         return;
     }
 
+    // 어드민 로그인 시에는 온라인 DB에서 전체 파트너사 목록을 즉시 갱신
+    if (role === 'admin' && typeof initMaster === 'function') {
+        initMaster();
+    }
+
     const overlay = document.getElementById('login-overlay');
     if (overlay) overlay.style.opacity = '0';
     setTimeout(() => {
@@ -505,6 +511,7 @@ function enterApp(role, userId, profile = null) {
             const appContainer = document.getElementById('app-container');
             if (appContainer) appContainer.classList.remove('hidden');
             if (typeof switchRole === 'function') switchRole(role);
+            if (typeof renderAll === 'function') renderAll();
         } catch (e) {
             console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
         } finally {
@@ -5465,7 +5472,7 @@ function renderPartners() {
     const pageItems = filtered.slice(start, end);
 
     const listSide = document.querySelector('.partner-list-side');
-    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
 
     // 출판사 모드일 경우 리스트 숨김 처리 및 본인 정보 자동 로드
     if (role === 'publisher') {
