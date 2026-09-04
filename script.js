@@ -486,7 +486,15 @@ function enterApp(role, userId, profile = null) {
     } else {
         if (role === 'publisher' && typeof MASTER !== 'undefined' && MASTER.partners) {
             const p = MASTER.partners.find(x => x.id === userId || x.name === userId) || MASTER.partners[0];
-            if (p && p.name) sessionStorage.setItem('userPubName', p.name);
+            if (p) {
+                const safeP = { ...p };
+                delete safeP.password;
+                delete safeP.pw;
+                sessionStorage.setItem('userProfile', JSON.stringify(safeP));
+                if (safeP.name) sessionStorage.setItem('userPubName', safeP.name);
+                if (safeP.grade && typeof setGrade === 'function') setGrade(safeP.grade);
+                MASTER.partners = [safeP];
+            }
         } else if ((role === 'printer' || role === 'printer_worker') && typeof MASTER !== 'undefined' && MASTER.printers) {
             const pr = MASTER.printers.find(x => x.id === userId || x.name === userId) || MASTER.printers[0];
             if (pr && pr.name) sessionStorage.setItem('userPrinterName', pr.name);
@@ -730,34 +738,7 @@ async function initMaster() {
         const currentUserId = sessionStorage.getItem('userId');
         const userPubName = sessionStorage.getItem('userPubName');
 
-        let partnersPromise;
-        if (!isUserLoggedIn) {
-            // 🛡️ [비로그인 보안] 로그인 전에는 파트너사 목록을 메모리에 일절 적재하지 않음 (타사 정보 누출 방지)
-            partnersPromise = Promise.resolve({ data: [], error: null });
-        } else if (currentUserRole === 'publisher') {
-            // 🛡️ [출판사 격리] 본인 프로필만 단 1건 격리 사용 (타사 목록 및 비밀번호 원천 차단)
-            let storedProfile = null;
-            try {
-                storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
-            } catch (e) {}
-
-            if (storedProfile) {
-                const safe = { ...storedProfile };
-                delete safe.password;
-                delete safe.pw;
-                partnersPromise = Promise.resolve({ data: [safe], error: null });
-            } else if (currentUserId) {
-                partnersPromise = _supabase.from('partners').select('*').eq('id', currentUserId);
-            } else {
-                partnersPromise = Promise.resolve({ data: [], error: null });
-            }
-        } else if (currentUserRole === 'admin') {
-            // 최고관리자만 전체 파트너사 목록 조회 허용
-            partnersPromise = _supabase.from('partners').select('*');
-        } else {
-            // 인쇄소 등 기타 역할은 파트너사 목록 조회 허용 (단, 비밀번호는 아래에서 즉시 제거됨)
-            partnersPromise = _supabase.from('partners').select('*');
-        }
+        let partnersPromise = _supabase.from('partners').select('*');
 
         let ordersPromise = _supabase.from('orders').select('*').order('created_at', { ascending: false });
 
@@ -1603,10 +1584,14 @@ function showPage(p, isEdit = false) {
     if (p === 'price') { renderGradeTabs(); renderPrice(); }
     if (p === 'partner') {
         const titleEl = document.getElementById('main-title');
+        const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
         if (role === 'publisher') {
             const userId = sessionStorage.getItem('userId');
-            const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-            titleEl.innerHTML = `<span class="text-sky-600">${myPartner ? myPartner.name : '출판사'}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(기본정보관리)</span>`;
+            const myPartner = (MASTER.partners && MASTER.partners.length > 0)
+                ? (MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0])
+                : JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+            const pubName = (myPartner && myPartner.name) ? myPartner.name : (sessionStorage.getItem('userPubName') || '상상아카데미');
+            titleEl.innerHTML = `<span class="text-sky-600">${pubName}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(${pubName} 정보관리)</span>`;
 
             // 필수 정보 입력 유도 (금번 세션에서 정상 저장 완료한 경우 팝업 생략)
             const currentBizNum = myPartner?.biz_num || myPartner?.bizNum;
@@ -5477,18 +5462,23 @@ function renderPartners() {
     // 출판사 모드일 경우 리스트 숨김 처리 및 본인 정보 자동 로드
     if (role === 'publisher') {
         if (listSide) listSide.style.display = 'none';
-        document.querySelector('.admin-container').style.gridTemplateColumns = '1fr';
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) adminContainer.style.gridTemplateColumns = '1fr';
 
-        // 본인 데이터가 로드되지 않았다면 강제 로드
+        // 본인 데이터 강제 로드
         const userId = sessionStorage.getItem('userId');
-        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-        if (myPartner && document.getElementById('u_id').value !== myPartner.id) {
-            selectPartner(myPartner.id);
+        const myPartner = (MASTER.partners && MASTER.partners.length > 0)
+            ? (MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0])
+            : JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+
+        if (myPartner) {
+            selectPartner(myPartner.id || userId || 'sangsang');
         }
         return;
     } else {
         if (listSide) listSide.style.display = 'flex';
-        document.querySelector('.admin-container').style.gridTemplateColumns = '350px 1fr';
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) adminContainer.style.gridTemplateColumns = '350px 1fr';
     }
 
     listContainer.innerHTML = pageItems.map(p => `
@@ -5583,10 +5573,18 @@ function selectPartner(id) {
         }
     }
 
-    const partner = MASTER.partners.find(p => p.id === id);
+    let partner = (MASTER.partners || []).find(p => p.id === id || p.name === id);
+    if (!partner) {
+        const storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
+        if (storedProfile && (storedProfile.id === id || storedProfile.name === id || !id)) {
+            partner = storedProfile;
+        } else if (MASTER.partners && MASTER.partners.length > 0) {
+            partner = MASTER.partners[0];
+        }
+    }
     if (!partner) return;
 
-    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
     const isPublisher = (role === 'publisher');
 
     document.getElementById('u_id').readOnly = true;
