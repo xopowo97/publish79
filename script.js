@@ -84,8 +84,8 @@ async function fetchLibraryData(keyword) {
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
 // Vercel Serverless Function 프록시 API 경로 정의
 const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
-    ? 'https://publish79.vercel.app/api/send-error'
-    : '/api/send-error';
+    ? 'https://publish79.vercel.app/api/heal'
+    : '/api/heal';
 
 async function reportSystemError(errorData) {
     try {
@@ -477,7 +477,10 @@ function enterApp(role, userId, profile = null) {
         }
         // 🛡️ 출판사 로그인 시 타사 데이터 노출 차단을 위해 단일 프로필로 격리
         if (role === 'publisher' && typeof MASTER !== 'undefined') {
-            MASTER.partners = [profile];
+            const safeProfile = { ...profile };
+            delete safeProfile.password;
+            delete safeProfile.pw;
+            MASTER.partners = [safeProfile];
         }
     } else {
         if (role === 'publisher' && typeof MASTER !== 'undefined' && MASTER.partners) {
@@ -714,24 +717,38 @@ async function initMaster() {
         // 온라인 DB로부터 쿼리가 성공적으로 이루어졌으므로 로드 상태를 true로 설정 (네트워크 에러 시 false 유지)
         isConfigLoaded = true;
 
-        // 2. 각 테이블 병렬 로딩 (역할 기반 보안 격리 처리)
-        const currentUserRole = sessionStorage.getItem('userRole') || 'admin';
+        // 2. 각 테이블 병렬 로딩 (역할 기반 멀티테넌트 보안 격리)
+        const isUserLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+        const currentUserRole = sessionStorage.getItem('userRole') || '';
         const currentUserId = sessionStorage.getItem('userId');
         const userPubName = sessionStorage.getItem('userPubName');
 
         let partnersPromise;
-        if (currentUserRole === 'publisher') {
-            // 🛡️ [보안 격리] 출판사는 타 파트너사 데이터를 조회하지 않고, 본인 프로필만 격리 사용
-            const storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
+        if (!isUserLoggedIn) {
+            // 🛡️ [비로그인 보안] 로그인 전에는 파트너사 목록을 메모리에 일절 적재하지 않음 (타사 정보 누출 방지)
+            partnersPromise = Promise.resolve({ data: [], error: null });
+        } else if (currentUserRole === 'publisher') {
+            // 🛡️ [출판사 격리] 본인 프로필만 단 1건 격리 사용 (타사 목록 및 비밀번호 원천 차단)
+            let storedProfile = null;
+            try {
+                storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
+            } catch (e) {}
+
             if (storedProfile) {
-                partnersPromise = Promise.resolve({ data: [storedProfile], error: null });
+                const safe = { ...storedProfile };
+                delete safe.password;
+                delete safe.pw;
+                partnersPromise = Promise.resolve({ data: [safe], error: null });
             } else if (currentUserId) {
                 partnersPromise = _supabase.from('partners').select('*').eq('id', currentUserId);
             } else {
                 partnersPromise = Promise.resolve({ data: [], error: null });
             }
+        } else if (currentUserRole === 'admin') {
+            // 최고관리자만 전체 파트너사 목록 조회 허용
+            partnersPromise = _supabase.from('partners').select('*');
         } else {
-            // 어드민/인쇄소는 전체 파트너사 목록 조회 허용
+            // 인쇄소 등 기타 역할은 파트너사 목록 조회 허용 (단, 비밀번호는 아래에서 즉시 제거됨)
             partnersPromise = _supabase.from('partners').select('*');
         }
 
@@ -773,8 +790,8 @@ async function initMaster() {
         if (partnersRes.data) {
             MASTER.partners = partnersRes.data.map(p => {
                 const partnerObj = { ...p };
-                // 🛡️ 출판사 로그인 시에는 비밀번호 필드를 원천 제거하여 콘솔 노출 차단
-                if (currentUserRole === 'publisher') {
+                // 🛡️ 최고관리자(admin)가 아닌 모든 역할(출판사, 인쇄소, 비로그인 등)에서는 비밀번호 필드를 100% 영구 삭제
+                if (currentUserRole !== 'admin') {
                     delete partnerObj.password;
                     delete partnerObj.pw;
                 } else {
