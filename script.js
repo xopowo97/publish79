@@ -2943,11 +2943,7 @@ function printJobTicket(orderId) {
 
     // 공정 전달 지시문
     if (isRoll && (hasFace || hasWing)) {
-        const orderDateObj = order.createdAt ? new Date(order.createdAt) : new Date();
-        const ordMonth = orderDateObj.getMonth() + 1;
-        const ordDay = orderDateObj.getDate();
-        const ordDayOfWeek = ['일','월','화','수','목','금','토'][orderDateObj.getDay()];
-        smartRemarksPartsForPrint.push(`<span style="color: #dc2626; font-weight: bold;">동집에서 내지 출력 후 칼라미로 보내주세요 (${ordMonth}/${ordDay}${ordDayOfWeek} 오전)</span>`);
+        smartRemarksPartsForPrint.push(`<span style="color: #dc2626; font-weight: bold;">동집에서 내지 출력 후 칼라미로 보내주세요</span>`);
     } else if (isRoll && !hasFace && !hasWing) {
         smartRemarksPartsForPrint.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
     } else {
@@ -3050,14 +3046,14 @@ function printJobTicket(orderId) {
             </head>
             <body>
                 <div class="wr-title-area">
-                    <div class="wr-title">한국리더십센터 _작업요청서_${order.id.slice(-6)}</div>
+                    <div class="wr-title">(주)한국리더십센터 _작업요청서_${order.id.slice(-6)}</div>
                     <div class="wr-date">요청일자: ${new Date().toLocaleDateString()}</div>
                 </div>
 
                 <table class="wr-table">
                     <tr>
                         <th style="width: 10%;">발주사</th>
-                        <td style="width: 20%; font-weight: bold;">${order.pubName}</td>
+                        <td style="width: 20%; font-weight: bold;">(주)한국리더십센터</td>
                         <th style="width: 10%;">교재명</th>
                         <td style="width: 30%; font-weight: bold;" class="left">${order.bookTitle}</td>
                         <th style="width: 10%;">희망납기일</th>
@@ -3079,23 +3075,23 @@ function printJobTicket(orderId) {
                         <tr>
                             <th style="width: 6%;">구분</th>
                             <th style="width: 10%;">작업처</th>
-                            <th style="width: 8%;">코팅</th>
+                            <th style="width: 14%;">후가공</th>
                             <th style="width: 10%;">출력장비</th>
-                            <th style="width: 10%;">인쇄도수</th>
+                            <th style="width: 8%;">인쇄도수</th>
                             <th style="width: 8%;">인쇄방식</th>
-                            <th style="width: 22%;">용지명</th>
+                            <th style="width: 20%;">용지명</th>
                             <th style="width: 8%;">평량(g)</th>
-                            <th style="width: 10%;">부수</th>
+                            <th style="width: 8%;">부수</th>
                             <th style="width: 8%;">규격</th>
-                            <th style="width: 8%;">페이지</th>
-                            <th style="width: 8%;">비고</th>
+                            <th style="width: 6%;">페이지</th>
+                            <th style="width: 6%;">비고</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td style="font-weight: bold; background-color: #fafafa;">표지</td>
                             <td>${coverWorker}</td>
-                            <td>${dObj['ord-coating'] || '무광'}코팅</td>
+                            <td style="font-size: 8px; line-height: 1.2; color: #dc2626 !important; font-weight: bold; white-space: pre-wrap;">${afterProcessText}</td>
                             <td style="font-weight: bold;">인디고</td>
                             <td>컬러</td>
                             <td>단면</td>
@@ -5127,11 +5123,7 @@ async function downloadWorkRequestExcel(id) {
 
         // 4. 공정 전달 지시문
         if (isRoll && (hasFace || hasWing)) {
-            const orderDateObj = order.createdAt ? new Date(order.createdAt) : todayDate;
-            const ordMonth = orderDateObj.getMonth() + 1;
-            const ordDay = orderDateObj.getDate();
-            const ordDayOfWeek = ['일','월','화','수','목','금','토'][orderDateObj.getDay()];
-            remarksParts.push(`동집에서 내지 출력 후 칼라미로 보내주세요 (${ordMonth}/${ordDay}${ordDayOfWeek} 오전)`);
+            remarksParts.push(`동집에서 내지 출력 후 칼라미로 보내주세요`);
         } else if (isRoll && !hasFace && !hasWing) {
             remarksParts.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
         } else {
@@ -5152,6 +5144,8 @@ async function downloadWorkRequestExcel(id) {
         worksheet.getCell('C9').value = '표지';
         worksheet.getCell('D9').value = coverWorker;
         worksheet.getCell('E9').value = afterProcessText;
+        worksheet.getCell('E9').font = { size: 8.5, color: { argb: 'FFDC2626' }, bold: true };
+        worksheet.getCell('E9').alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         worksheet.getCell('F9').value = coverWorker;
         worksheet.getCell('G9').value = '인디고';
         worksheet.getCell('H9').value = '컬러';
