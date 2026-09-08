@@ -2857,6 +2857,10 @@ function printJobTicket(orderId) {
     const hasWing = wing.includes('날개 있음');
     const innerPrint = dObj['ord-inner-print'] || '흑백단면';
 
+    const facePaper = dObj['ord-face'] || '';
+    const faceInsert = dObj['ord-face-insert'] || '';
+    const hasFace = facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음' && !faceInsert.includes('없음');
+
     let innerDevice = '';
     let innerWorker = '';
     if (isRoll) {
@@ -2870,33 +2874,19 @@ function printJobTicket(orderId) {
 
     let coverWorker = '';
     let coverExtra = '';
-    if (hasWing) {
+    if (hasWing || hasFace) {
         coverWorker = '칼라미';
-        coverExtra = '날개 있음';
+        coverExtra = hasWing ? '날개 있음' : '날개 없음';
     } else {
         coverWorker = isRoll ? '구의동' : '칼라미';
         coverExtra = '날개 없음';
     }
 
-    let smartRemarks = '';
-    const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
-        const memo = del.memo || '';
-        return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
-    });
-    if (hasWrappingReq) {
-        smartRemarks += `* 1권씩 래핑후 납품요청<br><br>`;
-    }
-
-    smartRemarks += `* [생산 공정 지시]<br>`;
-    if (isRoll && hasWing) {
-        smartRemarks += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.<br>`;
-        smartRemarks += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.<br>`;
-        smartRemarks += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.<br>`;
-    } else if (!isRoll && !hasWing) {
-        smartRemarks += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.<br>`;
-    } else {
-        smartRemarks += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]<br>`;
-        smartRemarks += `  - 제본 완료 후 최종 배송.<br>`;
+    const coatingText = `${dObj['ord-coating'] || '무광'}코팅`;
+    const wingText = hasWing ? '날개있음' : '날개없음';
+    let afterProcessText = `${coatingText} / ${wingText} /`;
+    if (hasFace) {
+        afterProcessText += `\n면지 ${facePaper} / ${faceInsert}`;
     }
 
     // 평량 및 납기일, 배송처를 포함한 스마트 지시서 추가 데이터 연산 (엑셀과 1:1)
@@ -2920,31 +2910,51 @@ function printJobTicket(orderId) {
     const computedTotal = computePurchaseCost(order);
     const computedUnit = Math.round(computedTotal / rawQty);
 
-    let smartRemarksForPrint = '';
+    const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+        const memo = del.memo || '';
+        return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+    });
+
+    let smartRemarksPartsForPrint = [];
     if (hasWrappingReq) {
-        smartRemarksForPrint += `* 1권씩 래핑후 납품요청<br><br>`;
+        smartRemarksPartsForPrint.push(`* 1권씩 래핑후 납품요청<br>`);
     }
 
-    smartRemarksForPrint += `<b>* [생산 공정 지시]</b><br>`;
-    if (isRoll && hasWing) {
-        smartRemarksForPrint += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.<br>`;
-        smartRemarksForPrint += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.<br>`;
-        smartRemarksForPrint += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.<br><br>`;
-    } else if (!isRoll && !hasWing) {
-        smartRemarksForPrint += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.<br><br>`;
-    } else {
-        smartRemarksForPrint += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]<br>`;
-        smartRemarksForPrint += `  - 제본 완료 후 최종 배송.<br><br>`;
-    }
-
-    smartRemarksForPrint += `<b>* 배송처</b><br>`;
+    // 배송처 정보
     if (order.deliveries && order.deliveries.length > 0) {
-        order.deliveries.forEach((del, index) => {
-            smartRemarksForPrint += `${index + 1}. ${del.address} ${del.addressDetail || ''} / 수령인: ${del.recipient} (${del.contact}) - ${del.qty}부`;
-            if (del.memo) smartRemarksForPrint += ` (메모: ${del.memo})`;
-            smartRemarksForPrint += `<br>`;
+        order.deliveries.forEach((del) => {
+            let delHtml = `<b>${del.qty}부 : 입고처: ${del.recipient || order.pubName}</b><br>연락처: ${del.contact || '-'}<br>주소 : ${del.address} ${del.addressDetail || ''}`;
+            if (del.memo) {
+                delHtml += ` (메모: ${del.memo})`;
+            }
+            smartRemarksPartsForPrint.push(delHtml);
         });
     }
+
+    // 납기일
+    if (delDate) {
+        const mmNum = parseInt(delDate.substring(5, 7), 10);
+        const ddNum = parseInt(delDate.substring(8, 10), 10);
+        smartRemarksPartsForPrint.push(`*납기일 : ${mmNum}월 ${ddNum}일입니다. 택배 후 송장번호 알려 주세요`);
+    }
+
+    // 견본 전달
+    smartRemarksPartsForPrint.push(`*견본2권 권신애에게 전달 부탁드립니다.`);
+
+    // 공정 전달 지시문
+    if (isRoll && (hasFace || hasWing)) {
+        const orderDateObj = order.createdAt ? new Date(order.createdAt) : new Date();
+        const ordMonth = orderDateObj.getMonth() + 1;
+        const ordDay = orderDateObj.getDate();
+        const ordDayOfWeek = ['일','월','화','수','목','금','토'][orderDateObj.getDay()];
+        smartRemarksPartsForPrint.push(`<span style="color: #dc2626; font-weight: bold;">동집에서 내지 출력 후 칼라미로 보내주세요 (${ordMonth}/${ordDay}${ordDayOfWeek} 오전)</span>`);
+    } else if (isRoll && !hasFace && !hasWing) {
+        smartRemarksPartsForPrint.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
+    } else {
+        smartRemarksPartsForPrint.push(`칼라미에서 내지/표지 출력 및 제본, 배송 처리`);
+    }
+
+    const smartRemarksForPrint = smartRemarksPartsForPrint.join('<br>');
 
     // 1. 기존에 생성된 투명 프레임이 있다면 제거 (항상 깨끗한 새 프레임 보장)
     let oldFrame = document.getElementById('hidden-print-frame');
@@ -5033,6 +5043,10 @@ async function downloadWorkRequestExcel(id) {
         const wing = d['ord-wing'] || '날개 없음';
         const hasWing = wing.includes('날개 있음');
 
+        const facePaper = d['ord-face'] || '';
+        const faceInsert = d['ord-face-insert'] || '';
+        const hasFace = facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음' && !faceInsert.includes('없음');
+
         const innerPrint = d['ord-inner-print'] || '흑백단면';
         const isColorInner = innerPrint.includes('컬러');
 
@@ -5050,42 +5064,19 @@ async function downloadWorkRequestExcel(id) {
 
         let coverWorker = '';
         let coverExtra = '';
-        if (hasWing) {
+        if (hasWing || hasFace) {
             coverWorker = '칼라미';
-            coverExtra = '날개 있음';
+            coverExtra = hasWing ? '날개 있음' : '날개 없음';
         } else {
             coverWorker = isRoll ? '구의동' : '칼라미';
             coverExtra = '날개 없음';
         }
 
-        let remarks = '';
-        const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
-            const memo = del.memo || '';
-            return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
-        });
-        if (hasWrappingReq) {
-            remarks += `* 1권씩 래핑후 납품요청\n\n`;
-        }
-
-        remarks += `* [생산 공정 지시]\n`;
-        if (isRoll && hasWing) {
-            remarks += `  1. 내지는 구의동(JP1160)에서 연속지 인쇄 후 칼라미로 이송.\n`;
-            remarks += `  2. 표지는 날개 있음 외주 가공 완료 후 칼라미로 입고 대기.\n`;
-            remarks += `  3. 칼라미에서 내지+표지 취합 후 최종 제본 및 배송 처리.\n\n`;
-        } else if (!isRoll && !hasWing) {
-            remarks += `  - 내지 및 표지 전체 칼라미 출력 및 제본 진행.\n\n`;
-        } else {
-            remarks += `  - 작업처 분기: 표지 [${coverWorker}], 내지 [${innerWorker} (장비: ${innerDevice})]\n`;
-            remarks += `  - 제본 완료 후 최종 배송.\n\n`;
-        }
-
-        remarks += `* 배송처\n`;
-        if (order.deliveries && order.deliveries.length > 0) {
-            order.deliveries.forEach((del, index) => {
-                remarks += `${index + 1}. ${del.address} ${del.addressDetail || ''} / 수령인: ${del.recipient} (${del.contact}) - ${del.qty}부`;
-                if (del.memo) remarks += ` (메모: ${del.memo})`;
-                remarks += `\n`;
-            });
+        const coatingText = `${d['ord-coating'] || '무광'}코팅`;
+        const wingText = hasWing ? '날개있음' : '날개없음';
+        let afterProcessText = `${coatingText} / ${wingText} /`;
+        if (hasFace) {
+            afterProcessText += `\n면지 ${facePaper} / ${faceInsert}`;
         }
 
         const todayDate = new Date();
@@ -5094,11 +5085,6 @@ async function downloadWorkRequestExcel(id) {
         const ddVal = String(todayDate.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}${mmVal}${ddVal}`;
 
-        worksheet.getCell('B1').value = `한국리더십센터 _작업요청서_${todayStr}`;
-        worksheet.getCell('O3').value = todayDate; 
-        worksheet.getCell('C4').value = order.pubName; 
-        worksheet.getCell('F4').value = order.bookTitle; 
-        
         const delDate = d['ord-delivery-date'] || '';
         let formattedDelDate = '';
         if (delDate) {
@@ -5107,16 +5093,65 @@ async function downloadWorkRequestExcel(id) {
             const dayOfWeek = getDayOfWeek(delDate);
             formattedDelDate = `${mm}-${dd}(${dayOfWeek})까지 수령`;
         }
+
+        const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+            const memo = del.memo || '';
+            return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+        });
+
+        let remarksParts = [];
+        if (hasWrappingReq) {
+            remarksParts.push(`* 1권씩 래핑후 납품요청\n`);
+        }
+
+        // 1. 배송처 정보
+        if (order.deliveries && order.deliveries.length > 0) {
+            order.deliveries.forEach((del) => {
+                let delText = `${del.qty}부 : 입고처: ${del.recipient || order.pubName}\n연락처: ${del.contact || '-'}\n주소 : ${del.address} ${del.addressDetail || ''}`;
+                if (del.memo) {
+                    delText += ` (메모: ${del.memo})`;
+                }
+                remarksParts.push(delText);
+            });
+        }
+
+        // 2. 납기일 안내
+        if (delDate) {
+            const mmNum = parseInt(delDate.substring(5, 7), 10);
+            const ddNum = parseInt(delDate.substring(8, 10), 10);
+            remarksParts.push(`*납기일 : ${mmNum}월 ${ddNum}일입니다. 택배 후 송장번호 알려 주세요`);
+        }
+
+        // 3. 견본 전달 안내
+        remarksParts.push(`*견본2권 권신애에게 전달 부탁드립니다.`);
+
+        // 4. 공정 전달 지시문
+        if (isRoll && (hasFace || hasWing)) {
+            const orderDateObj = order.createdAt ? new Date(order.createdAt) : todayDate;
+            const ordMonth = orderDateObj.getMonth() + 1;
+            const ordDay = orderDateObj.getDate();
+            const ordDayOfWeek = ['일','월','화','수','목','금','토'][orderDateObj.getDay()];
+            remarksParts.push(`동집에서 내지 출력 후 칼라미로 보내주세요 (${ordMonth}/${ordDay}${ordDayOfWeek} 오전)`);
+        } else if (isRoll && !hasFace && !hasWing) {
+            remarksParts.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
+        } else {
+            remarksParts.push(`칼라미에서 내지/표지 출력 및 제본, 배송 처리`);
+        }
+
+        const remarks = remarksParts.join('\n');
+
+        worksheet.getCell('B1').value = `(주)한국리더십센터 _작업요청서_${todayStr}`;
+        worksheet.getCell('O3').value = todayDate; 
+        worksheet.getCell('C4').value = '(주)한국리더십센터'; 
+        worksheet.getCell('F4').value = order.bookTitle; 
         worksheet.getCell('J4').value = formattedDelDate; 
-        
         worksheet.getCell('M4').value = d['ord-delivery-method'] || '택배'; 
-        
         worksheet.getCell('O4').value = `권신애\n010-8182-8189`; 
         
         worksheet.getCell('B9').value = order.bookTitle;
         worksheet.getCell('C9').value = '표지';
         worksheet.getCell('D9').value = coverWorker;
-        worksheet.getCell('E9').value = `${d['ord-coating'] || '무광'}코팅`;
+        worksheet.getCell('E9').value = afterProcessText;
         worksheet.getCell('F9').value = coverWorker;
         worksheet.getCell('G9').value = '인디고';
         worksheet.getCell('H9').value = '컬러';
