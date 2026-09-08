@@ -2896,6 +2896,8 @@ function printJobTicket(orderId) {
     const innerPaperText = dObj['ord-inner'] || '';
     const innerWeightNum = parseInt(innerPaperText.replace(/[^0-9]/g, '')) || parseInt(dObj['ord-inner-weight']) || 80;
 
+    const finalSpecSize = dObj['ord-custom-size'] || dObj['ord-spec'] || 'A5국판';
+
     const delDate = dObj['ord-delivery-date'] || '';
     let formattedDelDate = '';
     if (delDate) {
@@ -3098,7 +3100,7 @@ function printJobTicket(orderId) {
                             <td class="left">${dObj['ord-cover'] || '스노우화이트'}</td>
                             <td>${coverWeightNum}g</td>
                             <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
-                            <td>${dObj['ord-spec'] || 'A5국판'}</td>
+                            <td>${finalSpecSize}</td>
                             <td>4</td>
                             <td>${coverExtra}</td>
                         </tr>
@@ -3117,7 +3119,7 @@ function printJobTicket(orderId) {
                             <td class="left">${dObj['ord-inner'] || '미색모조'}</td>
                             <td>${innerWeightNum}g</td>
                             <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
-                            <td>${dObj['ord-spec'] || 'A5국판'}</td>
+                            <td>${finalSpecSize}</td>
                             <td>${parseInt(dObj['ord-tp']) || 0}</td>
                             <td>${coverExtra}</td>
                         </tr>
@@ -5157,9 +5159,11 @@ async function downloadWorkRequestExcel(id) {
         const coverWeightNum = parseInt(coverPaperText.replace(/[^0-9]/g, '')) || parseInt(d['ord-cover-weight']) || 250;
         worksheet.getCell('K9').value = coverWeightNum;
         
+        const finalSpecSize = d['ord-custom-size'] || d['ord-spec'] || 'A5국판';
+
         worksheet.getCell('L9').value = parseInt(order.qty) || 0;
         worksheet.getCell('M9').value = coverExtra;
-        worksheet.getCell('N9').value = d['ord-spec'] || 'A5국판';
+        worksheet.getCell('N9').value = finalSpecSize;
         worksheet.getCell('O9').value = 4;
         
         // B12 (내지 교재명) 셀은 템플릿의 기존 수식(=B9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
@@ -5184,7 +5188,7 @@ async function downloadWorkRequestExcel(id) {
         
         // L12 (내지 부수) 셀은 템플릿의 기존 수식(=L9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
         worksheet.getCell('M12').value = coverExtra;
-        worksheet.getCell('N12').value = d['ord-spec'] || 'A5국판';
+        worksheet.getCell('N12').value = finalSpecSize;
         worksheet.getCell('O12').value = parseInt(d['ord-tp']) || 0;
         
         // 비고란 B13 행 기입 (행 높이는 손상을 피하기 위해 템플릿 엑셀 자체에서 늘려서 관리)
