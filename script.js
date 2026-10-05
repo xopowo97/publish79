@@ -3574,10 +3574,10 @@ async function handleFileSelect(type, input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
 
-        // 1. 용량 제한 체크 (Supabase 무료 티어 기준: 50MB)
-        const maxSize = 50 * 1024 * 1024; // 50MB
+        // 1. 용량 제한 체크 (Supabase Pro 티어 기준: 1GB)
+        const maxSize = 1024 * 1024 * 1024; // 1GB (1,024MB)
         if (file.size > maxSize) {
-            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 50MB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 50MB를 초과하는 파일은 압축(.zip)하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
+            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 1GB (1,024MB)\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 1GB를 초과하는 파일은 압축(.zip)하거나 파일 용량을 최적화하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
             input.value = '';
             return;
         }
