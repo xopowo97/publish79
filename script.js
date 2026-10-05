@@ -2318,6 +2318,19 @@ function renderProductionBoard() {
     const board = document.getElementById('kanban-board');
     if (!board) return;
 
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+
+    // 출판사 로그인 시 자사 주문만 격리 필터링 (인쇄소/관리자는 전체 주문 관제)
+    const visibleOrders = MASTER.orders.filter(o => {
+        if (o.isDeleted) return false;
+        if (role === 'publisher' && myPartner) {
+            if (o.pubName !== myPartner.name) return false;
+        }
+        return true;
+    });
+
     const columns = [
         { id: '접수대기', title: '접수대기', color: 'slate' },
         { id: '인쇄/가공중', title: '인쇄/가공중', color: 'sky' },
@@ -2334,14 +2347,14 @@ function renderProductionBoard() {
                     <span class="font-black kb-header-${col.color} text-sm">${col.title}</span>
                 </div>
                 <span class="text-[10px] font-bold text-slate-500 bg-white/80 px-2.5 py-1 rounded-full border border-slate-200/50">
-                    ${MASTER.orders.filter(o => (o.status || '접수대기') === col.id && !o.isDeleted).length}
+                    ${visibleOrders.filter(o => (o.status || '접수대기') === col.id).length}
                 </span>
             </div>
             <div class="flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar" id="col-${col.id}"></div>
         </div>
     `).join('');
 
-    MASTER.orders.filter(o => !o.isDeleted).forEach(order => {
+    visibleOrders.forEach(order => {
         if (!order.status) order.status = '접수대기';
 
         const colContainer = document.getElementById(`col-${order.status}`);
