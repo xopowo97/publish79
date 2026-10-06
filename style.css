@@ -1095,41 +1095,75 @@ th {
    B2B ERP 모바일 반응형 최적화 (768px 이하)
    ============================================= */
 @media (max-width: 768px) {
-    /* 1. 사이드바 드로어 레이아웃 */
+    /* 1. 사이드바 드로어 레이아웃 & 로그아웃 보장 */
     #sidebar-aside {
         position: fixed !important;
         top: 0;
-        left: -260px;
-        width: 260px;
+        left: -280px;
+        width: 280px;
         height: 100vh;
+        height: 100dvh !important;
         z-index: 150;
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 60px !important; /* 모바일 브라우저 하단바 가림 방지 */
     }
     
     #sidebar-aside.active {
         left: 0 !important;
     }
+
+    #sidebar-aside nav {
+        flex: 1 0 auto !important;
+        overflow-y: visible !important;
+    }
     
-    /* 2. 전체 레이아웃 리플렉스 */
+    /* 2. 전체 레이아웃 리플렉스 & 단일 스크롤 일원화 */
     #app-container {
         flex-direction: column !important;
+        height: 100vh;
+        height: 100dvh !important;
         overflow: hidden !important;
     }
 
     main {
         width: 100% !important;
-        height: calc(100vh - 65px) !important;
+        height: 100vh;
+        height: 100dvh !important;
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important; /* 이중 스크롤 제거 */
+    }
+
+    #main-content-scroll {
+        flex: 1 1 auto !important;
+        height: 100% !important;
         overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        padding: 12px 12px 130px 12px !important; /* 챗봇 FAB(💬) 및 바닥 버튼 여유 공간 130px 확보 */
+    }
+
+    .page-content {
+        padding-bottom: 120px !important;
     }
 
     header {
         height: auto !important;
-        padding: 12px 16px !important;
+        padding: 10px 14px !important;
         flex-direction: row !important;
         justify-content: space-between !important;
         align-items: center !important;
-        gap: 12px;
+        gap: 8px;
+    }
+
+    #main-title {
+        font-size: 16px !important;
     }
 
     /* 3. 테이블 및 데이터 그리드 가로 스크롤 강제 */
@@ -1144,7 +1178,7 @@ th {
     }
 
     table {
-        min-width: 600px !important; /* 모바일에서 열이 너무 구겨지지 않게 최소 너비 보장 */
+        min-width: 540px !important; /* 모바일에서 열이 너무 구겨지지 않게 최소 너비 보장 */
     }
 
     /* 4. Tailwind 다중 열 그리드 강제 1열 스택 */
@@ -1201,7 +1235,12 @@ th {
         margin: 10px auto !important;
     }
 
-    /* 7. 주문하기 양식 가로폭 개선 */
+    /* 7. 카드 및 주문하기 양식 가로폭 개선 */
+    .card-common, .bg-slate-900 {
+        padding: 16px 14px !important;
+        border-radius: 16px !important;
+    }
+
     .max-w-2xl, .max-w-3xl, .max-w-4xl {
         max-width: 100% !important;
         width: 100% !important;
