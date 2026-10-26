@@ -31,6 +31,7 @@ function checkRateLimit(ip) {
     return true;
 }
 
+const YES24_API_KEY = process.env.YES24_API_KEY;
 const ALADIN_API_KEY = process.env.ALADIN_API_KEY;
 const LIBRARY_NARU_API_KEY = process.env.LIBRARY_NARU_API_KEY;
 const LIBRARY_API_KEY = process.env.LIBRARY_API_KEY;
@@ -396,12 +397,6 @@ function runDataRefiner_Dadumeui(rawBook) {
         estimated_royalty_rate: estimatedRoyaltyRate,
         category: category,
         digital_archive_url: rawBook.digital_archive_url || rawBook.detail_link || null,
-        // 5대 핵심 상업 데이터 원문 수집 연결
-        full_description: rawBook.fullDescription || rawBook.description || null,
-        toc: rawBook.toc || null,
-        review_list: rawBook.reviewList || null,
-        authors_info: rawBook.authors || null,
-        story_quotes: rawBook.story || null,
         updated_at: new Date().toISOString()
     };
 }
@@ -529,117 +524,64 @@ async function fetchLibraryNaruLoanList(apiKey, kdc, pageNo = 1, pageSize = 50) 
 }
 
 // ============================================================
-// [핵심 함수 v3.0] 알라딘 25종 묶음 배치 쿼리
-// ✅ 개편 포인트:
-//   - 25종 ISBN을 콤마(,)로 묶어 단 1회 API 호출 (URL 500자 이하 안전)
-//   - &OptResult=toc,story,reviewList,authors 5대 텍스트 필수 주입
-//   - 배열 정제 가드: toc/description 빈 도서 → Gemini Flash AI 요약 폴백
-//   - Vercel 10초 타임아웃 완전 진압 (25종 × 2회 = 단 4~6초 소요)
+// [핵심 함수] 예스24 Goods API — ISBN으로 재고 상태 크로스체크
+// 품절/절판 여부 + 출판사 확인 + 고화질 표지/카테고리 메타데이터 보완
 // ============================================================
-
-// 묶음 배치 쿼리 엔진 (25종 단위)
-async function fetchAladinBatch(aladinKey, isbn13Array) {
-    if (!isbn13Array || isbn13Array.length === 0) return [];
-
-    // 25종씩 묶어 URL 길이 500자 이하 유지 (414 URI Too Large 방어)
-    const BATCH_SIZE = 25;
-    const allResults = [];
-
-    for (let i = 0; i < isbn13Array.length; i += BATCH_SIZE) {
-        const chunk = isbn13Array.slice(i, i + BATCH_SIZE);
-        const isbnParam = chunk.join(',');
-
-        // 5대 텍스트 항목 필수 주입: toc(목차), story(책속에서), reviewList(추천사), authors(저자소개)
-        const url = `https://aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${aladinKey}&itemIdType=ISBN13&ItemId=${isbnParam}&output=js&Version=20131101&OptResult=toc,story,reviewList,authors,fulldescription`;
-
-        try {
-            const res = await fetch(url, { headers: { 'User-Agent': 'Antigravity-SalPimi/2.0' } });
-            if (!res.ok) {
-                console.warn(`[알라딘 배치] HTTP ${res.status} (chunk ${i / BATCH_SIZE + 1})`);
-                continue;
-            }
-
-            let text = await res.text();
-            if (text.endsWith(';')) text = text.slice(0, -1);
-
-            let data;
-            try { data = JSON.parse(text); } catch (e) {
-                console.warn(`[알라딘 배치] JSON 파싱 실패 (chunk ${i / BATCH_SIZE + 1})`);
-                continue;
-            }
-
-            const items = Array.isArray(data.item) ? data.item : [];
-            allResults.push(...items);
-        } catch (e) {
-            console.warn(`[알라딘 배치] 호출 예외 (chunk ${i / BATCH_SIZE + 1}):`, e.message);
+async function checkYes24Stock(yes24Key, isbn13) {
+    const url = `https://apis.yes24.com/v1/goods/itemList?query=${encodeURIComponent(isbn13)}&page=1&pageSize=1`;
+    const res = await fetch(url, {
+        headers: {
+            'X-Api-Key': yes24Key,
+            'User-Agent': 'Publish79-SalPimi/2.0'
         }
+    });
 
-        // 배치 간 500ms 딜레이 (알라딘 서버 부하 방지)
-        if (i + BATCH_SIZE < isbn13Array.length) {
-            await new Promise(r => setTimeout(r, 500));
-        }
-    }
+    if (!res.ok) throw new Error(`예스24 itemList HTTP ${res.status} (ISBN: ${isbn13})`);
 
-    return allResults;
+    const json = await res.json();
+    const item = json?.data?.items?.[0];
+    if (!item) return null;
+
+    let stockStatus = '정상';
+    const status = String(item.itemStatus || '').trim();
+    if (status.includes('절판')) stockStatus = '절판';
+    else if (status.includes('품절')) stockStatus = '품절';
+    else if (status.includes('판매중')) stockStatus = '정상';
+    else stockStatus = status || '정상';
+
+    return {
+        stockStatus: stockStatus,
+        publisher:   item.publisher || '',
+        cover:       item.cover || '',
+        categoryName: item.goodsSortNm || '',
+        title:       item.title || ''
+    };
 }
 
-// 배열 정제 가드: toc/description 비어있는 도서 → Gemini Flash AI 요약 폴백 체이닝
-async function enrichWithGeminiIfEmpty(item, geminiApiKey) {
-    const hasToc = !!(item.toc && item.toc.trim().length > 10);
-    const hasDesc = !!(item.description && item.description.trim().length > 20);
-
-    if (hasToc && hasDesc) return item; // 데이터가 풍부하면 스킵
-
-    if (!geminiApiKey) return item; // Gemini 키 없으면 원본 반환
-
-    try {
-        const prompt = `다음 도서의 서지정보를 보고 [목차 요약]과 [책소개 요약]을 각각 한국어로 2~3문장씩 생성해주세요.\n제목: ${item.title || ''}\n저자: ${item.author || ''}\n출판사: ${item.publisher || ''}\n카테고리: ${item.categoryName || ''}\n\n[목차 요약]: \n[책소개 요약]:`;
-
-        const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { maxOutputTokens: 300, temperature: 0.3 }
-                })
-            }
-        );
-
-        if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            const generated = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-            const tocMatch = generated.match(/\[목차 요약\]:\s*([\s\S]*?)(?=\[책소개 요약\]|$)/);
-            const descMatch = generated.match(/\[책소개 요약\]:\s*([\s\S]*)$/);
-
-            if (!hasToc && tocMatch) item.toc = '[AI 생성] ' + tocMatch[1].trim();
-            if (!hasDesc && descMatch) item.description = '[AI 생성] ' + descMatch[1].trim();
-        }
-    } catch (e) {
-        // AI 폴백 실패는 무시하고 원본 반환 (파이프라인 중단 방지)
-    }
-
-    return item;
-}
-
-// 기존 단일 ISBN 조회 함수 (하위 호환성 유지 — 1건 조회 시 배치 엔진 내부 활용)
+// ============================================================
+// [핵심 함수] 알라딘 ItemLookUp API — ISBN으로 재고 상태 크로스체크 (레거시 폴백)
+// 품절/절판 여부 + 출판사 확인 + 추가 메타데이터 보완
+// ============================================================
 async function checkAladinStock(aladinKey, isbn13) {
-    const results = await fetchAladinBatch(aladinKey, [isbn13]);
-    const item = results[0] || null;
+    const url = `http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${aladinKey}&itemIdType=ISBN13&ItemId=${isbn13}&output=js&Version=20131101&OptResult=bookinfo`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Antigravity-SalPimi/2.0' } });
+
+    if (!res.ok) throw new Error(`알라딘 ItemLookUp HTTP ${res.status} (ISBN: ${isbn13})`);
+
+    let text = await res.text();
+    if (text.endsWith(';')) text = text.slice(0, -1);
+
+    let data;
+    try { data = JSON.parse(text); } catch (e) { throw new Error(`알라딘 JSON 파싱 실패 (ISBN: ${isbn13})`); }
+
+    const item = (data.item && data.item[0]) || null;
     if (!item) return null;
 
     return {
-        stockStatus:  item.stockStatus || '',
-        publisher:    item.publisher || '',
-        cover:        item.cover || '',
-        categoryName: item.categoryName || '',
-        toc:          item.toc || '',
-        description:  item.description || '',
-        story:        item.story || '',
-        authors:      item.subInfo?.authors || '',
-        reviewList:   item.subInfo?.reviewList || '',
+        stockStatus: item.stockStatus || '',   // '절판' | '품절' | '정상'
+        publisher:   item.publisher || '',
+        cover:       item.cover || '',
+        categoryName: item.categoryName || ''
     };
 }
 
@@ -913,12 +855,12 @@ export default async function handler(req, res) {
         }
 
         await updateAgentStatus(rawUrl, supKey, 1, 'success', `대출 인기작 ${naruBooks.length}건 수집 완료`);
-        await updateAgentStatus(rawUrl, supKey, 2, 'running', '알라딘 재고 크로스체크 및 중소출판사 정제 중');
+        await updateAgentStatus(rawUrl, supKey, 2, 'running', '예스24 재고 크로스체크 및 중소출판사 정제 중');
 
         // ================================================================
-        // [STEP 2] 2번 다듬이 — 알라딘 ItemLookUp 크로스체크 + 정제
+        // [STEP 2] 2번 다듬이 — 예스24/서점 재고 크로스체크 + 정제
         // ================================================================
-        await log(2, '다듬이', 'info', `알라딘 재고 크로스체크 + 중소출판사 필터 + 수요온도 산출 시작 — ${naruBooks.length}건 대상`, { input: naruBooks.length });
+        await log(2, '다듬이', 'info', `예스24 재고 크로스체크 + 중소출판사 필터 + 수요온도 산출 시작 — ${naruBooks.length}건 대상`, { input: naruBooks.length });
 
         const refined = [];
 
@@ -928,27 +870,46 @@ export default async function handler(req, res) {
             let publisher = naruBook.publisher || '';
             let category = naruBook.category || parseCategory(naruBook.classNm);
 
-            // 폴백 데이터의 경우 알라딘 호출 없이 내장값 사용
+            // 폴백 데이터의 경우 외부 호출 없이 내장값 사용
             if (naruBook._prefetchedStockStatus) {
                 stockStatus = naruBook._prefetchedStockStatus;
+            } else if (YES24_API_KEY && isbn) {
+                // [최우선] 예스24 Goods API 실시간 재고/절판 크로스체크
+                try {
+                    const yes24Info = await checkYes24Stock(YES24_API_KEY, isbn);
+                    if (yes24Info) {
+                        stockStatus = yes24Info.stockStatus || stockStatus;
+                        if (yes24Info.publisher) publisher = yes24Info.publisher;
+                        if (yes24Info.cover && !naruBook.detail_link) naruBook.detail_link = yes24Info.cover;
+                        if (yes24Info.categoryName) {
+                            const parts = yes24Info.categoryName.split('-');
+                            const mainCat = parts[1] ? parts[1].trim() : parts[0].trim();
+                            if (mainCat) category = parseCategory(mainCat);
+                        }
+                    } else {
+                        // 예스24 검색 결과 없음 → 절판으로 처리
+                        stockStatus = '절판';
+                    }
+                } catch (yes24Err) {
+                    stockStatus = '절판';
+                    await log(2, '다듬이', 'warn', `예스24 조회 실패 (ISBN: ${isbn}) → 절판 추정 처리`, { isbn, reason: yes24Err.message });
+                }
             } else if (ALADIN_API_KEY && isbn) {
+                // [폴백] 알라딘 레거시 크로스체크
                 try {
                     const aladinInfo = await checkAladinStock(ALADIN_API_KEY, isbn);
                     if (aladinInfo) {
                         stockStatus = aladinInfo.stockStatus || stockStatus;
                         if (aladinInfo.publisher) publisher = aladinInfo.publisher;
                         if (aladinInfo.categoryName) {
-                            // 알라딘 categoryName이 있으면 더 정확한 분류로 갱신
                             const parts = aladinInfo.categoryName.split('>');
                             const mainCat = parts[1] ? parts[1].trim() : '';
                             if (mainCat) category = parseCategory(mainCat);
                         }
                     } else {
-                        // 알라딘에서 정보 없음 → 절판으로 처리
                         stockStatus = '절판';
                     }
                 } catch (aladinErr) {
-                    // 알라딘 조회 실패 → 절판으로 보수적 처리 (대출 많고 판매 불가 추정)
                     stockStatus = '절판';
                     await log(2, '다듬이', 'warn', `알라딘 조회 실패 (ISBN: ${isbn}) → 절판 추정 처리`, { isbn, reason: aladinErr.message });
                 }
