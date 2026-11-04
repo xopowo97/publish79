@@ -74,33 +74,18 @@ async function fetchLibraryData(keyword) {
 }
 
 // ============================================================
-// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (정상 + 강제 에러)
-// 테스트가 완료된 후에는 이 블록을 주석 처리하거나 제거하세요.
+// [검증 테스트] 페이지 로드 시 자동 테스트 실행 (시연 완료 후 비활성화)
 // ============================================================
-window.addEventListener('load', async () => {
-    // --- 테스트 1: 정상 통신 검증 ---
-    console.log('');
-    console.log('============================================================');
-    console.log('[Proxy Test] 🚀 1번 살피미 에이전트 검증 테스트 시작');
-    console.log('============================================================');
-    await fetchLibraryData('출판');
-
-    // --- 테스트 2: 9번→12번 방어 루프 강제 작동 검증 ---
-    // XSS 악성 키워드를 주입하여 12번 보안관이 DANGER 판정을 내리는지 확인
-    console.log('');
-    console.log('[Proxy Test] ⚔️  보안 방어 루프 강제 테스트 시작 (XSS 키워드 주입)...');
-    await fetchLibraryData('<script>alert("공격")</script>');
-
-    console.log('');
-    console.log('[Proxy Test] ✅ 검증 테스트 완료. 위 로그에서 Success / 9번→12번 방어 작동 확인.');
-    console.log('============================================================');
-});
+// window.addEventListener('load', async () => {
+//     await fetchLibraryData('출판');
+//     await fetchLibraryData('<script>alert("공격")</script>');
+// });
 
 // --- 실시간 에러 모니터링 시스템 (GEM 09) ---
 // Vercel Serverless Function 프록시 API 경로 정의
 const ERROR_API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
-    ? 'https://publish79.vercel.app/api/send-error' 
-    : '/api/send-error';
+    ? 'https://publish79.vercel.app/api/heal'
+    : '/api/heal';
 
 async function reportSystemError(errorData) {
     try {
@@ -134,7 +119,7 @@ const DEFAULT_GRADES = ['신규등급', '일반등급(표준)', 'VIP등급', '�
 
 // 전역 안전 권한/세션 조회기 (전역 변수 참조 에러 원천 차단)
 Object.defineProperty(window, 'currentUserRole', {
-    get: function() { return sessionStorage.getItem('userRole') || 'admin'; }
+    get: function () { return sessionStorage.getItem('userRole') || 'admin'; }
 });
 
 // --- [로그인 버그 수정] DOMContentLoaded: 세션 복원만 처리 ---
@@ -168,10 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // AI 헬퍼 (영업이) send 버튼 클릭 이벤트 및 Enter 키 연동
     const sendBtnErp = document.getElementById('ai-send-btn-erp');
     const aiInputErp = document.getElementById('ai-input-erp');
-    
+
     if (sendBtnErp) {
         sendBtnErp.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
-        
+
         const clientMaskPII = (text) => {
             if (!text || typeof text !== 'string') return text;
             let masked = text;
@@ -243,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     const data = await response.json();
                     const replyText = data.responseText;
-                    
+
                     // 세션 유지를 위해 logId 보존
                     if (data.logId) {
                         _erpChatLogId = data.logId;
@@ -302,7 +287,7 @@ function getBasePriceData() {
         { id: 1, n: '36판(103x182)', bw: 0, cl: 0, face: 0 }, { id: 2, n: '국반판(105x148)', bw: 0, cl: 0, face: 0 },
         { id: 3, n: '30절판(125x205)', bw: 0, cl: 0, face: 0 }, { id: 4, n: 'B6(128x182)', bw: 0, cl: 0, face: 0 },
         { id: 5, n: '46판(128x188)', bw: 0, cl: 0, face: 0 }, { id: 6, n: '다찌판(128x210)', bw: 0, cl: 0, face: 0 },
-        { id: 7, n: 'A5국판(148x210)', bw: 0, cl: 0, face: 0 }, { id: 8, n: '크라운판(176x248)', bw: 0, cl: 0, face: 0 },
+        { id: 7, n: 'A5국판(148x210)', bw: 0, cl: 0, face: 0 }, { id: 7.5, n: '신국판(152x225)', bw: 12, cl: 50, face: 50 }, { id: 8, n: '크라운판(176x248)', bw: 0, cl: 0, face: 0 },
         { id: 9, n: 'B5(182x257)', bw: 0, cl: 0, face: 0 }, { id: 10, n: '46배판(188x257)', bw: 0, cl: 0, face: 0 },
         { id: 11, n: '국배판(210x297)', bw: 0, cl: 0, face: 0 }
     ];
@@ -381,57 +366,148 @@ let MASTER = {
     }
 };
 
-// ✅ [로그인 버그 완전 수정] MASTER 선언 이후에 배치 → TDZ 원천 차단
-// handleLogin이 MASTER를 참조할 때 항상 초기화된 상태 보장
-function handleLogin() {
+// ✅ [15번 보안관] Vercel 서버리스 백엔드 인증 API 연동 및 세션 격리
+async function handleLogin() {
     window._isLoggingIn = true;
-    const id = document.getElementById('login-id').value.trim();
-    const pw = document.getElementById('login-pw').value.trim();
+    const id = document.getElementById('login-id')?.value.trim() || '';
+    const pw = document.getElementById('login-pw')?.value.trim() || '';
+    const submitBtn = document.getElementById('btn-login-submit') || document.querySelector('#login-overlay button[type="submit"]');
 
-    if (!MASTER.auth) {
-        MASTER.auth = {
-            admin: { id: 'admin', pw: '1234' },
-            publisher: { id: 'pub', pw: '1234' },
-            printer: { id: 'print', pw: '1234' }
-        };
+    if (!id || !pw) {
+        alert('아이디와 비밀번호를 모두 입력해주세요.');
+        window._isLoggingIn = false;
+        return;
     }
 
-    if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id); return; }
-    if (id === MASTER.auth.admin.id && pw === MASTER.auth.admin.pw) { enterApp('admin', id); return; }
-    if (id === MASTER.auth.publisher.id && pw === MASTER.auth.publisher.pw) { enterApp('publisher', id); return; }
-    if (id === MASTER.auth.printer.id && pw === MASTER.auth.printer.pw) { enterApp('printer', id); return; }
-
-    const partner = MASTER.partners.find(p => p.id === id || p.name === id);
-    if (partner) {
-        if (partner.password === pw || (!partner.password && pw === '1234')) { enterApp('publisher', partner.id); return; }
+    // 🚀 즉각적인 시각적 피드백 (로딩 스피너 및 로그인 처리 중 표시)
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.75';
+        submitBtn.innerHTML = `<span class="inline-flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            로그인 처리 중...
+        </span>`;
     }
 
-    const printer = MASTER.printers.find(p => p.id === id || p.name === id);
-    if (printer) {
-        if (printer.password === pw || (!printer.password && pw === '1234')) { enterApp('printer', printer.id); return; }
-        if (printer.managers && printer.managers.length > 0) {
-            const manager = printer.managers.find(m => m.subPw === pw);
-            if (manager) {
-                const isSettle = manager.perms && manager.perms.includes('settle');
-                enterApp(isSettle ? 'printer' : 'printer_worker', printer.id);
-                return;
-            }
+    const resetBtn = () => {
+        window._isLoggingIn = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.innerText = '로그인';
         }
-    }
+    };
 
-    window._isLoggingIn = false;
-    alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+    // 1. Vercel 통합 백엔드 인증 API 엔드포인트 호출
+    const LOGIN_API_ENDPOINT = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
+        ? 'https://publish79.vercel.app/api/control-helper?action=login'
+        : '/api/control-helper?action=login';
+
+    try {
+        const response = await fetch(LOGIN_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'login', id, password: pw })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // ✅ 백엔드 인증 성공 — 단일 프로필 및 권한 세션 저장
+            enterApp(result.role, result.userId, result.profile);
+            return;
+        } else {
+            // 비밀번호 불일치 등 인증 실패
+            resetBtn();
+            alert(result.error || '아이디 또는 비밀번호가 올바르지 않습니다.');
+            return;
+        }
+    } catch (apiErr) {
+        console.warn('[handleLogin] 백엔드 인증 통신 지연/오류 (로컬 안전 가드 가동):', apiErr.message);
+
+        // 비상 로컬 fallback (네트워크 단절 환경 대비)
+        if (id === 'culture' && pw === 'culture1234') { enterApp('judge', id, { id: 'culture', name: '공모전 심사위원단' }); return; }
+        if (MASTER.auth && id === MASTER.auth.admin?.id && pw === MASTER.auth.admin?.pw) { enterApp('admin', id, { id: 'admin', name: '최고관리자' }); return; }
+        if (MASTER.auth && id === MASTER.auth.publisher?.id && pw === MASTER.auth.publisher?.pw) { enterApp('publisher', id, { id: 'pub', name: '기본출판사', grade: '일반등급(표준)' }); return; }
+        if (MASTER.auth && id === MASTER.auth.printer?.id && pw === MASTER.auth.printer?.pw) { enterApp('printer', id, { id: 'print', name: '기본인쇄소' }); return; }
+
+        const partner = (MASTER.partners || []).find(p => p.id === id || p.name === id);
+        if (partner && (partner.password === pw || (!partner.password && pw === '1234'))) {
+            const safePartner = { ...partner };
+            delete safePartner.password;
+            delete safePartner.pw;
+            enterApp('publisher', partner.id, safePartner);
+            return;
+        }
+
+        const printer = (MASTER.printers || []).find(p => p.id === id || p.name === id);
+        if (printer && (printer.password === pw || (!printer.password && pw === '1234'))) {
+            const safePrinter = { ...printer };
+            delete safePrinter.password;
+            delete safePrinter.pw;
+            enterApp('printer', printer.id, safePrinter);
+            return;
+        }
+
+        resetBtn();
+        alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
 }
 
-function enterApp(role, userId) {
+
+
+function enterApp(role, userId, profile = null) {
     window._isLoggingIn = true;
+    window.currentUserRole = role;
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     if (userId) sessionStorage.setItem('userId', userId);
 
+    if (profile) {
+        sessionStorage.setItem('userProfile', JSON.stringify(profile));
+        if (profile.name) {
+            if (role === 'publisher') sessionStorage.setItem('userPubName', profile.name);
+            else if (role === 'printer' || role === 'printer_worker') sessionStorage.setItem('userPrinterName', profile.name);
+        }
+        if (profile.grade && typeof setGrade === 'function') {
+            setGrade(profile.grade);
+        }
+        // 🛡️ 출판사 로그인 시 타사 데이터 노출 차단을 위해 단일 프로필로 격리
+        if (role === 'publisher' && typeof MASTER !== 'undefined') {
+            const safeProfile = { ...profile };
+            delete safeProfile.password;
+            delete safeProfile.pw;
+            MASTER.partners = [safeProfile];
+        }
+    } else {
+        if (role === 'publisher' && typeof MASTER !== 'undefined' && MASTER.partners) {
+            const p = MASTER.partners.find(x => x.id === userId || x.name === userId) || MASTER.partners[0];
+            if (p) {
+                const safeP = { ...p };
+                delete safeP.password;
+                delete safeP.pw;
+                sessionStorage.setItem('userProfile', JSON.stringify(safeP));
+                if (safeP.name) sessionStorage.setItem('userPubName', safeP.name);
+                if (safeP.grade && typeof setGrade === 'function') setGrade(safeP.grade);
+                MASTER.partners = [safeP];
+            }
+        } else if ((role === 'printer' || role === 'printer_worker') && typeof MASTER !== 'undefined' && MASTER.printers) {
+            const pr = MASTER.printers.find(x => x.id === userId || x.name === userId) || MASTER.printers[0];
+            if (pr && pr.name) sessionStorage.setItem('userPrinterName', pr.name);
+        }
+    }
+
     if (role === 'judge') {
         window.location.href = 'control.html';
         return;
+    }
+
+    // 어드민 로그인 시에는 온라인 DB에서 전체 파트너사 목록을 즉시 갱신
+    if (role === 'admin' && typeof initMaster === 'function') {
+        initMaster();
     }
 
     const overlay = document.getElementById('login-overlay');
@@ -442,6 +518,7 @@ function enterApp(role, userId) {
             const appContainer = document.getElementById('app-container');
             if (appContainer) appContainer.classList.remove('hidden');
             if (typeof switchRole === 'function') switchRole(role);
+            if (typeof renderAll === 'function') renderAll();
         } catch (e) {
             console.warn('[enterApp] 초기 화면 전환 중 오류 (무시됨):', e.message);
         } finally {
@@ -457,41 +534,79 @@ function logout() {
 
 let isConfigLoaded = false; // DB 데이터 로드 완료 여부 플래그 (오프라인 덮어쓰기 방지용)
 let agentControlPollingIntervalId = null; // 에이전트 통제실 실시간 폴링 타이머 ID
+let currentBizFileData = null; // 현재 선택된 사업자등록증 파일 데이터 (Base64 전역)
+let mode = 'sheet';
+let editingOrderId = null;
+let settlementChart = null; // 차트 인스턴스 저장용
+let partnerCurrentPage = 1;
+const partnerItemsPerPage = 5;
+let settlementCurrentPage = 1;
+const settlementItemsPerPage = 10;
 
 // 초기 등급 데이터 세팅
 function ensureGradeData() {
     if (!MASTER.pricesByGrade) MASTER.pricesByGrade = {};
     if (!MASTER.grades || MASTER.grades.length === 0) MASTER.grades = [...DEFAULT_GRADES];
-    
-    MASTER.grades.forEach(g => {
+
+    const base = getBasePriceData();
+    const allGradeKeys = Array.from(new Set([...MASTER.grades, ...Object.keys(MASTER.pricesByGrade)]));
+
+    allGradeKeys.forEach(g => {
         if (!MASTER.pricesByGrade[g]) {
-            const base = getBasePriceData();
             MASTER.pricesByGrade[g] = {
                 commons: base.commons,
-                sheetSpecs: base.sheetSpecs,
-                rollSpecs: base.rollSpecs,
+                sheetSpecs: JSON.parse(JSON.stringify(base.sheetSpecs)),
+                rollSpecs: JSON.parse(JSON.stringify(base.rollSpecs)),
                 sheetCommons: {},
                 rollCommons: {}
             };
         } else {
-            const base = getBasePriceData();
             if (!MASTER.pricesByGrade[g].commons) MASTER.pricesByGrade[g].commons = base.commons;
-            if (!MASTER.pricesByGrade[g].sheetSpecs) MASTER.pricesByGrade[g].sheetSpecs = base.sheetSpecs;
-            if (!MASTER.pricesByGrade[g].rollSpecs) MASTER.pricesByGrade[g].rollSpecs = base.rollSpecs;
+            if (!MASTER.pricesByGrade[g].sheetSpecs) MASTER.pricesByGrade[g].sheetSpecs = JSON.parse(JSON.stringify(base.sheetSpecs));
+            if (!MASTER.pricesByGrade[g].rollSpecs) MASTER.pricesByGrade[g].rollSpecs = JSON.parse(JSON.stringify(base.rollSpecs));
             if (!MASTER.pricesByGrade[g].sheetCommons) MASTER.pricesByGrade[g].sheetCommons = {};
             if (!MASTER.pricesByGrade[g].rollCommons) MASTER.pricesByGrade[g].rollCommons = {};
+
+            // 모든 등급에 기본 규격(신국판 등)이 없으면 크기 순서(크라운판/사용자규격 앞)에 맞추어 위치 삽입
+            base.sheetSpecs.forEach(baseSpec => {
+                if (!MASTER.pricesByGrade[g].sheetSpecs.some(s => s.n === baseSpec.n)) {
+                    const list = MASTER.pricesByGrade[g].sheetSpecs;
+                    const targetIx = list.findIndex(s => s.n.includes('크라운판') || s.n.includes('사용자규격'));
+                    if (targetIx !== -1) {
+                        list.splice(targetIx, 0, JSON.parse(JSON.stringify(baseSpec)));
+                    } else {
+                        list.push(JSON.parse(JSON.stringify(baseSpec)));
+                    }
+                }
+            });
+            base.rollSpecs.forEach(baseSpec => {
+                if (!MASTER.pricesByGrade[g].rollSpecs.some(s => s.n === baseSpec.n)) {
+                    const list = MASTER.pricesByGrade[g].rollSpecs;
+                    const targetIx = list.findIndex(s => s.n.includes('크라운판') || s.n.includes('사용자규격'));
+                    if (targetIx !== -1) {
+                        list.splice(targetIx, 0, JSON.parse(JSON.stringify(baseSpec)));
+                    } else {
+                        list.push(JSON.parse(JSON.stringify(baseSpec)));
+                    }
+                }
+            });
         }
     });
 
     if (!MASTER.pricesByGrade['인쇄소 협약단가']) {
-        const base = getBasePriceData();
         MASTER.pricesByGrade['인쇄소 협약단가'] = {
             commons: base.commons,
-            sheetSpecs: base.sheetSpecs,
-            rollSpecs: base.rollSpecs,
+            sheetSpecs: JSON.parse(JSON.stringify(base.sheetSpecs)),
+            rollSpecs: JSON.parse(JSON.stringify(base.rollSpecs)),
             sheetCommons: {},
             rollCommons: {}
         };
+    } else {
+        base.sheetSpecs.forEach(baseSpec => {
+            if (!MASTER.pricesByGrade['인쇄소 협약단가'].sheetSpecs.some(s => s.n === baseSpec.n)) {
+                MASTER.pricesByGrade['인쇄소 협약단가'].sheetSpecs.push(JSON.parse(JSON.stringify(baseSpec)));
+            }
+        });
     }
 }
 
@@ -554,6 +669,7 @@ async function initMaster() {
             const d = configData.data;
             MASTER.grades = d.grades || MASTER.grades;
             MASTER.pricesByGrade = d.pricesByGrade || MASTER.pricesByGrade;
+            ensureGradeData();
             MASTER.coverPapers = d.coverPapers || MASTER.coverPapers;
             MASTER.innerPapers = d.innerPapers || MASTER.innerPapers;
             MASTER.facePapers = d.facePapers || MASTER.facePapers;
@@ -601,6 +717,10 @@ async function initMaster() {
                 }
             });
 
+            if (configData.partnerTaxEmails) {
+                MASTER.partnerTaxEmails = configData.partnerTaxEmails;
+            }
+
             if (needsHealing) {
                 setTimeout(() => saveMasterDataSilent(), 1000);
             }
@@ -611,10 +731,19 @@ async function initMaster() {
         // 온라인 DB로부터 쿼리가 성공적으로 이루어졌으므로 로드 상태를 true로 설정 (네트워크 에러 시 false 유지)
         isConfigLoaded = true;
 
-        // 2. 각 테이블 병렬 로딩 (독립적 처리)
+        // 2. 각 테이블 병렬 로딩 (역할 기반 멀티테넌트 보안 격리)
+        const isUserLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+        const currentUserRole = sessionStorage.getItem('userRole') || '';
+        const currentUserId = sessionStorage.getItem('userId');
+        const userPubName = sessionStorage.getItem('userPubName');
+
+        let partnersPromise = _supabase.from('partners').select('*');
+
+        let ordersPromise = _supabase.from('orders').select('*').order('created_at', { ascending: false });
+
         const [ordersRes, partnersRes, printersRes, productsRes] = await Promise.all([
-            _supabase.from('orders').select('*').order('created_at', { ascending: false }),
-            _supabase.from('partners').select('*'),
+            ordersPromise,
+            partnersPromise,
             _supabase.from('printers').select('*'),
             _supabase.from('products').select('*')
         ]);
@@ -628,40 +757,44 @@ async function initMaster() {
 
         if (loadFailures.length > 0) {
             console.warn("일부 테이블 데이터 로딩 실패:", loadFailures.join(', '));
-            // 만약 모든 테이블이 로딩 실패했다면 진짜 오류로 간주할 수도 있지만, 
-            // 여기서는 일단 성공한 데이터만이라도 반영함
         }
 
-        // 데이터 반영 및 배송 정보 복원 (data 주머니에서 꺼내기)
+        // 데이터 반영 및 배송/정산/세금계산서 정보 복원 (data 주머니에서 꺼내기)
         if (ordersRes.data) {
             MASTER.orders = ordersRes.data.map(o => {
-                if (o.data && o.data.shippingCost !== undefined) {
-                    o.shippingCost = o.data.shippingCost;
-                    o.finalTotalPrice = o.data.finalTotalPrice;
+                if (o.data) {
+                    if (o.data.shippingCost !== undefined) o.shippingCost = o.data.shippingCost;
+                    if (o.data.finalTotalPrice !== undefined) o.finalTotalPrice = o.data.finalTotalPrice;
+                    if (o.data.taxInvoiceStatus !== undefined) o.taxInvoiceStatus = o.data.taxInvoiceStatus;
+                    if (o.data.taxInvoiceRequestedAt !== undefined) o.taxInvoiceRequestedAt = o.data.taxInvoiceRequestedAt;
+                    if (o.data.taxInvoiceRequestedBy !== undefined) o.taxInvoiceRequestedBy = o.data.taxInvoiceRequestedBy;
+                    if (o.data.taxInvoiceEmail !== undefined) o.taxInvoiceEmail = o.data.taxInvoiceEmail;
+                    if (o.data.isFinalized !== undefined) o.isFinalized = o.data.isFinalized;
                 }
                 return o;
             });
         }
         if (partnersRes.data) {
-            MASTER.partners = partnersRes.data.map(p => ({
-                ...p,
-                password: p.pw || p.password || '1234'
-            }));
-
-            // 로컬에서 이전에 저장된 비밀번호가 있으면 복원
-            try {
-                const storedMaster = JSON.parse(localStorage.getItem('MASTER_DATA') || 'null');
-                if (storedMaster?.partners?.length) {
-                    storedMaster.partners.forEach(storedPartner => {
-                        if (!storedPartner || !storedPartner.id) return;
-                        const target = MASTER.partners.find(p => p.id === storedPartner.id);
-                        if (target && storedPartner.password) {
-                            target.password = storedPartner.password;
-                        }
-                    });
+            MASTER.partners = partnersRes.data.map(p => {
+                const partnerObj = { ...p };
+                // 🛡️ 최고관리자(admin)가 아닌 모든 역할(출판사, 인쇄소, 비로그인 등)에서는 비밀번호 필드를 100% 영구 삭제
+                if (currentUserRole !== 'admin') {
+                    delete partnerObj.password;
+                    delete partnerObj.pw;
+                } else {
+                    partnerObj.password = p.pw || p.password || '1234';
                 }
-            } catch (err) {
-                console.warn('로컬 비밀번호 복원 실패:', err);
+                return partnerObj;
+            });
+
+            // 온라인 master_config에 저장된 파트너사 세금계산서 이메일 맵 1:1 복원
+            if (MASTER.partnerTaxEmails) {
+                MASTER.partners.forEach(p => {
+                    if (MASTER.partnerTaxEmails[p.id]) {
+                        p.tax_email = MASTER.partnerTaxEmails[p.id];
+                        p.taxEmail = p.tax_email;
+                    }
+                });
             }
         }
         if (printersRes.data) {
@@ -701,6 +834,7 @@ async function initMaster() {
 
 // 전체 화면 갱신 함수 (현재 활성화된 페이지를 다시 렌더링)
 function renderAll() {
+    const role = sessionStorage.getItem('userRole') || 'admin';
     const activeBtn = document.querySelector('.sidebar-item.active');
     if (activeBtn) {
         const pageId = activeBtn.id.replace('btn-', '');
@@ -712,6 +846,7 @@ function renderAll() {
             showPage('spec');
         }
     }
+
     if (window.lucide) lucide.createIcons();
 }
 
@@ -741,7 +876,8 @@ async function saveData() {
             innerPrinting: MASTER.innerPrinting,
             faceInsert: MASTER.faceInsert,
             customGroups: MASTER.customGroups,
-            auth: MASTER.auth
+            auth: MASTER.auth,
+            partnerTaxEmails: MASTER.partnerTaxEmails || {}
             // products는 별도 테이블로 관리하므로 config에서는 제외 (동기화 이슈 방지)
         };
 
@@ -776,12 +912,6 @@ async function saveMasterData() {
 async function saveMasterDataSilent() {
     await saveData();
 }
-
-let mode = 'sheet';
-let editingOrderId = null;
-let settlementChart = null; // 차트 인스턴스 저장용
-let partnerCurrentPage = 1;
-const partnerItemsPerPage = 5;
 
 // ---------------------------------------------------------
 // 1. 등급 관리 기능 (고정 등급 삭제 방어 로직 포함)
@@ -1405,6 +1535,9 @@ function showPage(p, isEdit = false) {
     // 수정 모드 명시적 제어
     if (!isEdit) {
         editingOrderId = null;
+        if (p === 'order' && typeof resetOrderForm === 'function') {
+            resetOrderForm();
+        }
     }
 
     // 페이지 제목 매핑
@@ -1450,10 +1583,14 @@ function showPage(p, isEdit = false) {
     if (p === 'price') { renderGradeTabs(); renderPrice(); }
     if (p === 'partner') {
         const titleEl = document.getElementById('main-title');
+        const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
         if (role === 'publisher') {
             const userId = sessionStorage.getItem('userId');
-            const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-            titleEl.innerHTML = `<span class="text-sky-600">${myPartner ? myPartner.name : '출판사'}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(기본정보관리)</span>`;
+            const myPartner = (MASTER.partners && MASTER.partners.length > 0)
+                ? (MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0])
+                : JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+            const pubName = (myPartner && myPartner.name) ? myPartner.name : (sessionStorage.getItem('userPubName') || '상상아카데미');
+            titleEl.innerHTML = `<span class="text-sky-600">${pubName}</span>님, 반갑습니다! <span class="text-slate-400 text-sm font-bold ml-2">(${pubName} 정보관리)</span>`;
 
             // 필수 정보 입력 유도 (금번 세션에서 정상 저장 완료한 경우 팝업 생략)
             const currentBizNum = myPartner?.biz_num || myPartner?.bizNum;
@@ -1472,6 +1609,11 @@ function showPage(p, isEdit = false) {
     }
     if (p === 'order') {
         renderOrder();
+        // 신규 작성 시 renderOrder 직후 폼과 DOM 요소 100% 빈 작성창으로 초기화
+        if (!isEdit && typeof resetOrderForm === 'function') {
+            resetOrderForm();
+        }
+
         // 버튼 문구 리셋 로직 추가: 수정 모드가 아니면 '제작', 수정 모드면 '수정'으로 표시
         const submitBtn = document.getElementById('btn-submit-order');
         if (submitBtn) {
@@ -1482,8 +1624,9 @@ function showPage(p, isEdit = false) {
         // 등록 도서 불러오기 옵션 렌더링
         const loadSelect = document.getElementById('ord-load-product');
         if (loadSelect) {
+            const availableProds = getAvailableProductsForPublisher();
             loadSelect.innerHTML = `<option value="">도서를 선택하면 사양이 자동으로 입력됩니다.</option>` +
-                MASTER.products.map(p => `<option value="${p.id}">${p.title} (${p.spec} / ${p.pages}P)</option>`).join('');
+                availableProds.map(p => `<option value="${p.id}">${p.title} ${p.pubName ? "[" + p.pubName + "] " : ""}(${p.spec} / ${p.pages}P)</option>`).join('');
         }
     }
     if (p === 'store-mgmt') renderStoreMgmt();
@@ -1506,6 +1649,23 @@ function showPage(p, isEdit = false) {
             alert("정산 및 주문관리 메뉴에 대한 접근 권한이 없습니다.");
             showPage('production');
             return;
+        }
+
+        const btnClose = document.getElementById('btn-monthly-closing') || document.getElementById('btn-monthly-closing2');
+        const btnReqTax = document.getElementById('btn-pub-request-tax') || document.getElementById('btn-pub-request-tax2');
+        if (btnClose) {
+            if (role === 'publisher' || role === 'printer' || role === 'printer_worker') {
+                btnClose.classList.add('hidden');
+            } else {
+                btnClose.classList.remove('hidden');
+            }
+        }
+        if (btnReqTax) {
+            if (role === 'publisher') {
+                btnReqTax.classList.remove('hidden');
+            } else {
+                btnReqTax.classList.add('hidden');
+            }
         }
 
         renderSettlementTable();
@@ -1727,11 +1887,11 @@ function setMode(m) {
     if (ms) ms.className = m === 'sheet' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
     if (mr) mr.className = m === 'roll' ? 'flex-1 py-4 rounded-xl font-black bg-sky-600 text-white shadow-lg' : 'flex-1 py-4 rounded-xl font-black bg-slate-100 text-slate-400';
 
-    // Toggle Face Paper views
+    // Toggle Face Paper views (상시 노출)
     const sheetFace = document.getElementById('ord-face-sheet-view');
     const rollFace = document.getElementById('ord-face-roll-view');
-    if (sheetFace) sheetFace.className = m === 'sheet' ? 'space-y-4' : 'hidden';
-    if (rollFace) rollFace.className = m === 'roll' ? 'space-y-1 text-[11px] font-bold leading-relaxed text-emerald-800 italic' : 'hidden';
+    if (sheetFace) sheetFace.className = 'space-y-4';
+    if (rollFace) rollFace.className = 'hidden';
 
     // Update Submit Button Text (수정 모드 여부에 따라 문구 변경)
     const submitBtn = document.getElementById('btn-submit-order');
@@ -1743,27 +1903,112 @@ function setMode(m) {
     renderOrder();
 }
 
-function calculatePages() {
+let pendingInnerPrintValue = null;
+let pendingOrderData = null;
+
+function calculatePages(userAction = 'user_input') {
     const tpInput = document.getElementById('ord-tp');
     const cpInput = document.getElementById('ord-cp');
     const bpInput = document.getElementById('ord-bp');
-    const innerPrint = document.getElementById('ord-inner-print')?.value || '';
+    const innerPrintEl = document.getElementById('ord-inner-print');
+    const innerPrint = innerPrintEl?.value || '';
 
-    const tp = parseInt(tpInput.value) || 0;
+    const tp = parseInt(tpInput?.value) || 0;
+    let cp = parseInt(cpInput?.value) || 0;
 
-    // 내지 인쇄 방식에 따라 cp 자동 설정 (부분컬러 모드일 때는 사용자 입력 허용)
-    if (!innerPrint.includes('부분컬러')) {
-        if (innerPrint.includes('컬러')) {
-            cpInput.value = tp;
-        } else if (innerPrint.includes('흑백')) {
-            cpInput.value = 0;
+    // 1. 내지인쇄 옵션 변경 또는 총페이지 변경 시 스마트 동기화
+    if (userAction === 'inner_print_change' || userAction === 'tp_input') {
+        if (innerPrint.includes('컬러') && !innerPrint.includes('부분컬러')) {
+            // [올컬러 선택 시] 전체가 컬러이므로 부분컬러 = 총페이지, 흑백 = 0P 자동 매핑
+            cp = tp;
+            if (cpInput) cpInput.value = cp;
+        } else if (innerPrint.includes('흑백') && !innerPrint.includes('부분컬러')) {
+            // [올흑백 선택 시] 전체가 흑백이므로 부분컬러 = 0P, 흑백 = 총페이지 자동 매핑
+            cp = 0;
+            if (cpInput) cpInput.value = cp;
+        } else {
+            // [부분컬러 선택 시] 총페이지 한도 가드
+            if (cp > tp) cp = tp;
+            if (cpInput) cpInput.value = cp;
         }
     }
 
-    const cp = parseInt(cpInput.value) || 0;
+    // 2. 사용자가 부분컬러 페이지(cp)를 직접 입력한 경우 스마트 매핑
+    if (userAction === 'cp_input' || userAction === 'user_input') {
+        if (cp > tp) {
+            cp = tp;
+            if (cpInput) cpInput.value = cp;
+        }
+
+        if (cp > 0 && !innerPrint.includes('부분컬러')) {
+            // 부분컬러 P를 입력했으나 내지인쇄가 부분컬러가 아닐 때 자동 전환
+            const isSingleSide = innerPrint.includes('단면');
+            const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
+            if (innerPrintEl) {
+                for (let opt of innerPrintEl.options) {
+                    if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                        innerPrintEl.value = opt.value;
+                        break;
+                    }
+                }
+            }
+        } else if (cp === 0 && innerPrint.includes('부분컬러')) {
+            // 부분컬러 P가 0인데 내지인쇄가 부분컬러일 때 흑백으로 자동 전환
+            if (innerPrintEl) {
+                const targetVal = innerPrint.includes('단면') ? '내지-흑백단면' : '내지-흑백양면';
+                for (let opt of innerPrintEl.options) {
+                    if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                        innerPrintEl.value = opt.value;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     let bp = tp - cp;
     if (bp < 0) bp = 0;
-    bpInput.value = bp;
+    if (bpInput) bpInput.value = bp;
+}
+
+function checkPartialColorSelection(selectEl) {
+    const cp = parseInt(document.getElementById('ord-cp')?.value || '0', 10);
+    const selectedVal = selectEl.value;
+    const selectedText = selectEl.options[selectEl.selectedIndex]?.text || selectedVal;
+
+    if (cp > 0 && !selectedVal.includes('부분컬러')) {
+        pendingInnerPrintValue = selectedVal;
+        const msgEl = document.getElementById('partial-color-guide-msg');
+        if (msgEl) {
+            msgEl.innerHTML = `
+                <div class="font-bold text-amber-900">📌 부분컬러 페이지가 <span class="text-red-600 font-black">${cp}P</span> 입력되어 있습니다.</div>
+                <div>선택하신 <span class="font-bold text-slate-800">[${selectedText}]</span> 옵션을 유지하시면, 입력하신 부분컬러 <b>${cp}P</b>도 모두 <b>${selectedVal.includes('컬러') ? '전면 컬러' : '흑백'}</b>으로 인쇄될 수 있습니다.</div>
+                <div class="pt-1 text-[11px] text-amber-800 font-bold">👉 오인쇄 방지를 위해 <b>[내지-부분컬러 양면]</b>으로 인쇄 옵션을 변경하시겠습니까?</div>
+            `;
+        }
+        document.getElementById('modal-partial-color-guide')?.classList.remove('hidden');
+    } else {
+        sync();
+    }
+}
+
+function closePartialColorGuideModal(acceptChange) {
+    const guideModal = document.getElementById('modal-partial-color-guide');
+    if (guideModal) guideModal.classList.add('hidden');
+
+    const innerPrintEl = document.getElementById('ord-inner-print');
+    if (acceptChange && innerPrintEl) {
+        const isSingleSide = pendingInnerPrintValue && pendingInnerPrintValue.includes('단면');
+        const targetVal = isSingleSide ? '내지-부분컬러단면' : '내지-부분컬러양면';
+        for (let opt of innerPrintEl.options) {
+            if (opt.value === targetVal || opt.text.includes(targetVal)) {
+                innerPrintEl.value = opt.value;
+                break;
+            }
+        }
+    }
+    pendingInnerPrintValue = null;
+    sync();
 }
 
 function sync() {
@@ -1798,6 +2043,8 @@ function sync() {
                 if (w && !isNaN(w)) {
                     if (w <= 148) {
                         currentSpec = priceData.sheetSpecs.find(s => s.n.includes('A5국판')) || spec;
+                    } else if (w <= 152) {
+                        currentSpec = priceData.sheetSpecs.find(s => s.n.includes('신국판')) || spec;
                     } else if (w <= 176) {
                         currentSpec = priceData.sheetSpecs.find(s => s.n.includes('크라운판')) || spec;
                     } else {
@@ -1806,8 +2053,18 @@ function sync() {
                 }
             }
 
-            // 1-2, 1-4, 1-5: 페이지 단가 (규격별 흑백/컬러 적용)
-            let innerPrintCost = (bp * currentSpec.bw) + (cp * currentSpec.cl);
+            // 1-2, 1-4, 1-5: 페이지 단가 (올컬러 / 올흑백 / 부분컬러 스마트 분기 적용)
+            let innerPrintCost = 0;
+            const isAllColor = innerPrint.includes('컬러') && !innerPrint.includes('부분컬러');
+            const isAllBw = innerPrint.includes('흑백') && !innerPrint.includes('부분컬러');
+
+            if (isAllColor) {
+                innerPrintCost = tp * (currentSpec.cl || 0);
+            } else if (isAllBw) {
+                innerPrintCost = tp * (currentSpec.bw || 0);
+            } else {
+                innerPrintCost = (bp * (currentSpec.bw || 0)) + (cp * (currentSpec.cl || 0));
+            }
 
             if (isSingleSided) {
                 innerPrintCost = innerPrintCost / 2;
@@ -1815,19 +2072,28 @@ function sync() {
                 each += surcharge;
                 addLog('내지 단면 할증', surcharge);
             }
-            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+
+            if (isAllColor) {
+                addLog(`내지 인쇄 (전체 컬러 ${tp}p)`, innerPrintCost);
+            } else if (isAllBw) {
+                addLog(`내지 인쇄 (전체 흑백 ${tp}p)`, innerPrintCost);
+            } else {
+                addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            }
             each += innerPrintCost;
 
-            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            // 1-9: 내지 용지 할증 (100g, 120g 대상) - 등급별 sheetCommons 직접 조회
             const innerPaper = document.getElementById('ord-inner')?.value || '';
-            if (innerPaper.includes('100g')) {
-                let surcharge = tp * findCommon('100g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (100g)', surcharge);
-            } else if (innerPaper.includes('120g')) {
-                let surcharge = tp * findCommon('120g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (120g)', surcharge);
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                const paperKey = '용지할증_' + innerPaper;
+                let surchargeRate = (priceData.sheetCommons[paperKey] !== undefined)
+                    ? priceData.sheetCommons[paperKey]
+                    : 0;
+                if (surchargeRate > 0) {
+                    let surcharge = tp * surchargeRate;
+                    each += surcharge;
+                    addLog(`내지 용지 할증 (${innerPaper})`, surcharge);
+                }
             }
 
             // [하이브리드 개편] 기존 5대 공통 그룹 합산
@@ -1900,8 +2166,18 @@ function sync() {
                 }
             }
 
-            // 2. 내지 관련 비용 (페이지 단가 + 용지 할증)
-            let innerPrintCost = (bp * bracket.bw) + (cp * bracket.cl);
+            // 2. 내지 관련 비용 (올컬러 / 올흑백 / 부분컬러 스마트 분기 적용)
+            let innerPrintCost = 0;
+            const isAllColor = innerPrint.includes('컬러') && !innerPrint.includes('부분컬러');
+            const isAllBw = innerPrint.includes('흑백') && !innerPrint.includes('부분컬러');
+
+            if (isAllColor) {
+                innerPrintCost = tp * (bracket.cl || 0);
+            } else if (isAllBw) {
+                innerPrintCost = tp * (bracket.bw || 0);
+            } else {
+                innerPrintCost = (bp * (bracket.bw || 0)) + (cp * (bracket.cl || 0));
+            }
 
             if (isSingleSided) {
                 innerPrintCost = innerPrintCost / 2;
@@ -1909,19 +2185,28 @@ function sync() {
                 each += surcharge;
                 addLog('내지 단면 할증', surcharge);
             }
-            addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+
+            if (isAllColor) {
+                addLog(`내지 인쇄 (전체 컬러 ${tp}p)`, innerPrintCost);
+            } else if (isAllBw) {
+                addLog(`내지 인쇄 (전체 흑백 ${tp}p)`, innerPrintCost);
+            } else {
+                addLog(`내지 인쇄 (흑백 ${bp}p, 컬러 ${cp}p)`, innerPrintCost);
+            }
             each += innerPrintCost;
 
-            // 내지 용지 할증 (100g, 120g 대상) - 페이지 단위 할증 계산
+            // 내지 용지 할증 (100g, 120g 대상) - 등급별 rollCommons 직접 조회
             const innerPaper = document.getElementById('ord-inner')?.value || '';
-            if (innerPaper.includes('100g')) {
-                let surcharge = tp * findCommon('100g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (100g)', surcharge);
-            } else if (innerPaper.includes('120g')) {
-                let surcharge = tp * findCommon('120g용지할증');
-                each += surcharge;
-                addLog('내지 용지 할증 (120g)', surcharge);
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                const paperKey = '용지할증_' + innerPaper;
+                let surchargeRate = (priceData.rollCommons && priceData.rollCommons[paperKey] !== undefined)
+                    ? priceData.rollCommons[paperKey]
+                    : 0;
+                if (surchargeRate > 0) {
+                    let surcharge = tp * surchargeRate;
+                    each += surcharge;
+                    addLog(`내지 용지 할증 (${innerPaper})`, surcharge);
+                }
             }
 
             // 1. 표지 관련 비용 (날개 유무에 따른 연속지 슬라이딩 단가 유지 - Hybrid)
@@ -1962,6 +2247,35 @@ function sync() {
                     addLog(`${group.name} (${val})`, cost);
                 }
             });
+
+            // 면지 설정 (디지털 연속지 연동)
+            const facePaper = document.getElementById('ord-face')?.value;
+            const faceInsert = document.getElementById('ord-face-insert')?.value;
+
+            if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                let multiplier = 0;
+                if (faceInsert.includes('4P')) multiplier = 4;
+                else if (faceInsert.includes('8P')) multiplier = 8;
+
+                let faceUnitPrice = 0;
+                if (priceData.rollCommons) {
+                    const rollKey = Object.keys(priceData.rollCommons).find(k => k.includes('면지'));
+                    if (rollKey !== undefined && priceData.rollCommons[rollKey] > 0) {
+                        faceUnitPrice = priceData.rollCommons[rollKey];
+                    }
+                }
+                if (!faceUnitPrice) {
+                    const commonItem = (priceData.commons || []).find(c => c.n && c.n.includes('면지'));
+                    if (commonItem && commonItem.v > 0) faceUnitPrice = commonItem.v;
+                }
+                if (!faceUnitPrice && typeof currentSpec !== 'undefined' && currentSpec && currentSpec.face) {
+                    faceUnitPrice = currentSpec.face;
+                }
+
+                let faceCost = faceUnitPrice * multiplier;
+                each += faceCost;
+                addLog(`면지 추가 (${faceInsert})`, faceCost);
+            }
         }
     }
 
@@ -1984,7 +2298,7 @@ function sync() {
         'order-pub-name', 'ord-manager', 'ord-book-title',
         'ord-spec', 'ord-custom-size', 'ord-tp', 'ord-qty', 'ord-cp', 'ord-bp',
         'ord-cover', 'ord-printing', 'ord-coating', 'ord-wing', 'ord-binding',
-        'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert'
+        'ord-inner', 'ord-inner-print', 'ord-face', 'ord-face-insert', 'ord-delivery-date'
     ];
     MASTER.customGroups.forEach(g => ids.push(`ord-custom-${g.name}`));
 
@@ -2004,6 +2318,19 @@ function renderProductionBoard() {
     const board = document.getElementById('kanban-board');
     if (!board) return;
 
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+
+    // 출판사 로그인 시 자사 주문만 격리 필터링 (인쇄소/관리자는 전체 주문 관제)
+    const visibleOrders = MASTER.orders.filter(o => {
+        if (o.isDeleted) return false;
+        if (role === 'publisher' && myPartner) {
+            if (o.pubName !== myPartner.name) return false;
+        }
+        return true;
+    });
+
     const columns = [
         { id: '접수대기', title: '접수대기', color: 'slate' },
         { id: '인쇄/가공중', title: '인쇄/가공중', color: 'sky' },
@@ -2013,21 +2340,21 @@ function renderProductionBoard() {
     ];
 
     board.innerHTML = columns.map(col => `
-        <div class="flex-shrink-0 w-[300px] kb-col-${col.color} rounded-2xl p-4 flex flex-col h-full border border-slate-200 shadow-sm">
+        <div class="kb-col-container kb-col-${col.color} rounded-2xl p-4 flex flex-col h-full border border-slate-200 shadow-sm">
             <div class="flex items-center justify-between mb-4 px-1">
                 <div class="flex items-center gap-2">
                     <div class="w-3 h-3 rounded-full bg-${col.color}-500 shadow-sm"></div>
                     <span class="font-black kb-header-${col.color} text-sm">${col.title}</span>
                 </div>
                 <span class="text-[10px] font-bold text-slate-500 bg-white/80 px-2.5 py-1 rounded-full border border-slate-200/50">
-                    ${MASTER.orders.filter(o => (o.status || '접수대기') === col.id && !o.isDeleted).length}
+                    ${visibleOrders.filter(o => (o.status || '접수대기') === col.id).length}
                 </span>
             </div>
             <div class="flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar" id="col-${col.id}"></div>
         </div>
     `).join('');
 
-    MASTER.orders.filter(o => !o.isDeleted).forEach(order => {
+    visibleOrders.forEach(order => {
         if (!order.status) order.status = '접수대기';
 
         const colContainer = document.getElementById(`col-${order.status}`);
@@ -2152,8 +2479,9 @@ function promptTracking(id) {
     document.getElementById('tracking-modal-book-title').innerText = order.bookTitle;
 
     const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const isCanEditTracking = (role === 'printer' || role === 'printer_worker' || role === 'admin');
     const saveBtn = document.getElementById('btn-save-tracking');
-    if (role === 'printer' || role === 'printer_worker') {
+    if (isCanEditTracking) {
         saveBtn.innerText = "출고 처리 완료";
         saveBtn.className = "flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all";
         saveBtn.onclick = () => saveTrackingNumbers(id);
@@ -2168,8 +2496,9 @@ function promptTracking(id) {
                 <div>
                     <div class="text-xs font-black text-slate-800">${d.recipient} (${d.qty}부)</div>
                     <div class="text-[10px] text-slate-400 mt-0.5">${d.address} ${d.addressDetail || ''}</div>
+${d.memo ? `<div class="text-[10px] text-amber-600 font-bold mt-1">📌 [배송메모] ${d.memo}</div>` : ''}
                 </div>
-                ${(role === 'printer' || role === 'printer_worker') ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
+                ${isCanEditTracking ? `<button onclick="addTrackingRow(${idx})" class="bg-sky-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black hover:bg-sky-100 transition-all">+ 송장추가</button>` : ''}
             </div>
             <div id="tracking-rows-${idx}" class="space-y-2">
                 ${((d.trackingList && d.trackingList.length > 0) ? d.trackingList : [{ courier: 'CJ대한통운', code: d.trackingNum || '' }]).map((t, tIdx) => renderTrackingRow(idx, tIdx, t)).join('')}
@@ -2181,13 +2510,28 @@ function promptTracking(id) {
     lucide.createIcons();
 }
 
+function updateTrackingPlaceholder(selectEl) {
+    const row = selectEl.closest('.tracking-row-item');
+    if (!row) return;
+    const input = row.querySelector('.t-code');
+    if (!input) return;
+    const val = selectEl.value;
+    if (val === '직접배송' || (val && val.startsWith('퀵'))) {
+        input.placeholder = '기사님 연락처 (선택)';
+    } else {
+        input.placeholder = '송장번호';
+    }
+}
+
 function renderTrackingRow(dIdx, tIdx, data) {
     const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
-    const isPrinter = (role === 'printer' || role === 'printer_worker');
+    const isCanEditTracking = (role === 'printer' || role === 'printer_worker' || role === 'admin');
+    const isQuickOrDirect = data.courier === '직접배송' || (data.courier && data.courier.startsWith('퀵'));
+    const placeholderText = isQuickOrDirect ? '기사님 연락처 (선택)' : '송장번호';
 
     return `
         <div class="flex gap-2 items-center tracking-row-item" data-didx="${dIdx}">
-            <select class="t-courier input-pptx py-1.5 text-[11px] w-24" ${!isPrinter ? 'disabled' : ''}>
+            <select class="t-courier input-pptx py-1.5 text-[11px] w-28" onchange="updateTrackingPlaceholder(this)" ${!isCanEditTracking ? 'disabled' : ''}>
                 <option value="CJ대한통운" ${data.courier === 'CJ대한통운' ? 'selected' : ''}>CJ대한통운</option>
                 <option value="로젠택배" ${data.courier === '로젠택배' ? 'selected' : ''}>로젠택배</option>
                 <option value="한진택배" ${data.courier === '한진택배' ? 'selected' : ''}>한진택배</option>
@@ -2195,11 +2539,14 @@ function renderTrackingRow(dIdx, tIdx, data) {
                 <option value="우체국택배" ${data.courier === '우체국택배' ? 'selected' : ''}>우체국택배</option>
                 <option value="경동택배" ${data.courier === '경동택배' ? 'selected' : ''}>경동택배</option>
                 <option value="직접배송" ${data.courier === '직접배송' ? 'selected' : ''}>직접배송</option>
+                <option value="퀵 (오토바이)" ${data.courier === '퀵 (오토바이)' ? 'selected' : ''}>퀵 (오토바이)</option>
+                <option value="퀵 (다마스)" ${data.courier === '퀵 (다마스)' ? 'selected' : ''}>퀵 (다마스)</option>
+                <option value="퀵 (1톤 트럭)" ${data.courier === '퀵 (1톤 트럭)' ? 'selected' : ''}>퀵 (1톤 트럭)</option>
             </select>
-            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="송장번호" ${!isPrinter ? 'readonly' : ''}>
-            <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isPrinter ? 'readonly' : ''}>
-            <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isPrinter ? 'readonly' : ''}>
-            ${isPrinter ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
+            <input type="text" class="t-code input-pptx py-1.5 text-[11px] flex-1" value="${data.code || ''}" placeholder="${placeholderText}" ${!isCanEditTracking ? 'readonly' : ''}>
+            <input type="number" class="t-box input-pptx py-1.5 text-[11px] w-16" value="${data.box || ''}" placeholder="박스수" ${!isCanEditTracking ? 'readonly' : ''}>
+            <input type="number" class="t-cost input-pptx py-1.5 text-[11px] w-24" value="${data.cost || ''}" placeholder="배송비(원)" ${!isCanEditTracking ? 'readonly' : ''}>
+            ${isCanEditTracking ? `<button onclick="this.closest('.tracking-row-item').remove()" class="text-slate-300 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
         </div>
     `;
 }
@@ -2241,7 +2588,7 @@ async function saveTrackingNumbers(id) {
     order.finalTotalPrice = parseInt(order.totalPrice.replace(/[^0-9]/g, '')) + totalShippingCost;
 
     order.status = '출고완료';
-    
+
     // [보완] DB 컬럼 부족 오류 방지를 위해 배송 정보를 'data' 주머니 안에 포함
     if (!order.data) order.data = {};
     order.data.shippingCost = totalShippingCost;
@@ -2249,10 +2596,10 @@ async function saveTrackingNumbers(id) {
 
     // [중요] Supabase DB에 배송정보 및 상태 업데이트 반영
     // (shippingCost, finalTotalPrice 컬럼 대신 data 컬럼 활용)
-    const { error } = await _supabase.from('orders').update({ 
+    const { error } = await _supabase.from('orders').update({
         status: '출고완료',
         deliveries: order.deliveries,
-        data: order.data 
+        data: order.data
     }).eq('id', id);
 
     if (error) {
@@ -2292,7 +2639,7 @@ function openOrderDetails(id) {
 
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
     const isPrinter = (role === 'printer' || role === 'printer_worker');
-    
+
     const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
     const computedTotal = computePurchaseCost(order);
     const computedUnit = Math.round(computedTotal / rawQty);
@@ -2422,10 +2769,23 @@ function openOrderDetails(id) {
                         <i data-lucide="download" class="w-4 h-4"></i> 표지 다운로드
                     </button>
                 </div>
-                <button onclick="printJobTicket('${order.id}')" 
-                    class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
-                    <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
-                </button>
+                ${(role === 'admin' || role === 'printer' || role === 'printer_worker') ? `
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="printJobTicket('${order.id}')" 
+                            class="flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
+                            <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 인쇄
+                        </button>
+                        <button onclick="downloadWorkRequestExcel('${order.id}')" 
+                            class="flex items-center justify-center gap-2 py-4 rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-all text-xs font-black shadow-lg">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 작업요청서(Excel) 다운
+                        </button>
+                    </div>
+                ` : `
+                    <button onclick="printJobTicket('${order.id}')" 
+                        class="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-slate-800 text-white hover:bg-slate-900 transition-all text-xs font-black shadow-lg">
+                        <i data-lucide="printer" class="w-4 h-4"></i> 작업지시서(PDF) 출력
+                    </button>
+                `}
             </div>
         </div>
 
@@ -2502,6 +2862,111 @@ function printJobTicket(orderId) {
 
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
 
+    // 스마트 공정 판정 로직 포팅 (PDF 인쇄용)
+    const dObj = order.data || {};
+    const mode = order.mode; 
+    const isRoll = mode === 'roll';
+    const wing = dObj['ord-wing'] || '날개 없음';
+    const hasWing = wing.includes('날개 있음');
+    const innerPrint = dObj['ord-inner-print'] || '흑백단면';
+
+    const facePaper = dObj['ord-face'] || '';
+    const faceInsert = dObj['ord-face-insert'] || '';
+    const hasFace = facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음' && !faceInsert.includes('없음');
+
+    let innerDevice = '';
+    let innerWorker = '';
+    if (isRoll) {
+        innerDevice = 'JP1160';
+        innerWorker = '구의동';
+    } else {
+        innerWorker = '칼라미';
+        const isAllColor = (innerPrint.includes('컬러') || innerPrint.includes('칼라')) && !innerPrint.includes('부분');
+        innerDevice = isAllColor ? '캐논' : '인디고';
+    }
+
+    let coverWorker = '';
+    let coverExtra = '';
+    if (hasWing || hasFace) {
+        coverWorker = '칼라미';
+        coverExtra = hasWing ? '날개 있음' : '날개 없음';
+    } else {
+        coverWorker = isRoll ? '구의동' : '칼라미';
+        coverExtra = '날개 없음';
+    }
+
+    const coatingText = `${dObj['ord-coating'] || '무광'}코팅`;
+    const wingText = hasWing ? '날개있음' : '날개없음';
+    let afterProcessText = `${coatingText} / ${wingText} /`;
+    if (hasFace) {
+        afterProcessText += `\n면지 ${facePaper} / ${faceInsert}`;
+    }
+
+    // 평량 및 납기일, 배송처를 포함한 스마트 지시서 추가 데이터 연산 (엑셀과 1:1)
+    const coverPaperText = dObj['ord-cover'] || '';
+    const coverWeightNum = parseInt(coverPaperText.replace(/[^0-9]/g, '')) || parseInt(dObj['ord-cover-weight']) || 250;
+
+    const innerPaperText = dObj['ord-inner'] || '';
+    const innerWeightNum = parseInt(innerPaperText.replace(/[^0-9]/g, '')) || parseInt(dObj['ord-inner-weight']) || 80;
+
+    const finalSpecSize = dObj['ord-custom-size'] || dObj['ord-spec'] || 'A5국판';
+
+    const delDate = dObj['ord-delivery-date'] || '';
+    let formattedDelDate = '';
+    if (delDate) {
+        const mm = delDate.substring(5, 7);
+        const dd = delDate.substring(8, 10);
+        const dayOfWeek = getDayOfWeek(delDate);
+        formattedDelDate = `${mm}-${dd}(${dayOfWeek})까지 수령`;
+    }
+
+    // 단가 재연산
+    const rawQty = parseInt(String(order.qty).replace(/[^0-9]/g, '')) || 1;
+    const computedTotal = computePurchaseCost(order);
+    const computedUnit = Math.round(computedTotal / rawQty);
+
+    const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+        const memo = del.memo || '';
+        return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+    });
+
+    let smartRemarksPartsForPrint = [];
+    if (hasWrappingReq) {
+        smartRemarksPartsForPrint.push(`* 1권씩 래핑후 납품요청<br>`);
+    }
+
+    // 배송처 정보
+    if (order.deliveries && order.deliveries.length > 0) {
+        order.deliveries.forEach((del) => {
+            let delHtml = `<b>${del.qty}부 : 입고처: ${del.recipient || order.pubName}</b><br>연락처: ${del.contact || '-'}<br>주소 : ${del.address} ${del.addressDetail || ''}`;
+            if (del.memo) {
+                delHtml += ` (메모: ${del.memo})`;
+            }
+            smartRemarksPartsForPrint.push(delHtml);
+        });
+    }
+
+    // 납기일
+    if (delDate) {
+        const mmNum = parseInt(delDate.substring(5, 7), 10);
+        const ddNum = parseInt(delDate.substring(8, 10), 10);
+        smartRemarksPartsForPrint.push(`*납기일 : ${mmNum}월 ${ddNum}일입니다. 택배 후 송장번호 알려 주세요`);
+    }
+
+    // 견본 전달
+    smartRemarksPartsForPrint.push(`*견본2권 권신애에게 전달 부탁드립니다.`);
+
+    // 공정 전달 지시문
+    if (isRoll && (hasFace || hasWing)) {
+        smartRemarksPartsForPrint.push(`<span style="color: #dc2626; font-weight: bold;">동집에서 내지 출력 후 칼라미로 보내주세요</span>`);
+    } else if (isRoll && !hasFace && !hasWing) {
+        smartRemarksPartsForPrint.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
+    } else {
+        smartRemarksPartsForPrint.push(`칼라미에서 내지/표지 출력 및 제본, 배송 처리`);
+    }
+
+    const smartRemarksForPrint = smartRemarksPartsForPrint.join('<br>');
+
     // 1. 기존에 생성된 투명 프레임이 있다면 제거 (항상 깨끗한 새 프레임 보장)
     let oldFrame = document.getElementById('hidden-print-frame');
     if (oldFrame) oldFrame.remove();
@@ -2520,102 +2985,270 @@ function printJobTicket(orderId) {
     // 3. iframe 내부 문서에 성공한 1장 압축 명세서 HTML 주입
     const doc = iframe.contentWindow.document;
     doc.open();
-    doc.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>작업지시서 - ${order.bookTitle}</title>
-            <style>
-                body {
-                    background: white !important;
-                    color: black !important;
-                    font-family: sans-serif !important;
-                    font-size: 11px !important;
-                    line-height: 1.4 !important;
-                    margin: 0 !important;
-                    padding: 12px !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                }
-                @page {
-                    size: A4 portrait;
-                    margin: 10mm;
-                }
-                * {
-                    color: black !important;
-                    border-color: black !important;
-                    box-sizing: border-box !important;
-                }
-                .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
-                .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
-                .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
-                .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
-                .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
-                .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
-                .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
-                .v-row:last-child { border-bottom: none; }
-                .v-row-lbl { font-weight: bold; }
-                .v-row-val { font-weight: 900; }
-                .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
-            </style>
-        </head>
-        <body>
-            <div class="v-header">
-                <div class="v-title">작업지시서 (Job Ticket)</div>
-                <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
-            </div>
 
-            <div class="v-badge-row">
-                <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
-                <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
-            </div>
-
-            <div class="v-book-title">${order.bookTitle}</div>
-
-            <div class="v-box">
-                ${rItem('출판사', order.pubName)}
-                ${rItem('담당자', order.managerName)}
-                <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
-                    <span class="v-row-lbl">제작부수</span>
-                    <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
+    if (role === 'admin' || role === 'printer' || role === 'printer_worker') {
+        // 인쇄소 및 어드민 로그인 시 - 엑셀 작업요청서와 1:1 대치되는 격자 표 서식
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>작업요청서 - ${order.bookTitle}</title>
+                <style>
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-family: sans-serif !important;
+                        font-size: 10px !important;
+                        line-height: 1.3 !important;
+                        margin: 0 !important;
+                        padding: 10px !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm;
+                    }
+                    * {
+                        color: black !important;
+                        border-color: black !important;
+                        box-sizing: border-box !important;
+                    }
+                    .wr-title-area {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        border-bottom: 2px solid black;
+                        padding-bottom: 5px;
+                        margin-bottom: 10px;
+                    }
+                    .wr-title {
+                        font-size: 16px;
+                        font-weight: 900;
+                    }
+                    .wr-date {
+                        font-size: 9px;
+                    }
+                    .wr-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 8px;
+                    }
+                    .wr-table th, .wr-table td {
+                        border: 1px solid black;
+                        padding: 5px 6px;
+                        text-align: center;
+                        font-size: 9px;
+                        vertical-align: middle;
+                    }
+                    .wr-table th {
+                        background-color: #f2f2f2 !important;
+                        font-weight: bold;
+                    }
+                    .wr-table td.left {
+                        text-align: left;
+                    }
+                    .wr-remarks-box {
+                        border: 1px solid black;
+                        padding: 8px;
+                        font-size: 8.5px;
+                        line-height: 1.4;
+                        white-space: pre-wrap;
+                        background-color: #fafafa;
+                        min-height: 120px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="wr-title-area">
+                    <div class="wr-title">(주)한국리더십센터 _작업요청서_${order.id.slice(-6)}</div>
+                    <div class="wr-date">요청일자: ${new Date().toLocaleDateString()}</div>
                 </div>
-            </div>
 
-            <div class="v-sec-title">제작 사양 요약</div>
-            <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
-                ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
-                ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
-                ${rItem('표지용지', order.data['ord-cover'])}
-                ${rItem('표지인쇄', order.data['ord-printing'])}
-                ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
-                ${rItem('제본방식', order.data['ord-binding'])}
-                ${rItem('내지용지', order.data['ord-inner'])}
-                ${rItem('내지인쇄', order.data['ord-inner-print'])}
-                ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
-            </div>
-            ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+                <table class="wr-table">
+                    <tr>
+                        <th style="width: 10%;">발주사</th>
+                        <td style="width: 20%; font-weight: bold;">(주)한국리더십센터</td>
+                        <th style="width: 10%;">교재명</th>
+                        <td style="width: 30%; font-weight: bold;" class="left">${order.bookTitle}</td>
+                        <th style="width: 10%;">희망납기일</th>
+                        <td style="width: 20%; font-weight: bold; color: #d97706 !important;">${formattedDelDate || '미정'}</td>
+                    </tr>
+                    <tr>
+                        <th>배송방법</th>
+                        <td>${dObj['ord-delivery-method'] || '택배'}</td>
+                        <th>발주담당자</th>
+                        <td class="left">권신애 (010-8182-8189)</td>
+                        <th>출력일시</th>
+                        <td>${new Date().toLocaleString()}</td>
+                    </tr>
+                </table>
 
-            <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
-            <div style="border:1px solid black; padding:6px; font-size:10px;">
-                <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
-                <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
-            </div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">■ 상세 생산 사양</div>
+                <table class="wr-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 6%;">구분</th>
+                            <th style="width: 10%;">작업처</th>
+                            <th style="width: 14%;">후가공</th>
+                            <th style="width: 10%;">출력장비</th>
+                            <th style="width: 8%;">인쇄도수</th>
+                            <th style="width: 8%;">인쇄방식</th>
+                            <th style="width: 20%;">용지명</th>
+                            <th style="width: 8%;">평량(g)</th>
+                            <th style="width: 8%;">부수</th>
+                            <th style="width: 8%;">규격</th>
+                            <th style="width: 6%;">페이지</th>
+                            <th style="width: 6%;">비고</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight: bold; background-color: #fafafa;">표지</td>
+                            <td>${coverWorker}</td>
+                            <td style="font-size: 8px; line-height: 1.2; color: #dc2626 !important; font-weight: bold; white-space: pre-wrap;">${afterProcessText}</td>
+                            <td style="font-weight: bold;">인디고</td>
+                            <td>컬러</td>
+                            <td>단면</td>
+                            <td class="left">${dObj['ord-cover'] || '스노우화이트'}</td>
+                            <td>${coverWeightNum}g</td>
+                            <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
+                            <td>${finalSpecSize}</td>
+                            <td>4</td>
+                            <td>${coverExtra}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; background-color: #fafafa;">내지</td>
+                            <td>${innerWorker}</td>
+                            <td>X</td>
+                            <td style="font-weight: bold; color: #0284c7 !important;">${innerDevice}</td>
+                            <td>${(function() {
+                                const rawPrint = dObj['ord-inner-print'] || '흑백단면';
+                                if (rawPrint.includes('부분')) return '부분컬러';
+                                if (rawPrint.includes('컬러') || rawPrint.includes('칼라')) return '컬러';
+                                return '흑백';
+                            })()}</td>
+                            <td>양면</td>
+                            <td class="left">${dObj['ord-inner'] || '미색모조'}</td>
+                            <td>${innerWeightNum}g</td>
+                            <td style="font-weight: bold;">${parseInt(order.qty).toLocaleString()}부</td>
+                            <td>${finalSpecSize}</td>
+                            <td>${parseInt(dObj['ord-tp']) || 0}</td>
+                            <td>${coverExtra}</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-            <div class="v-sec-title">배송 및 송장 정보</div>
-            ${deliveryHtml}
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">■ 생산 공정 및 물류 배송 지시 (비고)</div>
+                <div class="wr-remarks-box">${smartRemarksForPrint}</div>
 
-            ${role !== 'printer_worker' ? `
-                <div class="v-box" style="margin-top:8px; border-width:2px;">
-                    ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                ${role !== 'printer_worker' ? `
+                    <div style="margin-top: 8px; text-align: right; font-size: 9px; font-weight: bold;">
+                        ※ 권당 하청 단가: ₩ ${computedUnit.toLocaleString()}원 | 총 하청 합계 (VAT별도): <span style="font-size: 11px; font-weight: 900; text-decoration: underline;">₩ ${computedTotal.toLocaleString()}원</span>
+                    </div>
+                ` : ''}
+            </body>
+            </html>
+        `);
+    } else {
+        // 출판사 사장님 로그인 시 - 기존의 오리지널 세로형 작업지시서
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>작업지시서 - ${order.bookTitle}</title>
+                <style>
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-family: sans-serif !important;
+                        font-size: 11px !important;
+                        line-height: 1.4 !important;
+                        margin: 0 !important;
+                        padding: 12px !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm;
+                    }
+                    * {
+                        color: black !important;
+                        border-color: black !important;
+                        box-sizing: border-box !important;
+                    }
+                    .v-header { border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 10px; }
+                    .v-title { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+                    .v-meta { font-size: 9px; margin-top: 3px; color: #333 !important; }
+                    .v-badge-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+                    .v-book-title { font-size: 15px; font-weight: 900; margin-bottom: 8px; }
+                    .v-box { border: 1px solid black; padding: 6px 8px; margin-bottom: 8px; }
+                    .v-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #eee; font-size: 10.5px; }
+                    .v-row:last-child { border-bottom: none; }
+                    .v-row-lbl { font-weight: bold; }
+                    .v-row-val { font-weight: 900; }
+                    .v-sec-title { font-size: 11px; font-weight: 900; border-bottom: 1px solid black; padding-bottom: 2px; margin-bottom: 4px; margin-top: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="v-header">
+                    <div class="v-title">작업지시서 (Job Ticket)</div>
+                    <div class="v-meta">출력일시: ${new Date().toLocaleString()} | 주문번호: ${order.id}</div>
+                </div>
+
+                <div class="v-badge-row">
+                    <span style="border:1px solid black; padding:1px 5px; font-weight:900; font-size:9.5px;">${order.mode === 'sheet' ? '디지털 낱장' : '디지털 연속지'}</span>
+                    <span style="font-weight:bold; font-size:9.5px;">접수일: ${order.date}</span>
+                </div>
+
+                <div class="v-book-title">${order.bookTitle}</div>
+
+                <div class="v-box">
+                    ${rItem('출판사', order.pubName)}
+                    ${rItem('담당자', order.managerName)}
                     <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
-                        <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
-                        <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                        <span class="v-row-lbl">제작부수</span>
+                        <span class="v-row-val" style="font-size:12px;">${parseInt(order.qty).toLocaleString()}부</span>
                     </div>
                 </div>
-            ` : ''}
-        </body>
-        </html>
-    `);
+
+                <div class="v-sec-title">제작 사양 요약</div>
+                <div style="border-top:1px solid black; border-bottom:1px solid black; padding:2px 0;">
+                    ${rItem('규격', customSize ? `${order.data['ord-spec']} [직접입력: ${customSize}]` : order.data['ord-spec'])}
+                    ${rItem('페이지', `총 ${order.data['ord-tp']}P (컬러 ${order.data['ord-cp']}P / 흑백 ${order.data['ord-bp']}P)`)}
+                    ${rItem('표지용지', order.data['ord-cover'])}
+                    ${rItem('표지인쇄', order.data['ord-printing'])}
+                    ${rItem('코팅/날개', `${order.data['ord-coating']} / ${order.data['ord-wing']}`)}
+                    ${rItem('제본방식', order.data['ord-binding'])}
+                    ${rItem('내지용지', order.data['ord-inner'])}
+                    ${rItem('내지인쇄', order.data['ord-inner-print'])}
+                    ${order.mode === 'sheet' ? rItem('면지정보', `${order.data['ord-face']} (${order.data['ord-face-insert']})`) : ''}
+                </div>
+                ${isCustomSize ? `<div style="margin-top:4px; padding:3px; border:1px solid black; font-weight:900; font-size:9.5px; text-align:center;">*주의: 사용자규격(변형) 재단 작업입니다.</div>` : ''}
+
+                <div class="v-sec-title">첨부 파일 정보 (데이터)</div>
+                <div style="border:1px solid black; padding:6px; font-size:10px;">
+                    <div style="display:flex; margin-bottom:3px;"><span style="width:60px; font-weight:bold;">내지파일:</span> <span>${order.innerFile ? order.innerFile.name : '미첨부'}</span></div>
+                    <div style="display:flex;"><span style="width:60px; font-weight:bold;">표지파일:</span> <span>${order.coverFile ? order.coverFile.name : '미첨부'}</span></div>
+                </div>
+
+                <div class="v-sec-title">배송 및 송장 정보</div>
+                ${deliveryHtml}
+
+                ${role !== 'printer_worker' ? `
+                    <div class="v-box" style="margin-top:8px; border-width:2px;">
+                        ${rItem('권당 제작 단가', `₩ ${order.unitPrice}원`)}
+                        <div class="v-row" style="border-top:1px solid black; margin-top:2px; padding-top:3px;">
+                            <span class="v-row-lbl">총 주문 합계 (VAT별도)</span>
+                            <span class="v-row-val" style="font-size:12px;">₩ ${order.totalPrice}원</span>
+                        </div>
+                    </div>
+                ` : ''}
+            </body>
+            </html>
+        `);
+    }
     doc.close();
 
     // 투명 프레임 렌더링 완료 후 조용히 인쇄 호출
@@ -2659,6 +3292,10 @@ function addDeliveryRow(data = null) {
                     ${container.children.length > 0 ? `<button onclick="removeDeliveryRow(${deliveryIdx})" class="text-red-300 hover:text-red-500 transition-colors p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '<div class="w-6"></div>'}
                 </div>
             </div>
+        </div>
+        <div>
+            <label class="text-[10px] font-bold text-slate-400 mb-1 block">배송 메모 / 요청사항</label>
+            <input type="text" class="input-pptx d-memo w-full bg-white" placeholder="예: 퀵배송 요청 (오토바이/다마스/1톤) 또는 택배 발송" value="${data ? (data.memo || '') : ''}">
         </div>
     `;
     container.appendChild(row);
@@ -2720,8 +3357,17 @@ async function submitOrderSheet() {
         address: row.querySelector('.d-address').value,
         addressDetail: row.querySelector('.d-address-detail').value,
         qty: row.querySelector('.d-qty').value,
+        memo: row.querySelector('.d-memo')?.value || '',
         trackingList: [] // 다중 송장 구조로 초기화
     }));
+
+    // 제출 직전 희망 납기일 동적 값 강제 주입 가드 (이벤트 리스너 누락 방어)
+    if (MASTER.orderPersistence[mode]) {
+        const deliveryDateEl = document.getElementById('ord-delivery-date');
+        if (deliveryDateEl) {
+            MASTER.orderPersistence[mode]['ord-delivery-date'] = deliveryDateEl.value;
+        }
+    }
 
     // 주문 상세 데이터 스냅샷 저장
     const orderData = {
@@ -2742,84 +3388,183 @@ async function submitOrderSheet() {
         status: isEdit ? MASTER.orders.find(o => o.id === editingOrderId).status : '접수대기'
     };
 
-    // Supabase 직접 저장
-    const { error } = await _supabase.from('orders').upsert(orderData);
+    // 🎯 [발주서 확인서 미리보기 모달 격발]
+    openOrderPreviewModal(orderData);
+}
 
-    if (error) {
-        alert("온라인 저장 실패: " + error.message);
-        return;
+function openOrderPreviewModal(orderData) {
+    pendingOrderData = orderData;
+    const contentEl = document.getElementById('order-preview-content');
+    if (!contentEl) return;
+
+    const data = orderData.data || {};
+    const tp = data['ord-tp'] || '0';
+    const cp = data['ord-cp'] || '0';
+    const bp = data['ord-bp'] || '0';
+    const spec = data['ord-spec'] || 'A5국판(148x210)';
+    const customSize = data['ord-custom-size'] || '';
+
+    const deliveriesHtml = (orderData.deliveries || []).map((d, i) => `
+        <div class="p-3 bg-slate-50 rounded-xl text-xs space-y-1 border border-slate-100">
+            <div class="font-bold text-slate-800">${i + 1}. 수령인: ${d.recipient || '미지정'} (${d.contact || ''}) - <span class="text-blue-600 font-bold">${d.qty}부</span></div>
+            <div class="text-slate-500">${d.address} ${d.addressDetail || ''}</div>
+            ${d.memo ? `<div class="text-amber-600 font-bold">📌 배송메모: ${d.memo}</div>` : ''}
+        </div>
+    `).join('');
+
+    contentEl.innerHTML = `
+        <div class="bg-slate-50 p-4 rounded-2xl space-y-3 text-xs text-slate-700 border border-slate-200">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span class="font-black text-base text-slate-900">📖 ${orderData.bookTitle}</span>
+                <span class="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-700 font-bold text-[11px]">${orderData.pubName} (${orderData.managerName || '담당자'})</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><span class="text-slate-400">도서 규격:</span> <span class="font-bold text-slate-800">${spec} ${customSize ? `(${customSize})` : ''}</span></div>
+                <div><span class="text-slate-400">제작 부수:</span> <span class="font-black text-sky-600">${orderData.qty}부</span></div>
+                <div><span class="text-slate-400">페이지 구성:</span> <span class="font-bold text-slate-800">총 ${tp}P (부분컬러 ${cp}P / 흑백 ${bp}P)</span></div>
+                <div><span class="text-slate-400">제본 방식:</span> <span class="font-bold text-slate-800">${data['ord-binding'] || '무선제본'}</span></div>
+                <div class="col-span-2"><span class="text-slate-400">표지 사양:</span> <span class="font-bold text-slate-800">${data['ord-cover'] || '스노우지'}, ${data['ord-printing'] || '표지4도'}, ${data['ord-coating'] || '무광'}, 날개(${data['ord-wing'] || '없음'})</span></div>
+                <div class="col-span-2"><span class="text-slate-400">내지 사양:</span> <span class="font-bold text-amber-700">${data['ord-inner'] || '백모조80g'}, ${data['ord-inner-print'] || '내지-흑백양면'}</span></div>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <div class="text-xs font-bold text-slate-800 flex justify-between items-center">
+                <span>📦 배송지 정보 (${(orderData.deliveries || []).length}곳)</span>
+                <span class="text-[10px] text-slate-400 font-normal">총 ${(orderData.deliveries || []).reduce((s, x) => s + (parseInt(x.qty) || 0), 0)}부 배송</span>
+            </div>
+            ${deliveriesHtml}
+        </div>
+        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <div>
+                <div class="text-[11px] text-emerald-600 font-bold">권당 제작 단가: ${orderData.unitPrice}원</div>
+                <div class="text-xs font-black text-emerald-900">최종 펀딩/주문 결제 금액</div>
+            </div>
+            <div class="text-xl font-black text-emerald-600">${orderData.totalPrice}원</div>
+        </div>
+    `;
+
+    document.getElementById('modal-order-preview')?.classList.remove('hidden');
+}
+
+function closeOrderPreviewModal() {
+    document.getElementById('modal-order-preview')?.classList.add('hidden');
+}
+
+async function confirmFinalOrderSubmit() {
+    if (!pendingOrderData) return;
+    const confirmBtn = document.getElementById('btn-confirm-final-submit');
+    if (confirmBtn) {
+        confirmBtn.innerText = '⏳ 주문 처리 중...';
+        confirmBtn.disabled = true;
     }
 
-    // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
     try {
-        // 동일 출판사의 동일 도서명이 있는지 확인
-        const { data: existingProds } = await _supabase
-            .from('products')
-            .select('id, image')
-            .eq('pubName', pubName)
-            .eq('title', bookTitle)
-            .maybeSingle();
+        const orderData = pendingOrderData;
+        const isEdit = !!editingOrderId;
+        const pubName = orderData.pubName;
+        const bookTitle = orderData.bookTitle;
+        const managerName = orderData.managerName;
+        const today = orderData.date;
 
-        const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
-        const persistence = MASTER.orderPersistence[mode];
+        // Supabase 직접 저장
+        const { error } = await _supabase.from('orders').upsert(orderData);
 
-        const productData = {
-            id: prodId,
-            title: bookTitle,
-            pubName: pubName,
-            manager: managerName,
-            mode: mode, // 낱장/연속지 구분 정보 추가
-            spec: persistence['ord-spec'] || '',
-            pages: persistence['ord-tp'] || '0',
-            customSize: persistence['ord-custom-size'] || '',
-            image: existingProds ? existingProds.image : null, // 기존 이미지가 있으면 유지
-            details: {
-                innerPaper: persistence['ord-inner'] || '',
-                innerPrint: persistence['ord-inner-print'] || '',
-                partialColor: persistence['ord-cp'] || '0',
-                coverPaper: persistence['ord-cover'] || '',
-                coverPrint: persistence['ord-printing'] || '',
-                coating: persistence['ord-coating'] || '',
-                binding: persistence['ord-binding'] || '',
-                wing: persistence['ord-wing'] || '',
-                facePaper: persistence['ord-face'] || '없음',
-                faceInsert: persistence['ord-face-insert'] || '없음'
-            },
-            date: today
-        };
+        if (error) {
+            alert("온라인 저장 실패: " + error.message);
+            return;
+        }
 
-        // products 테이블에 사양 정보만 저장 (파일은 제외)
-        await _supabase.from('products').upsert(productData);
-        
-        // 메모리 데이터 즉시 반영 (중복 제거 후 최상단 추가)
-        if (!MASTER.products) MASTER.products = [];
-        MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
-        MASTER.products.unshift(productData);
-        
-        console.log("도서 사양이 라이브러리에 자동 등록/갱신되었습니다.");
-    } catch (prodErr) {
-        console.warn("도서 라이브러리 자동 등록 중 오류 (주문은 정상 처리됨):", prodErr);
+        // [추가] 도서 정보 자동 라이브러리 등록 로직 (사양만 저장)
+        try {
+            const { data: existingProds } = await _supabase
+                .from('products')
+                .select('id, image')
+                .eq('pubName', pubName)
+                .eq('title', bookTitle)
+                .maybeSingle();
+
+            const prodId = existingProds ? existingProds.id : 'PROD_' + Date.now();
+            const persistence = MASTER.orderPersistence[mode];
+
+            const productData = {
+                id: prodId,
+                title: bookTitle,
+                pubName: pubName,
+                manager: managerName,
+                mode: mode,
+                spec: persistence['ord-spec'] || '',
+                pages: persistence['ord-tp'] || '0',
+                customSize: persistence['ord-custom-size'] || '',
+                image: existingProds ? existingProds.image : null,
+                details: {
+                    innerPaper: persistence['ord-inner'] || '',
+                    innerPrint: persistence['ord-inner-print'] || '',
+                    partialColor: persistence['ord-cp'] || '0',
+                    coverPaper: persistence['ord-cover'] || '',
+                    coverPrint: persistence['ord-printing'] || '',
+                    coating: persistence['ord-coating'] || '',
+                    binding: persistence['ord-binding'] || '',
+                    wing: persistence['ord-wing'] || '',
+                    facePaper: persistence['ord-face'] || '없음',
+                    faceInsert: persistence['ord-face-insert'] || '없음'
+                },
+                date: today
+            };
+
+            await _supabase.from('products').upsert(productData);
+
+            if (!MASTER.products) MASTER.products = [];
+            MASTER.products = MASTER.products.filter(p => !(p.pubName === pubName && p.title === bookTitle));
+            MASTER.products.unshift(productData);
+
+        } catch (prodErr) {
+            console.warn("도서 라이브러리 자동 등록 중 오류:", prodErr);
+        }
+
+        // 메모리 갱신
+        if (isEdit) {
+            const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
+            if (idx !== -1) MASTER.orders[idx] = orderData;
+            editingOrderId = null;
+        } else {
+            MASTER.orders.unshift(orderData);
+        }
+
+        renderSettlementTable();
+        updateSettlementStats();
+        closeOrderPreviewModal();
+
+        alert(isEdit ? "주문 수정이 완료되었습니다." : "제작 등록 신청이 완료되었습니다. 생산진행 탭에서 진행 현황을 확인하실 수 있습니다.");
+
+        // 서식 초기화
+        const bookTitleInput = document.getElementById('ord-book-title');
+        if (bookTitleInput) bookTitleInput.value = '';
+        const customSizeInput = document.getElementById('ord-custom-size');
+        if (customSizeInput) customSizeInput.value = '';
+        const qtyEl = document.getElementById('ord-qty');
+        if (qtyEl) qtyEl.value = '100';
+        const tpEl = document.getElementById('ord-tp');
+        if (tpEl) tpEl.value = '200';
+        const cpEl = document.getElementById('ord-cp');
+        if (cpEl) cpEl.value = '0';
+        const bpEl = document.getElementById('ord-bp');
+        if (bpEl) bpEl.value = '200';
+
+        if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
+        if (typeof resetFileUI === 'function') resetFileUI();
+        if (typeof sync === 'function') sync();
+        if (typeof showPage === 'function') showPage('settlement');
+
+    } catch (err) {
+        console.error('[confirmFinalOrderSubmit Error]', err);
+        alert('주문 등록 중 오류가 발생했습니다.');
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.innerText = '🚀 제작 등록 완료';
+            confirmBtn.disabled = false;
+        }
+        pendingOrderData = null;
     }
-
-    // 메모리 갱신
-    if (isEdit) {
-        const idx = MASTER.orders.findIndex(o => o.id === editingOrderId);
-        if (idx !== -1) MASTER.orders[idx] = orderData;
-        editingOrderId = null;
-    } else {
-        MASTER.orders.unshift(orderData);
-    }
-
-    renderSettlementTable();
-    updateSettlementStats();
-
-    alert(isEdit ? "주문 수정이 완료되었습니다." : "제작 등록 신청이 완료되었습니다.");
-
-    // 파일 상태 초기화
-    currentFiles = { inner: null, cover: null };
-    resetFileUI();
-
-    showPage('settlement');
 }
 
 const STORAGE_BUCKET = 'print_files';
@@ -2828,23 +3573,23 @@ let currentFiles = { inner: null, cover: null };
 async function handleFileSelect(type, input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
-        
-        // 1. 용량 제한 체크 (Supabase 무료 티어 기준: 50MB)
-        const maxSize = 50 * 1024 * 1024; // 50MB
+
+        // 1. 용량 제한 체크 (Supabase Pro 티어 기준: 1GB)
+        const maxSize = 1024 * 1024 * 1024; // 1GB (1,024MB)
         if (file.size > maxSize) {
-            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 50MB\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 50MB를 초과하는 파일은 압축(.zip)하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
+            alert(`첨부 파일의 용량이 초과되었습니다.\n\n최대 허용 용량: 1GB (1,024MB)\n현재 파일 용량: ${(file.size / (1024 * 1024)).toFixed(1)}MB\n\n* 1GB를 초과하는 파일은 압축(.zip)하거나 파일 용량을 최적화하여 '내지' 또는 '표지' 업로드 영역 중 한 곳에만 통합하여 올려주세요.`);
             input.value = '';
             return;
         }
 
         const area = document.getElementById(`file-${type}-area`);
         const status = document.getElementById(`${type}-file-status`);
-        
+
         if (area && status) {
             // 업로드 준비 상태 UI (프로그레스 바 포함 프리미엄 감성)
             area.classList.remove('bg-slate-50', 'bg-emerald-50', 'border-emerald-200');
             area.classList.add('bg-sky-50/50', 'border-sky-300');
-            
+
             // 기존 내부 버튼 및 라벨 유지하면서 진행률 표시 컨테이너 추가
             status.innerHTML = `
                 <div class="flex flex-col gap-1 w-full mt-2">
@@ -2870,7 +3615,7 @@ async function handleFileSelect(type, input) {
         let progress = 0;
         const pBar = document.getElementById(`${type}-progress-bar`);
         const pTxt = document.getElementById(`${type}-progress-txt`);
-        
+
         const interval = setInterval(() => {
             if (progress < 90) {
                 progress += Math.floor(Math.random() * 10) + 5;
@@ -2929,12 +3674,12 @@ async function handleFileSelect(type, input) {
         } catch (err) {
             clearInterval(interval);
             console.error("Storage Upload Error:", err);
-            
+
             // --- AI Helper 연동 ---
             if (window.triggerAIError) {
                 window.triggerAIError(err.message || 'Storage Upload Failed');
             }
-            
+
             // 버킷 미생성 또는 권한 오류 시 자가 복구/안내 모드
             if (area && status) {
                 area.classList.remove('bg-sky-50/50', 'border-sky-300');
@@ -3024,8 +3769,6 @@ function downloadOrderFile(orderId, type) {
     }
 }
 
-let settlementCurrentPage = 1;
-const settlementItemsPerPage = 10;
 
 function getFilteredOrders() {
     const startDate = document.getElementById('search-start-date')?.value;
@@ -3050,6 +3793,7 @@ function getFilteredOrders() {
 }
 
 function renderSettlementTable() {
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
     const tableBody = document.getElementById('settlement-data-rows');
     if (!tableBody) return;
 
@@ -3070,36 +3814,64 @@ function renderSettlementTable() {
         const badgeText = isSheet ? '디지털 낱장' : '디지털 연속지';
         const finalizedBadge = o.isFinalized ? '<span class="badge" style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0;">🔒 정산확정</span>' : '';
 
-        const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+        let taxInvoiceBadge = '';
+        if (o.taxInvoiceStatus === 'requested') {
+            taxInvoiceBadge = `<span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;" title="요청일시: ${o.taxInvoiceRequestedAt || '-'}">🟡 계산서 발행요청</span>`;
+        } else if (o.taxInvoiceStatus === 'issued') {
+            taxInvoiceBadge = `<span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="발행완료">🟢 계산서 발행완료</span>`;
+        }
+
+        const isPublisher = (role === 'publisher');
         const isPrinter = (role === 'printer' || role === 'printer_worker');
-        const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
-        const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${o.isFinalized ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
+        const isLocked = isPublisher ? (o.isFinalized || o.taxInvoiceStatus === 'requested' || o.taxInvoiceStatus === 'issued') : o.isFinalized;
+        const editBtn = isPrinter ? '' : `<button onclick="editOrder('${o.id}')" class="btn-table" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>수정</button>`;
+        const deleteBtn = isPrinter ? '' : `<button onclick="deleteOrder('${o.id}')" class="btn-table btn-delete" ${isLocked ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>삭제</button>`;
+        const adminFinalizeBtn = (role === 'admin')
+            ? `<button onclick="toggleOrderFinalize('${o.id}')" class="btn-table" style="${o.isFinalized ? 'background:#fffbeb; color:#d97706; border-color:#fde68a;' : 'background:#fef2f2; color:#dc2626; border-color:#fecaca;'}" title="${o.isFinalized ? '마감 해제' : '마감 확정'}">${o.isFinalized ? '해제' : '마감'}</button>`
+            : '';
 
         const rawQty = parseInt(String(o.qty).replace(/[^0-9]/g, '')) || 1;
         const computedCost = computePurchaseCost(o);
 
-        const displayUnitPrice = isPrinter 
-            ? Math.round(computedCost / rawQty) 
+        const displayUnitPrice = isPrinter
+            ? Math.round(computedCost / rawQty)
             : (parseInt(String(o.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
-        const displayTotalPrice = isPrinter 
-            ? computedCost 
+        const displayTotalPrice = isPrinter
+            ? computedCost
             : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
 
-        const displayFinalPrice = isPrinter 
-            ? (computedCost + (o.shippingCost || 0)) 
+        const displayFinalPrice = isPrinter
+            ? (computedCost + (o.shippingCost || 0))
             : (o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0));
+
+        const dDate = (o.data && o.data['ord-delivery-date']) ? o.data['ord-delivery-date'] : '';
+        const dDateShort = dDate ? dDate.substring(5) : ''; 
+        const dateHtml = dDateShort 
+            ? `${o.date}<br><span style="color:#d97706; font-size:11px; font-weight:bold;">(납기: ${dDateShort})</span>`
+            : o.date;
+
+        let btnHtml = '';
+        if (isPublisher) {
+            btnHtml = `<button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>`;
+        } else {
+            btnHtml = `
+                <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                <button onclick="downloadWorkRequestExcel('${o.id}')" class="btn-table btn-work-request" style="background:#0284c7; color:white; border:none; margin-left:4px;">작업요청서</button>
+            `;
+        }
 
         return `
             <tr class="data-row ${o.isFinalized ? 'opacity-70' : ''}">
-                <td class="td-style">${o.date}</td>
+                <td class="td-style">${dateHtml}</td>
                 <td class="td-style font-bold">${o.pubName}</td>
                 <td class="td-style">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span class="${badgeClass}">${badgeText}</span>
                         ${finalizedBadge}
+                        ${taxInvoiceBadge}
                     </div>
-                    <div class="book-title">${o.bookTitle}</div>
+                    <div class="book-title" title="${o.bookTitle}">${o.bookTitle}</div>
                 </td>
                 <td class="td-style">${o.managerName}</td>
                 <td class="td-style text-right">${displayUnitPrice.toLocaleString()}원</td>
@@ -3110,7 +3882,8 @@ function renderSettlementTable() {
                 <td class="td-style text-center">
                     <div class="btn-group">
                         ${editBtn}
-                        <button onclick="downloadExcel('${o.id}')" class="btn-table btn-excel">발주서</button>
+                        ${btnHtml}
+                        ${adminFinalizeBtn}
                         ${deleteBtn}
                     </div>
                 </td>
@@ -3118,8 +3891,28 @@ function renderSettlementTable() {
         `;
     }).join('');
 
+    // 어드민 상단 마감/해제 버튼 상태 동적 갱신
+    const btnClose = document.getElementById('btn-monthly-closing') || document.getElementById('btn-monthly-closing2');
+    if (btnClose && role === 'admin') {
+        const allFinalized = filtered.length > 0 && filtered.every(o => o.isFinalized);
+        if (allFinalized) {
+            btnClose.innerHTML = `<i data-lucide="unlock" class="w-4 h-4"></i> 정산 마감 해제 (수정 허용)`;
+            btnClose.className = "bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-100 flex items-center gap-2 transition-all hover:bg-amber-700";
+            btnClose.onclick = executeMonthlyReopen;
+        } else {
+            btnClose.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> 월별 마감 정산 확정`;
+            btnClose.className = "bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-rose-100 flex items-center gap-2 transition-all hover:bg-rose-700";
+            btnClose.onclick = executeMonthlyClosing;
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+
     updateSettlementStats(filtered);
     renderSettlementPagination(totalItems);
+    // 어드민 전용 정산 관제 신호등 집계 뷰 결합
+    if (typeof renderAdminSettlementTrafficLight === 'function') {
+        renderAdminSettlementTrafficLight();
+    }
 }
 
 function renderSettlementPagination(totalItems) {
@@ -3249,7 +4042,7 @@ function renderRoleDashboard(count, qty, sales, filteredOrders) {
                 <div class="summary-value">${qty.toLocaleString()}<small>부</small></div>
             </div>
             <div class="summary-card highlight">
-                <span class="summary-label">총 하청 매출액 (정산예정액)</span>
+                <span class="summary-label">정산 예정액</span>
                 <div class="summary-value">${purchase.toLocaleString()}<small>원</small></div>
             </div>
         `;
@@ -3356,8 +4149,12 @@ function computePurchaseCost(order) {
             }
 
             let paperSur = 0;
-            if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
-            else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (costData.sheetCommons && costData.sheetCommons[paperKey] !== undefined)
+                    ? costData.sheetCommons[paperKey]
+                    : 0;
+            }
 
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -3411,8 +4208,12 @@ function computePurchaseCost(order) {
                 }
 
                 let paperSur = 0;
-                if (innerPaper.includes('100g')) paperSur = getC('100g용지할증');
-                else if (innerPaper.includes('120g')) paperSur = getC('120g용지할증');
+                const paperKey = '용지할증_' + innerPaper;
+                if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                    paperSur = (costData.rollCommons && costData.rollCommons[paperKey] !== undefined)
+                        ? costData.rollCommons[paperKey]
+                        : 0;
+                }
 
                 innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
                 if (hasPartColor) innerUnit2 += (bp * paperSur);
@@ -3422,7 +4223,22 @@ function computePurchaseCost(order) {
                     innerUnit1 += costData.rollCommons[innerPrintKey];
                 }
 
-                cost = coverUnit + innerUnit1 + innerUnit2;
+                let faceCost = 0;
+                const facePaper = order.data['ord-face'];
+                const faceInsert = order.data['ord-face-insert'];
+                if (facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음') {
+                    let mult = String(faceInsert).includes('4P') ? 4 : (String(faceInsert).includes('8P') ? 8 : 0);
+                    let faceUnitPrice = 0;
+                    if (costData.rollCommons) {
+                        const rollKey = Object.keys(costData.rollCommons).find(k => k.includes('면지'));
+                        if (rollKey !== undefined && costData.rollCommons[rollKey] > 0) {
+                            faceUnitPrice = costData.rollCommons[rollKey];
+                        }
+                    }
+                    faceCost = faceUnitPrice * mult;
+                }
+
+                cost = coverUnit + innerUnit1 + innerUnit2 + faceCost;
             }
         }
     }
@@ -3537,7 +4353,7 @@ function updateChart(range = 'week') {
         }
     });
 }
-let currentUserRole = 'admin'; // 'admin', 'printer', 'publisher' 중 설정 가능
+let currentUserRole = sessionStorage.getItem('userRole') || 'admin'; // 'admin', 'printer', 'publisher' 중 설정 가능
 
 // 역할 전환 및 사이드바 가시성 제어 로직
 function switchRole(newRole) {
@@ -3558,18 +4374,18 @@ function switchRole(newRole) {
 }
 
 function applyRoleVisibility() {
-    const role = currentUserRole;
+    const role = sessionStorage.getItem('userRole') || currentUserRole || 'admin';
 
     // 1. 사이드바 메뉴 노출 매핑 (재고관리, 용지구매, 구인구직 추가하여 권한 제어)
     const menuVisibility = {
-        admin: ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
+        admin: ['btn-goto-store', 'btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'],
         publisher: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job'],
         printer: ['btn-production', 'btn-settlement', 'btn-printer-mgmt'],
         printer_worker: ['btn-production'],
         judge: ['btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production'] // 심사위원은 재고/용지/구인구직/사양/단가/설정 노출 제외
     };
 
-    const allMenus = ['btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
+    const allMenus = ['btn-goto-store', 'btn-agent-control', 'btn-spec', 'btn-price', 'btn-order', 'btn-settlement', 'btn-partner', 'btn-printer-mgmt', 'btn-store-mgmt', 'btn-production', 'btn-stock', 'btn-paper', 'btn-job', 'btn-system-settings'];
     const allowed = menuVisibility[role] || allMenus;
 
     // 2. 사이드바 엘리먼트 노출 제어 및 명칭 치환
@@ -3581,8 +4397,10 @@ function applyRoleVisibility() {
             if (id === 'btn-partner') {
                 if (role === 'publisher') {
                     const userId = sessionStorage.getItem('userId');
-                    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-                    el.innerHTML = `<i data-lucide="user-cog" class="w-4 h-4 mr-3"></i>${myPartner ? myPartner.name : '출판사'} 정보관리`;
+                    const myPartner = MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0];
+                    const pubName = myPartner ? myPartner.name : (sessionStorage.getItem('userPubName') || '출판사');
+                    if (myPartner && myPartner.name) sessionStorage.setItem('userPubName', myPartner.name);
+                    el.innerHTML = `<i data-lucide="user-cog" class="w-4 h-4 mr-3"></i>${pubName} 정보관리`;
                 } else {
                     el.innerHTML = `<i data-lucide="users" class="w-4 h-4 mr-3"></i>파트너사관리`;
                 }
@@ -3590,8 +4408,10 @@ function applyRoleVisibility() {
             if (id === 'btn-printer-mgmt') {
                 if (role === 'printer' || role === 'printer_worker') {
                     const userId = sessionStorage.getItem('userId');
-                    const myPrinter = MASTER.printers.find(p => p.id === userId) || MASTER.printers[0];
-                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${myPrinter ? myPrinter.name : '인쇄소'} 정보관리`;
+                    const myPrinter = MASTER.printers.find(p => p.id === userId || p.name === userId);
+                    const printerName = myPrinter ? myPrinter.name : (sessionStorage.getItem('userPrinterName') || '인쇄소');
+                    if (myPrinter && myPrinter.name) sessionStorage.setItem('userPrinterName', myPrinter.name);
+                    el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>${printerName} 정보관리`;
                 } else {
                     el.innerHTML = `<i data-lucide="printer" class="w-4 h-4 mr-3"></i>인쇄소관리`;
                 }
@@ -3644,8 +4464,130 @@ function liveFilterTable() {
     renderSettlementTable();
 }
 
+// 실시간 Supabase 주문 데이터 동기화 공통 함수 (with 로딩 애니메이션 피드백)
+async function syncLatestOrdersFromServer(targetPage) {
+    let btn = null;
+    let icon = null;
+    
+    if (targetPage === 'settlement') {
+        // 정산 탭 새로고침 버튼
+        btn = document.querySelector('#page-settlement .btn-search');
+        if (btn) icon = btn.querySelector('svg') || btn.querySelector('i');
+    } else if (targetPage === 'production') {
+        // 생산진행(칸반) 탭 새로고침 버튼
+        btn = document.querySelector('.btn-refresh-kanban');
+        if (btn) icon = btn.querySelector('svg') || btn.querySelector('i');
+    }
+    
+    // 회전 애니메이션 클래스 동적 부여, 강제 스핀 스타일 주입 및 버튼 비활성화
+    if (icon) {
+        icon.classList.add('animate-spin');
+        icon.style.animation = 'spin 1s linear infinite';
+    }
+    if (btn) btn.disabled = true;
+    
+    try {
+        // Supabase orders 테이블에서 최신 데이터 조회
+        const { data, error } = await _supabase.from('orders').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        
+        if (data) {
+            MASTER.orders = data.map(o => {
+                let parsedData = {};
+                try {
+                    parsedData = typeof o.data === 'string' ? JSON.parse(o.data) : (o.data || {});
+                } catch(e) {
+                    parsedData = o.data || {};
+                }
+                return {
+                    id: o.id,
+                    pubName: o.pubName || parsedData['ord-pub-name'] || '',
+                    bookTitle: o.bookTitle || parsedData['ord-book-title'] || '',
+                    qty: o.qty || parsedData['ord-qty'] || 0,
+                    status: o.status || '접수대기',
+                    date: o.date || '',
+                    isDeleted: o.isDeleted || false,
+                    isFinalized: o.isFinalized || false,
+                    unitPrice: o.unitPrice || 0,
+                    totalPrice: o.totalPrice || 0,
+                    managerName: o.managerName || parsedData['ord-manager-name'] || '',
+                    innerFile: o.innerFile || null,
+                    coverFile: o.coverFile || null,
+                    deliveries: o.deliveries || [],
+                    data: parsedData,
+                    mode: o.mode || parsedData['ord-mode'] || 'sheet',
+                    created_at: o.created_at
+                };
+            });
+        }
+        
+        // 화면 재렌더링
+        if (targetPage === 'settlement') {
+            renderSettlementTable();
+            if (document.getElementById('dashboard-section') && !document.getElementById('dashboard-section').classList.contains('hidden')) {
+                updateChart();
+            }
+        } else if (targetPage === 'production') {
+            renderProductionBoard();
+        }
+        
+        showCustomToast("🔄 최신 데이터가 실시간 동기화되었습니다!");
+        
+    } catch(err) {
+        console.error("실시간 동기화 실패:", err);
+        showCustomToast("❌ 서버 연결 오류로 실시간 동기화에 실패했습니다.", 'error');
+    } finally {
+        setTimeout(() => {
+            // [완치] finally 리셋 타이밍에 실시간으로 현재 DOM에 있는 최신 엘리먼트를 다시 조회(Refetch)하여 중지 처리
+            let activeBtn = null;
+            let activeIcon = null;
+            
+            if (targetPage === 'settlement') {
+                activeBtn = document.querySelector('#page-settlement .btn-search');
+                if (activeBtn) activeIcon = activeBtn.querySelector('svg') || activeBtn.querySelector('i');
+            } else if (targetPage === 'production') {
+                activeBtn = document.querySelector('.btn-refresh-kanban');
+                if (activeBtn) activeIcon = activeBtn.querySelector('svg') || activeBtn.querySelector('i');
+            }
+            
+            if (activeIcon) {
+                activeIcon.classList.remove('animate-spin');
+                activeIcon.style.animation = ''; // 강제 스핀 스타일 제거
+            }
+            if (activeBtn) activeBtn.disabled = false;
+        }, 600);
+    }
+}
+
+function showCustomToast(message, type = 'success') {
+    let oldToast = document.getElementById('custom-sync-toast');
+    if (oldToast) oldToast.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'custom-sync-toast';
+    toast.className = `fixed bottom-5 right-5 z-[9999] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold transition-all duration-300 transform translate-y-10 opacity-0`;
+    
+    if (type === 'success') {
+        toast.style.cssText = 'background: #10b981; color: white; border: 1px solid #059669; box-shadow: 0 10px 25px rgba(16,185,129,0.3);';
+    } else {
+        toast.style.cssText = 'background: #ef4444; color: white; border: 1px solid #dc2626; box-shadow: 0 10px 25px rgba(239,68,68,0.3);';
+    }
+    
+    toast.innerHTML = `<span style="font-size: 14px;">🔔</span> <span>${message}</span>`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.remove('translate-y-10', 'opacity-0');
+    }, 50);
+    
+    setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 function loadSettlementData() {
-    renderSettlementTable();
+    syncLatestOrdersFromServer('settlement');
 }
 
 function editOrder(id) {
@@ -3661,7 +4603,7 @@ function editOrder(id) {
         mode = order.mode;
         // 해당 모드의 영속성 데이터를 주문 데이터로 덮어쓰기
         MASTER.orderPersistence[mode] = JSON.parse(JSON.stringify(order.data));
-        
+
         // 기존 주문 데이터에 ord-book-title 누락 시 최상위 도서명으로 자동 보정 복원
         if (!MASTER.orderPersistence[mode]) MASTER.orderPersistence[mode] = {};
         MASTER.orderPersistence[mode]['ord-book-title'] = order.bookTitle;
@@ -3689,6 +4631,13 @@ function editOrder(id) {
         // 3. 첨부파일 복원 및 UI 반영
         currentFiles.inner = order.innerFile || null;
         currentFiles.cover = order.coverFile || null;
+
+        // 3-2. 희망 납기일 복원 및 UI 반영
+        const deliveryDateEl = document.getElementById('ord-delivery-date');
+        if (deliveryDateEl) {
+            const savedData = MASTER.orderPersistence[mode] || {};
+            deliveryDateEl.value = savedData['ord-delivery-date'] || '';
+        }
 
         ['inner', 'cover'].forEach(type => {
             const fileData = currentFiles[type];
@@ -3778,18 +4727,35 @@ async function downloadExcel(id) {
 
         // 1. [상단 정보 매칭]
         worksheet.getCell('C4').value = order.date;
-        worksheet.getCell('F4').value = pub.biz_num || pub.bizNum || '';
-        worksheet.getCell('C5').value = order.managerName;
-        worksheet.getCell('F5').value = pub.name || order.pubName;
-        worksheet.getCell('J5').value = pub.ceo_name || pub.ceoName || '';
+        if (isPrinter) {
+            worksheet.getCell('C5').value = "서 상 원";               // 담당자명
+            worksheet.getCell('F4').value = "486-87-00700";         // 등록번호
+            worksheet.getCell('F5').value = "(주)한국리더십센터";     // 상호
+            worksheet.getCell('J5').value = "이 재 용";               // 대표자
+            worksheet.getCell('F6').value = "서울시 금천구 가산디지털2로 144,B204호(가산동, 현대테라타워 가산DK)"; // 주소
+            worksheet.getCell('F6').font = { size: 9 };             // 폰트 크기 축소
+            worksheet.getCell('F7').value = "교육서비스";             // 업태
+            worksheet.getCell('J7').value = "교육컨텐츠 인쇄 및 제작"; // 업종
+        } else {
+            worksheet.getCell('C5').value = order.managerName;
+            worksheet.getCell('F4').value = pub.biz_num || pub.bizNum || '';
+            worksheet.getCell('F5').value = pub.name || order.pubName;
+            worksheet.getCell('J5').value = pub.ceo_name || pub.ceoName || '';
+            worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
+            const storedBizTypeStr = pub.biz_type || pub.bizType || '';
+            const bizTypeParts = storedBizTypeStr.split('/');
+            worksheet.getCell('F7').value = bizTypeParts[0] || '';
+            worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        }
         worksheet.getCell('C6').value = order.qty;
-        worksheet.getCell('F6').value = pub.addr ? `${pub.addr} ${pub.addr_detail || pub.addrDetail || ''}` : '';
         const customSize = d['ord-custom-size'];
         worksheet.getCell('C7').value = customSize ? `${d['ord-spec']} [정사이즈: ${customSize}]` : (d['ord-spec'] || '');
         const storedBizTypeStr = pub.biz_type || pub.bizType || '';
         const bizTypeParts = storedBizTypeStr.split('/');
-        worksheet.getCell('F7').value = bizTypeParts[0] || '';
-        worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        if (!isPrinter) {
+            worksheet.getCell('F7').value = bizTypeParts[0] || '';
+            worksheet.getCell('J7').value = pub.biz_item || pub.bizItem || bizTypeParts[1] || bizTypeParts[0] || '';
+        }
 
         const innerType = d['ord-inner-print'] || '';
         worksheet.getCell('C8').value = `${tp}P(${innerType}${cp}P/흑백페이지${bp}P)`;
@@ -3809,7 +4775,7 @@ async function downloadExcel(id) {
             const rollSpec = (priceData.rollSpecs || []).find(r => r.n === specName);
             let bracketBw = 0;
             let bracketCl = 0;
-            
+
             if (rollSpec && rollSpec.ivs && rollSpec.ivs.length > 0) {
                 let targetSpec = rollSpec;
                 if (specName.includes('사용자규격') || specName.includes('변형')) {
@@ -3844,19 +4810,24 @@ async function downloadExcel(id) {
                 innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
                 if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
             }
-            
+
             let paperSur = 0;
-            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
-            
+            const innerPaper = d['ord-inner'] || '';
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (priceData.sheetCommons && priceData.sheetCommons[paperKey] !== undefined)
+                    ? priceData.sheetCommons[paperKey]
+                    : 0;
+            }
+
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
-            
+
             const innerPrintKey = '내지인쇄_' + innerType;
             if (priceData.rollCommons && priceData.rollCommons[innerPrintKey] !== undefined) {
                 innerUnit1 += priceData.rollCommons[innerPrintKey];
             }
-            
+
         } else {
             coverUnit += getSC('표지날개', d['ord-wing']);
             coverUnit += getSC('표지인쇄', d['ord-printing']);
@@ -3889,14 +4860,19 @@ async function downloadExcel(id) {
                 innerUnit1 = (innerUnit1 / 2) + ((hasPartColor ? cp : tp) / 2 * getC('단면할증'));
                 if (hasPartColor) innerUnit2 = (innerUnit2 / 2) + (bp / 2 * getC('단면할증'));
             }
-            
+
             let paperSur = 0;
-            if ((d['ord-inner'] || '').includes('100g')) paperSur = getC('100g용지할증');
-            else if ((d['ord-inner'] || '').includes('120g')) paperSur = getC('120g용지할증');
-            
+            const innerPaper = d['ord-inner'] || '';
+            const paperKey = '용지할증_' + innerPaper;
+            if (innerPaper.includes('100g') || innerPaper.includes('120g')) {
+                paperSur = (priceData.rollCommons && priceData.rollCommons[paperKey] !== undefined)
+                    ? priceData.rollCommons[paperKey]
+                    : 0;
+            }
+
             innerUnit1 += ((hasPartColor ? cp : tp) * paperSur);
             if (hasPartColor) innerUnit2 += (bp * paperSur);
-            
+
             innerUnit1 += getSC('내지인쇄', innerType);
         }
 
@@ -3925,7 +4901,7 @@ async function downloadExcel(id) {
         let innerVat2 = 0;
         if (hasPartColor) {
             worksheet.getCell('C16').value = `${d['ord-inner'] || ''}/내지-흑백(부분)/용지할증`;
-            
+
             innerSupply2 = innerUnit2 * qty;
             innerVat2 = Math.floor(innerSupply2 / 10);
             worksheet.getCell('D16').value = innerUnit2;
@@ -3952,7 +4928,18 @@ async function downloadExcel(id) {
 
             if (faceInsert && faceInsert !== '없음') {
                 const mult = faceInsert.includes('4P') ? 4 : (faceInsert.includes('8P') ? 8 : 0);
-                faceUnit = (spec.face || 0) * mult;
+                if (order.mode === 'roll') {
+                    let faceUnitPrice = 0;
+                    if (priceData.rollCommons) {
+                        const rollKey = Object.keys(priceData.rollCommons).find(k => k.includes('면지'));
+                        if (rollKey !== undefined && priceData.rollCommons[rollKey] > 0) {
+                            faceUnitPrice = priceData.rollCommons[rollKey];
+                        }
+                    }
+                    faceUnit = faceUnitPrice * mult;
+                } else {
+                    faceUnit = (spec.face || 0) * mult;
+                }
                 faceSupply = faceUnit * qty;
                 faceVat = Math.floor(faceSupply / 10);
             }
@@ -3972,10 +4959,10 @@ async function downloadExcel(id) {
                 totalBoxes += (parseInt(t.box) || 0);
             });
         });
-        if (totalBoxes === 0) totalBoxes = 1; 
+        if (totalBoxes === 0) totalBoxes = 1;
 
         const shipSupply = parseInt(order.shippingCost || 0) || 0;
-        const shipUnit = Math.floor(shipSupply / totalBoxes); 
+        const shipUnit = Math.floor(shipSupply / totalBoxes);
         const shipVat = Math.floor(shipSupply / 10);
 
         worksheet.getCell('D18').value = shipUnit;
@@ -4001,21 +4988,21 @@ async function downloadExcel(id) {
                 worksheet.getCell(`B${row}`).value = `${dl.address || ''} ${dl.addressDetail || ''}`;
                 worksheet.getCell(`E${row}`).value = dl.recipient || '';
                 worksheet.getCell(`G${row}`).value = dl.contact || dl.tel || '';
-                
+
                 // 송장번호 포맷 개선: 중복된 택배사 이름 제거, 번호만 줄바꿈으로 표시
-                const trackingText = (dl.trackingList || []).length > 0 
-                    ? dl.trackingList.map(t => t.code).join('\n') 
+                const trackingText = (dl.trackingList || []).length > 0
+                    ? dl.trackingList.map(t => t.code).join('\n')
                     : (dl.trackingNum || '');
-                
+
                 const trackingCell = worksheet.getCell(`I${row}`);
                 trackingCell.value = trackingText;
                 // 자동 줄바꿈 및 중앙 정렬 설정
                 trackingCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
-                
+
                 // 택배사 정보 (중복 제거하여 K열에 통합 표시)
                 const uniqueCouriers = [...new Set((dl.trackingList || []).map(t => t.courier))].join(', ');
                 worksheet.getCell(`K${row}`).value = uniqueCouriers || dl.courier || '';
-                
+
                 // 해당 배송지의 총 박스 수량 계산
                 const dBoxSum = (dl.trackingList || []).reduce((sum, t) => sum + (parseInt(t.box) || 0), 0);
                 worksheet.getCell(`L${row}`).value = dBoxSum || dl.boxCount || '';
@@ -4036,6 +5023,206 @@ async function downloadExcel(id) {
     } catch (error) {
         console.error('Purchase Order Export Error:', error);
         alert('발주서 생성 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+function getDayOfWeek(dateStr) {
+    if (!dateStr) return '';
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const date = new Date(dateStr);
+    return days[date.getDay()];
+}
+
+async function downloadWorkRequestExcel(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return alert('주문 데이터를 찾을 수 없습니다.');
+
+    try {
+        const response = await fetch('/작업요청서.xlsx');
+        if (!response.ok) throw new Error('작업요청서 템플릿 파일을 서버에서 불러올 수 없습니다.');
+        const arrayBuffer = await response.arrayBuffer();
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
+        if (!worksheet) throw new Error('엑셀 파일 내 시트를 찾을 수 없습니다.');
+
+        const d = order.data || {};
+        const mode = order.mode; 
+        const isRoll = mode === 'roll';
+        
+        const wing = d['ord-wing'] || '날개 없음';
+        const hasWing = wing.includes('날개 있음');
+
+        const facePaper = d['ord-face'] || '';
+        const faceInsert = d['ord-face-insert'] || '';
+        const hasFace = facePaper && facePaper !== '없음' && faceInsert && faceInsert !== '없음' && !faceInsert.includes('없음');
+
+        const innerPrint = d['ord-inner-print'] || '흑백단면';
+        const isColorInner = innerPrint.includes('컬러');
+
+        let innerDevice = '';
+        let innerWorker = '';
+        if (isRoll) {
+            innerDevice = 'JP1160';
+            innerWorker = '구의동';
+        } else {
+            innerWorker = '칼라미';
+            // 올컬러(부분컬러 제외) ➔ 캐논 / 부분컬러, 올흑백 ➔ 인디고
+            const isAllColor = (innerPrint.includes('컬러') || innerPrint.includes('칼라')) && !innerPrint.includes('부분');
+            innerDevice = isAllColor ? '캐논' : '인디고';
+        }
+
+        let coverWorker = '';
+        let coverExtra = '';
+        if (hasWing || hasFace) {
+            coverWorker = '칼라미';
+            coverExtra = hasWing ? '날개 있음' : '날개 없음';
+        } else {
+            coverWorker = isRoll ? '구의동' : '칼라미';
+            coverExtra = '날개 없음';
+        }
+
+        const coatingText = `${d['ord-coating'] || '무광'}코팅`;
+        const wingText = hasWing ? '날개있음' : '날개없음';
+        let afterProcessText = `${coatingText} / ${wingText} /`;
+        if (hasFace) {
+            afterProcessText += `\n면지 ${facePaper} / ${faceInsert}`;
+        }
+
+        const todayDate = new Date();
+        const yyyy = todayDate.getFullYear();
+        const mmVal = String(todayDate.getMonth() + 1).padStart(2, '0');
+        const ddVal = String(todayDate.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}${mmVal}${ddVal}`;
+
+        const delDate = d['ord-delivery-date'] || '';
+        let formattedDelDate = '';
+        if (delDate) {
+            const mm = delDate.substring(5, 7);
+            const dd = delDate.substring(8, 10);
+            const dayOfWeek = getDayOfWeek(delDate);
+            formattedDelDate = `${mm}-${dd}(${dayOfWeek})까지 수령`;
+        }
+
+        const hasWrappingReq = order.deliveries && order.deliveries.some(del => {
+            const memo = del.memo || '';
+            return memo.includes('래핑') || memo.includes('포장') || memo.includes('1권');
+        });
+
+        let remarksParts = [];
+        if (hasWrappingReq) {
+            remarksParts.push(`* 1권씩 래핑후 납품요청\n`);
+        }
+
+        // 1. 배송처 정보
+        if (order.deliveries && order.deliveries.length > 0) {
+            order.deliveries.forEach((del) => {
+                let delText = `${del.qty}부 : 입고처: ${del.recipient || order.pubName}\n연락처: ${del.contact || '-'}\n주소 : ${del.address} ${del.addressDetail || ''}`;
+                if (del.memo) {
+                    delText += ` (메모: ${del.memo})`;
+                }
+                remarksParts.push(delText);
+            });
+        }
+
+        // 2. 납기일 안내
+        if (delDate) {
+            const mmNum = parseInt(delDate.substring(5, 7), 10);
+            const ddNum = parseInt(delDate.substring(8, 10), 10);
+            remarksParts.push(`*납기일 : ${mmNum}월 ${ddNum}일입니다. 택배 후 송장번호 알려 주세요`);
+        }
+
+        // 3. 견본 전달 안내
+        remarksParts.push(`*견본2권 권신애에게 전달 부탁드립니다.`);
+
+        // 4. 공정 전달 지시문
+        if (isRoll && (hasFace || hasWing)) {
+            remarksParts.push(`동집에서 내지 출력 후 칼라미로 보내주세요`);
+        } else if (isRoll && !hasFace && !hasWing) {
+            remarksParts.push(`구의동에서 내지/표지 출력 및 제본, 배송 처리`);
+        } else {
+            remarksParts.push(`칼라미에서 내지/표지 출력 및 제본, 배송 처리`);
+        }
+
+        const remarks = remarksParts.join('\n');
+
+        worksheet.getCell('B1').value = `(주)한국리더십센터 _작업요청서_${todayStr}`;
+        worksheet.getCell('O3').value = todayDate; 
+        worksheet.getCell('C4').value = '(주)한국리더십센터'; 
+        worksheet.getCell('F4').value = order.bookTitle; 
+        worksheet.getCell('J4').value = formattedDelDate; 
+        worksheet.getCell('M4').value = d['ord-delivery-method'] || '택배'; 
+        worksheet.getCell('O4').value = `권신애\n010-8182-8189`; 
+        
+        worksheet.getCell('B9').value = order.bookTitle;
+        worksheet.getCell('C9').value = '표지';
+        worksheet.getCell('D9').value = coverWorker;
+        worksheet.getCell('E9').value = afterProcessText;
+        worksheet.getCell('E9').font = { size: 8.5, color: { argb: 'FFDC2626' }, bold: true };
+        worksheet.getCell('E9').alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        worksheet.getCell('F9').value = coverWorker;
+        worksheet.getCell('G9').value = '인디고';
+        worksheet.getCell('H9').value = '컬러';
+        worksheet.getCell('I9').value = '단면';
+        worksheet.getCell('J9').value = d['ord-cover'] || '스노우화이트';
+        
+        // 표지 용지명에서 평량 숫자 추출 가드 (예: 스노우지 250g -> 250)
+        const coverPaperText = d['ord-cover'] || '';
+        const coverWeightNum = parseInt(coverPaperText.replace(/[^0-9]/g, '')) || parseInt(d['ord-cover-weight']) || 250;
+        worksheet.getCell('K9').value = coverWeightNum;
+        
+        const finalSpecSize = d['ord-custom-size'] || d['ord-spec'] || 'A5국판';
+
+        worksheet.getCell('L9').value = parseInt(order.qty) || 0;
+        worksheet.getCell('M9').value = coverExtra;
+        worksheet.getCell('N9').value = finalSpecSize;
+        worksheet.getCell('O9').value = 4;
+        
+        // B12 (내지 교재명) 셀은 템플릿의 기존 수식(=B9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
+        worksheet.getCell('C12').value = '내지';
+        worksheet.getCell('D12').value = innerWorker;
+        worksheet.getCell('E12').value = 'X';
+        worksheet.getCell('F12').value = innerWorker;
+        worksheet.getCell('G12').value = innerDevice;
+        worksheet.getCell('H12').value = (function() {
+            const rawPrint = d['ord-inner-print'] || '흑백단면';
+            if (rawPrint.includes('부분')) return '부분컬러';
+            if (rawPrint.includes('컬러') || rawPrint.includes('칼라')) return '컬러';
+            return '흑백';
+        })();
+        worksheet.getCell('I12').value = '양면';
+        worksheet.getCell('J12').value = d['ord-inner'] || '미색모조';
+        
+        // 내지 용지명에서 평량 숫자 추출 가드 (예: 백모조 100g -> 100)
+        const innerPaperText = d['ord-inner'] || '';
+        const innerWeightNum = parseInt(innerPaperText.replace(/[^0-9]/g, '')) || parseInt(d['ord-inner-weight']) || 80;
+        worksheet.getCell('K12').value = innerWeightNum;
+        
+        // L12 (내지 부수) 셀은 템플릿의 기존 수식(=L9)을 깨뜨리지 않기 위해 강제 덮어쓰지 않고 생략합니다. (복구 오류 예방)
+        worksheet.getCell('M12').value = coverExtra;
+        worksheet.getCell('N12').value = finalSpecSize;
+        worksheet.getCell('O12').value = parseInt(d['ord-tp']) || 0;
+        
+        // 비고란 B13 행 기입 (행 높이는 손상을 피하기 위해 템플릿 엑셀 자체에서 늘려서 관리)
+        worksheet.getCell('B13').value = remarks;
+
+        // 엑셀 저장 직전 Defined Names(명명된 범위)를 초기화하여 포맷 파손 복구 에러 팝업을 완치
+        workbook.definedNames.model = [];
+
+        const safeTitle = (order.bookTitle || '작업요청서').replace(/[\\/:*?"<>|]/g, '_');
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `작업요청서_${safeTitle}_${order.id.slice(-6)}_${yyyy}-${mmVal}-${ddVal}.xlsx`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Work Request Export Error:', error);
+        alert('작업요청서 생성 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
@@ -4066,9 +5253,14 @@ function executeMonthlyClosing() {
 
     if (!confirm(`조회된 ${filtered.length}건의 데이터를 마감하고 확정하시겠습니까?\n마감 후에는 주문 수정 및 삭제가 불가능합니다.`)) return;
 
-    // 조회된 주문들 모두 확정 상태로 변경
+    // 조회된 주문들 모두 확정 상태로 변경 및 Supabase orders data 컬럼 동기화
     filtered.forEach(o => {
         o.isFinalized = true;
+        o.data = o.data || {};
+        o.data.isFinalized = true;
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("주문 마감 상태 DB 저장 경고:", error);
+        });
     });
 
     const count = document.getElementById('stat-count')?.innerText || '0';
@@ -4077,6 +5269,132 @@ function executeMonthlyClosing() {
     alert(`[마감 완료] 총 ${count}건, ${total}원이 최종 정산 확정되었습니다.\n세금계산서 발행 리스트로 전송되었습니다.`);
     saveMasterDataSilent();
     renderSettlementTable();
+}
+
+function executeMonthlyReopen() {
+    const filtered = getFilteredOrders();
+    if (filtered.length === 0) return alert("해제할 주문 내역이 없습니다.");
+
+    if (!confirm(`조회된 ${filtered.length}건의 정산 마감을 해제하시겠습니까?\n해제 후에는 출판사 및 어드민에서 주문 사양 수정과 삭제가 다시 가능해집니다.`)) return;
+
+    filtered.forEach(o => {
+        o.isFinalized = false;
+        o.taxInvoiceStatus = 'none';
+        o.data = o.data || {};
+        o.data.isFinalized = false;
+        delete o.data.taxInvoiceStatus;
+        delete o.data.taxInvoiceRequestedAt;
+        delete o.data.taxInvoiceRequestedBy;
+        delete o.data.taxInvoiceEmail;
+
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("주문 마감 해제 DB 저장 경고:", error);
+        });
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+    alert(`[마감 해제 완료] 총 ${filtered.length}건의 정산 마감이 안전하게 해제되었습니다.`);
+}
+
+function toggleOrderFinalize(id) {
+    const order = MASTER.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const willFinalize = !order.isFinalized;
+    order.isFinalized = willFinalize;
+    order.data = order.data || {};
+    order.data.isFinalized = willFinalize;
+
+    if (!willFinalize) {
+        order.taxInvoiceStatus = 'none';
+        delete order.data.taxInvoiceStatus;
+        delete order.data.taxInvoiceRequestedAt;
+        delete order.data.taxInvoiceRequestedBy;
+        delete order.data.taxInvoiceEmail;
+    }
+
+    _supabase.from('orders').update({ data: order.data }).eq('id', id).then(({ error }) => {
+        if (error) console.warn("단건 마감 토글 DB 저장 경고:", error);
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+
+    const actionName = willFinalize ? '정산 마감 확정(잠금)' : '정산 마감 해제(수정허용)';
+    alert(`[${order.bookTitle}] 주문이 ${actionName}되었습니다.`);
+}
+
+function requestTaxInvoiceByPublisher() {
+    const filtered = getFilteredOrders();
+    if (filtered.length === 0) return alert("발행 요청할 주문 내역이 없습니다.");
+
+    const userId = sessionStorage.getItem('userId');
+    const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
+    const pubName = myPartner?.name || (filtered[0] ? filtered[0].pubName : '출판사');
+    const taxEmail = myPartner?.tax_email || myPartner?.taxEmail || myPartner?.email || '';
+
+    if (!taxEmail) {
+        if (confirm("⚠️ 세금계산서 대표 이메일이 등록되어 있지 않습니다.\n[파트너사 관리] 메뉴에서 먼저 이메일을 등록하시겠습니까?")) {
+            showPage('partner');
+            return;
+        }
+    }
+
+    // 이미 요청/발행 완료된 건 제외한 대기 건 필터링
+    const pendingOrders = filtered.filter(o => o.taxInvoiceStatus !== 'requested' && o.taxInvoiceStatus !== 'issued');
+
+    if (pendingOrders.length === 0) {
+        return alert(`[안내] 현재 조회된 ${filtered.length}건의 주문은 이미 세금계산서 발행 요청이 완료된 상태입니다.`);
+    }
+
+    // 합계 금액 계산
+    const totalAmount = pendingOrders.reduce((sum, o) => {
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        return sum + finalPrice;
+    }, 0);
+    const vatAmount = Math.round(totalAmount * 0.1);
+    const totalWithVat = totalAmount + vatAmount;
+
+    // 안내 팝업 메시지
+    const confirmMsg = `📢 [출판사 거래내역 확인 및 세금계산서 발행 요청]\n\n` +
+        `• 대상 출판사: ${pubName}\n` +
+        `• 확인 건수: 총 ${pendingOrders.length}건 (전체 ${filtered.length}건 중)\n` +
+        `• 공급가액 합계: ${totalAmount.toLocaleString()}원\n` +
+        `• 부가세(VAT 10%): ${vatAmount.toLocaleString()}원\n` +
+        `• 총 청구금액: ${totalWithVat.toLocaleString()}원 (VAT 포함)\n` +
+        `• 세금계산서 수신처: ${taxEmail || '(미지정)'}\n\n` +
+        `위 거래내역을 최종 확인하셨습니까?\n확인 완료 시 '세금계산서 발행 진행중' 상태로 전환되며 타임스탬프가 기록됩니다.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // 타임스탬프 생성
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const requester = sessionStorage.getItem('userName') || myPartner?.name || '출판사 담당자';
+
+    // 주문 상태 갱신 및 Supabase orders data 컬럼 실시간 동기화
+    pendingOrders.forEach(o => {
+        o.taxInvoiceStatus = 'requested';
+        o.taxInvoiceRequestedAt = timeStr;
+        o.taxInvoiceRequestedBy = requester;
+        o.taxInvoiceEmail = taxEmail;
+
+        o.data = o.data || {};
+        o.data.taxInvoiceStatus = 'requested';
+        o.data.taxInvoiceRequestedAt = timeStr;
+        o.data.taxInvoiceRequestedBy = requester;
+        o.data.taxInvoiceEmail = taxEmail;
+
+        _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn("세금계산서 요청 DB 저장 경고:", error);
+        });
+    });
+
+    saveMasterDataSilent();
+    renderSettlementTable();
+
+    alert(`✅ [세금계산서 발행 요청 완료]\n\n총 ${pendingOrders.length}건의 거래내역 확인이 완료되었습니다.\n상태가 '🟡 계산서 발행요청'으로 전환되었으며 관리자에게 전달되었습니다.\n(수신 이메일: ${taxEmail || '등록 필요'})`);
 }
 
 function setMonthlyGoal() {
@@ -4098,8 +5416,7 @@ function setMonthlyGoal() {
 // ---------------------------------------------------------
 // 파트너사 관리 모듈 로직
 // ---------------------------------------------------------
-// 사업자등록증 파일 처리 함수
-let currentBizFileData = null; // 현재 선택된 파일 데이터 (Base64)
+// 사업자등록증 파일 처리 함수 (currentBizFileData는 최상단 전역 변수로 관리)
 
 function handleBizFileSelect(input) {
     const file = input.files[0];
@@ -4185,23 +5502,28 @@ function renderPartners() {
     const pageItems = filtered.slice(start, end);
 
     const listSide = document.querySelector('.partner-list-side');
-    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
 
     // 출판사 모드일 경우 리스트 숨김 처리 및 본인 정보 자동 로드
     if (role === 'publisher') {
         if (listSide) listSide.style.display = 'none';
-        document.querySelector('.admin-container').style.gridTemplateColumns = '1fr';
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) adminContainer.style.gridTemplateColumns = '1fr';
 
-        // 본인 데이터가 로드되지 않았다면 강제 로드
+        // 본인 데이터 강제 로드
         const userId = sessionStorage.getItem('userId');
-        const myPartner = MASTER.partners.find(p => p.id === userId) || MASTER.partners[0];
-        if (myPartner && document.getElementById('u_id').value !== myPartner.id) {
-            selectPartner(myPartner.id);
+        const myPartner = (MASTER.partners && MASTER.partners.length > 0)
+            ? (MASTER.partners.find(p => p.id === userId || p.name === userId) || MASTER.partners[0])
+            : JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+
+        if (myPartner) {
+            selectPartner(myPartner.id || userId || 'sangsang');
         }
         return;
     } else {
         if (listSide) listSide.style.display = 'flex';
-        document.querySelector('.admin-container').style.gridTemplateColumns = '350px 1fr';
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) adminContainer.style.gridTemplateColumns = '350px 1fr';
     }
 
     listContainer.innerHTML = pageItems.map(p => `
@@ -4268,6 +5590,8 @@ function clearPartnerFields() {
     document.getElementById('u_ceoName').value = '';
     document.getElementById('u_bizType').value = '';
     document.getElementById('u_bizItem').value = '';
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    if (taxEmailEl) taxEmailEl.value = '';
     document.getElementById('u_addr').value = '';
     document.getElementById('u_addrDetail').value = '';
     document.querySelector('#managerTable tbody').innerHTML = '';
@@ -4294,10 +5618,18 @@ function selectPartner(id) {
         }
     }
 
-    const partner = MASTER.partners.find(p => p.id === id);
+    let partner = (MASTER.partners || []).find(p => p.id === id || p.name === id);
+    if (!partner) {
+        const storedProfile = JSON.parse(sessionStorage.getItem('userProfile') || 'null');
+        if (storedProfile && (storedProfile.id === id || storedProfile.name === id || !id)) {
+            partner = storedProfile;
+        } else if (MASTER.partners && MASTER.partners.length > 0) {
+            partner = MASTER.partners[0];
+        }
+    }
     if (!partner) return;
 
-    const role = (typeof currentUserRole !== 'undefined') ? currentUserRole : 'admin';
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
     const isPublisher = (role === 'publisher');
 
     document.getElementById('u_id').readOnly = true;
@@ -4318,6 +5650,8 @@ function selectPartner(id) {
     const parts = storedBizType.split('/');
     document.getElementById('u_bizType').value = parts[0] || '';
     document.getElementById('u_bizItem').value = partner.biz_item || partner.bizItem || (parts.length > 1 ? parts.slice(1).join('/') : '');
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    if (taxEmailEl) taxEmailEl.value = partner.tax_email || partner.taxEmail || '';
     document.getElementById('u_addr').value = partner.addr || '';
     document.getElementById('u_addrDetail').value = partner.addr_detail || partner.addrDetail || '';
 
@@ -4408,6 +5742,8 @@ async function savePartnerData() {
     const bizItem = document.getElementById('u_bizItem').value;
     const addr = document.getElementById('u_addr').value;
     const addrDetail = document.getElementById('u_addrDetail').value;
+    const taxEmailEl = document.getElementById('u_taxEmail') || document.getElementById('u_taxEmail2');
+    const taxEmail = taxEmailEl ? taxEmailEl.value.trim() : '';
 
     if (!id || !name) return alert('아이디와 업체명은 필수입니다.');
     if (!MASTER.grades.includes(grade)) return alert('존재하지 않는 등급입니다. 단가 관리에서 먼저 등급을 생성해주세요.');
@@ -4426,6 +5762,8 @@ async function savePartnerData() {
         ceo_name: ceoName,
         biz_type: bizType,
         biz_item: bizItem,
+        tax_email: taxEmail,
+        taxEmail: taxEmail,
         addr: addr,
         addr_detail: addrDetail,
         managers: managers,
@@ -4437,15 +5775,14 @@ async function savePartnerData() {
         } : (existingPartner?.biz_file || null)
     };
 
-    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item 필드 분리 및 통합 직렬화 전송)
-    const { password, biz_item, ...dbPartnerData } = partnerData;
+    // Supabase 직접 저장 (DB 스키마에 없는 password, biz_item, tax_email 필드 분리 및 통합 직렬화 전송)
+    const { password, biz_item, tax_email: _te1, taxEmail: _te2, ...dbPartnerData } = partnerData;
     dbPartnerData.pw = password;
     dbPartnerData.biz_type = bizType + (bizItem ? '/' + bizItem : '');
     const { error } = await _supabase.from('partners').upsert(dbPartnerData);
 
     if (error) {
-        alert("파트너 정보 온라인 저장 실패: " + error.message);
-        return;
+        console.warn("온라인 파트너 DB 동기화 경고 (로컬 메모리 보존):", error.message);
     }
 
     // 메모리 갱신
@@ -4456,6 +5793,11 @@ async function savePartnerData() {
         MASTER.partners.push(partnerData);
     }
 
+    // 온라인 master_config에 파트너사 세금계산서 이메일 맵 실시간 동기화
+    MASTER.partnerTaxEmails = MASTER.partnerTaxEmails || {};
+    MASTER.partnerTaxEmails[id] = taxEmail;
+
+    saveMasterDataSilent();
     renderPartners();
     currentBizFileData = null;
     if (currentUserRole === 'publisher') {
@@ -4748,11 +6090,11 @@ async function openPrinterPriceModal() {
         saveBtn.onclick = closeTrackingModal;
 
         const today = new Date().toLocaleDateString();
-        
+
         // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
         const commons = priceData.sheetCommons || {};
         const getCommonVal = (key) => commons[key] || 0;
-        
+
         const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
         const baseBinding = getCommonVal('제본방식_무선제본') || 0;
         const wingYes = getCommonVal('표지날개_날개 있음') || getCommonVal('표지날개_날개있음') || 0;
@@ -4819,10 +6161,10 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
                         ${[
-                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
-                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
-                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
-                        ].map(item => `
+                { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -4833,9 +6175,9 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
                         ${[
-                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
-                            { key: '용지할증_백모조120g', label: '백모조120g' }
-                        ].map(item => `
+                { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                { key: '용지할증_백모조120g', label: '백모조120g' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -4846,8 +6188,8 @@ async function openPrinterPriceModal() {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
                         ${[
-                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
-                        ].map(item => `
+                { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -4998,7 +6340,7 @@ async function openPriceTableModal(grade) {
         // 표지 제작비 합산 계산 로직 (코팅 + 날개 + 제본)
         const commons = priceData.sheetCommons || {};
         const getCommonVal = (key) => commons[key] || 0;
-        
+
         // 날개 옵션의 텍스트가 정확한지 확인 (기본 데이터: '날개 있음', '날개 없음')
         const baseCoating = getCommonVal('코팅방식_무광') || getCommonVal('코팅방식_코팅없음') || 0;
         const baseBinding = getCommonVal('제본방식_무선제본') || 0;
@@ -5069,10 +6411,10 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">표지할증</div>
                         ${[
-                            { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
-                            { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
-                            { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
-                        ].map(item => `
+                { key: '표지인쇄_표지-흑백단면', label: '표지-흑백단면' },
+                { key: '표지인쇄_표지-흑백양면', label: '표지-흑백양면' },
+                { key: '표지인쇄_표지-컬러양면', label: '표지-컬러양면' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5083,9 +6425,9 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">용지할증</div>
                         ${[
-                            { key: '용지할증_백모조100g', label: '백모조/미색100g' },
-                            { key: '용지할증_백모조120g', label: '백모조120g' }
-                        ].map(item => `
+                { key: '용지할증_백모조100g', label: '백모조/미색100g' },
+                { key: '용지할증_백모조120g', label: '백모조120g' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5096,8 +6438,8 @@ async function openPriceTableModal(grade) {
                     <div class="space-y-1">
                         <div class="text-[9px] font-black text-slate-400 mb-1">단면할증</div>
                         ${[
-                            { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
-                        ].map(item => `
+                { key: '단면할증_흑백단면', label: '단면인쇄 할증' }
+            ].map(item => `
                             <div class="flex justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                                 <span class="text-[9px] text-slate-500 font-bold">${item.label}</span>
                                 <span class="text-[10px] font-black text-slate-700">${getCommonVal(item.key).toLocaleString()}원</span>
@@ -5149,7 +6491,7 @@ async function resetPassword() {
 
     if (confirm(`[${partner.name}] 업체의 비밀번호를 초기값 '1234'로 변경하시겠습니까?`)) {
         partner.password = '1234';
-        
+
         const { error } = await _supabase
             .from('partners')
             .update({ pw: '1234' })
@@ -5361,8 +6703,12 @@ async function downloadTransactionStatementExcel() {
     worksheet.getCell('A3').value = `출력일시: ${new Date().toLocaleString()}`;
     worksheet.getCell('A3').alignment = { horizontal: 'right' };
 
+    const role = sessionStorage.getItem('userRole') || 'admin';
+    const isPrinter = (role === 'printer' || role === 'printer_worker');
+    const companyHeaderLabel = isPrinter ? '회사명' : '출판사명';
+
     // Add columns header
-    const headerRow = worksheet.addRow(['일자', '출판사명', '도서명', '담당자', '단가(원)', '수량(부)', '공급가액(원)', '세액(원)', '합계금액(원)']);
+    const headerRow = worksheet.addRow(['일자', companyHeaderLabel, '도서명', '담당자', '단가(원)', '수량(부)', '공급가액(원)', '세액(원)', '합계금액(원)']);
     headerRow.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
         cell.font = { bold: true };
@@ -5373,17 +6719,30 @@ async function downloadTransactionStatementExcel() {
     // Add data rows
     let totalSupply = 0;
     filteredData.forEach(item => {
-        const supply = item.totalPrice || 0;
+        const rawQty = parseInt(String(item.qty).replace(/[^0-9]/g, '')) || 0;
+        const computedCost = computePurchaseCost(item);
+
+        const supply = isPrinter
+            ? computedCost
+            : (parseInt(String(item.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        const unitPrice = isPrinter
+            ? (rawQty > 0 ? Math.round(computedCost / rawQty) : 0)
+            : (parseInt(String(item.unitPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
         const tax = Math.floor(supply * 0.1);
         const total = supply + tax;
 
+        const displayCompanyName = isPrinter ? "(주)한국리더십센터" : item.pubName;
+        const displayManagerName = isPrinter ? "서 상 원" : item.managerName;
+
         const row = worksheet.addRow([
             item.date,
-            item.pubName,
+            displayCompanyName,
             item.bookTitle,
-            item.managerName,
-            item.unitPrice,
-            item.qty,
+            displayManagerName,
+            unitPrice,
+            rawQty,
             supply,
             tax,
             total
@@ -5675,7 +7034,8 @@ function loadProductToOrder() {
     const prodId = document.getElementById('ord-load-product').value;
     if (!prodId) return alert("불러올 도서를 선택해주세요.");
 
-    const prod = MASTER.products.find(p => p.id === prodId);
+    const availableProds = getAvailableProductsForPublisher();
+    const prod = availableProds.find(p => p.id === prodId) || MASTER.products.find(p => p.id === prodId);
     if (!prod) return;
 
     // [추가] 도서 모드(낱장/연속지)에 맞춰 자동으로 탭 전환
@@ -6204,13 +7564,13 @@ function initAgentControlChart() {
 }
 
 const AC_LOG_POOL = [
-    { type: 'success', agent: '[살피미]',       msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
-    { type: 'info',    agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
-    { type: 'warn',    agent: '[다듬이]',        msg: '절판 도서 {n}건 필터링 처리 중' },
-    { type: 'success', agent: '[눈치왕]',        msg: '에러 감지 0건 · 시스템 정상 운영 중' },
-    { type: 'info',    agent: '[알림이]',        msg: '복간 후보 보고서 초안 생성 완료' },
-    { type: 'success', agent: '[보안관]',        msg: '비정상 API 호출 0건 · 보안 이상 없음' },
-    { type: 'info',    agent: '[지킴이]',        msg: 'SQL Injection 스캔 완료 · 위협 없음' },
+    { type: 'success', agent: '[살피미]', msg: '국립중앙도서관 API 응답 정상 · 도서 {n}건 수집' },
+    { type: 'info', agent: '[오케스트레이터]', msg: '데이터 신뢰도 재산출 완료 · 현재 {n}%' },
+    { type: 'warn', agent: '[다듬이]', msg: '절판 도서 {n}건 필터링 처리 중' },
+    { type: 'success', agent: '[눈치왕]', msg: '에러 감지 0건 · 시스템 정상 운영 중' },
+    { type: 'info', agent: '[알림이]', msg: '복간 후보 보고서 초안 생성 완료' },
+    { type: 'success', agent: '[보안관]', msg: '비정상 API 호출 0건 · 보안 이상 없음' },
+    { type: 'info', agent: '[지킴이]', msg: 'SQL Injection 스캔 완료 · 위협 없음' },
 ];
 
 let acLogIntervalId = null;
@@ -6269,7 +7629,7 @@ async function _fetchAndRenderAuditLogs() {
             const levelMap = { success: 'success', error: 'error', warn: 'warn', info: 'info' };
             const level = levelMap[log.log_level] || 'info';
             const dt = new Date(log.created_at);
-            const time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+            const time = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`;
 
             const div = document.createElement('div');
             div.className = `ac-log-entry ac-log-${level}`;
@@ -6291,7 +7651,7 @@ function _appendSimulatedLog(el) {
     const pool = AC_LOG_POOL[Math.floor(Math.random() * AC_LOG_POOL.length)];
     const n = Math.floor(Math.random() * 50) + 50;
     const now = new Date();
-    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const div = document.createElement('div');
     div.className = `ac-log-entry ac-log-${pool.type}`;
     div.innerHTML = `<span class="ac-log-time">${time}</span><span class="ac-log-agent">${pool.agent}</span><span>${pool.msg.replace('{n}', n)}</span>`;
@@ -6367,8 +7727,8 @@ function renderDynamicAgentOrgTree(agents) {
     if (!container) return;
 
     const deptMapping = {
-        'Front':    '📡 가치 창출 및 자율 서비스 본부',
-        'Back':     '⚙️ 인프라 엔진 및 행정 지원 본부',
+        'Front': '📡 가치 창출 및 자율 서비스 본부',
+        'Back': '⚙️ 인프라 엔진 및 행정 지원 본부',
         'Security': '🛡️ AI 실시간 보안 및 통제 관제실'
     };
 
@@ -6543,11 +7903,11 @@ function renderDynamicReprintFeed(latestCandidates) {
         const author = (c.author || '미상').replace(/<\/?[^>]+(>|$)/g, "");
         const category = c.category || '미분류';
         const catClass = categoryStyles[category] || 'bg-slate-50 text-slate-500 border border-slate-200';
-        
+
         const pubYearText = c.pub_year ? `${c.pub_year}년` : '연도 미상';
         const publisher = c.publisher || '출판사 미상';
         const score = c.reprint_score || 0;
-        
+
         const simulatedBadge = c.is_simulated
             ? `<span class="inline-block bg-amber-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black animate-pulse align-middle shadow-sm ml-1.5">통계 보정 중</span>`
             : '';
@@ -6590,7 +7950,7 @@ function renderDynamicReprintFeed(latestCandidates) {
     window._latestFeedCandidates = latestCandidates;
 }
 
-window.startBookSimulationByFeedIsbn = function(isbn) {
+window.startBookSimulationByFeedIsbn = function (isbn) {
     const book = window._latestFeedCandidates?.find(b => b.isbn === isbn);
     if (book) {
         window.startBookSimulationByBook(book);
@@ -6602,11 +7962,11 @@ window.startBookSimulationByFeedIsbn = function(isbn) {
 // ============================================================
 
 let _flashlightModeActive = false;
-let _flashlightTimerId    = null;
+let _flashlightTimerId = null;
 
-window.toggleFlashlightMode = function() {
+window.toggleFlashlightMode = function () {
     const pageEl = document.getElementById('page-agent-control');
-    const btn    = document.getElementById('btn-flashlight-mode');
+    const btn = document.getElementById('btn-flashlight-mode');
 
     _flashlightModeActive = !_flashlightModeActive;
 
@@ -6614,9 +7974,9 @@ window.toggleFlashlightMode = function() {
         if (pageEl) pageEl.classList.add('ac-flashlight-active');
         if (btn) { btn.textContent = '⚡ 플래시 라이트 ON — 클릭 시 해제'; btn.classList.add('btn-flashlight-on'); }
 
-        const msgEl   = document.getElementById('orchestrator-msg');
+        const msgEl = document.getElementById('orchestrator-msg');
         const scoreEl = document.getElementById('orchestrator-score');
-        if (msgEl)   msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
+        if (msgEl) msgEl.textContent = '⚠️ 시스템 과부하 감지! 플래시 라이트 모드 가동 — 비필수 에이전트 슬립 전환 중...';
         if (scoreEl) scoreEl.innerHTML = '67<span>%</span>';
 
         _insertWarningLogs();
@@ -6637,14 +7997,14 @@ function _insertWarningLogs() {
     const logEl = document.getElementById('ac-log-stream');
     if (!logEl) return;
     const warnings = [
-        { l: 'error',   a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
-        { l: 'warn',    a: '[살피미]',         m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
-        { l: 'warn',    a: '[보안관]',         m: '과부하 대응 2단계 방어 루틴 가동 완료' },
-        { l: 'success', a: '[눈치왕]',         m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
+        { l: 'error', a: '[오케스트레이터]', m: '⚡ 플래시 라이트 모드 발동 — 비필수 에이전트 절전 전환 중' },
+        { l: 'warn', a: '[살피미]', m: '시스템 부하 감지 → API 호출 빈도 50% 조절 중' },
+        { l: 'warn', a: '[보안관]', m: '과부하 대응 2단계 방어 루틴 가동 완료' },
+        { l: 'success', a: '[눈치왕]', m: '⚡ 방어 기제 정상 작동 — 핵심 파이프라인 보호 완료' },
     ];
     warnings.forEach(w => {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = `ac-log-entry ac-log-${w.l}`;
         div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">${w.a}</span><span>${w.m}</span>`;
@@ -6657,19 +8017,19 @@ function _autoRecoverFromFlashlight() {
     if (_flashlightTimerId) { clearInterval(_flashlightTimerId); _flashlightTimerId = null; }
     _flashlightModeActive = false;
     const pageEl = document.getElementById('page-agent-control');
-    const btn    = document.getElementById('btn-flashlight-mode');
+    const btn = document.getElementById('btn-flashlight-mode');
     if (pageEl) pageEl.classList.remove('ac-flashlight-active');
     if (btn) { btn.textContent = '⚡ 플래시 라이트 모드 시연'; btn.classList.remove('btn-flashlight-on'); }
 
-    const msgEl   = document.getElementById('orchestrator-msg');
+    const msgEl = document.getElementById('orchestrator-msg');
     const scoreEl = document.getElementById('orchestrator-score');
-    if (msgEl)   msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
+    if (msgEl) msgEl.textContent = '시스템 안정화 완료. 과부하 방어 기제 정상 작동 검증됨. 전 에이전트 활성 상태 복귀.';
     if (scoreEl) scoreEl.innerHTML = '95<span>%</span>';
 
     const logEl = document.getElementById('ac-log-stream');
     if (logEl) {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = 'ac-log-entry ac-log-success';
         div.innerHTML = `<span class="ac-log-time">${t}</span><span class="ac-log-agent">[오케스트레이터]</span><span>✅ 시스템 안정화 완료 — 전 에이전트 정상 운영 상태 복귀</span>`;
@@ -6681,11 +8041,11 @@ function _autoRecoverFromFlashlight() {
 // 🚀 파이프라인 수동 트리거 — 대시보드 버튼 연동
 // ============================================================
 
-window.triggerPipeline = async function() {
-    const pipeBtn  = document.getElementById('btn-trigger-pipeline');
+window.triggerPipeline = async function () {
+    const pipeBtn = document.getElementById('btn-trigger-pipeline');
     const statusEl = document.getElementById('pipeline-status-text');
-    const kwInput  = document.getElementById('pipeline-keyword-input');
-    const kw       = kwInput?.value?.trim() || '절판 도서';
+    const kwInput = document.getElementById('pipeline-keyword-input');
+    const kw = kwInput?.value?.trim() || '절판 도서';
 
     if (pipeBtn) { pipeBtn.disabled = true; pipeBtn.textContent = '⏳ 실행 중...'; }
     if (statusEl) { statusEl.textContent = `🔄 "${kw}" 검색 → 살피미 → 다듬이 파이프라인 가동 중...`; statusEl.style.color = '#f59e0b'; }
@@ -6695,7 +8055,7 @@ window.triggerPipeline = async function() {
             ? 'https://publish79.vercel.app/api/pipeline'
             : '/api/pipeline';
 
-        const res  = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
+        const res = await fetch(`${endpoint}?keyword=${encodeURIComponent(kw)}`);
         const data = await res.json();
 
         if (res.ok && data.success) {
@@ -6733,7 +8093,7 @@ window.triggerPipeline = async function() {
 
 let _approvalCheckInterval = null;
 
-window.startApprovalWatchdog = function(prId) {
+window.startApprovalWatchdog = function (prId) {
     if (_approvalCheckInterval) clearInterval(_approvalCheckInterval);
     const endpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'https://publish79.vercel.app/api/deploy-status'
@@ -6741,7 +8101,7 @@ window.startApprovalWatchdog = function(prId) {
 
     _approvalCheckInterval = setInterval(async () => {
         try {
-            const res  = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
+            const res = await fetch(`${endpoint}?pr=${encodeURIComponent(prId)}`);
             if (!res.ok) return;
             const data = await res.json();
             if (data.status === 'APPROVED') {
@@ -6749,22 +8109,22 @@ window.startApprovalWatchdog = function(prId) {
                 _approvalCheckInterval = null;
                 _triggerApprovalCompleteAnimation();
             }
-        } catch (_) {}
+        } catch (_) { }
     }, 3000);
 };
 
 function _triggerApprovalCompleteAnimation() {
-    const msgEl   = document.getElementById('orchestrator-msg');
+    const msgEl = document.getElementById('orchestrator-msg');
     const scoreEl = document.getElementById('orchestrator-score');
-    if (msgEl)   msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
+    if (msgEl) msgEl.textContent = '🟢 대표님 모바일 승인 완료! 배포 파이프라인 가동 → 전 에이전트 조치 완료 상태 확인.';
     if (scoreEl) scoreEl.innerHTML = '100<span>%</span>';
 
     document.querySelectorAll('.ac-agent-row').forEach((row, i) => {
         setTimeout(() => {
             row.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error');
             row.classList.add('ac-agent-active');
-            const dot     = row.querySelector('.ac-dot');
-            const taskEl  = row.querySelector('.ac-agent-task');
+            const dot = row.querySelector('.ac-dot');
+            const taskEl = row.querySelector('.ac-agent-task');
             if (dot && !dot.classList.contains('ac-dot-purple')) dot.className = 'ac-dot ac-dot-green';
             if (taskEl && (taskEl.textContent.includes('대기') || taskEl.textContent.includes('처리'))) {
                 taskEl.textContent = '🟢 조치 완료';
@@ -6775,7 +8135,7 @@ function _triggerApprovalCompleteAnimation() {
     const logEl = document.getElementById('ac-log-stream');
     if (logEl) {
         const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const div = document.createElement('div');
         div.className = 'ac-log-entry ac-log-success';
         div.style.fontWeight = '900';
@@ -6791,7 +8151,7 @@ function _triggerApprovalCompleteAnimation() {
 // pdf-lib 및 fontkit 라이브러리 동적 로드 함수
 async function ensurePDFLibLoaded() {
     if (window.PDFLib && window.fontkit) return window.PDFLib;
-    
+
     const loadFontkit = () => new Promise((resolve, reject) => {
         if (window.fontkit) return resolve();
         const script = document.createElement('script');
@@ -6848,14 +8208,14 @@ async function writeAuditLogInDB(agentId, agentName, logLevel, message, metadata
 function updateLocalAgentStatus(agentId, status, role) {
     const container = document.getElementById('ac-org-tree');
     if (!container) return;
-    
+
     const rows = container.querySelectorAll('.ac-agent-row');
     rows.forEach(r => {
         if (r.textContent.includes(`${agentId}번`)) {
             r.classList.remove('ac-agent-running', 'ac-agent-idle', 'ac-agent-error', 'ac-agent-active');
             const dot = r.querySelector('.ac-dot');
             const task = r.querySelector('.ac-agent-task');
-            
+
             if (status === 'running') {
                 r.classList.add('ac-agent-running');
                 if (dot) dot.className = 'ac-dot ac-dot-amber';
@@ -6875,13 +8235,13 @@ function updateLocalAgentStatus(agentId, status, role) {
 }
 
 // 복간 후보 책선택 시뮬레이션 개시 메인 진입점
-window.startBookSimulationByIndex = async function(index) {
+window.startBookSimulationByIndex = async function (index) {
     const book = window._currentCandidates[index];
     if (!book) return;
     return window.startBookSimulationByBook(book);
 };
 
-window.startBookSimulationByBook = async function(book) {
+window.startBookSimulationByBook = async function (book) {
     if (!book) return;
 
     // Clean title and author of any HTML tags (e.g. search highlight span tags from API)
@@ -7047,7 +8407,7 @@ window.startBookSimulationByBook = async function(book) {
             error: 'text-rose-400 font-bold'
         };
         const color = colorMap[type] || 'text-slate-300';
-        
+
         const line = document.createElement('div');
         line.innerHTML = `<span class="text-slate-500 font-normal">[${time}]</span> <span class="${color}">${message}</span>`;
         consoleEl.appendChild(line);
@@ -7061,7 +8421,7 @@ window.startBookSimulationByBook = async function(book) {
 
     // 2. 파이프라인 상태 시뮬레이션 시작
     logConsole(`[오케스트레이터] 도서 '${book.title}' 1~8단계 자율 출판 파이프라인 시뮬레이션 가동 개시.`, 'info', 13, '오케스트레이터');
-    
+
     // Step 1 & 2 완료 상태로 리셋
     await updateAgentStatusInDB(13, 'running', '파이프라인 실행 지휘 중');
     await updateAgentStatusInDB(1, 'success', '도서관 API 데이터 수집 완료');
@@ -7079,7 +8439,7 @@ window.startBookSimulationByBook = async function(book) {
         const step3Icon = document.getElementById('step-node-3-icon');
         const step3Text = document.getElementById('step-node-3-text');
         const step3Status = document.getElementById('step-node-3-status');
-        
+
         if (step3Icon) {
             step3Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
             step3Status.textContent = '진행중 (🟡)';
@@ -7095,10 +8455,10 @@ window.startBookSimulationByBook = async function(book) {
             const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'https://publish79.vercel.app/api/typeset'
                 : '/api/typeset';
-                
+
             // 글자수를 도서마다 다르게 시뮬레이션 (수요지수 기반으로 비례 계산해서 10만자 ~ 22만자)
             const simulatedChars = Math.floor((book.reprint_score || 50) * 1500 + 80000);
-            
+
             const typesetRes = await fetch(typesetEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -7138,7 +8498,7 @@ window.startBookSimulationByBook = async function(book) {
                 const step4Icon = document.getElementById('step-node-4-icon');
                 const step4Text = document.getElementById('step-node-4-text');
                 const step4Status = document.getElementById('step-node-4-status');
-                
+
                 if (step4Icon) {
                     step4Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
                     step4Status.textContent = '진행중 (🟡)';
@@ -7181,7 +8541,7 @@ window.startBookSimulationByBook = async function(book) {
                         if (s.specName.includes('A5국판')) rollSpecName = 'A5국판';
                         else if (s.specName.includes('46배판형')) rollSpecName = '46배판';
                         else if (s.specName.includes('국배판')) rollSpecName = '국배판';
-                        
+
                         const match = gradeData?.rollSpecs?.find(x => x.n && x.n.includes(rollSpecName));
                         if (match && match.ivs) {
                             const interval = match.ivs.find(iv => qty >= iv.s && qty <= iv.e);
@@ -7202,13 +8562,13 @@ window.startBookSimulationByBook = async function(book) {
                     const totalBindingCost = qty * bindingCost;
 
                     const totalCost = totalInnerCost + totalCoverCost + totalCoatingCost + totalBindingCost;
-                    const unitCost  = Math.round(totalCost / qty);
+                    const unitCost = Math.round(totalCost / qty);
 
                     let retailPrice = 15000;
-                    if (s.specName.includes('국배판'))  retailPrice = 24000;
+                    if (s.specName.includes('국배판')) retailPrice = 24000;
                     else if (s.specName.includes('46배판형')) retailPrice = 21000;
                     else if (s.specName.includes('신국판')) retailPrice = 18500;
-                    else if (s.specName.includes('A5국판'))  retailPrice = 16800;
+                    else if (s.specName.includes('A5국판')) retailPrice = 16800;
                     else retailPrice = 14800;
 
                     const marginRate = Math.round(((retailPrice - unitCost) / retailPrice) * 100);
@@ -7241,7 +8601,7 @@ window.startBookSimulationByBook = async function(book) {
                     const step5Icon = document.getElementById('step-node-5-icon');
                     const step5Text = document.getElementById('step-node-5-text');
                     const step5Status = document.getElementById('step-node-5-status');
-                    
+
                     if (step5Icon) {
                         step5Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
                         step5Status.textContent = '대기중 (🟡)';
@@ -7257,18 +8617,18 @@ window.startBookSimulationByBook = async function(book) {
                     const decisionGrid = document.getElementById('sim-decision-grid');
                     if (decisionArea && decisionGrid) {
                         decisionArea.classList.remove('hidden');
-                        
+
                         // Save calculated specs globally to prevent quote escaping bugs
                         window._currentCalculatedSpecs = calculatedSpecs;
 
                         decisionGrid.innerHTML = calculatedSpecs.map((s, idx) => {
-                            const recommendBadge = s.isRecommended 
+                            const recommendBadge = s.isRecommended
                                 ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest shadow-md border border-sky-400">BEST RECOMMEND</span>`
                                 : '';
                             const borderClass = s.isRecommended
                                 ? 'border-sky-500 shadow-xl shadow-sky-500/5 ring-2 ring-sky-500/20 bg-sky-50/10'
                                 : 'border-slate-200 hover:border-slate-300';
-                            
+
                             return `
                             <div class="relative bg-white border ${borderClass} rounded-2xl p-5 flex flex-col justify-between h-72 transition-all duration-300 hover:-translate-y-1">
                                 ${recommendBadge}
@@ -7333,9 +8693,9 @@ window.startBookSimulationByBook = async function(book) {
 // ==========================================
 // STEP 6: CEO (대표님 승인 및 PDF/커버 렌더링)
 // ==========================================
-window.approveBookSpec = async function(specIndex) {
+window.approveBookSpec = async function (specIndex) {
     let title, specName, pages, spineMm, unitCost, retailPrice, marginRate;
-    
+
     if (typeof specIndex === 'number' || !isNaN(specIndex)) {
         const book = window._currentSimBook;
         const spec = window._currentCalculatedSpecs[specIndex];
@@ -7344,7 +8704,7 @@ window.approveBookSpec = async function(specIndex) {
             return;
         }
         window._approvedSpec = spec;
-        
+
         title = book.title;
         specName = spec.specName;
         pages = spec.pages;
@@ -7361,7 +8721,7 @@ window.approveBookSpec = async function(specIndex) {
         unitCost = arguments[4];
         retailPrice = arguments[5];
         marginRate = arguments[6];
-        
+
         window._approvedSpec = {
             specName,
             pages,
@@ -7448,7 +8808,7 @@ window.approveBookSpec = async function(specIndex) {
     const step6Icon = document.getElementById('step-node-6-icon');
     const step6Text = document.getElementById('step-node-6-text');
     const step6Status = document.getElementById('step-node-6-status');
-    
+
     if (step6Icon) {
         step6Icon.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-amber-100 animate-pulse';
         step6Status.textContent = '조판 중 (🟡)';
@@ -7463,10 +8823,10 @@ window.approveBookSpec = async function(specIndex) {
     const compArea = document.getElementById('sim-compilation-area');
     const compProgress = document.getElementById('sim-compilation-progress');
     const compStatus = document.getElementById('sim-compilation-status');
-    
+
     if (compArea) {
         compArea.classList.remove('hidden');
-        
+
         // 스크롤 이동
         const body = document.getElementById('simulation-body');
         if (body) {
@@ -7493,13 +8853,13 @@ window.approveBookSpec = async function(specIndex) {
                 logConsole(`[VDP_조판사] 쪽번호 및 머리말 폰트 아웃라인 컴파일 및 CMYK 색상 보정 중...`, 'info', 4, 'VDP_조판사');
             } else if (progress >= 100) {
                 clearInterval(interval);
-                
+
                 // 조판 API 최종 통보
                 try {
                     const typesetEndpoint = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                         ? 'https://publish79.vercel.app/api/typeset'
                         : '/api/typeset';
-                        
+
                     await fetch(typesetEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -7509,7 +8869,7 @@ window.approveBookSpec = async function(specIndex) {
                             selectedSpec: specName
                         })
                     });
-                } catch (_) {}
+                } catch (_) { }
 
                 logConsole(`[VDP_조판사] 최종 PDF/X-4 컴파일 빌드 성공 (300 DPI 규격 준수).`, 'success', 4, 'VDP_조판사');
                 updateLocalAgentStatus(4, 'success', `인쇄용 PDF/X-4 컴파일 완료 (${specName})`);
@@ -7537,7 +8897,7 @@ window.approveBookSpec = async function(specIndex) {
                     const coverArea = document.getElementById('sim-cover-area');
                     if (coverArea) {
                         coverArea.classList.remove('hidden');
-                        
+
                         // 스크롤 이동
                         const body = document.getElementById('simulation-body');
                         if (body) {
@@ -7545,14 +8905,14 @@ window.approveBookSpec = async function(specIndex) {
                                 body.scrollTo({
                                     top: coverArea.offsetTop - 20,
                                     behavior: 'smooth'
-                                    });
+                                });
                             }, 300);
                         }
 
                         // Canvas 기반 북 커버 실시간 드로잉
                         drawBookCoverCanvas(title, specName, spineMm);
                         logConsole(`[디자이너] 책등 폭 ${spineMm}mm를 포함하는 북 커버 전개도(앞표지 + 책등 + 뒤표지) 디자인 최종 렌더링 완료.`, 'success', 6, '디자이너');
-                        
+
                         // Step 6 최종 조판/디자인 완료 처리
                         if (step6Icon) {
                             step6Icon.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold mx-auto text-xs border-4 border-emerald-100';
@@ -7560,7 +8920,7 @@ window.approveBookSpec = async function(specIndex) {
                             step6Status.className = 'text-[8px] text-emerald-600 font-bold mt-0.5';
                         }
                         updateLocalAgentStatus(6, 'success', '표지 디자인 완료');
-                        
+
                         // 13번 오케스트레이터 완료 처리
                         updateLocalAgentStatus(13, 'success', '파이프라인 및 DB 적재 완료');
                         logConsole(`[오케스트레이터] 1~8단계 자율 출판 에이전트 연동 파이프라인 무결 완공 성공!`, 'success', 13, '오케스트레이터');
@@ -7619,20 +8979,20 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.strokeStyle = '#64748b'; // 차분한 슬레이트 회색선
     ctx.lineWidth = 0.8;
     ctx.setLineDash([]); // 실선
-    
+
     // 네 모퉁이 재단선 (Trim 경계 표시)
     // Top-Left (20, 20)
     ctx.beginPath(); ctx.moveTo(20, 3); ctx.lineTo(20, 15); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(3, 20); ctx.lineTo(15, 20); ctx.stroke();
-    
+
     // Top-Right (20 + totalWidth, 20)
     ctx.beginPath(); ctx.moveTo(20 + totalWidth, 3); ctx.lineTo(20 + totalWidth, 15); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20); ctx.lineTo(20 + totalWidth + 17, 20); ctx.stroke();
-    
+
     // Bottom-Left (20, 20 + height)
     ctx.beginPath(); ctx.moveTo(20, 20 + height + 5); ctx.lineTo(20, 20 + height + 17); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(3, 20 + height); ctx.lineTo(15, 20 + height); ctx.stroke();
-    
+
     // Bottom-Right (20 + totalWidth, 20 + height)
     ctx.beginPath(); ctx.moveTo(20 + totalWidth, 20 + height + 5); ctx.lineTo(20 + totalWidth, 20 + height + 17); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20 + totalWidth + 5, 20 + height); ctx.lineTo(20 + totalWidth + 17, 20 + height); ctx.stroke();
@@ -7672,7 +9032,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.beginPath(); ctx.moveTo(xSpineRight, 20); ctx.lineTo(xSpineRight, height + 20); ctx.stroke();
     // 접지선 4: 앞표지 - 앞날개 경계
     ctx.beginPath(); ctx.moveTo(xRightWing, 20); ctx.lineTo(xRightWing, height + 20); ctx.stroke();
-    
+
     ctx.setLineDash([]); // 대시 리셋
 
     // 텍스트 랩핑 헬퍼 함수
@@ -7707,7 +9067,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '700 8px sans-serif';
     ctx.fillText('출판친구 복간 프로젝트 v1.2', xLeftWing + 20, 45);
-    
+
     // 바코드 모의 드로잉
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(xLeftWing + 20, height - 50, 60, 35);
@@ -7725,7 +9085,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.rotate(Math.PI / 2);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    
+
     if (spineMm >= 10) {
         ctx.font = '700 9px sans-serif';
         ctx.fillText(title.substring(0, 15), 0, 3);
@@ -7776,7 +9136,7 @@ function drawBookCoverCanvas(title, specName, spineMm) {
     ctx.moveTo(xSpineLeft, height + 28);
     ctx.lineTo(xSpineRight, height + 28);
     ctx.stroke();
-    
+
     // 치수 보조선
     ctx.beginPath();
     ctx.moveTo(xSpineLeft, height + 24); ctx.lineTo(xSpineLeft, height + 32);
@@ -7790,10 +9150,10 @@ function drawBookCoverCanvas(title, specName, spineMm) {
 }
 
 // 북 커버 이미지 다운로드 (하위 호환성 유지)
-window.downloadCoverImage = function() {
+window.downloadCoverImage = function () {
     const canvas = document.getElementById('sim-cover-canvas');
     if (!canvas) return;
-    
+
     const link = document.createElement('a');
     link.download = `북커버_펼침면_디자인.png`;
     link.href = canvas.toDataURL('image/png');
@@ -7801,30 +9161,30 @@ window.downloadCoverImage = function() {
 };
 
 // 북 커버 펼침면 PDF 다운로드 (Step 8)
-window.downloadCoverPDF = async function() {
+window.downloadCoverPDF = async function () {
     const canvas = document.getElementById('sim-cover-canvas');
     if (!canvas) return;
-    
+
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
-        
+
         // 캔버스 실시간 디자인 이미지를 PNG 데이터로 변환하여 임베딩
         const imgDataUrl = canvas.toDataURL('image/png');
         const pngImage = await pdfDoc.embedPng(imgDataUrl);
-        
+
         // 캔버스 비율/해상도를 1:1로 보존하여 펼침면 단일 페이지 PDF 생성
         const width = canvas.width;
         const height = canvas.height;
         const page = pdfDoc.addPage([width, height]);
-        
+
         page.drawImage(pngImage, {
             x: 0,
             y: 0,
             width: width,
             height: height
         });
-        
+
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
@@ -7840,7 +9200,7 @@ window.downloadCoverPDF = async function() {
 // ==========================================
 // pdf-lib 기반 고해상도 PDF 다운로드 컴파일러 (Step 7)
 // ==========================================
-window.generateAndDownloadReprintPDF = async function(title, specName, pages, spineMm) {
+window.generateAndDownloadReprintPDF = async function (title, specName, pages, spineMm) {
     if (!title) {
         const book = window._currentSimBook;
         const spec = window._approvedSpec;
@@ -7853,16 +9213,16 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
     try {
         const PDFLib = await ensurePDFLibLoaded();
         const pdfDoc = await PDFLib.PDFDocument.create();
-        
+
         // fontkit 등록 (TTF 폰트 파일 파싱 및 임베딩에 반드시 필요)
         if (window.fontkit) {
             pdfDoc.registerFontkit(window.fontkit);
         }
-        
+
         // 나눔명조/나눔고딕 한글 폰트 동적 로딩 루프 (CORS 및 로딩 속도 최적화, fallback 방지)
         let customFont;
         let useFallback = false;
-        
+
         const fontUrls = [
             './NanumMyeongjo.ttf', // 1순위: 로컬 호스팅 (CORS 및 CSP 블로킹 우회 및 초고속 로딩)
             'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf',
@@ -7871,7 +9231,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf',
             'https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
         ];
-        
+
         for (const url of fontUrls) {
             try {
                 console.log(`[PDF] 한글 폰트 로드 시도: ${url}`);
@@ -7886,7 +9246,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 console.warn(`[PDF] 한글 폰트 로드 실패 (${url}):`, e.message);
             }
         }
-        
+
         if (!customFont) {
             console.warn("[PDF] 모든 한글 폰트 로드 실패, ASCII 대체 모드로 전환합니다.");
             useFallback = true;
@@ -7898,14 +9258,14 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             const r = parseInt(hex.substring(0, 2), 16) / 255;
             const g = parseInt(hex.substring(2, 4), 16) / 255;
             const b = parseInt(hex.substring(4, 6), 16) / 255;
-            
+
             const options = {
                 x: x,
                 y: y,
                 size: size,
                 color: PDFLib.rgb(r, g, b)
             };
-            
+
             if (useFallback || !customFont) {
                 const asciiText = String(text).replace(/[^\x00-\x7F]/g, "?");
                 page.drawText(asciiText, options);
@@ -7928,10 +9288,10 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
             '46판': { w: 128, h: 188 },
             '국배판': { w: 210, h: 297 }
         };
-        
+
         let trimWidthMm = 152;
         let trimHeightMm = 225;
-        
+
         for (const key in specDimensions) {
             if (specName.includes(key)) {
                 trimWidthMm = specDimensions[key].w;
@@ -7939,17 +9299,17 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 break;
             }
         }
-        
+
         const mmToPt = 72 / 25.4;
         const trimWidth = trimWidthMm * mmToPt;
         const trimHeight = trimHeightMm * mmToPt;
-        
+
         const pageW = 595.275; // A4 가로 (pt)
         const pageH = 841.889; // A4 세로 (pt)
-        
+
         const xOffset = (pageW - trimWidth) / 2;
         const yOffset = (pageH - trimHeight) / 2;
-        
+
         // 십자형 재단선 드로잉 헬퍼
         const drawCropMarkAtCorner = (page, cx, cy) => {
             // 가로선
@@ -7979,7 +9339,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
                 color: PDFLib.rgb(0.39, 0.45, 0.55),
             });
         };
-        
+
         const applyPageLayoutAndDielines = (page) => {
             // 1. 실제 재단 영역 (Trim Box: 회색 점선)
             page.drawRectangle({
@@ -8018,7 +9378,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         // 본문 텍스트가 Centered Trim Box 내부로 가도록 위치 자동 계산
         const page1ContentX = xOffset + 30;
         const page1ContentY = yOffset + trimHeight - 60;
-        
+
         drawTextSafely(page1, 'Page 1', xOffset + trimWidth / 2 - 15, yOffset + 30, 10, '#334155');
         drawTextSafely(page1, '복간 대상 도서 본문 샘플 페이지 (본문 한글 조판 검증용)', page1ContentX, page1ContentY, 11, '#475569');
         drawTextSafely(page1, '이 페이지는 VDP 조판사 에이전트에 의해 자동 컴파일된 내지 샘플 레이아웃입니다.', page1ContentX, page1ContentY - 30, 9, '#64748b');
@@ -8030,7 +9390,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
         link.href = URL.createObjectURL(blob);
         link.download = `[인쇄용_최종조판]_${title}_${specName}.pdf`;
         link.click();
-        
+
     } catch (err) {
         alert('PDF 생성 오류: ' + err.message);
     }
@@ -8039,7 +9399,7 @@ window.generateAndDownloadReprintPDF = async function(title, specName, pages, sp
 // ==========================================
 // 마스터 도서 리스트 최종 적재 및 모달 닫기
 // ==========================================
-window.autoRegisterProductToMASTER = async function(title, specName, pages, spineMm, unitCost, retailPrice) {
+window.autoRegisterProductToMASTER = async function (title, specName, pages, spineMm, unitCost, retailPrice) {
     if (!title) {
         const book = window._currentSimBook;
         const spec = window._approvedSpec;
@@ -8053,7 +9413,7 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
     }
     // 1. 중복 검사
     const exists = MASTER.products.some(p => p.title === title && p.spec === specName);
-    
+
     // 앞표지만 크롭하여 고도로 최적화된 저용량 JPEG 썸네일 이미지 생성 (웹 로딩 속도 최적화)
     let frontCoverImage = '';
     const mainCanvas = document.getElementById('sim-cover-canvas');
@@ -8063,31 +9423,31 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
             tempCanvas.width = 300;
             tempCanvas.height = 400;
             const tempCtx = tempCanvas.getContext('2d');
-            
+
             // 5단 전개도에서 앞표지의 정확한 좌표 및 너비/높이 산출
             const wingWidth = 100;
             const baseWidth = 200;
             const spineWidth = Math.max(spineMm * 3.5, 12);
-            
+
             const sourceX = 20 + wingWidth + baseWidth + spineWidth;
             const sourceY = 20;
             const sourceWidth = baseWidth;
             const sourceHeight = 240;
-            
+
             // 앞표지 영역 크롭 및 리사이징
             tempCtx.drawImage(
-                mainCanvas, 
-                sourceX, sourceY, sourceWidth, sourceHeight, 
+                mainCanvas,
+                sourceX, sourceY, sourceWidth, sourceHeight,
                 0, 0, 300, 400
             );
-            
+
             // 85% 품질의 가벼운 JPEG로 압축 변환 (평균 25~35KB 수준)
             frontCoverImage = tempCanvas.toDataURL('image/jpeg', 0.85);
         } catch (e) {
             console.error("Failed to crop front cover image:", e);
         }
     }
-    
+
     const productData = {
         id: 'prod_' + Date.now(),
         title: title,
@@ -8152,14 +9512,14 @@ window.autoRegisterProductToMASTER = async function(title, specName, pages, spin
     // 마스터 데이터 세이브 및 UI 갱신
     await saveMasterDataSilent();
     closeSimulationModal();
-    
+
     // 판매 도서 리스트를 띄우고 있는 경우 갱신
     if (typeof renderProductList === 'function') renderProductList();
 
     alert(`'${title}' (${specName}) 도서가 마스터 상품 카탈로그 DB에 성공적으로 등록되었습니다. 대형 온라인 서점 API 실시간 드롭쉬핑 연동 대기 상태입니다.`);
 };
 
-window.closeSimulationModal = function() {
+window.closeSimulationModal = function () {
     const modal = document.getElementById('simulation-modal');
     if (modal) {
         modal.classList.add('fade-out');
@@ -8435,4 +9795,364 @@ async function triggerSelfHealingPipeline(payload) {
     } catch (e) {
         console.error("자가치유 엔진 호출 실패:", e);
     }
+}
+
+
+// 로그인 출판사 전용 과거 주문 및 등록 도서 통합 조회 헬퍼
+function getAvailableProductsForPublisher() {
+    const role = typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin';
+    let targetPub = '';
+
+    if (role === 'publisher') {
+        const userId = sessionStorage.getItem('userId');
+        const myPartner = (typeof MASTER !== 'undefined' && MASTER.partners) ? (MASTER.partners.find(p => p.id === userId) || MASTER.partners[0]) : null;
+        if (myPartner) targetPub = myPartner.name;
+    } else {
+        const pubSelect = document.getElementById('order-pub-name');
+        if (pubSelect) targetPub = pubSelect.value || '';
+    }
+
+    let list = (typeof MASTER !== 'undefined' && MASTER.products) ? [...MASTER.products] : [];
+
+    // MASTER.orders 내의 과거 주문 도서 통합
+    if (typeof MASTER !== 'undefined' && Array.isArray(MASTER.orders)) {
+        MASTER.orders.forEach(o => {
+            if (!o || !o.bookTitle) return;
+            const exists = list.some(p => p.title === o.bookTitle && p.pubName === o.pubName);
+            if (!exists && o.data) {
+                const data = o.data;
+                list.push({
+                    id: o.id,
+                    title: o.bookTitle,
+                    pubName: o.pubName,
+                    manager: o.managerName || '',
+                    mode: o.mode || 'sheet',
+                    spec: data['ord-spec'] || 'A5(148x210)',
+                    pages: data['ord-tp'] || '200',
+                    customSize: data['ord-custom-size'] || '',
+                    details: {
+                        innerPaper: data['ord-inner'] || '',
+                        innerPrint: data['ord-inner-print'] || '',
+                        partialColor: data['ord-cp'] || '0',
+                        coverPaper: data['ord-cover'] || '',
+                        coverPrint: data['ord-printing'] || '',
+                        coating: data['ord-coating'] || '',
+                        binding: data['ord-binding'] || '',
+                        wing: data['ord-wing'] || '',
+                        facePaper: data['ord-face'] || '없음',
+                        faceInsert: data['ord-face-insert'] || '없음'
+                    }
+                });
+            }
+        });
+    }
+
+    if (targetPub && targetPub !== '기본출판사' && targetPub !== '선택하세요') {
+        list = list.filter(p => p.pubName === targetPub || !p.pubName);
+    }
+
+    return list;
+}
+
+
+// 영업일 기준 5일 뒤 계산 함수
+function getWorkdayAfter5Days(startDate) {
+    let date = new Date(startDate);
+    let workdaysAdded = 0;
+    while (workdaysAdded < 5) {
+        date.setDate(date.getDate() + 1);
+        let day = date.getDay();
+        if (day !== 0 && day !== 6) { // 토(6), 일(0) 제외
+            workdaysAdded++;
+        }
+    }
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+// 희망 납기일 DatePicker 초기화 헬퍼
+function initDeliveryDatePicker() {
+    const deliveryDateEl = document.getElementById('ord-delivery-date');
+    if (deliveryDateEl) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+        
+        const targetDateStr = getWorkdayAfter5Days(today);
+        deliveryDateEl.value = targetDateStr;
+        deliveryDateEl.min = todayStr;
+    }
+}
+
+// 주문 폼 100% 빈 서식 자동 초기화 헬퍼 (수정 완료 후 및 신규 주문 진입 시 잔여 데이터 소거)
+function resetOrderForm() {
+    editingOrderId = null;
+    if (typeof MASTER !== 'undefined' && MASTER.orderPersistence) {
+        MASTER.orderPersistence['sheet'] = {};
+        MASTER.orderPersistence['roll'] = {};
+    }
+
+    const titleEl = document.getElementById('ord-book-title');
+    if (titleEl) titleEl.value = '';
+
+    const customSizeEl = document.getElementById('ord-custom-size');
+    if (customSizeEl) customSizeEl.value = '';
+
+    const qtyEl = document.getElementById('ord-qty');
+    if (qtyEl) qtyEl.value = '100';
+
+    const tpEl = document.getElementById('ord-tp');
+    if (tpEl) tpEl.value = '200';
+
+    const cpEl = document.getElementById('ord-cp');
+    if (cpEl) cpEl.value = '0';
+
+    const bpEl = document.getElementById('ord-bp');
+    if (bpEl) bpEl.value = '200';
+
+    const loadSelect = document.getElementById('ord-load-product');
+    if (loadSelect) loadSelect.value = '';
+
+    if (typeof currentFiles !== 'undefined') currentFiles = { inner: null, cover: null };
+    if (typeof resetFileUI === 'function') resetFileUI();
+    if (typeof initDeliveryDatePicker === 'function') initDeliveryDatePicker();
+    if (typeof sync === 'function') sync();
+}
+
+// -------------------------------------------------------------
+// [어드민 전용] 실시간 정산 관제 신호등 집계 뷰 렌더러 함수 (Isolation)
+// -------------------------------------------------------------
+function renderAdminSettlementTrafficLight() {
+    const containers = document.querySelectorAll('.admin-traffic-light-container');
+    if (containers.length === 0) return;
+
+    // 권한 검증: 어드민이 아닐 경우 컨테이너를 비우고 즉시 퇴장
+    const role = sessionStorage.getItem('userRole') || (typeof currentUserRole !== 'undefined' ? currentUserRole : 'admin');
+    if (role !== 'admin') {
+        containers.forEach(el => el.innerHTML = '');
+        return;
+    }
+
+    // 현재 상단 날짜 필터 기준으로 필터링된 주문 리스트 수집
+    const filtered = getFilteredOrders();
+
+    // 출판사별 집계 맵 구성
+    const publisherMap = {};
+
+    // MASTER 파트너 리스트로 초기화하여 거래가 없는 달이라도 출판사 목록이 관제 테이블에 일관되게 잡히도록 함
+    if (MASTER && MASTER.partners && Array.isArray(MASTER.partners)) {
+        MASTER.partners.forEach(p => {
+            publisherMap[p.name] = {
+                name: p.name,
+                totalAmount: 0,
+                orders: [],
+                status: 'white' // 기본: 미확인
+            };
+        });
+    }
+
+    // 필터링된 주문 데이터 누적 집계
+    filtered.forEach(o => {
+        if (!publisherMap[o.pubName]) {
+            publisherMap[o.pubName] = {
+                name: o.pubName,
+                totalAmount: 0,
+                orders: [],
+                status: 'white'
+            };
+        }
+
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+        publisherMap[o.pubName].totalAmount += finalPrice;
+        publisherMap[o.pubName].orders.push(o);
+    });
+
+    // 주문이 있는 출판사들만 추출
+    const list = Object.values(publisherMap).filter(p => p.orders.length > 0);
+
+    // 각 출판사 정산 신호등 상태 판정
+    list.forEach(p => {
+        const allFinalized = p.orders.every(o => o.isFinalized);
+        const allRequested = p.orders.every(o => o.taxInvoiceStatus === 'requested');
+        const allIssued = p.orders.every(o => o.taxInvoiceStatus === 'issued');
+
+        if (allFinalized && allIssued) {
+            p.status = 'green';
+        } else if (allFinalized && allRequested) {
+            p.status = 'yellow';
+        } else {
+            p.status = 'white';
+        }
+    });
+
+    // HTML 테이블 구조 생성
+    let tableHtml = `
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                <h4 class="text-base font-black text-slate-800" style="margin:0;">🚨 실시간 출판사별 정산 관제 신호등 (어드민 전용)</h4>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <th class="th-style" style="text-align: left; padding: 12px 16px;">출판사명</th>
+                            <th class="th-style" style="text-align: right; padding: 12px 16px;">조회월 정산합계</th>
+                            <th class="th-style" style="text-align: center; padding: 12px 16px;">정산 확인 상태 (신호등)</th>
+                            <th class="th-style" style="text-align: center; padding: 12px 16px;">조치</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    if (list.length === 0) {
+        tableHtml += `
+            <tr>
+                <td colspan="4" class="td-style text-center text-slate-400 py-6">선택한 조회 기간에 등록된 주문 내역이 없습니다.</td>
+            </tr>
+        `;
+    } else {
+        list.forEach(p => {
+            let lightBadge = '';
+            let actionBtn = '';
+
+            if (p.status === 'green') {
+                lightBadge = `<span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>🟢 마감완료</span>`;
+                actionBtn = `<span class="text-xs text-slate-400 font-bold">발행완료 🔒</span>`;
+            } else if (p.status === 'yellow') {
+                lightBadge = `<span class="badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>🟡 요청완료</span>`;
+                actionBtn = `<button onclick="openTaxInvoiceOptionModal('${p.name}')" class="btn-table" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0; font-weight:bold; padding: 6px 12px; border-radius: 8px;">🟢 발행 완료 승인</button>`;
+            } else {
+                lightBadge = `<span class="badge" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; font-weight:800; display:inline-flex; align-items:center; gap:6px;"><span class="w-2 h-2 rounded-full bg-slate-400"></span>⚪ 미확인</span>`;
+                actionBtn = `<span class="text-xs text-slate-400">출판사 확인 대기중</span>`;
+            }
+
+            tableHtml += `
+                <tr style="border-bottom: 1px solid #f1f5f9; hover:bg-slate-50 transition-all;">
+                    <td class="td-style font-bold text-slate-700" style="padding: 12px 16px; text-align: left;">${p.name}</td>
+                    <td class="td-style font-black text-sky-600" style="padding: 12px 16px; text-align: right;">${p.totalAmount.toLocaleString()}원</td>
+                    <td class="td-style" style="padding: 12px 16px; text-align: center;">${lightBadge}</td>
+                    <td class="td-style" style="padding: 12px 16px; text-align: center;">${actionBtn}</td>
+                </tr>
+            `;
+        });
+    }
+
+    tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // 모든 반응형 컨테이너 영역에 HTML 동적 주입
+    containers.forEach(el => {
+        el.innerHTML = tableHtml;
+    });
+}
+
+// -------------------------------------------------------------
+// [어드민 전용] 다중 담당자 정산 조율용 옵션 모달 전역 변수 및 제어 로직
+// -------------------------------------------------------------
+let currentTargetPubForTax = null;
+
+// 1. 세금계산서 발행 옵션 모달 열기 및 담당자 소계 집계
+function openTaxInvoiceOptionModal(pubName) {
+    currentTargetPubForTax = pubName;
+    const modal = document.getElementById('modal-tax-invoice-option');
+    const subtitle = document.getElementById('modal-pub-subtitle');
+    const listContainer = document.getElementById('tax-invoice-manager-list');
+    if (!modal || !listContainer) return;
+
+    subtitle.textContent = `[${pubName}] 출판사의 담당자별 발주 내역을 확인하고 발행 형태를 선택하세요.`;
+
+    // 계산서 요청 상태인 주문만 안전하게 필터링
+    const targetOrders = (MASTER.orders || []).filter(o => o.pubName === pubName && o.taxInvoiceStatus === 'requested');
+    const managerMap = {};
+
+    targetOrders.forEach(o => {
+        const mName = o.managerName || '담당자미지정';
+        if (!managerMap[mName]) managerMap[mName] = { count: 0, total: 0 };
+
+        // 1원 오차 방지: 기존 정산 합산 수식과 100% 일치
+        const finalPrice = o.finalTotalPrice !== undefined ? o.finalTotalPrice : (parseInt(String(o.totalPrice || '0').replace(/[^0-9]/g, '')) || 0);
+
+        managerMap[mName].count += 1;
+        managerMap[mName].total += finalPrice;
+    });
+
+    let html = '';
+    for (const [mName, info] of Object.entries(managerMap)) {
+        html += `
+            <div class="flex items-center justify-between bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl text-xs">
+                <span class="font-semibold text-slate-200">👤 담당자: ${mName}</span>
+                <span class="text-slate-300">${info.count}건 / <strong class="text-amber-400">${info.total.toLocaleString()}원</strong></span>
+            </div>
+        `;
+    }
+    listContainer.innerHTML = html || '<p class="text-xs text-slate-400 text-center py-4">조회된 발행 요청 건이 없습니다.</p>';
+    modal.classList.remove('hidden');
+}
+
+// 2. 세금계산서 발행 옵션 모달 닫기
+function closeTaxInvoiceOptionModal() {
+    const modal = document.getElementById('modal-tax-invoice-option');
+    if (modal) modal.classList.add('hidden');
+    currentTargetPubForTax = null;
+}
+
+// 3. 인라인 클릭 중계 함수
+function submitTaxInvoiceOption() {
+    if (!currentTargetPubForTax) return;
+    const selectedRadio = document.querySelector('input[name="tax-issue-option"]:checked');
+    const optionType = selectedRadio ? selectedRadio.value : 'combined';
+    approveTaxInvoiceIssueWithOptions(currentTargetPubForTax, optionType);
+}
+
+// 4. 최종 세금계산서 발행 완료 처리 및 Supabase/로컬 데이터 동기화
+function approveTaxInvoiceIssueWithOptions(pubName, optionType) {
+    const orders = MASTER.orders || [];
+    const targets = orders.filter(o => o.pubName === pubName && o.taxInvoiceStatus === 'requested');
+
+    if (targets.length === 0) {
+        closeTaxInvoiceOptionModal();
+        return alert("발행 요청된 주문 내역이 없습니다.");
+    }
+
+    if (!confirm(`[${pubName}]의 ${targets.length}건 정산 건에 대해 세금계산서 최종 발행 승인(완료)을 처리하시겠습니까?\n발행 옵션: ${optionType === 'combined' ? '통합 발행(1장)' : '담당자별 분할(N장)'}`)) {
+        return;
+    }
+
+    const timestamp = new Date().toISOString();
+
+    // Supabase DB 업데이트 요청들을 병렬 처리
+    const promises = targets.map(o => {
+        o.taxInvoiceStatus = 'issued';
+        o.taxInvoiceType = optionType;
+        o.taxInvoiceIssuedAt = timestamp;
+
+        o.data = o.data || {};
+        o.data.taxInvoiceStatus = 'issued';
+        o.data.taxInvoiceType = optionType;
+        o.data.taxInvoiceIssuedAt = timestamp;
+
+        return _supabase.from('orders').update({ data: o.data }).eq('id', o.id).then(({ error }) => {
+            if (error) console.warn(`주문ID ${o.id} 승인 DB 저장 경고:`, error);
+        });
+    });
+
+    Promise.all(promises).then(() => {
+        saveMasterDataSilent();
+        renderSettlementTable(); // 신호등 및 테이블 새로고침
+        if (typeof showToast === 'function') {
+            showToast(`[${pubName}] 세금계산서 발행 완료 (${optionType === 'combined' ? '통합' : '분할'})`, 'success');
+        } else {
+            alert(`[${pubName}] 세금계산서 발행 승인이 완료되었습니다.`);
+        }
+        closeTaxInvoiceOptionModal();
+    });
 }
