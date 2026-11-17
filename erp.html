@@ -25,33 +25,82 @@
 
 <body class="bg-slate-50 overflow-hidden">
 
-    <!-- 로그인 화면 (사진 디자인 반영 - 슬림 버전) -->
+    <!-- 로그인 화면 (상단 타이틀 + 중앙 원형 보존 로그인 카드 + 하단 은은한 3단 푸터) -->
     <div id="login-overlay"
-        class="fixed inset-0 z-[100] flex items-center justify-center bg-[#E5E9F0] transition-opacity duration-500">
-        <div class="w-full max-w-[380px] p-12 bg-white rounded-[45px] shadow-sm text-center">
-            <div class="text-2xl font-bold text-[#0078BD] mb-8 tracking-tight">출판친구</div>
+        class="fixed inset-0 z-[100] flex flex-col justify-between bg-[#E5E9F0] transition-opacity duration-500 overflow-y-auto">
 
-            <form class="space-y-3" onsubmit="event.preventDefault(); handleLogin();">
-                <input type="text" id="login-id"
-                    class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
-                    placeholder="아이디" autocomplete="username">
-                <input type="password" id="login-pw"
-                    class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
-                    placeholder="비밀번호" autocomplete="current-password">
+        <!-- 상단 헤드라인 및 중앙 로그인 묶음 (수직 중앙 정렬) -->
+        <div class="flex-1 flex flex-col items-center justify-center px-4 py-8">
+            
+            <!-- 상단 헤드라인 (소량 POD 주문·제작 블루 포인트 적용 & 황금비율 여백) -->
+            <div class="mb-12 text-center">
+                <h1 class="text-xl sm:text-2xl md:text-[25px] font-black text-slate-800 tracking-tight">
+                    제휴 출판사 전용 <span class="text-[#0084C7]">소량 POD 주문·제작</span> 전산 시스템
+                </h1>
+            </div>
 
-                <button type="submit" id="btn-login-submit"
-                    class="w-full py-4 bg-[#0084C7] text-white rounded-xl font-bold text-base hover:bg-[#0078BD] transition-all mt-6 cursor-pointer">
-                    로그인
-                </button>
+            <!-- 중앙 로그인 카드 (내부 기능/코드 100% 원형 보존) -->
+            <div class="w-full max-w-[380px] p-10 sm:p-12 bg-white rounded-[40px] shadow-sm text-center">
+                <div class="text-2xl font-bold text-[#0078BD] mb-8 tracking-tight">출판친구</div>
 
-                <!-- DB 연결 상태 표시기 (로그인 화면용) -->
-                <div id="db-status-badge-login"
-                    class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-400 mt-4 shadow-sm">
-                    <div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
-                    <span class="status-text">ONLINE DB 연동 대기중</span>
-                </div>
-            </form>
+                <form class="space-y-3" onsubmit="event.preventDefault(); handleLogin();">
+                    <input type="text" id="login-id"
+                        class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
+                        placeholder="아이디" autocomplete="username">
+                    <input type="password" id="login-pw"
+                        class="w-full px-4 py-3.5 bg-white border border-[#D1D9E6] rounded-xl outline-none font-medium text-slate-700 placeholder:text-slate-300 focus:border-[#0078BD] text-sm"
+                        placeholder="비밀번호" autocomplete="current-password">
+
+                    <button type="submit" id="btn-login-submit"
+                        class="w-full py-4 bg-[#0084C7] text-white rounded-xl font-bold text-base hover:bg-[#0078BD] transition-all mt-6 cursor-pointer">
+                        로그인
+                    </button>
+
+                    <!-- DB 연결 상태 표시기 (로그인 화면용) -->
+                    <div id="db-status-badge-login"
+                        class="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-400 mt-4 shadow-sm">
+                        <div class="status-dot w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
+                        <span class="status-text">ONLINE DB 연동 대기중</span>
+                    </div>
+                </form>
+            </div>
         </div>
+
+        <!-- 하단 은은한 3단 정통 푸터 -->
+        <footer class="w-full bg-[#F1F5F9]/80 backdrop-blur-sm border-t border-[#DDE3EA] py-5 px-6 sm:px-12 text-slate-600">
+            <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-[11.5px] leading-relaxed">
+                <!-- 1단: 고객센터 / 운영시간 -->
+                <div>
+                    <div class="font-bold text-slate-800 text-xs mb-2">고객센터 / 운영시간</div>
+                    <div class="space-y-0.5 text-slate-600">
+                        <div>• 평일 10:00 ~ 17:00</div>
+                        <div>• 점심시간 12:00 ~ 13:00</div>
+                        <div>• 주말 및 공휴일 휴무</div>
+                    </div>
+                </div>
+
+                <!-- 2단: 제휴문의 -->
+                <div class="md:border-l md:border-slate-300/60 md:pl-6">
+                    <div class="font-bold text-slate-800 text-xs mb-2">제휴문의</div>
+                    <div class="space-y-0.5 text-slate-600">
+                        <div>• 담당: 출판사업본부 서상원</div>
+                        <div>• 이메일: <span class="font-bold text-slate-800">xopowo97@gmail.com</span></div>
+                        <div class="text-[10.5px] text-slate-400 mt-1.5">※ 제휴 문의는 상기 이메일로 접수 바랍니다.</div>
+                    </div>
+                </div>
+
+                <!-- 3단: 법인 및 사업자 정보 + 카피라이트 -->
+                <div class="md:border-l md:border-slate-300/60 md:pl-6">
+                    <div class="font-bold text-slate-800 text-xs mb-2">(주)한국리더십센터 출판사업본부</div>
+                    <div class="space-y-0.5 text-slate-600">
+                        <div>서울시 금천구 가산디지털2로 144, B204호</div>
+                        <div>(가산동, 현대테라타워 가산DK)</div>
+                        <div>대표: 이재용</div>
+                        <div class="text-[10px] text-slate-400 pt-1.5">Copyright © 출판친구. All rights reserved.</div>
+                    </div>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- 실제 앱 컨테이너 -->
