@@ -49,6 +49,7 @@
         container.innerHTML = buildShell();
         cacheDOM();
         bindEvents();
+        setupVisibilityWatcher();
 
         // 17번 상담이 챗봇 웰컴 메시지 분기 (로그인 세션 권한 식별)
         const userRole = sessionStorage.getItem('userRole') || 'guest';
@@ -78,11 +79,44 @@
         }
     }
 
+    // ── 로그인 화면 감지 및 챗봇 버튼 노출 제어 (메인 화면 완전 숨김) ─────────────
+    function checkVisibility() {
+        const overlay = document.getElementById('login-overlay');
+        const fabBtn = document.getElementById('cs-fab-btn');
+        if (!fabBtn) return;
+
+        // 로그인 오버레이가 화면에 떠 있는 상태면 챗봇을 완전 숨김
+        const isLoginShowing = overlay && overlay.style.display !== 'none' && !overlay.classList.contains('hidden');
+        if (isLoginShowing) {
+            fabBtn.style.display = 'none';
+        } else {
+            fabBtn.style.display = 'flex';
+        }
+    }
+
+    function setupVisibilityWatcher() {
+        checkVisibility();
+        const overlay = document.getElementById('login-overlay');
+        if (overlay && window.MutationObserver) {
+            const observer = new MutationObserver(() => {
+                checkVisibility();
+            });
+            observer.observe(overlay, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+        const appContainer = document.getElementById('app-container');
+        if (appContainer && window.MutationObserver) {
+            const observerApp = new MutationObserver(() => {
+                checkVisibility();
+            });
+            observerApp.observe(appContainer, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+    }
+
     // ── HTML 쉘 빌드 ─────────────────────────────────────────
     function buildShell() {
         return `
-        <!-- FAB 버튼 -->
-        <button class="cs-fab" id="cs-fab-btn" title="상담이와 대화하기">
+        <!-- FAB 버튼 (로그인 전 메인 화면 완전 숨김) -->
+        <button class="cs-fab" id="cs-fab-btn" title="상담이와 대화하기" style="display: none;">
             💬
             <span class="cs-fab-badge" id="cs-badge">1</span>
         </button>
@@ -151,7 +185,6 @@
             }
         });
     }
-
 
     // ── 드래그 앤 드롭 이동 및 화면 이탈 방지 헬퍼 ───────────
     function initDraggableHeader() {
