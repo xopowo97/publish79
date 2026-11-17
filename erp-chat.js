@@ -66,14 +66,14 @@
         if (isTargetPublisher) {
             setTimeout(() => {
                 addBotMessage('현재 <strong>검토 중인 도서 제안서</strong>가 도착해 있어요. 확인하시겠어요?');
-                showQuickReplies(['📄 제안서 확인', '❓ 자주 묻는 질문', '📞 담당자 연결']);
+                showQuickReplies(['📄 제안서 확인', '❓ 자주 묻는 질문']);
                 currentState = STATE.AWAITING_PROPOSAL_CONFIRM;
             }, 2400);
         } else {
             // 인쇄소(printer)이거나 타 출판사인 경우, 복간 제안 팝업을 철저하게 격리(생략)하고 FAQ 실무 가이드 안내
             setTimeout(() => {
                 addBotMessage('인쇄/제본 공정 관리, 송장 등록, 월말 정산 방법 등 실무 과정 중 궁금하신 점을 물어보세요!');
-                showQuickReplies(['❓ 자주 묻는 질문', '📞 담당자 연결']);
+                showQuickReplies(['❓ 자주 묻는 질문']);
                 currentState = STATE.IDLE;
             }, 2400);
         }
@@ -290,10 +290,6 @@
         }
         if (t.includes('자주') || t.includes('faq') || t.includes('질문')) {
             handleFAQ();
-            return;
-        }
-        if (t.includes('담당자') || t.includes('연결')) {
-            addBotMessage('담당자 연결 중입니다. 잠시만 기다려주세요... 📞');
             return;
         }
         // 기본 RAG 검색 (백엔드 /api/chat 연동)
